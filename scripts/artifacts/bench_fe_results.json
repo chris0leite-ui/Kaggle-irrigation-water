@@ -1,0 +1,67 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "n_features": 27,
+  "feat_cols": [
+    "Soil_pH",
+    "Soil_Moisture",
+    "Organic_Carbon",
+    "Electrical_Conductivity",
+    "Temperature_C",
+    "Humidity",
+    "Rainfall_mm",
+    "Sunlight_Hours",
+    "Wind_Speed_kmh",
+    "Field_Area_hectare",
+    "Previous_Irrigation_mm",
+    "ET0_proxy",
+    "Kc_stage",
+    "ETc_proxy",
+    "Soil_deficit",
+    "Is_Rainfed",
+    "Eff_Rainfall_active",
+    "Soil_Type",
+    "Crop_Type",
+    "Crop_Growth_Stage",
+    "Season",
+    "Irrigation_Type",
+    "Water_Source",
+    "Mulching_Used",
+    "Region",
+    "Crop_x_Stage",
+    "Season_x_Region"
+  ],
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    0.23244116323609731,
+    0.568946691946548,
+    3.400768902044088
+  ],
+  "fold_bal_argmax": [
+    0.96079912169753,
+    0.9619903129009977,
+    0.9617929289088889,
+    0.9598523393740593,
+    0.9621986299043145
+  ],
+  "results": [
+    {
+      "name": "LGBM+FE argmax",
+      "bal_acc": 0.9613266880862792
+    },
+    {
+      "name": "LGBM+FE prior-reweight argmax",
+      "bal_acc": 0.9698148997970919
+    },
+    {
+      "name": "LGBM+FE tuned log-bias",
+      "bal_acc": 0.9704468964117536
+    }
+  ],
+  "best_rule": "LGBM+FE tuned log-bias",
+  "delta_vs_baseline_tuned": -0.0005231035882463653
+}

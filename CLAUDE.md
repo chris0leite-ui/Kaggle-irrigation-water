@@ -193,6 +193,79 @@ README.md      TL;DR + reproduction instructions.
   original Irrigation Prediction dataset as an ablation. Ranked list
   with expected deltas lives in REPORT.md §4.
 
+### 2026-04-20 — LGBM + engineered domain features (null result)
+
+- Goal: test whether hand-built water-balance features lift LGBM
+  above the 0.97097 baseline — the highest-ROI item in
+  `NEXT_STEPS.md` §3.
+- Changed: `scripts/benchmark_fe.py` runs the same 5-fold stratified
+  LGBM pipeline with 8 extra cols (`ET0_proxy`, `Kc_stage`,
+  `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`, `Eff_Rainfall_active`,
+  `Crop_x_Stage`, `Season_x_Region`); artefacts persisted to
+  `scripts/artifacts/oof_lgbm_fe.npy`, `test_lgbm_fe.npy`,
+  `bench_fe_results.json`; submissions
+  `submission_lgbm_fe_{argmax,tuned}.csv`.
+- Results (OOF balanced accuracy, 27 features, seed=42, 5-fold CV):
+  - LGBM+FE argmax → 0.96133 (baseline 0.96135, Δ = −0.00002)
+  - LGBM+FE prior-reweight → 0.96981 (baseline 0.97065, Δ = −0.00084)
+  - **LGBM+FE tuned log-bias → 0.97045** (baseline 0.97097,
+    Δ = **−0.00052**)
+  - Fold std (argmax) = 0.00088 → the drop is well within 1σ noise.
+  - Best bias: Low +0.2324, Medium +0.5689, High +3.4008 —
+    essentially unchanged from baseline (+0.23 / +0.67 / +3.40).
+- Observation: LGBM at `num_leaves=127`, `min_data_in_leaf=200` is
+  clearly not leaf-limited — trees already find these interactions on
+  their own, so prebuilt versions add no new splits. The "prebuilt
+  interactions help when splits are near-leaf-limit" hypothesis in
+  NEXT_STEPS.md §3 doesn't hold at this leaf count.
+- LB delta: still n/a (0/10 day budget consumed).
+- Next bet: seed-bag LGBM (3–5 seeds, retune bias on averaged OOF) —
+  cheapest remaining win at expected +0.0005–0.001. Then LGBM+XGB
+  blend, then original-dataset ablation. NEXT_STEPS.md §3 downgraded
+  to "ruled out"; §4 promoted to top.
+
+### 2026-04-20 — original-dataset ablation + transfer check (small +)
+
+- Goal: resolve NEXT_STEPS §2 — does concatenating the 10k-row
+  original Irrigation Prediction dataset (`data/archive.zip`) with
+  each training fold improve OOF, and how close are the DGPs?
+- Changed: `scripts/benchmark_external.py` runs the concat pipeline
+  (5-fold stratified on synthetic; each fold fits on synthetic-train
+  ∪ all-original, validates on synthetic-val only, so OOF is
+  apples-to-apples with the baseline). `scripts/transfer_check.py`
+  trains LGBM on 8k original rows and predicts on the full 630k
+  synthetic train, as a DGP-overlap diagnostic. Artefacts:
+  `scripts/artifacts/{oof,test}_lgbm_ext.npy`, `bench_ext_results.json`,
+  `transfer_check_results.json`. Submissions:
+  `submission_lgbm_ext_{argmax,tuned}.csv`.
+- Results (OOF balanced accuracy on synthetic folds, seed=42, 5-fold):
+  - LGBM+EXT argmax → 0.96208 (baseline 0.96135, Δ = +0.00073)
+  - LGBM+EXT prior-reweight → 0.97097 (baseline 0.97065, Δ = +0.00032)
+  - **LGBM+EXT tuned log-bias → 0.97124** (baseline 0.97097,
+    Δ = **+0.00027**)
+  - Fold std (argmax) = 0.00068 → Δ is within 1σ noise but
+    directionally positive on every fold.
+  - Best bias: Low +0.1324, Medium +0.6689, High +3.4008 (Low
+    relaxed ~0.1 vs baseline; Medium/High essentially unchanged).
+- Transfer check (train on 8k original, eval on 630k synthetic):
+  tuned bal_acc = 0.96278 — only 0.00819 below the synthetic-only
+  5-fold OOF despite 63× less training data. Verdict: DGPs overlap
+  almost completely; the small concat delta reflects the 10k cap at
+  1.6 % of the training pool, not DGP divergence.
+- Implications for gap to pack: with EXT our OOF is 0.97124
+  (expected LB ~0.96997 given the −0.00125 calibration gap). Pack
+  is 0.98114, leader 0.98219. Stacking seed-bag (+0.001) + XGB
+  blend (+0.002) + HP/ordinal (+0.001) → best-case ~0.975 OOF →
+  ~0.974 LB, still ~0.007 short. The pack likely has a recipe-level
+  win we haven't located (HP search at scale, a DGP exploit, or a
+  smarter weighting of the external data).
+- LB delta: still 1/10 spent.
+- Next bet: seed-bag **LGBM+EXT** (not vanilla LGBM) as the new base.
+  Then XGBoost with the same EXT concat, then blend. Consider one
+  more LB submission of `submission_lgbm_ext_tuned.csv` to confirm
+  the small OOF delta transfers — but only after the seed-bag is in,
+  since the seed-bag result would be a stronger submit candidate.
+
 ## Hypothesis board
 
 - **Open**:
@@ -223,6 +296,22 @@ README.md      TL;DR + reproduction instructions.
   - **CatBoost as a standalone competitor** — fold-1 argmax 0.96000 ≈
     LGBM/XGB, 23 min/fold training cost, killed after fold 1. Could
     revisit as a 4th blend member only if compute budget allows late.
+  - **Hand-engineered domain features inside LGBM** — 8 cols from F2
+    / H3 pulled tuned OOF to 0.97045 vs baseline 0.97097
+    (Δ = −0.00052, within 1σ fold noise of 0.00088). Trees at 127
+    leaves already discover these interactions; prebuilt versions add
+    no new splits. Revisit only at a much smaller leaf budget or on a
+    tiny training subset.
+- **Confirmed (new)**:
+  - **Original Irrigation Prediction dataset is well-aligned with the
+    synthetic DGP.** Transfer check: LGBM trained on 8k original,
+    evaluated on 630k synthetic → tuned bal_acc 0.96278 (gap 0.00819
+    vs 5-fold baseline). Categorical vocabularies match exactly;
+    numeric distributions align within ~1 % except Rainfall_mm
+    (~15 % lower mean in original); priors agree to 3 decimals.
+    Concatenating 10k rows into training adds only +0.00027 though,
+    because 10k ≪ 630k — the ceiling is bounded by data volume, not
+    DGP mismatch.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above

@@ -51,6 +51,12 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | Tree (LGBM)              | prior-reweight argmax                    |     0.97065 |      +0.00930  |
 | **Tree (LGBM)**          | **tuned log-bias**                       | **0.97097** |      +0.00032  |
 | Tree (XGBoost)           | argmax (per-fold ~0.961–0.964)           |      ~0.962 |             –  |
+| Tree (LGBM+FE)           | argmax (8 engineered cols)               |     0.96133 |      −0.00002  |
+| Tree (LGBM+FE)           | tuned log-bias (8 engineered cols)       |     0.97045 |      −0.00052  |
+| Transfer check (orig→syn)| LGBM trained on 8k original, eval 630k syn, tuned | 0.96278 |    −0.00819 |
+| Tree (LGBM+EXT)          | argmax (concat 10k original)             |     0.96208 |      +0.00073  |
+| Tree (LGBM+EXT)          | prior-reweight argmax (concat 10k orig)  |     0.97097 |      +0.00032  |
+| **Tree (LGBM+EXT)**      | **tuned log-bias (concat 10k original)** | **0.97124** |   **+0.00027** |
 | Blend                    | LGBM + MNLogit Fk, sweep w ∈ [0, 0.5]    |     0.97097 |   +0.00000 (null) |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
@@ -72,6 +78,25 @@ Key read-outs
 - **LGBM × MNLogit blending is a null.** Δ = 0 at every mixing weight.
   MNLogit at 0.78 tuned is simply too far below LGBM's 0.971 to
   contribute orthogonal signal.
+- **Hand-engineered domain features add nothing to LGBM.** Injecting
+  `ET0_proxy`, `Kc_stage`, `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`,
+  `Eff_Rainfall_active`, `Crop_x_Stage`, `Season_x_Region` (+8 cols,
+  27 total) moved tuned OOF from 0.97097 → 0.97045 (Δ = −0.00052,
+  smaller than the 0.00088 fold std). Trees already discover these
+  interactions; prebuilt features were the hypothesised fallback for
+  near-leaf-limit splits, and that hypothesis doesn't hold at the
+  current leaf count. Bias solution was essentially unchanged
+  (Low +0.23, Medium +0.57, High +3.40).
+- **Original Irrigation Prediction dataset overlaps the synthetic DGP
+  almost completely, but concat only adds +0.00027.** Transfer check
+  (LGBM on 8k original rows → predict 630k synthetic, tuned bias)
+  hits 0.96278, just 0.00819 below the 5-fold baseline trained on
+  63× more data. Concatenating the full 10k into each training fold
+  moves tuned OOF to 0.97124 (Δ = +0.00027, < 1σ fold std = 0.00068).
+  Tiny positive, not the silver bullet — the pack at 0.98114 is not
+  getting there through this lever. Bias solution Low +0.13 /
+  Medium +0.67 / High +3.40 (Low slightly relaxed vs baseline's
+  +0.23, otherwise identical).
 - **Confusion-matrix mass lives at Medium↔High.** LGBM tuned still
   flips ~4k Medium→High and ~875 High→Medium on OOF; the heuristic
   makes that error 50× more often. This is where any further gain must
@@ -84,19 +109,29 @@ to reach the tied pack, and +0.011 to reach rank 1. Our baseline
 already includes the "threshold trick", so the remaining lift has to
 come from feature engineering, model diversity, or external data.
 
-Ranked by expected ROI / effort:
+Ranked by expected ROI / effort (post-FE-null + EXT-concat update 2026-04-20):
 
-1. **Feature engineering on LGBM (highest ROI).** Inject the
-   engineered columns already validated by F2 / H3 — `ET0_proxy`,
-   `Kc_stage`, `Soil_deficit`, `ETc_proxy`, `Rainfall × (1 −
-   Is_Rainfed)`, `Soil_Moisture × Soil_Type`, `Crop_Type ×
-   Crop_Growth_Stage` — into the LGBM training set. Expected gain
-   tree models often extract this automatically, but prebuilt
-   interactions help when splits are near-leaf-limit. Estimate:
-   +0.001–0.003.
-2. **Seed-bag LGBM.** 3–5 seeds, average OOF + test probs, retune
-   bias. Fold-level std on bal_acc is ~0.002, so the expected SE
-   reduction is roughly √5 ≈ 2.2×. Estimate: +0.001.
+1. **Seed-bag LGBM+EXT (now top of list).** Run 3–5 seeds of the
+   concat pipeline (synthetic + 10k original), average OOF + test
+   probs, retune bias. Fold-level std on bal_acc is ~0.00068 (with
+   EXT) — expected SE reduction ≈ √5 → ~+0.0005–0.001 on top of the
+   +0.00027 already banked.
+2. **LGBM+EXT + XGBoost blend.** Retrain XGB with the same concat
+   trick, then blend at geometric-mean. Expected +0.001–0.002 from
+   model diversity. Base is now 0.97124, not 0.97097.
+3. ~~**Feature engineering on LGBM.**~~ **Ruled out (2026-04-20).**
+   Adding `ET0_proxy`, `Kc_stage`, `ETc_proxy`, `Soil_deficit`,
+   `Is_Rainfed`, `Eff_Rainfall_active`, `Crop_x_Stage`,
+   `Season_x_Region` moved tuned OOF from 0.97097 → 0.97045
+   (Δ = −0.00052, within 1σ fold noise). Trees already discover these
+   interactions. See §5.
+4. ~~**Original dataset concat (step 2 of old plan).**~~ **Partially
+   confirmed (2026-04-20).** Concat added only +0.00027 (< 1σ). The
+   10k rows overlap the synthetic DGP almost completely (transfer
+   score 0.96278) but don't move the needle because they're a tiny
+   fraction of the effective training data. Kept in the pipeline —
+   small free delta — but no follow-on work (e.g. sample-weight
+   sweep) expected to pay off substantially.
 3. **LGBM + XGBoost blend.** XGBoost OOF is already saved from the
    multi-model benchmark. Geometric mean with re-tuned bias. Estimate:
    +0.001–0.002 (model diversity, not raw strength).
@@ -140,6 +175,17 @@ ready.
   level edge, 23 min/fold training cost. Killed after fold 1. Could
   revisit only for a full 4+ model blend late in the competition if
   compute budget allows.
+- **Hand-engineered water-balance features inside LGBM.** Eight cols
+  from MNLogit-F2 / heuristic-H3 (ET0_proxy, Kc_stage, ETc_proxy,
+  Soil_deficit, Is_Rainfed, Eff_Rainfall_active, Crop_x_Stage,
+  Season_x_Region) ran in `scripts/benchmark_fe.py` — tuned OOF
+  0.97045 vs baseline 0.97097 (Δ = −0.00052, within 1σ fold noise of
+  0.00088). LGBM at 127 leaves / 200 min_data_in_leaf was clearly not
+  leaf-limited on this dataset, so prebuilt interactions add no new
+  splits. Artefacts: `scripts/artifacts/oof_lgbm_fe.npy`,
+  `scripts/artifacts/test_lgbm_fe.npy`,
+  `submissions/submission_lgbm_fe_tuned.csv`. Could revisit only if
+  we ever retrain with a much smaller leaf budget or a tiny subset.
 
 ## 6. Open questions
 

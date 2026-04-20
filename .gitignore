@@ -42,8 +42,9 @@ venv/
 explore.py
 scratch.py
 
-# Model artifacts — keep summary JSONs, skip bulky OOF/test prob arrays
+# Model artifacts — keep summary JSONs, skip bulky OOF/test prob arrays and logs
 scripts/artifacts/*.npy
+scripts/artifacts/*.log
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/

@@ -1,10 +1,11 @@
 # Next steps
 
-Ranked plan with expected OOF deltas, calibrated against the current
-baseline (LGBM + tuned log-bias, 5-fold CV OOF = **0.97097**) and the
-LB reference points (tied pack 0.98114, leader 0.98219). Ten days to
-deadline, 10 LB submissions/day, 0 spent. Updated after the
-heuristic / MNLogit / blend sweep on 2026-04-20.
+Ranked plan with expected OOF deltas. Current best:
+**LGBM+EXT tuned log-bias, 5-fold CV OOF = 0.97124** (synthetic + 10k
+original concat). LB reference points: tied pack 0.98114, leader
+0.98219. Ten days to deadline, 10 LB submissions/day, 1 spent (LB
+0.96972). Updated 2026-04-20 after step 2 concat (+0.00027) and step
+3 FE (null, ruled out).
 
 ## 1 · Burn one submission to calibrate CV ↔ LB ✓ done 2026-04-20
 
@@ -20,45 +21,48 @@ tuned log-bias). **LB public = 0.96972** at rank 726 / 2357 (top 31 %).
   all of the above.
 - LB budget: 1 / 10 spent; 9 remaining today.
 
-## 2 · Original Irrigation Prediction dataset ablation
+## 2 · Original Irrigation Prediction dataset ablation ✓ done 2026-04-20
 
-`data/archive.zip` is already in the repo. Controlled ablation: fit
-the same LGBM pipeline on (a) synthetic only vs (b) synthetic +
-original concatenated with a sample-weight knob. Score both on the
-synthetic-validation folds so the metric is apples-to-apples.
+Ran `scripts/benchmark_external.py` — concat synthetic + 10k original
+rows into each training fold, validate on synthetic-only folds.
+**Tuned OOF 0.97124** vs 0.97097 baseline → **Δ = +0.00027**, smaller
+than the 0.00068 fold std. Tiny free positive, not a silver bullet.
 
-- Expected delta: **−0.005 to +0.005** (sign genuinely unknown — DGP
-  may diverge).
-- High info-per-hour: resolves an open question either way.
+Also ran `scripts/transfer_check.py` (train on 8k original, eval on
+630k synthetic): bal_acc **0.96278** — only 0.00819 below the
+5-fold synthetic baseline despite 63× less training data. DGPs
+overlap almost completely; the small concat delta reflects that 10k
+is just 1.6 % of the training pool, not that the datasets diverge.
 
-## 3 · Plug domain features into LGBM
+- Kept: new best OOF 0.97124; LGBM+EXT now the base model.
+- Ruled out: bigger lift from this lever (sample-weight sweeps would
+  marginally boost the original's weight, but the ceiling is bounded
+  by the transfer gap — we'd need the ~0.008 gain the transfer proves
+  is there in principle, and that requires either 10× more original
+  rows or a recipe-change, not a reweighting knob).
 
-Lift the engineered columns already validated by MNLogit-F2 and
-heuristic-H3 straight into the LGBM feature matrix:
+## 3 · ~~Plug domain features into LGBM~~ — ruled out 2026-04-20
 
-- `ET0_proxy = Temperature_C · (1 − Humidity/100) · Wind_Speed_kmh`
-- `Kc_stage` (FAO-56 lookup by `Crop_Growth_Stage`)
-- `ETc_proxy = ET0_proxy · Kc_stage · (1 − 0.30·is_mulched)`
-- `Soil_deficit = max(0, capacity[Soil_Type] − Soil_Moisture)`
-- `Crop_Type × Crop_Growth_Stage` (full Kc surface)
-- `Season × Region` (climatic regime)
-- `Is_Rainfed = (Irrigation_Type == "Rainfed")`
+Ran `scripts/benchmark_fe.py` with 8 engineered cols (`ET0_proxy`,
+`Kc_stage`, `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`,
+`Eff_Rainfall_active`, `Crop_x_Stage`, `Season_x_Region`). Tuned OOF
+**0.97045** vs baseline 0.97097 (Δ = **−0.00052**, within the 0.00088
+fold std). LGBM at 127 leaves was evidently not leaf-limited on this
+dataset, so prebuilt interactions added no new splits. Parked — see
+REPORT.md §5. Move to step 4.
 
-Retune log-bias after.
+## 4 · Seed-bag LGBM+EXT (3–5 seeds) — top open bet
 
-- Expected delta: **+0.001 to +0.003**. Trees often discover these
-  interactions on their own but pre-built features help when splits
-  are leaf-limited (our config hits 127 leaves).
+Average OOF probs + test probs across seeds on the **concat**
+(synthetic + 10k original) pipeline, retune bias once on the averaged
+OOF.
 
-## 4 · Seed-bag LGBM (3–5 seeds)
+- Fold-level std on bal_acc is ~0.00068 (measured with EXT);
+  √5 reduction ≈ **+0.0005–0.001** over the 0.97124 new base.
+- Cheap — 3–5× runtime of `scripts/benchmark_external.py`, no new
+  code beyond a seed loop wrapper.
 
-Average OOF probs + test probs across seeds, retune bias once on the
-averaged OOF.
-
-- Fold-level std on bal_acc is ~0.002; √5 reduction ≈ **+0.001** expected.
-- Cheap — 3–5× runtime of `scripts/benchmark.py`, no new code.
-
-## 5 · LGBM + XGBoost blend
+## 5 · LGBM+EXT + XGBoost blend
 
 XGB OOF already saved to `scripts/artifacts/oof_xgb_baseline.npy`.
 Geometric mean, sweep mixing weight w, retune bias — same harness as
