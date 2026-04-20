@@ -14,8 +14,40 @@ Your Goal: Predict the irrigation need.
 
 ## Rules
 
-<pending — team size, external data allowed?, daily/total submission limits,
-close date>
+**Competition**: Playground Series - Season 6, Episode 4
+(`playground-series-s6e4`)
+**Sponsor**: Google LLC
+**Prizes**: Choice of Kaggle merchandise (no cash)
+**Winner license**: None
+**Data license**: CC BY 4.0
+**Status at kickoff**: 10 days to go (per competition page banner)
+
+### Key limits
+
+- **Team size**: max 3
+- **Daily submissions**: 10
+- **Final submissions selected for judging**: up to 2
+- **Leaderboard**: Public LB scored on a "representative sample" of test;
+  **Private LB** determines final standing (Playground typically ~50/50
+  split — confirm later from discussion forum if relevant).
+
+### External data & tools
+
+- External data **allowed** provided it's publicly available and equally
+  accessible to all participants at minimal cost. The original Irrigation
+  Prediction dataset (the one the synthetic data was generated from) is
+  explicitly allowed by the data description.
+- External models: allowed unless specifically prohibited. AutoML tools
+  (AMLT) explicitly permitted.
+- Open source code OK under OSI-approved licenses that don't restrict
+  commercial use.
+
+### Prohibited
+
+- **Hand labeling or human prediction of test/validation data** is
+  explicitly forbidden (§ 3.4.b). No label leakage via manual annotation.
+- Private code/data sharing outside registered teams.
+- Multiple accounts.
 
 ## Evaluation
 
@@ -86,5 +118,12 @@ improves model performance.
 - **Test id range**: the example starts at `630000`, implying a training
   set of roughly 630k rows and a separate test block starting at 630000.
   Confirm exact sizes once data is downloaded.
-- Playground series → typically tabular, with a fixed daily/total submission
-  budget. Confirm in rules.
+- **Submission budget**: 10/day × ~10 days = ~100 total submissions
+  remaining at kickoff. Spend them on high-information-gain probes (e.g.
+  testing whether the original dataset helps, or whether threshold tuning
+  matters) rather than re-confirming strong leaders.
+- **Public LB is a "representative sample"** → trust CV when they disagree,
+  but large public/private gaps in Playground series are rare. Still, do
+  not overfit to public LB via probe submissions.
+- **No hand labeling of test data** (§ 3.4.b) — rules out any "manually
+  inspect test rows then special-case them" shortcuts.
