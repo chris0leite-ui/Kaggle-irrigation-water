@@ -81,6 +81,8 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | kNN 6-feat               | k=50 tuned log-bias                      |     0.95436 |     −0.01835   |
 | Gated v1                 | rule × flip-prob × LGBM+DGP direction    |     0.97249 |     −0.00022   |
 | Gated v2                 | rule × flip-prob × specialist direction  |     0.86765 |     −0.10506   |
+| Weighted LGBM+DGP        | sample_weight w∈{10,60} on flipped rows  |     ~0.962  |     −0.011     |
+| Band-routed LGBM         | 3 LGBMs (rule_Low/Medium/High), tuned    |     0.97080 |     −0.00191   |
 | LB actual                | DGP rule (LB public)                     |     0.95835 |             –  |
 | LB actual                | Baseline LGBM tuned (LB public)          |     0.96972 |             –  |
 | **LB actual**            | **LGBM+DGP tuned (LB public)**           | **0.97137** |             –  |

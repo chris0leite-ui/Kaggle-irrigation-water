@@ -423,12 +423,57 @@ README.md      TL;DR + reproduction instructions.
   worse than trees that can place splits on the exact threshold
   values.
 
+### 2026-04-20 — weighted LGBM partial & band-routed LGBM (both null)
+
+- Sample-weighted LGBM (`scripts/weighted_lgbm_dgp.py`). Ran w=10
+  (full 5 folds) + w=60 (3 folds before kill). Argmax bal_acc held
+  at ~0.962 — no improvement over LGBM+DGP (0.96349). The
+  weight-60 trees trained 5× longer (1100+ iterations) yet still
+  split on the same majority signal. Sample weighting does not
+  break through: the clean-row loss drop trades one-for-one with
+  the flipped-row loss gain.
+- Band-routed LGBM (`scripts/band_routed_lgbm.py`). Partition train
+  by rule prediction: rule_Low (373,601 rows, 1.4% flip to Medium),
+  rule_Medium (235,456 rows, 1.4% bidirectional flips), rule_High
+  (20,943 rows, **8.1% flip to Medium**). Train one 3-class LGBM
+  per band, stitch OOF, tune global log-bias.
+  - Per-band raw acc: rule_Low 0.98603 / rule_Medium 0.98654 /
+    rule_High 0.96863.
+  - Combined argmax 0.96327, tuned log-bias **0.97080**
+    (vs LGBM+DGP 0.97271, Δ = **−0.00191**).
+- Why band routing fails: per-band models each see fewer flipped
+  rows in training (e.g. rule_High-model has only ~1700), so their
+  split decisions are noisier than the global model's. The flip
+  structure is partly *shared* across bands — a feature combination
+  that flags flips in rule_Low likely flags flips in rule_Medium
+  too — and splitting the models destroys that cross-band signal.
+- Consolidated verdict on flip-exploitation (all single-LGBM
+  variants): every attack lands at 0.970–0.973 tuned OOF, and none
+  reaches the pack. The ceiling for **tree-based** methods on this
+  problem is ~0.973. Cracking past it needs a conceptually
+  different tool.
+- Next bet: **neural network on the full 19 features with an
+  explicit flip head** (multi-task: predict label AND is_flipped).
+  Unlike trees, a small MLP can represent smooth interactions
+  among the 10 "unused" features that encode the noise model, and
+  the multi-task loss forces the shared representation to separate
+  the two populations. If even a simple 3-layer MLP clears 0.975
+  OOF, stack it with LGBM+DGP for the final submission.
+
 ## Hypothesis board
 
 - **Open**:
-  - Incorporating the original Irrigation Prediction dataset (explicitly
-    allowed) may help, but may also hurt if its DGP differs from the
-    synthetic train distribution. Test as a controlled ablation.
+  - **Neural network on the full 19 features with a flip head** —
+    our primary next bet. Trees have plateaued at ~0.973 tuned OOF
+    across five attack variants. A small MLP (or TabNet / FT-
+    Transformer) can represent smooth interactions among the 10
+    "unused" features that encode the host's noise model, which
+    axis-aligned trees cannot. Multi-task loss (label + is_flipped)
+    forces the shared representation to separate clean vs flipped
+    populations. If a simple 3-layer MLP clears 0.975 OOF, stack
+    with LGBM+DGP for the final submission. Expected lift:
+    +0.002–0.008; downside: NN tabular training is fussier than
+    LGBM and fold variance can be larger.
   - The huge tie at 0.98114 suggests a "ceiling" from the public baseline
     everyone is running. Room to move is likely in (a) ensembling across
     seeds/models, (b) threshold tuning, (c) leveraging the ordinal
@@ -502,9 +547,29 @@ README.md      TL;DR + reproduction instructions.
   - **kNN on the 6 DGP features.** k=50 KNeighbors OOF tuned-bias
     0.95436, below the rule 0.96097. Smoothing destroys the
     integer-threshold structure. Generalisation: any kernel / MLP
-    / kNN / GP on the DGP feature set is bounded *below* the rule,
-    because the rule's thresholds are exact and these methods
-    interpolate across them.
+    / kNN / GP on the DGP feature set alone is bounded *below* the
+    rule, because the rule's thresholds are exact and these methods
+    interpolate across them. Not a statement about neural nets on
+    the *full* feature set — see open items.
+  - **Sample-weighted LGBM+DGP (weight on flipped rows).** w=10
+    and w=60 both plateau at ~0.962 argmax, no better than the
+    default. Equal-loss-contribution weighting trades clean-row
+    accuracy one-for-one against flipped-row accuracy; the tree
+    architecture cannot represent "different logic for different
+    populations" even when the two populations are flagged.
+  - **Band-routed LGBM (one model per rule band).** Tuned OOF
+    0.97080 vs LGBM+DGP 0.97271 (Δ = −0.00191). Per-band models
+    see fewer flipped rows each (~5300, ~3300, ~1700 respectively
+    in folds), so their splits are noisier; meanwhile the shared
+    cross-band flip signal is no longer available to any single
+    model. Routing by an exogenous discrete variable (dgp_score
+    band) is worse than one global LGBM.
+  - **Consolidated.** Every tree-based attack on the flip residuals
+    (vanilla LGBM+DGP, boundary-LGBM, sample-weighted LGBM,
+    band-routed LGBM, gated ensembles v1/v2) lands in the 0.970–
+    0.973 tuned-OOF band. The ceiling for tree methods on this
+    problem is ~0.973 bal_acc, ~0.008 below the 0.98114 pack. A
+    conceptually different tool is required to close the gap.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
