@@ -4,11 +4,27 @@ Guidance for Claude Code when working in this repository.
 
 ## Competition
 
-- **Name**: <competition name>
-- **URL**: <kaggle URL>
-- **Task**: <e.g. tabular regression, MAE metric>
-- **Deadline**: <YYYY-MM-DD>
-- **LB submission budget**: <daily> / <total>, <n> spent
+- **Name**: Predicting Irrigation Need (Playground Series - Season 6, Episode 4)
+- **URL**: https://www.kaggle.com/competitions/playground-series-s6e4
+- **Slug**: `playground-series-s6e4`
+- **Task**: 3-class classification (`Low` / `Medium` / `High`) on tabular data
+- **Metric**: balanced accuracy (macro-recall)
+- **Deadline**: ~2026-04-30 (10 days to go as of 2026-04-20 — confirm on Timeline page)
+- **LB submission budget**: 10 / day, 2 final submissions selected, 0 spent at kickoff
+- **Team size limit**: 3
+- **Data license**: CC BY 4.0
+
+### LB state at kickoff (2026-04-20)
+
+- **Top score (rank 1)**: 0.98219 — Chris Deotte
+- **Rank 100 score**: 0.98114 (huge tied pack at exactly 0.98114 from ~100 through 108+)
+- **Gap top ↔ tied pack**: ~0.00105 (~1 part in 1000)
+- **Not yet submitted**
+- Implication: beating the 0.98114 "default model" pack is a hard floor
+  (basically everyone ran a straightforward LGBM/XGB on the raw features).
+  Real gains come from out-of-the-pack tricks: threshold tuning for
+  balanced accuracy, adding the original irrigation dataset, careful
+  feature engineering, or DGP archaeology on the synthetic data.
 
 See `brief.md` for the full host material (description, rules,
 evaluation, data description, host forum posts).
@@ -40,18 +56,37 @@ README.md      TL;DR + reproduction instructions.
 
 ## Session log
 
-### YYYY-MM-DD — kickoff
+### 2026-04-20 — kickoff
 
-- Goal:
-- Changed:
-- LB delta:
-- Next bet:
+- Goal: bootstrap the repo, capture brief/rules/LB state, set up Kaggle
+  credentials, and queue a first experiment that beats the 0.98114 tied pack.
+- Changed: scaffold in place (template + kaggle-kickoff skill); `brief.md`
+  populated with competition description, evaluation (balanced accuracy),
+  rules, and flagged invariances; `CLAUDE.md` now reflects the LB state.
+- LB delta: n/a (not yet submitted).
+- Next bet: download data via `download_data.py`, do EDA to confirm column
+  types and class balance, then fit an LGBM baseline with macro-recall-
+  optimal thresholds to see where we land vs 0.98114.
 
 ## Hypothesis board
 
 - **Open**:
-- **Ruled out**:
+  - Default `argmax` is suboptimal under balanced accuracy when classes
+    are imbalanced → tuning per-class thresholds on OOF probabilities should
+    move the score. Test on an LGBM baseline.
+  - Incorporating the original Irrigation Prediction dataset (explicitly
+    allowed) may help, but may also hurt if its DGP differs from the
+    synthetic train distribution. Test as a controlled ablation.
+  - The huge tie at 0.98114 suggests a "ceiling" from the public baseline
+    everyone is running. Room to move is likely in (a) ensembling across
+    seeds/models, (b) threshold tuning, (c) leveraging the ordinal
+    structure (`Low < Medium < High`) via ordinal-aware losses despite
+    the metric being order-agnostic.
+- **Ruled out**: (none yet)
 - **Parked**:
+  - Seed recovery / DGP archaeology on the synthetic generator — high
+    effort, unclear payoff with only 10 days; revisit if stuck above
+    0.9815.
 
 ## Playbook
 
