@@ -1,9 +1,26 @@
 """
-Download the irrigation water dataset from Kaggle.
+Download the ORIGINAL Irrigation Prediction dataset from Kaggle.
 
-Setup:
-  1. Copy .env.example to .env and fill in your Kaggle credentials, OR
-  2. Place your kaggle.json in ~/.kaggle/kaggle.json
+NOT REQUIRED for the baseline. This fetches the standalone
+`l3llff/irrigation-water` dataset — the real-world data that the
+Playground Series S6E4 synthetic train/test were generated from. It's
+useful only as an optional "extra training data" experiment (the
+competition rules explicitly allow incorporating the original).
+
+For the competition data itself (train.csv, test.csv, sample_submission.csv),
+run ./bootstrap.sh instead — that uses `kaggle competitions download -c
+playground-series-s6e4` which authenticates with KAGGLE_API_TOKEN alone.
+
+One-time setup before first run of THIS script:
+  1. Visit https://www.kaggle.com/datasets/l3llff/irrigation-water in a
+     browser while signed in, click Download, and accept the dataset's
+     terms of service. Without this step the API returns 403.
+  2. Provide credentials via either:
+     - `.env` file with KAGGLE_USERNAME + KAGGLE_KEY (legacy format), OR
+     - `~/.kaggle/kaggle.json` with {"username": ..., "key": ...}.
+     Note: a bare KAGGLE_API_TOKEN (new KGAT_ format) is not sufficient
+     for the `kaggle datasets` endpoint — the python client needs a
+     username/key pair written into kaggle.json.
 
 Usage:
   python download_data.py
@@ -49,7 +66,10 @@ def download_dataset(dataset: str, output_dir: str = "data"):
 if __name__ == "__main__":
     setup_kaggle_credentials()
 
-    # Update this to the target Kaggle dataset slug (owner/dataset-name)
+    # The original Irrigation Prediction dataset — the real-world data that
+    # the Playground Series S6E4 synthetic data was generated from. Remember
+    # to accept the dataset's terms of service once in a browser before the
+    # API will serve it (see module docstring).
     DATASET = "l3llff/irrigation-water"
 
     download_dataset(DATASET)
