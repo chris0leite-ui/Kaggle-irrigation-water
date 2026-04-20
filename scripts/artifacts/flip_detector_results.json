@@ -1,0 +1,88 @@
+{
+  "flip_rate": 0.016355555555555557,
+  "flip_detector_auc": 0.8993245190581626,
+  "flip_direction_bal_acc": 0.9936841526014769,
+  "flip_direction_raw_acc": 0.9968944099378882,
+  "top_importance": [
+    {
+      "feature": "dgp_score",
+      "gain": 27624747.73410034
+    },
+    {
+      "feature": "Rainfall_mm",
+      "gain": 5098560.7864227295
+    },
+    {
+      "feature": "Temperature_C",
+      "gain": 2275761.5009002686
+    },
+    {
+      "feature": "Previous_Irrigation_mm",
+      "gain": 1602148.752231598
+    },
+    {
+      "feature": "Humidity",
+      "gain": 1309328.418876648
+    },
+    {
+      "feature": "Soil_pH",
+      "gain": 1186236.472606659
+    },
+    {
+      "feature": "Soil_Moisture",
+      "gain": 1181326.9792060852
+    },
+    {
+      "feature": "Sunlight_Hours",
+      "gain": 1177338.5335979462
+    },
+    {
+      "feature": "dgp_kc",
+      "gain": 1143170.4575157166
+    },
+    {
+      "feature": "Electrical_Conductivity",
+      "gain": 1075794.0693740845
+    },
+    {
+      "feature": "Field_Area_hectare",
+      "gain": 1041214.5452480316
+    },
+    {
+      "feature": "Organic_Carbon",
+      "gain": 1015095.6124725342
+    },
+    {
+      "feature": "dgp_abs_temp",
+      "gain": 991263.9533042908
+    },
+    {
+      "feature": "dgp_dist_moist",
+      "gain": 916965.7336578369
+    },
+    {
+      "feature": "Wind_Speed_kmh",
+      "gain": 874459.780292511
+    },
+    {
+      "feature": "dgp_abs_moist",
+      "gain": 774127.2130203247
+    },
+    {
+      "feature": "dgp_abs_wind",
+      "gain": 766102.4838943481
+    },
+    {
+      "feature": "dgp_dist_rain",
+      "gain": 737781.4632339478
+    },
+    {
+      "feature": "dgp_dist_wind",
+      "gain": 560858.1887779236
+    },
+    {
+      "feature": "Crop_Type",
+      "gain": 502976.90212631226
+    }
+  ]
+}

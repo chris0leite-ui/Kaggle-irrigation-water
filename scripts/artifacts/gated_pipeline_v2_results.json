@@ -1,0 +1,14 @@
+{
+  "rule_argmax_bal": 0.9609734412171452,
+  "specialist_argmax_bal": 0.0387301536571815,
+  "specialist_on_flipped_bal": 0.9940633714107299,
+  "specialist_on_flipped_raw": 0.9970885093167702,
+  "specialist_on_clean_raw": 0.0,
+  "gated_v2_argmax_bal": 0.8233251958647728,
+  "gated_v2_tuned_bal": 0.8676527030154002,
+  "gated_v2_tuned_bias": [
+    2.3324411632360973,
+    1.2689466919465482,
+    3.2007689020440884
+  ]
+}
