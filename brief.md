@@ -87,7 +87,52 @@ improves model performance.
 
 ### Columns
 
-<pending — paste column list from the Data tab>
+From inspecting `train.csv` header + first row:
+
+Target: `Irrigation_Need` ∈ {`Low`, `Medium`, `High`}
+
+Features (19):
+
+| Column | Type | Example |
+|---|---|---|
+| `id` | int (identifier, drop for modeling) | 0 |
+| `Soil_Type` | categorical | Loamy |
+| `Soil_pH` | numeric | 4.92 |
+| `Soil_Moisture` | numeric | 32.58 |
+| `Organic_Carbon` | numeric | 1.01 |
+| `Electrical_Conductivity` | numeric | 3.05 |
+| `Temperature_C` | numeric | 15.01 |
+| `Humidity` | numeric | 50.61 |
+| `Rainfall_mm` | numeric | 725.99 |
+| `Sunlight_Hours` | numeric | 5.9 |
+| `Wind_Speed_kmh` | numeric | 16.79 |
+| `Crop_Type` | categorical | Sugarcane |
+| `Crop_Growth_Stage` | categorical | Sowing |
+| `Season` | categorical | Zaid |
+| `Irrigation_Type` | categorical | Drip |
+| `Water_Source` | categorical | Rainwater |
+| `Field_Area_hectare` | numeric | 0.82 |
+| `Mulching_Used` | categorical (Yes/No) | No |
+| `Previous_Irrigation_mm` | numeric | 112.16 |
+| `Region` | categorical | East |
+
+Dataset sizes:
+- `train.csv`: 630,000 rows (id 0 – 629,999)
+- `test.csv`: 270,000 rows (id 630,000 – 899,999)
+- Ratio ≈ 70/30 train/test
+
+### Class distribution (train)
+
+| Class | Count | Fraction |
+|---|---|---|
+| Low | 369,917 | **58.7%** |
+| Medium | 239,074 | **37.9%** |
+| High | 21,009 | **3.3%** |
+
+**Severely imbalanced.** Under balanced accuracy (macro-recall), `High` is
+worth 1/3 of the score on 1/30 of the data — so threshold tuning /
+class-balanced sample weights / focal loss on `High` is the biggest
+expected lever.
 
 ## Host forum / notebook comments
 

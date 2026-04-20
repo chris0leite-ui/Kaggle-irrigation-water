@@ -34,8 +34,13 @@ evaluation, data description, host forum posts).
 ```bash
 pip install -r requirements.txt
 
-# Download competition data into data/
-kaggle competitions download -c <slug> -p data/ && unzip -o data/<slug>.zip -d data/
+# Download competition data (uses new KGAT_ token format via env var)
+KAGGLE_API_TOKEN="$KAGGLE_KEY" kaggle competitions download \
+  -c playground-series-s6e4 -p data/
+unzip -o data/playground-series-s6e4.zip -d data/
+
+# Download the original Irrigation Prediction dataset (extra training data)
+python download_data.py
 ```
 
 ## Architecture
@@ -62,11 +67,19 @@ README.md      TL;DR + reproduction instructions.
   credentials, and queue a first experiment that beats the 0.98114 tied pack.
 - Changed: scaffold in place (template + kaggle-kickoff skill); `brief.md`
   populated with competition description, evaluation (balanced accuracy),
-  rules, and flagged invariances; `CLAUDE.md` now reflects the LB state.
+  rules, column list, and flagged invariances; `CLAUDE.md` now reflects
+  LB state and download commands; competition data downloaded to `data/`
+  (train 630k × 20, test 270k × 19).
 - LB delta: n/a (not yet submitted).
-- Next bet: download data via `download_data.py`, do EDA to confirm column
-  types and class balance, then fit an LGBM baseline with macro-recall-
-  optimal thresholds to see where we land vs 0.98114.
+- Data finding: **class distribution is severely skewed** — Low 58.7%,
+  Medium 37.9%, High 3.3%. Under balanced accuracy this means the `High`
+  class drives the scoreboard; per-class threshold tuning is the highest-
+  expected-value first experiment.
+- Next bet: LGBM baseline on raw + target-encoded categoricals, OOF probs
+  from stratified 5-fold CV, then grid/Brent search over per-class
+  thresholds maximizing macro-recall. Submit only after comparing OOF
+  balanced accuracy of argmax vs tuned decision rule — if tuned rule
+  doesn't beat argmax on OOF, re-examine before burning a sub.
 
 ## Hypothesis board
 
