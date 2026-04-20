@@ -28,12 +28,39 @@ world data the synthetic set was generated from), not the competition.
 - **Team size limit**: 3
 - **Data license**: CC BY 4.0
 
+### 2026-04-20 — first submission, CV↔LB calibrated
+
+- Goal: spend one submission to answer whether the 0.98114 tied pack
+  is running argmax or already tuned, so downstream decisions aren't
+  based on guesses about the pack.
+- Changed: `submissions/submission_baseline_lgbm_tuned.csv` committed
+  to the repo (gitignore exception) and uploaded to Kaggle.
+- Result: **LB public = 0.96972** at rank 726 / 2357 (top 31%).
+- OOF vs LB: 0.97097 − 0.96972 = **−0.00125**, inside one fold-std
+  (~0.002). CV is well-calibrated; future experiment deltas from
+  5-fold OOF can be trusted.
+- Read-out: the pack is NOT running raw argmax (that would have landed
+  them near our 0.96 tier). They have structural advantages — feature
+  engineering, original dataset, seed bagging, better hyperparameters,
+  or some combination. Our earlier hypothesis "the pack already uses
+  the threshold trick" is confirmed.
+- LB budget: 1 / 10 spent today; 9 remaining.
+- Gap math for remaining budget: stacking best-case expected deltas
+  from NEXT_STEPS steps 3–6 → ~+0.007 → ~0.977, still below the pack
+  (0.98114). Step 2 (original dataset) is the swing factor: +0.004 of
+  lift from it would put us in pack territory; negative / flat means
+  we need to look at the public-notebook recipe.
+- Next bet: execute step 2 (original-dataset ablation) and step 3
+  (domain features into LGBM) in parallel — both are cheap enough to
+  fit in one session, and step 2 alone resolves the biggest
+  uncertainty in the remaining plan.
+
 ### LB state at kickoff (2026-04-20)
 
 - **Top score (rank 1)**: 0.98219 — Chris Deotte
 - **Rank 100 score**: 0.98114 (huge tied pack at exactly 0.98114 from ~100 through 108+)
 - **Gap top ↔ tied pack**: ~0.00105 (~1 part in 1000)
-- **Not yet submitted**
+- **First submission (tuned LGBM)**: 0.96972, rank 726/2357
 - Implication: beating the 0.98114 "default model" pack is a hard floor
   (basically everyone ran a straightforward LGBM/XGB on the raw features).
   Real gains come from out-of-the-pack tricks: threshold tuning for

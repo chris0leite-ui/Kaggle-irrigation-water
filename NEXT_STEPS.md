@@ -7,20 +7,19 @@ deadline, 10 LB submissions/day, 0 spent. Updated 2026-04-20 after
 the FE null result (step 3 below is ruled out; step 4 is now the
 next open bet).
 
-## 1 · Burn one submission to calibrate CV ↔ LB (today)
+## 1 · Burn one submission to calibrate CV ↔ LB ✓ done 2026-04-20
 
-Submit `submissions/baseline_lgbm_tuned.csv` as-is. Costs 1/100 of the
-remaining budget; the only experiment that answers *"is the 0.98114
-pack running argmax or already tuned?"*.
+Submitted `submissions/submission_baseline_lgbm_tuned.csv` (LGBM +
+tuned log-bias). **LB public = 0.96972** at rank 726 / 2357 (top 31 %).
 
-- If LB ≈ 0.98 → the pack is already tuned; our gap is real and has to
-  come from features / diversity / the original dataset.
-- If LB ≈ 0.971 → our CV is calibrated, and bias tuning is the trick
-  separating us from the pack (implies the pack is running argmax; we
-  may already be closer than we think).
-
-Until this is done, every downstream decision is a guess about what
-the pack is doing.
+- OOF 0.97097 vs LB 0.96972 → −0.00125, inside one fold-std (~0.002).
+  CV is well-calibrated — experiment deltas from 5-fold OOF can be
+  trusted going forward.
+- The pack is *not* running raw argmax (that would have landed them
+  near our 0.96 tier). Their 0.98114 comes from structural advantages:
+  feature engineering, original dataset, seed bagging, better HPs, or
+  all of the above.
+- LB budget: 1 / 10 spent; 9 remaining today.
 
 ## 2 · Original Irrigation Prediction dataset ablation
 
