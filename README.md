@@ -9,6 +9,13 @@ Severe class imbalance: 58.7 / 37.9 / **3.3** %.
 
 Best public LB: **—** (not yet submitted).
 
+> **For any fresh Claude session / new container**: run `./bootstrap.sh`
+> first. It installs deps and downloads the competition data. The
+> `KAGGLE_API_TOKEN` env var is configured at the container level, so
+> no interactive prompt is needed. Do **not** use `download_data.py`
+> for the competition data — it targets an optional extra dataset.
+
+
 ## Reproduce
 
 ```bash
