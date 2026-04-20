@@ -58,6 +58,17 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | Tree (LGBM+EXT)          | prior-reweight argmax (concat 10k orig)  |     0.97097 |      +0.00032  |
 | **Tree (LGBM+EXT)**      | **tuned log-bias (concat 10k original)** | **0.97124** |   **+0.00027** |
 | Blend                    | LGBM + MNLogit Fk, sweep w ∈ [0, 0.5]    |     0.97097 |   +0.00000 (null) |
+| DGP rule                 | Closed form, 6 feats, integer arithmetic |     0.96097 |    −0.01000    |
+| Tree (LGBM+DGP)          | argmax (DGP + distance-to-threshold)     |     0.96349 |      +0.00214  |
+| Tree (LGBM+DGP)          | prior-reweight argmax                    |     0.97250 |      +0.00185  |
+| **Tree (LGBM+DGP)**      | **tuned log-bias (26 feats)**            | **0.97271** |   **+0.00174** |
+| Boundary-LGBM            | tuned, LGBM on score∈{1..9}, rule on 0   |     0.97284 |      +0.00013  |
+| kNN 6-feat               | k=50 tuned log-bias                      |     0.95436 |     −0.01835   |
+| Gated v1                 | rule × flip-prob × LGBM+DGP direction    |     0.97249 |     −0.00022   |
+| Gated v2                 | rule × flip-prob × specialist direction  |     0.86765 |     −0.10506   |
+| LB actual                | DGP rule (LB public)                     |     0.95835 |             –  |
+| LB actual                | Baseline LGBM tuned (LB public)          |     0.96972 |             –  |
+| **LB actual**            | **LGBM+DGP tuned (LB public)**           | **0.97137** |             –  |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 

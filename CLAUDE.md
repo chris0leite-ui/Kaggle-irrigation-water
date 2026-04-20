@@ -315,6 +315,94 @@ README.md      TL;DR + reproduction instructions.
   Wind_Speed_kmh−10) to LGBM. If the noise is a learnable function
   of distance-to-boundary, tuned OOF should break 0.975+.
 
+### 2026-04-20 — LGBM+DGP: +0.00174 OOF, +0.00165 LB
+
+- Goal: inject DGP indicators + distance-to-threshold features into
+  LGBM to let the model learn the boundary-band noise.
+- Changed: `scripts/benchmark_dgp.py` (7 DGP cols + 8 signed/abs
+  distance cols = 15 extra features, 26 total); artefacts
+  `scripts/artifacts/{oof,test}_lgbm_dgp.npy`,
+  `bench_dgp_results.json`; submissions
+  `submission_lgbm_dgp_{argmax,tuned}.csv`.
+- Results (OOF bal_acc, 5-fold, seed=42):
+  - argmax                → 0.96349 (baseline 0.96135, Δ = +0.00214)
+  - prior-reweight argmax → 0.97250 (baseline 0.97065, Δ = +0.00185)
+  - **tuned log-bias      → 0.97271** (baseline 0.97097, Δ = +0.00174)
+  - Best bias: Low +0.03, Medium +0.67, High +3.40 — Low collapsed
+    from +0.23 to +0.03, meaning the DGP indicators already push
+    Low logits to the correct side; the bias only still needs to
+    lift Medium/High.
+- LB delta: submitted tuned → **public = 0.97137** (prior best
+  0.96972, Δ = **+0.00165**). OOF↔LB gap −0.00134, calibration
+  holds.
+- Budget: 3/10 used today, 7 remaining.
+- Gap to pack 0.98114 closes to ~0.00977 (was 0.01142).
+
+### 2026-04-20 — flip detector + gated attempts (diagnostics clean, execution null)
+
+- Goal: model the 10,304 residual flips directly. Test whether they
+  are feature-predictable at all, and if yes, build a gated
+  rule+model pipeline to exploit them.
+- Changed: `scripts/flip_detector.py`, `scripts/gated_pipeline.py`
+  (v1 uses LGBM+DGP as direction model), `scripts/gated_pipeline_v2.py`
+  (v2 uses specialist trained only on flipped rows). Artefacts
+  `scripts/artifacts/{flip_detector,gated_pipeline,gated_pipeline_v2}_results.json`.
+- Diagnostic findings (5-fold OOF):
+  - **Flips are highly feature-predictable**: binary LGBM on
+    `is_flipped` → AUC **0.89932**. Top gain: `dgp_score` (27 M),
+    then `Rainfall_mm`, `Temperature_C`, `Previous_Irrigation_mm`,
+    `Humidity`, `Soil_pH`, `Sunlight_Hours`, `EC`,
+    `Field_Area_hectare`, `Organic_Carbon` — each ~1 M. The
+    "unused" features carry the noise model.
+  - **Flip direction is near-deterministic**: 3-class LGBM trained
+    only on the 10,304 flipped rows → OOF raw **0.99689**, bal
+    **0.99368**. Confusion has 12 Low↔High and 20 High↔Low total,
+    zero Medium confusions.
+  - **LGBM+DGP is awful on flipped rows in isolation**: raw 0.15111,
+    bal 0.12016 on the flipped subset (vs 0.99958 raw on clean
+    rows). When trained on full 630k, the 1.6 %-minority signal is
+    diluted out; LGBM+DGP only hides this via bias tuning.
+- Execution (OOF tuned log-bias):
+  - gated v1 (LGBM+DGP direction) → 0.97249 (baseline 0.97271,
+    Δ = **−0.00022**, regression within noise).
+  - gated v2 (specialist direction) → **0.86765** tuned,
+    best hard-gate t=0.80 → 0.93931 bal, still below rule 0.96097.
+- Why v2 fails: the specialist was trained only on rows where
+  `rule != label`, so by construction it *always* disagrees with
+  the rule. On the ~3 % of clean rows the detector false-flags at
+  any reasonable threshold, the specialist predicts the wrong
+  neighbour with 100 % confidence. Flip base rate (1.6 %) is too
+  small to absorb the FP cost.
+- Parked as ruled-out (for now): specialist-override gating. Works
+  in principle — the flip structure IS learnable — but requires a
+  direction model that is correct on BOTH clean and flipped rows.
+- Next bet: sample-weighted LGBM on full 630k with weight ≈ 60 on
+  flipped rows (equalise their total loss contribution with the
+  clean majority). Or stacking: add P(flip) + specialist probs as
+  columns to LGBM+DGP features. Either way, need a single model
+  that is rule-accurate on clean rows AND specialist-accurate on
+  flipped ones.
+
+### 2026-04-20 — boundary LGBM (null) and kNN sanity (negative)
+
+- Boundary LGBM (`scripts/boundary_lgbm.py`): train 3-class LGBM only
+  on `dgp_score ∈ {1..9}` rows (596k), force Low for score=0 (33k).
+  Score=0 covers 5.4 % of train and is 100 % Low without exception.
+  Result: tuned OOF **0.97284** vs LGBM+DGP 0.97271 (Δ = +0.00013,
+  within fold std 0.00088). The carve-out doesn't move the needle
+  because LGBM was already handling score=0 rows trivially on the
+  full data. On boundary rows specifically, bal_acc 0.96343 —
+  nearly identical to LGBM+DGP's implicit boundary accuracy.
+- kNN (`scripts/knn_six_features.py`): 5-fold k=50 KNeighbors on
+  z-scored 4 continuous + binary mulch + Kc stage value. OOF argmax
+  **0.94433**, tuned log-bias **0.95436**. Strictly below the rule
+  (0.96097). kNN smooths across the rule's hard thresholds, losing
+  crisp score→label mapping. Clean negative: the DGP is
+  piecewise-constant with integer thresholds, and any smoother
+  (kNN, MLPs with standard regularisation, kernel methods) is
+  worse than trees that can place splits on the exact threshold
+  values.
+
 ## Hypothesis board
 
 - **Open**:
@@ -361,10 +449,53 @@ README.md      TL;DR + reproduction instructions.
     Concatenating 10k rows into training adds only +0.00027 though,
     because 10k ≪ 630k — the ceiling is bounded by data volume, not
     DGP mismatch.
+- **Confirmed (new)**:
+  - **The synthetic DGP is the original closed-form rule + boundary-
+    band noise.** Closed form on 6 features (Soil_Moisture, Rainfall,
+    Temperature, Wind, Mulching, Crop_Growth_Stage) perfectly fits the
+    10k original dataset and hits raw 0.98364 / bal 0.96097 on the
+    630k synthetic train. All 10,304 flips are strictly one-step
+    (Low↔Medium or Medium↔High, never Low↔High) and sit in
+    score-bands 1–9. Score 0 rows (5.4 % of train) are 100 % Low
+    without exception.
+  - **Flip noise is driven by the 10 "unused" features.** Binary
+    is_flipped LGBM → OOF AUC 0.89932; top gain after `dgp_score`
+    is `Rainfall_mm`, `Temperature_C`, `Previous_Irrigation_mm`,
+    `Humidity`, `Soil_pH`, `Sunlight_Hours`, `EC`,
+    `Field_Area_hectare`, `Organic_Carbon`. Signature of a tabular
+    generative model (TabDDPM, VAE, or GAN) whose decision surface
+    is fuzzy around sharp thresholds.
+- **Ruled out (new)**:
+  - **Specialist-override gating.** Direction model trained only on
+    flipped rows is 99.37 % bal_acc on the flipped subset but 0 %
+    on clean rows (by construction — always disagrees with rule).
+    Gated blend regresses from 0.97271 → 0.86765; at best hard-gate
+    t=0.80, 0.93931 — still below rule alone. FP cost from the
+    flip detector at any usable threshold outweighs the TP gain
+    given the 1.6 % flip base rate. Fix: direction model must be
+    correct on BOTH clean and flipped rows.
+  - **Boundary-only carve-out.** Restricting LGBM training to
+    `dgp_score ∈ {1..9}` rows and forcing rule for score=0 gives
+    0.97284 tuned OOF vs 0.97271 (Δ = +0.00013, within fold
+    std). Score 0 rows are already trivially handled at full data;
+    removing them changes nothing.
+  - **kNN on the 6 DGP features.** k=50 KNeighbors OOF tuned-bias
+    0.95436, below the rule 0.96097. Smoothing destroys the
+    integer-threshold structure. Generalisation: any kernel / MLP
+    / kNN / GP on the DGP feature set is bounded *below* the rule,
+    because the rule's thresholds are exact and these methods
+    interpolate across them.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
     0.9815.
+  - Deep-dive into what functional form the synthetic generator
+    uses to sample the noise. We know it's a function of 10
+    "unused" features (AUC 0.90 detector) and the flip is always
+    one step. If we could invert that function we'd get ~99 %+
+    bal_acc. Inversion requires either (a) a direction model that
+    is correct on both populations (open), or (b) training-data
+    seed / architecture leak (unlikely).
 
 ## Playbook
 
