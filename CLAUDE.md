@@ -398,6 +398,66 @@ README.md      TL;DR + reproduction instructions.
   entry above — that's where the remaining 0.01–0.015 to the pack
   most plausibly lives.
 
+### 2026-04-20 — 128-cell empirical Bayes + LGBM-dist replication (stacking null + replication)
+
+- Goal: test ideas #1 (128-cell empirical Bayes) and #2 (LGBM with
+  signed/abs distance-to-threshold features) from the brainstorm,
+  and check whether a blend of the two beats either component.
+- Changed: `scripts/empirical_bayes_cell.py` (pack 6 rule features
+  into a single cell-id in `[0,128)`, estimate `P(y | cell)` with
+  Laplace smoothing out-of-fold, save OOF+test probs +
+  `submission_eb_cell_tuned.csv`). `scripts/benchmark_dist.py`
+  (LGBM with 43 features: original 19 + DGP score/bool indicators
+  + 4 signed distances + 4 absolute distances + score-band
+  distances + min-axis distance + 4 pairwise interactions).
+  `scripts/blend_eb_dist.py` sweeps α ∈ [0,1] in prob and log
+  space. Artefacts: `oof_eb_cell.npy`, `test_eb_cell.npy`,
+  `oof_lgbm_dist.npy`, `test_lgbm_dist.npy`,
+  `eb_cell_results.json`, `bench_dist_results.json`,
+  `blend_eb_dist_results.json`.
+- Results (5-fold stratified OOF bal_acc, seed=42, 630k):
+  - Rule argmax (pure DGP formula): 0.96097 (prior).
+  - **EB-cell argmax**: 0.95925 — beats the rule's 0.89 earlier
+    buggy run (fixed: the synthetic stage set is
+    `{Flowering, Harvest, Sowing, Vegetative}`, not
+    `{...Fruiting...}` as on the 10k original).
+  - **EB-cell tuned log-bias**: **0.96339** — the Bayes-optimal
+    ceiling given only the 6 rule features.
+  - LGBM+dist argmax: 0.96347.
+  - **LGBM+dist tuned log-bias**: **0.97266** — matches the prior
+    `benchmark_dgp.py` result (0.97271) within fold noise
+    (σ ≈ 0.00088). Confirms the +0.00174 DGP-aware lift is
+    reproducible; the extra features in this run (min-axis, score-
+    band distance, pairwise interactions) are a wash (Δ ≈ 0).
+  - EB-cell + LGBM-dist prob blend: monotonic in α → pure LGBM
+    (α=1.0) wins at 0.97266. EB brings zero orthogonal signal
+    in prob space.
+- Observation: the 128-cell cube uses the same 6 features the
+  LGBM already splits on near-optimally — the model has no trouble
+  recovering per-cell class distributions from interaction splits,
+  so a hand-built empirical Bayes over those cells cannot add
+  anything. This is the same "trees already find it" lesson as
+  the 2026-04-20 FE experiment, now confirmed at the cell-ID
+  level.
+- Read-out: the ~0.008 gap between EB-cell (0.96339) and LGBM-dist
+  (0.97266) is the **information in the 13 non-rule features**
+  (Soil_pH, Humidity, Sunlight_Hours, Organic_Carbon, EC,
+  Field_Area, Previous_Irrigation, Region, Crop_Type, Soil_Type,
+  plus Mulching and Stage that are already in the rule). Any
+  future "noise-model" approach has to either capture those
+  features or beat LGBM at using the distance-to-threshold
+  signal, not just restate the rule.
+- LB delta: n/a (no submission spent; best candidate
+  `submission_lgbm_dist_tuned.csv` statistically tied with the
+  already-on-disk `submission_lgbm_dgp_tuned.csv`).
+- Next bet: the unexplored orthogonal ideas from the brainstorm
+  are (a) noise-robust loss (GCE/SCE custom LGBM objective) —
+  directly targets the ~2 % boundary-band flips; (b) per-score-bin
+  expert models (specialise on score ∈ {3,4,6,7}); (c) explicit
+  noise-inversion head modelling `P(y_obs | y_true, distances)`.
+  Cell-level empirical Bayes is henceforth ruled out as a stacking
+  candidate.
+
 ## Hypothesis board
 
 - **Open**:
@@ -443,6 +503,15 @@ README.md      TL;DR + reproduction instructions.
     close to LGBM but diversity value is bounded by the 0.01 gap.
     Rule: any future stacking candidate must hit ≥0.965 standalone
     OOF to be worth the compute.
+  - **128-cell empirical Bayes as a stacking feature** — standalone
+    OOF 0.96339 (vs rule 0.96097, LGBM-dist 0.97266). Prob-space
+    blend with LGBM-dist is monotonic in α → pure LGBM wins; EB
+    adds zero orthogonal signal because LGBM already splits on the
+    same 6 rule features and recovers cell-level class
+    distributions via interaction splits. Same lesson as the
+    hand-engineered domain features ruled out earlier. Cell
+    probabilities only help if paired with a model that doesn't
+    already see the 6 rule cols.
   - **LGBM hyperparameter optimization** (Optuna TPE, 47 trials,
     200k subsample, 10-dim search space). Best
     `num_leaves=46, max_depth=3, lr=0.064` hit 0.97047
