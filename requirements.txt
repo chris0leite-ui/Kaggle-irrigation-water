@@ -8,7 +8,7 @@ pytest
 python-dotenv>=1.0.0
 
 # Tabular models — uncomment as needed
-# lightgbm
+lightgbm
 # xgboost
 # catboost
 # pygam
