@@ -29,6 +29,9 @@ venv/
 # Kaggle credentials
 .kaggle/
 
+# Claude Code local settings (may contain secrets like API keys)
+.claude/settings.local.json
+
 # Jupyter
 .ipynb_checkpoints/
 
