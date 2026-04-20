@@ -70,6 +70,24 @@ world data the synthetic set was generated from), not the competition.
 See `brief.md` for the full host material (description, rules,
 evaluation, data description, host forum posts).
 
+## Domain knowledge — pruned
+
+The repo previously carried an agronomy primer (`DOMAIN.md`,
+`domain/*.md`) with FAO-56 Kc tables, soil-water-balance equations,
+Penman–Monteith evapotranspiration, Indian cropping-season context,
+etc. **Deleted 2026-04-20** once the DGP was reverse-engineered: the
+synthetic label is produced by a closed-form integer rule on 6
+features (see `scripts/dgp_formula.py`), not a physical simulation.
+Hand-engineered physics-inspired features added **zero lift** in
+LGBM (`benchmark_fe.py` Δ = −0.00052) because the trees already
+discover the same interactions.
+
+For the next synthetic competition: **research domain knowledge
+early** as a hypothesis-seeder — it told us what "irrigation_need"
+means and which feature axes to probe, which pointed us at the rule.
+But do **not** invest in physics-faithful feature engineering until
+the DGP's actual functional form is confirmed.
+
 ## Commands
 
 ```bash
@@ -155,10 +173,12 @@ README.md      TL;DR + reproduction instructions.
   and test whether weaker models bring orthogonal signal.
 - Changed: `DOMAIN.md` (soil-water balance equation, feature-to-term
   mapping, Indian cropping-season context, FAO-56 Kc lookup, soil
-  field-capacity lookup); `scripts/heuristic.py` (no-training,
-  threshold-fit-per-fold predictor); `scripts/formula_mnlogit.py` (three
-  hand-crafted MNLogit formulas F1/F2/F3); `scripts/benchmark_multi.py`
-  (XGBoost done, CatBoost killed at fold 1); `scripts/blend_lgbm_mnlogit.py`
+  field-capacity lookup — **deleted 2026-04-20** once the DGP was
+  shown to be a closed-form integer rule, not a physics sim);
+  `scripts/heuristic.py` (no-training, threshold-fit-per-fold
+  predictor); `scripts/formula_mnlogit.py` (three hand-crafted
+  MNLogit formulas F1/F2/F3); `scripts/benchmark_multi.py` (XGBoost
+  done, CatBoost killed at fold 1); `scripts/blend_lgbm_mnlogit.py`
   (blend sweep).
 - Results (OOF balanced accuracy, 5-fold stratified, seed=42):
   - Heuristic H1 (Soil_Moisture alone): 0.62911
