@@ -19,7 +19,8 @@ load_dotenv()
 
 def setup_kaggle_credentials():
     username = os.getenv("KAGGLE_USERNAME")
-    key = os.getenv("KAGGLE_KEY")
+    # Support both KAGGLE_KEY and the newer KAGGLE_API_TOKEN env var name
+    key = os.getenv("KAGGLE_KEY") or os.getenv("KAGGLE_API_TOKEN")
 
     if username and key:
         kaggle_dir = pathlib.Path.home() / ".kaggle"
@@ -31,7 +32,7 @@ def setup_kaggle_credentials():
     elif not (pathlib.Path.home() / ".kaggle" / "kaggle.json").exists():
         raise EnvironmentError(
             "Kaggle credentials not found. Set KAGGLE_USERNAME and KAGGLE_KEY "
-            "in .env, or place kaggle.json in ~/.kaggle/kaggle.json"
+            "(or KAGGLE_API_TOKEN) in .env, or place kaggle.json in ~/.kaggle/kaggle.json"
         )
 
 
