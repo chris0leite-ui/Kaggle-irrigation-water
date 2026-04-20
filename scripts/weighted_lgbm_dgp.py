@@ -32,7 +32,7 @@ ID = "id"
 CLASSES = ["Low", "Medium", "High"]
 CLS2IDX = {c: i for i, c in enumerate(CLASSES)}
 IDX2CLS = {i: c for c, i in CLS2IDX.items()}
-WEIGHTS = [10, 30, 60, 100, 200]
+WEIGHTS = [60]
 
 OUT_DIR = Path("submissions")
 ART_DIR = Path("scripts/artifacts")
