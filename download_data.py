@@ -8,19 +8,17 @@ useful only as an optional "extra training data" experiment (the
 competition rules explicitly allow incorporating the original).
 
 For the competition data itself (train.csv, test.csv, sample_submission.csv),
-run ./bootstrap.sh instead — that uses `kaggle competitions download -c
-playground-series-s6e4` which authenticates with KAGGLE_API_TOKEN alone.
+run ./bootstrap.sh instead.
 
-One-time setup before first run of THIS script:
-  1. Visit https://www.kaggle.com/datasets/l3llff/irrigation-water in a
-     browser while signed in, click Download, and accept the dataset's
-     terms of service. Without this step the API returns 403.
-  2. Provide credentials via either:
-     - `.env` file with KAGGLE_USERNAME + KAGGLE_KEY (legacy format), OR
-     - `~/.kaggle/kaggle.json` with {"username": ..., "key": ...}.
-     Note: a bare KAGGLE_API_TOKEN (new KGAT_ format) is not sufficient
-     for the `kaggle datasets` endpoint — the python client needs a
-     username/key pair written into kaggle.json.
+One-time setup before first run:
+  Visit https://www.kaggle.com/datasets/l3llff/irrigation-water in a
+  browser while signed in, click Download, and accept the dataset's
+  terms of service. Without this step the API returns 403.
+
+Credential modes (pick one):
+  A. KAGGLE_API_TOKEN env var (new KGAT_... format, preferred)
+  B. KAGGLE_USERNAME + KAGGLE_KEY env vars (legacy API key)
+  C. Existing ~/.kaggle/kaggle.json
 
 Usage:
   python download_data.py
@@ -33,43 +31,74 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DATASET = "l3llff/irrigation-water"
+
+
+def _is_kgat_token(value: str) -> bool:
+    return value.startswith("KGAT_")
+
 
 def setup_kaggle_credentials():
     username = os.getenv("KAGGLE_USERNAME")
-    # Support both KAGGLE_KEY and the newer KAGGLE_API_TOKEN env var name
-    key = os.getenv("KAGGLE_KEY") or os.getenv("KAGGLE_API_TOKEN")
+    api_token = os.getenv("KAGGLE_API_TOKEN")
+    legacy_key = os.getenv("KAGGLE_KEY")
 
-    if username and key:
-        kaggle_dir = pathlib.Path.home() / ".kaggle"
+    kaggle_dir = pathlib.Path.home() / ".kaggle"
+    creds_path = kaggle_dir / "kaggle.json"
+
+    if api_token and _is_kgat_token(api_token):
+        # KGAT tokens authenticate via the KAGGLE_API_TOKEN env var; the
+        # Kaggle SDK reads it directly — no kaggle.json needed.
+        print("Using KGAT access token from KAGGLE_API_TOKEN.")
+        if creds_path.exists():
+            # Remove any stale legacy kaggle.json so it doesn't conflict.
+            creds_path.unlink()
+        return
+
+    if username and (legacy_key or api_token):
+        key = legacy_key or api_token
         kaggle_dir.mkdir(exist_ok=True)
-        creds_path = kaggle_dir / "kaggle.json"
         creds_path.write_text(json.dumps({"username": username, "key": key}))
         creds_path.chmod(0o600)
         print(f"Kaggle credentials written to {creds_path}")
-    elif not (pathlib.Path.home() / ".kaggle" / "kaggle.json").exists():
-        raise EnvironmentError(
-            "Kaggle credentials not found. Set KAGGLE_USERNAME and KAGGLE_KEY "
-            "(or KAGGLE_API_TOKEN) in .env, or place kaggle.json in ~/.kaggle/kaggle.json"
-        )
+        return
+
+    if creds_path.exists():
+        print(f"Using existing credentials at {creds_path}")
+        return
+
+    raise EnvironmentError(
+        "Kaggle credentials not found.\n"
+        "  Option A: set KAGGLE_API_TOKEN to a KGAT_... token\n"
+        "  Option B: set KAGGLE_USERNAME + KAGGLE_KEY\n"
+        "  Option C: place kaggle.json in ~/.kaggle/kaggle.json"
+    )
 
 
-def download_dataset(dataset: str, output_dir: str = "data"):
-    import kaggle  # imported after credentials are set up
+def download_dataset(dataset: str = DATASET, output_dir: str = "data"):
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApiExtended
+    except ImportError:
+        raise SystemExit("Run: pip install kaggle")
 
     pathlib.Path(output_dir).mkdir(exist_ok=True)
-    print(f"Downloading dataset '{dataset}' to '{output_dir}/'...")
-    kaggle.api.authenticate()
-    kaggle.api.dataset_download_files(dataset, path=output_dir, unzip=True)
+    print(f"Downloading '{dataset}' to '{output_dir}/'...")
+
+    api = KaggleApiExtended()
+    try:
+        api.authenticate()
+    except Exception as e:
+        raise SystemExit(
+            f"Authentication failed: {e}\n"
+            "If using a KGAT token, ensure outbound HTTPS access to kaggle.com is available.\n"
+            "If the error is 403: accept the dataset's terms at "
+            "https://www.kaggle.com/datasets/l3llff/irrigation-water"
+        )
+
+    api.dataset_download_files(dataset, path=output_dir, unzip=True)
     print("Download complete.")
 
 
 if __name__ == "__main__":
     setup_kaggle_credentials()
-
-    # The original Irrigation Prediction dataset — the real-world data that
-    # the Playground Series S6E4 synthetic data was generated from. Remember
-    # to accept the dataset's terms of service once in a browser before the
-    # API will serve it (see module docstring).
-    DATASET = "l3llff/irrigation-water"
-
-    download_dataset(DATASET)
+    download_dataset()
