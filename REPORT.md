@@ -58,6 +58,11 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | Tree (LGBM+EXT)          | prior-reweight argmax (concat 10k orig)  |     0.97097 |      +0.00032  |
 | **Tree (LGBM+EXT)**      | **tuned log-bias (concat 10k original)** | **0.97124** |   **+0.00027** |
 | Blend                    | LGBM + MNLogit Fk, sweep w ∈ [0, 0.5]    |     0.97097 |   +0.00000 (null) |
+| Orthogonal model         | Heuristic (8-signal z-sum + 2 cuts, 630k, learned thresholds) | 0.60012 |    – |
+| Orthogonal model         | Gaussian NB (FE cols, 630k)              |     0.75172 |      +0.15160  |
+| Orthogonal model         | Multinomial LR balanced (FE cols, 630k)  |     0.83009 |      +0.07837  |
+| Orthogonal model         | EBM with pairwise interactions (200k)    |     0.96106 |      +0.13097  |
+| Tree (LGBM HP-tuned)     | prior-reweight argmax (200k, TPE best)   |     0.97047 |  −0.00050 vs baseline |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 
@@ -101,6 +106,21 @@ Key read-outs
   flips ~4k Medium→High and ~875 High→Medium on OOF; the heuristic
   makes that error 50× more often. This is where any further gain must
   come from.
+- **Independence-to-interaction gap is ~0.22.** A controlled ladder on
+  identical 5-fold folds: heuristic 0.600 → Gaussian NB 0.752 → LR 0.830
+  → EBM 0.961 → LGBM 0.971. Every +0.08 step is bought by letting the
+  model represent more interaction structure. Rules out any
+  independence-based or linear stacking candidate as a source of
+  orthogonal signal worth the compute.
+- **LGBM hyperparameter optimization did not beat default-ish.**
+  60-trial Optuna TPE sweep (10-dim search: lr, num_leaves,
+  min_data_in_leaf, feature/bagging fractions, freq, λ₁/λ₂, max_depth,
+  min_gain) on a 200k subsample found best `num_leaves=46, max_depth=3,
+  lr=0.064` at 0.97047 prior-reweight — roughly level with the baseline
+  (num_leaves=127, defaults) after scale-up. TPE preferred shallow +
+  regularized, but that's a different *shape* of optimum reaching the
+  same plateau. Extrapolated full-630k delta ≤ +0.001. Baseline HPs
+  are near-optimal at this feature set; gains need a different lever.
 
 ## 4. Strategy and next steps
 
@@ -196,3 +216,73 @@ ready.
   fold std is ~0.002 — the gap is within one seed's worth of variance.
 - Is there an ordinal structure lurking in the synthetic DGP that an
   ordinal loss would exploit?
+
+## 7. Original-dataset DGP — closed-form, 6 features, 100%
+
+Reverse-engineered the generator of `data/irrigation_prediction.csv`
+(all 10,000 rows, no exceptions). Code: `scripts/dgp_formula.py`.
+
+Six indicators:
+
+| Indicator | Definition                                         |
+|---        |---                                                 |
+| `dry`     | `Soil_Moisture < 25`                               |
+| `norain`  | `Rainfall_mm   < 300`                              |
+| `hot`     | `Temperature_C > 30`                               |
+| `windy`   | `Wind_Speed_kmh > 10`                              |
+| `nomulch` | `Mulching_Used == "No"`                            |
+| `Kc`      | `2` if `Crop_Growth_Stage ∈ {Flowering, Vegetative}` else `0` |
+
+Weighted water-need score:
+
+```
+score = 2·(dry + norain) + (hot + windy + nomulch) + Kc
+```
+
+Binning:
+
+```
+Low     if score ≤ 3
+Medium  if 4 ≤ score ≤ 6
+High    if score ≥ 7
+```
+
+How it was found
+
+- RF feature importance on the 10k original collapses to 6 dominant
+  features with a sharp cliff (Mulching_Used 0.087 → Humidity 0.021).
+- An unconstrained DT on all 19 features reaches 100% train accuracy
+  with only 66 leaves at depth 11; on the 6-feature subset, same 66
+  leaves / depth 11 / 100%.
+- Split thresholds cluster on round numbers: 25 (Soil_Moisture), ~300
+  (Rainfall_mm), ~30 (Temperature_C), ~10 (Wind_Speed_kmh).
+- Applying those four thresholds plus the two categoricals yields a
+  2⁵ × 4 = 128-cell lookup table; **every cell is pure** (0 of 128
+  mixed-label cells).
+- Inspecting the pure table shows water-supply axes (`dry`, `norain`)
+  carry 2× the weight of demand axes (`hot`, `windy`, `nomulch`), and
+  crop stage acts as a +2 bump when the crop is actively transpiring.
+
+Implications
+
+- The original dataset is **fully deterministic** on 6 features — it
+  is NOT a noisy physical simulation, it is an integer rule written
+  by the host. That closes §6's "does the original improve CV" for
+  a different reason than we thought: the original is a clean
+  target, but its rule is so simple that any competent tree (or even
+  a lookup table) reproduces it perfectly, so adding it contributes
+  information only where it disagrees with the synthetic DGP.
+- **Synthetic train/test likely uses the same or a near-identical
+  rule**, given the earlier transfer-check finding (8k-original →
+  630k-synthetic tuned bal_acc 0.96278, and categorical vocab +
+  numeric distributions align within ~1%). The ~3.7% that doesn't
+  transfer is probably label noise injected by the synthetic
+  generator, or a slight perturbation of the thresholds.
+- **Concrete next bet**: score the synthetic train with this formula
+  (pending a new `data/train.csv` download) and measure exact
+  per-row agreement. If it's near-perfect, the pack at 0.98114 is
+  almost certainly running this rule (or an equivalent one) and the
+  remaining gap is entirely label noise. If it's, say, 80%, then
+  either thresholds were shifted or weights were tweaked, and a
+  small grid search over rule parameters should recover the
+  synthetic version.

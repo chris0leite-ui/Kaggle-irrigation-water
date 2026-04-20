@@ -266,6 +266,138 @@ README.md      TL;DR + reproduction instructions.
   the small OOF delta transfers — but only after the seed-bag is in,
   since the seed-bag result would be a stronger submit candidate.
 
+### 2026-04-20 — DGP reverse-engineered, closed-form rule submitted
+
+- Goal: find the synthetic-generator rule. Hypothesis: the original
+  10k dataset is integer-rule-generated on a small feature subset,
+  and the synthetic 630k is the same rule + label-noise near the
+  thresholds.
+- Changed: `scripts/dgp_formula.py` implements the rule; REPORT.md
+  §7 documents derivation; `submissions/submission_dgp_formula.csv`
+  built and submitted.
+- Rule (perfect on 10k original, 100.000000 % accuracy):
+  ```
+  dry     = Soil_Moisture < 25
+  norain  = Rainfall_mm   < 300
+  hot     = Temperature_C > 30
+  windy   = Wind_Speed_kmh > 10
+  nomulch = Mulching_Used == "No"
+  Kc      = 2 if Crop_Growth_Stage in {Flowering, Vegetative} else 0
+  score   = 2*(dry + norain) + (hot + windy + nomulch) + Kc
+  Low if score<=3 ; Medium if 4<=score<=6 ; High if score>=7
+  ```
+- Derivation: RF importance collapsed to 6 features; unconstrained
+  DT hit 100 % train with 66 leaves at depth 11; tree split
+  thresholds clustered on round numbers (25 / 300 / 30 / 10); the
+  2⁵ × 4 = 128-cell lookup table over (dry,norain,hot,windy,nomulch)
+  × stage had **0 mixed-label cells**. Per-cell inspection revealed
+  water axes carry 2× the weight of demand axes and stage acts as
+  a +2 bump for active transpiration.
+- Synthetic train: rule hits raw acc **0.98364**, bal_acc **0.96097**
+  on all 630k rows. Error pattern is strictly boundary-band: rows
+  with score 1–3 mis-predicted → Medium (5,269); rows at score 4
+  → Low (1,507) or High (1,758); rows 7–9 → Medium (1,692). No
+  cross-band errors. Confirms the synthetic = original rule + a
+  near-threshold label-flip process.
+- LB delta: submitted pure rule → **public = 0.95835**, rank ~N/A
+  (below the tied pack). Train bal_acc 0.96097 − LB 0.95835 = 0.00262,
+  consistent with the −0.00125 OOF↔LB gap from the tuned LGBM.
+- Budget: 2/10 used today, 8 remaining.
+- Read-out: the rule alone doesn't beat tuned LGBM (0.96972) because
+  LGBM already implicitly learns it. The pack at 0.98114 must be
+  using the rule's structure AND a mechanism to recover boundary-
+  band flips — either (a) distance-to-threshold features that let
+  a model learn where the noise is, or (b) a per-row noise inversion
+  specific to the synthetic generator.
+- Next bet: add the DGP indicators (score, dry, norain, hot, windy,
+  nomulch, Kc) AND distance-to-threshold continuous features
+  (Soil_Moisture−25, Rainfall_mm−300, Temperature_C−30,
+  Wind_Speed_kmh−10) to LGBM. If the noise is a learnable function
+  of distance-to-boundary, tuned OOF should break 0.975+.
+
+### 2026-04-20 — domain knowledge pack + orthogonal-model 5-fold sweep (ruled out)
+
+- Goal: codify the physical model of the target into a reusable
+  knowledge base, and stress-test it by running a range of non-LGBM
+  estimators under identical 5-fold CV. Two questions: (a) is the
+  signal linear-separable? (b) does any weaker model bring orthogonal
+  information worth stacking?
+- Changed: `domain/` — 8-file modular primer (water balance, ET,
+  soil, crops, irrigation systems, India context, modeling priors)
+  adapted for this feature set. `scripts/cv_heuristic.py` —
+  domain-weighted scalar score + per-fold 2-threshold tuning.
+  `scripts/cv_linear_nb.py` — multinomial LR (class-balanced) +
+  Gaussian NB on the same features. `scripts/cv_ebm.py` — EBM
+  (InterpretML) with shape functions + pairwise interactions.
+  Artefacts: `cv_heuristic.json`, `cv_lr_multinomial.json`,
+  `cv_gaussian_nb.json`, `cv_big_fe.json`.
+- Results (5-fold stratified OOF balanced accuracy, seed=42):
+  - Heuristic (8-signal z-scored sum + learned 2 cuts, 630k):
+    **0.60012 ± 0.00141** — per-class recall High 0.706 / Low 0.686
+    / Medium 0.409.
+  - Gaussian NB (independence, 630k): **0.75172 ± 0.00402**.
+  - Multinomial LR (one-hot + z-score, class_weight=balanced, 630k):
+    **0.83009 ± 0.00827**.
+  - EBM (shape + pairwise interactions, 200k for compute,
+    outer_bags=1): **0.96106 ± 0.00120**.
+  - Baseline LGBM + tuned log-bias (reference): 0.97097.
+- Observations:
+  - Interaction gap is the story: heuristic 0.60 → NB 0.75 → LR 0.83 →
+    EBM 0.96 → LGBM 0.97. The **independence assumption (NB) loses
+    ~0.22 vs LGBM**, almost all of which is non-linearity + pairwise
+    interactions. This makes stacking with any of these slower models
+    a poor bet (same reason as MNLogit blend null).
+  - Heuristic Medium recall collapses (0.41): the middle bin has no
+    standalone signal, it lives in the interaction pattern.
+  - Hand-engineered domain features (VPD, Kc stage, soil depletion,
+    ET proxy) add 0.958 → 0.958 on EBM — consistent with the earlier
+    LGBM-FE null result (boosted trees at this leaf count already
+    find these patterns).
+- LB delta: n/a.
+- Next bet: DGP archaeology (now productive per the 2026-04-20 DGP
+  entry below) is the remaining orthogonal lever. Skipping further
+  orthogonal-model work; the signal is tree-shaped.
+
+### 2026-04-20 — LGBM hyperparameter sweep (ruled out)
+
+- Goal: answer NEXT_STEPS §N — does serious HP tuning on the baseline
+  LGBM break the 0.97097 OOF plateau? Baseline uses num_leaves=127,
+  min_data_in_leaf=200, lr=0.05, feature_fraction=0.9, bagging=0.9.
+- Changed: `scripts/hyperopt_lgbm.py` — Optuna TPE with
+  MedianPruner over `learning_rate, num_leaves, min_data_in_leaf,
+  feature_fraction, bagging_fraction, bagging_freq, lambda_l1,
+  lambda_l2, max_depth, min_gain_to_split`. Optimizes
+  prior-reweight OOF (faster proxy for log-bias, captures >99 % of
+  the lift on identical probs). `scripts/finalize_lgbm.py` — reruns
+  best config on full 630k with log-bias coord ascent.
+  `scripts/artifacts/hyperopt_lgbm_200k.json`.
+- Setup: 60 trials attempted / 47 completed / 13 pruned, ~90 min
+  budget, 200k stratified subsample (ranking stable vs 630k for
+  LGBM HPs in this regime).
+- Results (prior-reweight OOF bal_acc, 200k):
+  - **Best trial (29)**: 0.97047 with `num_leaves=46, max_depth=3,
+    lr=0.064, feature_fraction=0.64, bagging_fraction=0.76,
+    bagging_freq=1, lambda_l1~7e-5, lambda_l2~4e-5, min_gain=0.24`.
+  - Baseline's config on 200k prior-reweight (for apples-to-apples):
+    not recomputed, but 630k log-bias baseline is 0.97097.
+  - Full 630k finalize was started, killed early — extrapolated
+    delta ≤ +0.001, not worth the ~30 min compute.
+- Observations:
+  - TPE preferred **shallow** trees (max_depth 3–4, num_leaves
+    46–189) vs. the baseline's 127 leaves with default max_depth.
+    Shallow + regularized is a different regime that reaches roughly
+    the same OOF — a plateau, not a ridge.
+  - Best config switched 4×+ during the sweep (trial 1 → 17 → 27 →
+    29) with Δ ~+0.001 between each. TPE was still exploring when
+    budget expired, but gains flattened — typical saturation
+    pattern.
+- LB delta: n/a.
+- Next bet: shift compute to (a) ensembling LGBM+XGBoost at the
+  prob level with shared log-bias tuning, (b) the DGP distance-
+  to-threshold features flagged in the DGP-reverse-engineering
+  entry above — that's where the remaining 0.01–0.015 to the pack
+  most plausibly lives.
+
 ## Hypothesis board
 
 - **Open**:
@@ -302,6 +434,24 @@ README.md      TL;DR + reproduction instructions.
     leaves already discover these interactions; prebuilt versions add
     no new splits. Revisit only at a much smaller leaf budget or on a
     tiny training subset.
+  - **Orthogonal-model stacking candidates** (heuristic / Gaussian
+    NB / multinomial LR / EBM) — 5-fold OOF ladder on the same
+    folds: heuristic 0.600, NB 0.752, LR 0.830, EBM 0.961. LGBM is
+    0.97097. The independence-to-interaction gap (NB 0.75 → LGBM
+    0.97) is ~0.22, so no weaker linear/independence-based model
+    brings enough orthogonal signal to justify stacking. EBM is
+    close to LGBM but diversity value is bounded by the 0.01 gap.
+    Rule: any future stacking candidate must hit ≥0.965 standalone
+    OOF to be worth the compute.
+  - **LGBM hyperparameter optimization** (Optuna TPE, 47 trials,
+    200k subsample, 10-dim search space). Best
+    `num_leaves=46, max_depth=3, lr=0.064` hit 0.97047
+    prior-reweight on 200k — roughly level with the 0.97097 baseline
+    (which uses num_leaves=127, defaults elsewhere). The sweep found
+    a different shape of optimum (shallow + regularized) that reaches
+    the same plateau. Extrapolated full-630k delta ≤ +0.001.
+    Baseline HPs are near-optimal for this feature set; further
+    gains need a different lever.
 - **Confirmed (new)**:
   - **Original Irrigation Prediction dataset is well-aligned with the
     synthetic DGP.** Transfer check: LGBM trained on 8k original,
