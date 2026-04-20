@@ -95,12 +95,35 @@ README.md      TL;DR + reproduction instructions.
   balanced accuracy of argmax vs tuned decision rule — if tuned rule
   doesn't beat argmax on OOF, re-examine before burning a sub.
 
+### 2026-04-20 — benchmarks + EDA report
+
+- Goal: land a reproducible EDA (on a held-out subsample) and a dummy +
+  LGBM benchmark with decision-rule ablation on OOF.
+- Changed: `scripts/eda.py` now stratified-subsamples 50% of train
+  (seed=42) and emits `plots/eda/report.html`, a self-contained HTML
+  with embedded PNGs + feature-signal ranking tables; `scripts/benchmark.py`
+  runs the 5-fold stratified LGBM pipeline and saves OOF + test probs
+  to `scripts/artifacts/`; `submissions/baseline_lgbm_{argmax,tuned}.csv`
+  generated but not submitted.
+- Results (OOF balanced accuracy, seed=42, 5-fold CV):
+  - majority / random baselines → 0.3333 (floor)
+  - LGBM argmax → 0.96135
+  - LGBM prior-reweight argmax → 0.97065 (+0.0093)
+  - **LGBM tuned log-bias → 0.97097** (+0.0003 over prior-reweight)
+- Best log-bias: Low +0.23, Medium +0.67, High +3.40 — matches the
+  balanced-accuracy intuition that `High` needs a large positive bump.
+- Confusion-matrix mass lives in Medium↔High; Low is essentially
+  solved.
+- LB delta: n/a (still no submissions; 10/10 day budget intact).
+- Next bet: we're ~0.010 below the 0.98114 tied pack with a
+  no-feature-engineering single-seed LGBM. Cheapest gains: (a) 3–5
+  seed bag of LGBM, (b) richer feature interactions (esp.
+  Soil_Moisture × Rainfall, Crop_Growth_Stage × Mulching_Used), (c)
+  try XGBoost or CatBoost and blend.
+
 ## Hypothesis board
 
 - **Open**:
-  - Default `argmax` is suboptimal under balanced accuracy when classes
-    are imbalanced → tuning per-class thresholds on OOF probabilities should
-    move the score. Test on an LGBM baseline.
   - Incorporating the original Irrigation Prediction dataset (explicitly
     allowed) may help, but may also hurt if its DGP differs from the
     synthetic train distribution. Test as a controlled ablation.
@@ -109,6 +132,14 @@ README.md      TL;DR + reproduction instructions.
     seeds/models, (b) threshold tuning, (c) leveraging the ordinal
     structure (`Low < Medium < High`) via ordinal-aware losses despite
     the metric being order-agnostic.
+  - Most of the residual error is Medium↔High confusion. Feature
+    interactions that separate these two classes (e.g. Soil_Moisture ×
+    Rainfall_mm, Crop_Growth_Stage × Mulching_Used) should move bal_acc.
+- **Confirmed**:
+  - Default `argmax` is suboptimal under balanced accuracy when classes
+    are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
+    from 0.96135 → 0.97097 (+0.0096). Keep this as the decision rule
+    for every subsequent model.
 - **Ruled out**: (none yet)
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high

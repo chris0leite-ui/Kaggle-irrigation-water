@@ -41,3 +41,6 @@ venv/
 # Local exploration (not committed)
 explore.py
 scratch.py
+
+# Model artifacts — keep summary JSONs, skip bulky OOF/test prob arrays
+scripts/artifacts/*.npy
