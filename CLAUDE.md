@@ -447,6 +447,53 @@ README.md      TL;DR + reproduction instructions.
   LGBM+DGP (+0.0005 best case, doesn't help), LGBM+XGB+DGP blend
   (+0.001–0.002 best case, doesn't reach 0.98).
 
+### 2026-04-20 — noise-seed archaeology (ruled out)
+
+- Goal: resolve whether the ~10 % of flips the 0.899-AUC flip
+  detector misses are a deterministic function of `id`, float
+  quantization, or non-rule feature combinations — i.e., is there a
+  seed / hash pattern we can exploit?
+- Changed: `scripts/dgp_archaeology.py` — pass-1 diagnostic sweep
+  (id mod {2..2048}, float last-decimal digit, single-feature flip
+  AUCs for non-rule numerics/categoricals, hash(non-rule cats) mod K).
+  `scripts/archaeology_id_mod.py` — pass-2 with bootstrap null (500
+  shuffles per K) and a flip-detector LGBM augmented with id + id
+  mod K + id // 1024 features. Artefacts: `dgp_archaeology_results.json`,
+  `archaeology_id_mod_results.json`.
+- Pass-1 initial read: `id mod 1024` had flip-rate spread 0.034 (max
+  3.4 %, min 0.0 %), looked like ~7x the expected null. This turned
+  out to be a back-of-envelope error — spread of max-min across K
+  bins has a much wider null than any single bin's variance.
+- Pass-2 bootstrap null (K, observed / null-median / null-p95 / p):
+  - K=1024 → 0.03415 / 0.03252 / 0.03740 / **p=0.30**
+  - K=997 → 0.02848 / 0.03165 / 0.03639 / p=0.95
+  - K=256 → 0.01503 / 0.01422 / 0.01706 / p=0.26
+  - K=128 → 0.01016 / 0.00935 / 0.01117 / p=0.21
+  - All tested K (2, 3, 5, 7, 8, 16, 32, 64, 128, 256, 512, 997,
+    1024, 2048): p ≥ 0.21. **Zero modular patterns are
+    statistically distinguishable from shuffled noise.**
+- Pass-2 flip-detector AUC:
+  - Baseline (DGP features only): **0.89932**
+  - + id + id mod K + id // 1024 (16 extra features): **0.89679**
+    (slightly *worse* — id-derived features overfit noise without
+    adding signal).
+- Read-out: the flip noise is **not** a function of `id` in any
+  modular sense, and adding any of `id`, `id mod K`, or `id // K`
+  features to a flip detector does not help. Pass-1 also cleared
+  float-quantization last-decimal digit, non-rule numerics
+  (all single-feature flip-AUCs < 0.51), and non-rule categoricals
+  (max flip-rate spread 0.003 across 3–6 levels — within noise).
+- Conclusion: the ~10 % of flips the detector misses are IID
+  pseudorandom with no exploitable seed pattern. **Distance-geometry
+  modeling of the flip is the ceiling for feature-based attacks on
+  this DGP.** LGBM+DGP at 0.97271 OOF is the plateau. The tied pack
+  at 0.98114 must be using a lever we haven't found — our DGP
+  reverse-engineering appears complete at the feature level, so any
+  remaining lift is in a direction orthogonal to features (seed/model
+  bagging at scale, test-prior calibration, or an orthogonal
+  feature-type like float-precision hashes beyond the last-digit
+  test we ran).
+
 ## Hypothesis board
 
 - **Open**:
@@ -511,6 +558,16 @@ README.md      TL;DR + reproduction instructions.
     boundary-band noise. Residual ~10 % of flips is feature-
     invariant noise (consistent with flip-detector AUC cap of 0.899);
     only a seed/hash exploit can recover them.
+  - **Noise-seed archaeology** — `id` modulo sweep {2..2048},
+    float last-decimal digit, single-feature flip AUCs on all
+    non-rule numerics, non-rule categorical flip rates, and
+    hash(non-rule categoricals) mod K. 500x bootstrap null shows
+    *no* K has a statistically distinguishable spread (all
+    p-values ≥ 0.21). Adding id + id mod K + id // 1024 (16 extra
+    features) to the flip detector dropped OOF AUC from 0.89932 to
+    0.89679 — they overfit noise. The flip is IID pseudorandom at
+    the row level; no exploitable seed pattern in the id. Feature-
+    based attacks on the DGP are exhausted.
 - **Confirmed (new)**:
   - **Original Irrigation Prediction dataset is well-aligned with the
     synthetic DGP.** Transfer check: LGBM trained on 8k original,
