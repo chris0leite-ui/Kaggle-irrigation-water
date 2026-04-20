@@ -1,0 +1,40 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "n_features": 19,
+  "n_synthetic": 630000,
+  "n_original": 10000,
+  "class_priors_synthetic": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    0.13244116323609767,
+    0.6689466919465481,
+    3.400768902044088
+  ],
+  "fold_bal_argmax": [
+    0.961005760883474,
+    0.9631248917166445,
+    0.9619506043550365,
+    0.9623082897959624,
+    0.9619923988108526
+  ],
+  "results": [
+    {
+      "name": "LGBM+EXT argmax",
+      "bal_acc": 0.9620764224539181
+    },
+    {
+      "name": "LGBM+EXT prior-reweight argmax",
+      "bal_acc": 0.9709680485771665
+    },
+    {
+      "name": "LGBM+EXT tuned log-bias",
+      "bal_acc": 0.9712367611028019
+    }
+  ],
+  "best_rule": "LGBM+EXT tuned log-bias",
+  "delta_vs_baseline_tuned": 0.00026676110280188237
+}
