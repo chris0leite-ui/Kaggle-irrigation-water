@@ -266,6 +266,55 @@ README.md      TL;DR + reproduction instructions.
   the small OOF delta transfers — but only after the seed-bag is in,
   since the seed-bag result would be a stronger submit candidate.
 
+### 2026-04-20 — DGP reverse-engineered, closed-form rule submitted
+
+- Goal: find the synthetic-generator rule. Hypothesis: the original
+  10k dataset is integer-rule-generated on a small feature subset,
+  and the synthetic 630k is the same rule + label-noise near the
+  thresholds.
+- Changed: `scripts/dgp_formula.py` implements the rule; REPORT.md
+  §7 documents derivation; `submissions/submission_dgp_formula.csv`
+  built and submitted.
+- Rule (perfect on 10k original, 100.000000 % accuracy):
+  ```
+  dry     = Soil_Moisture < 25
+  norain  = Rainfall_mm   < 300
+  hot     = Temperature_C > 30
+  windy   = Wind_Speed_kmh > 10
+  nomulch = Mulching_Used == "No"
+  Kc      = 2 if Crop_Growth_Stage in {Flowering, Vegetative} else 0
+  score   = 2*(dry + norain) + (hot + windy + nomulch) + Kc
+  Low if score<=3 ; Medium if 4<=score<=6 ; High if score>=7
+  ```
+- Derivation: RF importance collapsed to 6 features; unconstrained
+  DT hit 100 % train with 66 leaves at depth 11; tree split
+  thresholds clustered on round numbers (25 / 300 / 30 / 10); the
+  2⁵ × 4 = 128-cell lookup table over (dry,norain,hot,windy,nomulch)
+  × stage had **0 mixed-label cells**. Per-cell inspection revealed
+  water axes carry 2× the weight of demand axes and stage acts as
+  a +2 bump for active transpiration.
+- Synthetic train: rule hits raw acc **0.98364**, bal_acc **0.96097**
+  on all 630k rows. Error pattern is strictly boundary-band: rows
+  with score 1–3 mis-predicted → Medium (5,269); rows at score 4
+  → Low (1,507) or High (1,758); rows 7–9 → Medium (1,692). No
+  cross-band errors. Confirms the synthetic = original rule + a
+  near-threshold label-flip process.
+- LB delta: submitted pure rule → **public = 0.95835**, rank ~N/A
+  (below the tied pack). Train bal_acc 0.96097 − LB 0.95835 = 0.00262,
+  consistent with the −0.00125 OOF↔LB gap from the tuned LGBM.
+- Budget: 2/10 used today, 8 remaining.
+- Read-out: the rule alone doesn't beat tuned LGBM (0.96972) because
+  LGBM already implicitly learns it. The pack at 0.98114 must be
+  using the rule's structure AND a mechanism to recover boundary-
+  band flips — either (a) distance-to-threshold features that let
+  a model learn where the noise is, or (b) a per-row noise inversion
+  specific to the synthetic generator.
+- Next bet: add the DGP indicators (score, dry, norain, hot, windy,
+  nomulch, Kc) AND distance-to-threshold continuous features
+  (Soil_Moisture−25, Rainfall_mm−300, Temperature_C−30,
+  Wind_Speed_kmh−10) to LGBM. If the noise is a learnable function
+  of distance-to-boundary, tuned OOF should break 0.975+.
+
 ## Hypothesis board
 
 - **Open**:
