@@ -166,6 +166,37 @@ README.md      TL;DR + reproduction instructions.
   original Irrigation Prediction dataset as an ablation. Ranked list
   with expected deltas lives in REPORT.md §4.
 
+### 2026-04-20 — LGBM + engineered domain features (null result)
+
+- Goal: test whether hand-built water-balance features lift LGBM
+  above the 0.97097 baseline — the highest-ROI item in
+  `NEXT_STEPS.md` §3.
+- Changed: `scripts/benchmark_fe.py` runs the same 5-fold stratified
+  LGBM pipeline with 8 extra cols (`ET0_proxy`, `Kc_stage`,
+  `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`, `Eff_Rainfall_active`,
+  `Crop_x_Stage`, `Season_x_Region`); artefacts persisted to
+  `scripts/artifacts/oof_lgbm_fe.npy`, `test_lgbm_fe.npy`,
+  `bench_fe_results.json`; submissions
+  `submission_lgbm_fe_{argmax,tuned}.csv`.
+- Results (OOF balanced accuracy, 27 features, seed=42, 5-fold CV):
+  - LGBM+FE argmax → 0.96133 (baseline 0.96135, Δ = −0.00002)
+  - LGBM+FE prior-reweight → 0.96981 (baseline 0.97065, Δ = −0.00084)
+  - **LGBM+FE tuned log-bias → 0.97045** (baseline 0.97097,
+    Δ = **−0.00052**)
+  - Fold std (argmax) = 0.00088 → the drop is well within 1σ noise.
+  - Best bias: Low +0.2324, Medium +0.5689, High +3.4008 —
+    essentially unchanged from baseline (+0.23 / +0.67 / +3.40).
+- Observation: LGBM at `num_leaves=127`, `min_data_in_leaf=200` is
+  clearly not leaf-limited — trees already find these interactions on
+  their own, so prebuilt versions add no new splits. The "prebuilt
+  interactions help when splits are near-leaf-limit" hypothesis in
+  NEXT_STEPS.md §3 doesn't hold at this leaf count.
+- LB delta: still n/a (0/10 day budget consumed).
+- Next bet: seed-bag LGBM (3–5 seeds, retune bias on averaged OOF) —
+  cheapest remaining win at expected +0.0005–0.001. Then LGBM+XGB
+  blend, then original-dataset ablation. NEXT_STEPS.md §3 downgraded
+  to "ruled out"; §4 promoted to top.
+
 ## Hypothesis board
 
 - **Open**:
@@ -196,6 +227,12 @@ README.md      TL;DR + reproduction instructions.
   - **CatBoost as a standalone competitor** — fold-1 argmax 0.96000 ≈
     LGBM/XGB, 23 min/fold training cost, killed after fold 1. Could
     revisit as a 4th blend member only if compute budget allows late.
+  - **Hand-engineered domain features inside LGBM** — 8 cols from F2
+    / H3 pulled tuned OOF to 0.97045 vs baseline 0.97097
+    (Δ = −0.00052, within 1σ fold noise of 0.00088). Trees at 127
+    leaves already discover these interactions; prebuilt versions add
+    no new splits. Revisit only at a much smaller leaf budget or on a
+    tiny training subset.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above

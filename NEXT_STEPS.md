@@ -3,8 +3,9 @@
 Ranked plan with expected OOF deltas, calibrated against the current
 baseline (LGBM + tuned log-bias, 5-fold CV OOF = **0.97097**) and the
 LB reference points (tied pack 0.98114, leader 0.98219). Ten days to
-deadline, 10 LB submissions/day, 0 spent. Updated after the
-heuristic / MNLogit / blend sweep on 2026-04-20.
+deadline, 10 LB submissions/day, 0 spent. Updated 2026-04-20 after
+the FE null result (step 3 below is ruled out; step 4 is now the
+next open bet).
 
 ## 1 · Burn one submission to calibrate CV ↔ LB (today)
 
@@ -32,32 +33,26 @@ synthetic-validation folds so the metric is apples-to-apples.
   may diverge).
 - High info-per-hour: resolves an open question either way.
 
-## 3 · Plug domain features into LGBM
+## 3 · ~~Plug domain features into LGBM~~ — ruled out 2026-04-20
 
-Lift the engineered columns already validated by MNLogit-F2 and
-heuristic-H3 straight into the LGBM feature matrix:
+Ran `scripts/benchmark_fe.py` with 8 engineered cols (`ET0_proxy`,
+`Kc_stage`, `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`,
+`Eff_Rainfall_active`, `Crop_x_Stage`, `Season_x_Region`). Tuned OOF
+**0.97045** vs baseline 0.97097 (Δ = **−0.00052**, within the 0.00088
+fold std). LGBM at 127 leaves was evidently not leaf-limited on this
+dataset, so prebuilt interactions added no new splits. Parked — see
+REPORT.md §5. Move to step 4.
 
-- `ET0_proxy = Temperature_C · (1 − Humidity/100) · Wind_Speed_kmh`
-- `Kc_stage` (FAO-56 lookup by `Crop_Growth_Stage`)
-- `ETc_proxy = ET0_proxy · Kc_stage · (1 − 0.30·is_mulched)`
-- `Soil_deficit = max(0, capacity[Soil_Type] − Soil_Moisture)`
-- `Crop_Type × Crop_Growth_Stage` (full Kc surface)
-- `Season × Region` (climatic regime)
-- `Is_Rainfed = (Irrigation_Type == "Rainfed")`
-
-Retune log-bias after.
-
-- Expected delta: **+0.001 to +0.003**. Trees often discover these
-  interactions on their own but pre-built features help when splits
-  are leaf-limited (our config hits 127 leaves).
-
-## 4 · Seed-bag LGBM (3–5 seeds)
+## 4 · Seed-bag LGBM (3–5 seeds) — now the top open bet
 
 Average OOF probs + test probs across seeds, retune bias once on the
 averaged OOF.
 
-- Fold-level std on bal_acc is ~0.002; √5 reduction ≈ **+0.001** expected.
-- Cheap — 3–5× runtime of `scripts/benchmark.py`, no new code.
+- Fold-level std on bal_acc is ~0.00088 (measured on FE run);
+  √5 reduction ≈ **+0.0005–0.001** expected. Smaller than originally
+  estimated but still the cheapest remaining win.
+- Cheap — 3–5× runtime of `scripts/benchmark.py`, no new code beyond
+  a seed loop wrapper.
 
 ## 5 · LGBM + XGBoost blend
 
