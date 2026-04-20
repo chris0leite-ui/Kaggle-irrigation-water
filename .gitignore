@@ -1,8 +1,40 @@
-.env
-.kaggle/
-data/
+# Data — keep placeholders, ignore content
+data/*
+!data/.gitkeep
+
+# Submissions — keep placeholder, ignore everything except final submission CSVs
+submissions/*
+!submissions/.gitkeep
+!submissions/submission_*.csv
+
+# Common data formats
 *.csv
 *.zip
+*.parquet
+*.feather
+*.h5
+
+# Exception: final Kaggle submission CSVs are committed for easy download
+!submissions/submission_*.csv
+!legacy/submissions/submission_*.csv
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+
+# Kaggle credentials
+.kaggle/
+
+# Jupyter
 .ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+
+# Local exploration (not committed)
+explore.py
+scratch.py
