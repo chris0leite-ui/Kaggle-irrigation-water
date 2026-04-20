@@ -1,8 +1,9 @@
 # Work Report
 
 A structured readout of what was done, what was observed, and what was
-concluded. Lives alongside `CLAUDE.md` (the running log) and
-`LEARNINGS.md` (the portable patterns).
+concluded. Lives alongside `CLAUDE.md` (the running log),
+`DOMAIN.md` (the agronomy primer) and `LEARNINGS.md` (the portable
+patterns).
 
 ## 1. Problem summary
 
@@ -17,59 +18,135 @@ concluded. Lives alongside `CLAUDE.md` (the running log) and
 ## 2. Data observations
 
 - **Missingness**: none in train or test.
-- **Drift**: test shares train's categorical vocabulary exactly (no new
-  levels). Numeric ranges match at a glance; a formal KS pass is still
-  TODO.
+- **Drift**: test shares train's categorical vocabulary exactly. A
+  formal numeric-drift (KS) pass is still TODO.
 - **Top numeric signals (F-stat on a stratified 50% EDA subsample)**:
   `Soil_Moisture` (41k) ≫ `Wind_Speed_kmh` (11k) ≈ `Temperature_C`
   (11k) > `Rainfall_mm` (3.5k). All other numerics are < 100.
 - **Top categorical signals (chi²)**: `Crop_Growth_Stage` (97k) ≫
   `Mulching_Used` (28k) ≫ everything else (< 1k).
 - So ~6 features carry the bulk of the signal; the rest look like
-  either noise features or near-uniform structure.
-- EDA uses a stratified 50% subsample with `seed=42` so that the
-  analysis doesn't lock in decisions from patterns only visible at full
-  sample size. The remaining 50% is a clean holdout.
-- EDA report: `plots/eda/report.html` (self-contained, images
-  base64-embedded).
+  either noise or near-uniform structure.
+- EDA uses a stratified 50% subsample (seed=42); other 50% held out.
+- EDA report: `plots/eda/report.html` (self-contained, base64 images).
 
 ## 3. Models tried
 
-| Model                          | OOF bal_acc | LB      | Notes |
-|---                             |        ---: |    ---: | --- |
-| Majority-class (all Low)       |     0.33333 |       – | Metric floor. |
-| Stratified random              |     0.33384 |       – | Same floor, confirms metric. |
-| LGBM + argmax                  |     0.96135 |       – | 5-fold CV, 250–300 trees, lr 0.05, 127 leaves. |
-| LGBM + prior-reweight argmax   |     0.97065 |       – | Divide probs by prior → equal effective prior at decision. |
-| **LGBM + tuned log-bias**      | **0.97097** |       – | Coord-ascent on OOF; bias = Low 0.23, Med 0.67, High 3.40. |
+All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 
-- Confusion matrix (tuned log-bias): almost all `Low` rows correctly
-  classified; `Medium ↔ High` is the dominant error pattern (~4k
-  Medium→High, 874 High→Medium), which is expected given the tiny
-  `High` prior.
-- Single-seed, single-set-of-params run. No ensembling yet. No feature
-  engineering yet. Still ~1 point below the tied pack at 0.98114.
+| Tier                     | Model / rule                             | OOF bal_acc |      Δ vs prev |
+|---                       |---                                       |         ---:|           ---: |
+| Floor                    | Majority-class (all Low)                 |     0.33333 |             –  |
+| Floor                    | Stratified random                        |     0.33384 |      +0.00001  |
+| Heuristic                | H1 — Soil_Moisture alone                 |     0.62911 |      +0.29527  |
+| Heuristic                | H2 — raw water balance, equal z-weights  |     0.60606 |      −0.02305  |
+| Heuristic                | H3 — H2 + Kc + mulch + soil capacity     |     0.63041 |      +0.00130  |
+| Linear (MNLogit)         | F1 — minimal balance, 4 feats, argmax    |     0.52337 |             –  |
+| Linear (MNLogit)         | F1 — tuned log-bias                      |     0.64721 |      +0.12384  |
+| Linear (MNLogit)         | F2 — balance + Kc + deficit + mgmt, 19f  |     0.66429 |             –  |
+| Linear (MNLogit)         | F2 — tuned log-bias                      |     0.78074 |      +0.11645  |
+| Linear (MNLogit)         | F3 — full structural, 48 feats           |     0.61680 |             –  |
+| Linear (MNLogit)         | F3 — tuned log-bias                      |     0.73294 |      +0.11614  |
+| Tree (LGBM)              | argmax                                   |     0.96135 |             –  |
+| Tree (LGBM)              | prior-reweight argmax                    |     0.97065 |      +0.00930  |
+| **Tree (LGBM)**          | **tuned log-bias**                       | **0.97097** |      +0.00032  |
+| Tree (XGBoost)           | argmax (per-fold ~0.961–0.964)           |      ~0.962 |             –  |
+| Blend                    | LGBM + MNLogit Fk, sweep w ∈ [0, 0.5]    |     0.97097 |   +0.00000 (null) |
+| LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
+| LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 
-## 4. Final approach
+Key read-outs
 
-- Not yet selected. Current best candidate is the tuned-log-bias LGBM
-  submission at `submissions/baseline_lgbm_tuned.csv`, but it's not
-  submitted yet and needs more work before it's worth burning a slot.
+- **Soil_Moisture is the single dominant feature.** H1 (just signed
+  Soil_Moisture + 2 thresholds) already covers 2/3 of the distance from
+  random (0.333) to competitive (0.971). H2 is worse than H1 because
+  equal-weight z-scoring dilutes a dominant signal with noisier axes.
+- **Nonlinear interactions are where the real lift lives.** H3 vs
+  LGBM = +0.34 of bal_acc, on the same underlying physics features.
+  That gap isn't "the equation is wrong"; it's "additive combinations
+  of the equation's terms miss the Medium↔High decision surface".
+- **Bias tuning is model-agnostic and big when the base model is
+  uncalibrated.** +0.12 on each MNLogit formula, +0.010 on LGBM. The
+  leaderboard pack almost certainly already applies some form of it;
+  our LGBM-tuned 0.971 is not a surprise to them.
+- **LGBM × MNLogit blending is a null.** Δ = 0 at every mixing weight.
+  MNLogit at 0.78 tuned is simply too far below LGBM's 0.971 to
+  contribute orthogonal signal.
+- **Confusion-matrix mass lives at Medium↔High.** LGBM tuned still
+  flips ~4k Medium→High and ~875 High→Medium on OOF; the heuristic
+  makes that error 50× more often. This is where any further gain must
+  come from.
+
+## 4. Strategy and next steps
+
+Rough rule of thumb for the remaining 10 days: we need +0.010 bal_acc
+to reach the tied pack, and +0.011 to reach rank 1. Our baseline
+already includes the "threshold trick", so the remaining lift has to
+come from feature engineering, model diversity, or external data.
+
+Ranked by expected ROI / effort:
+
+1. **Feature engineering on LGBM (highest ROI).** Inject the
+   engineered columns already validated by F2 / H3 — `ET0_proxy`,
+   `Kc_stage`, `Soil_deficit`, `ETc_proxy`, `Rainfall × (1 −
+   Is_Rainfed)`, `Soil_Moisture × Soil_Type`, `Crop_Type ×
+   Crop_Growth_Stage` — into the LGBM training set. Expected gain
+   tree models often extract this automatically, but prebuilt
+   interactions help when splits are near-leaf-limit. Estimate:
+   +0.001–0.003.
+2. **Seed-bag LGBM.** 3–5 seeds, average OOF + test probs, retune
+   bias. Fold-level std on bal_acc is ~0.002, so the expected SE
+   reduction is roughly √5 ≈ 2.2×. Estimate: +0.001.
+3. **LGBM + XGBoost blend.** XGBoost OOF is already saved from the
+   multi-model benchmark. Geometric mean with re-tuned bias. Estimate:
+   +0.001–0.002 (model diversity, not raw strength).
+4. **Original Irrigation Prediction dataset.** Explicitly allowed and
+   not yet used. Steps: download, schema-align, add as either
+   (a) concat with train, or (b) external train and synthetic as
+   validation. Sign unknown — DGP may diverge. Estimate: −0.005 to
+   +0.005.
+5. **LGBM hyperparameter refresh.** Current config (lr=0.05, 127
+   leaves, ~280 trees) was a gut estimate, not a search. One round of
+   Optuna on (num_leaves, min_data_in_leaf, feature_fraction,
+   bagging_fraction, lr, reg_alpha, reg_lambda). Estimate: +0.001.
+6. **Ordinal-aware loss or threshold metric.** Errors cluster between
+   adjacent classes; an ordinal objective may reduce Medium↔High
+   confusion even though the metric itself is order-agnostic.
+   Estimate: +0.001 or nothing.
+7. **DGP archaeology (parked).** Reverse-engineer the synthetic
+   generator. High effort, unclear payoff — revisit only if stuck
+   above 0.9815 after the cheaper bets land.
+
+Minimum-viable first submission: the current
+`submissions/baseline_lgbm_tuned.csv` (LGBM + tuned log-bias, OOF
+0.97097). Sending it is cheap information — it tells us the LB gap
+more accurately than our guess. Decision pending: burn one of the 10
+daily submissions to calibrate, or wait until features/blend are
+ready.
 
 ## 5. Rejected ideas
 
-- _none yet._
+- **Equal-weight z-score fusion of water-balance axes (H2).** Worse
+  than using Soil_Moisture alone (H1) because it dilutes the dominant
+  signal. If we come back to hand-weighted scores, weights must be
+  proportional to per-axis informativeness (F-stat or similar), not
+  uniform.
+- **LGBM + MNLogit blending.** Zero contribution from the linear
+  model at any mixing weight. Parked as a stacking option only (use
+  MNLogit OOF probs as additional features inside LGBM) — and even
+  that is low expected value given how much weaker the linear model
+  is.
+- **CatBoost standalone.** Fold 1 argmax 0.96000 ≈ LGBM/XGB — no model-
+  level edge, 23 min/fold training cost. Killed after fold 1. Could
+  revisit only for a full 4+ model blend late in the competition if
+  compute budget allows.
 
 ## 6. Open questions
 
-- How much of the 0.98114 ceiling comes from better trees vs. better
-  thresholds? The log-bias trick alone gave us +0.010 off argmax;
-  public notebooks may already apply it.
-- Does bagging across seeds / longer training close the gap to the
-  tied pack?
-- Would adding the optional real-world Irrigation Prediction dataset
-  help, or does it hurt because of DGP mismatch with the synthetic
-  train?
-- Ordinal-aware loss (`Low < Medium < High`) — worth trying given that
-  the errors cluster between adjacent classes, even though the metric
-  itself doesn't reward ordering.
+- Public LB calibration: is 0.98114 already tuned-log-bias, or raw
+  argmax? Sending one submission would resolve this.
+- Does the original Irrigation Prediction dataset improve CV?
+- How much of the 0.00105 gap top↔pack is systematic vs noise? Our
+  fold std is ~0.002 — the gap is within one seed's worth of variance.
+- Is there an ordinal structure lurking in the synthetic DGP that an
+  ordinal loss would exploit?
