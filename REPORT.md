@@ -196,3 +196,73 @@ ready.
   fold std is ~0.002 — the gap is within one seed's worth of variance.
 - Is there an ordinal structure lurking in the synthetic DGP that an
   ordinal loss would exploit?
+
+## 7. Original-dataset DGP — closed-form, 6 features, 100%
+
+Reverse-engineered the generator of `data/irrigation_prediction.csv`
+(all 10,000 rows, no exceptions). Code: `scripts/dgp_formula.py`.
+
+Six indicators:
+
+| Indicator | Definition                                         |
+|---        |---                                                 |
+| `dry`     | `Soil_Moisture < 25`                               |
+| `norain`  | `Rainfall_mm   < 300`                              |
+| `hot`     | `Temperature_C > 30`                               |
+| `windy`   | `Wind_Speed_kmh > 10`                              |
+| `nomulch` | `Mulching_Used == "No"`                            |
+| `Kc`      | `2` if `Crop_Growth_Stage ∈ {Flowering, Vegetative}` else `0` |
+
+Weighted water-need score:
+
+```
+score = 2·(dry + norain) + (hot + windy + nomulch) + Kc
+```
+
+Binning:
+
+```
+Low     if score ≤ 3
+Medium  if 4 ≤ score ≤ 6
+High    if score ≥ 7
+```
+
+How it was found
+
+- RF feature importance on the 10k original collapses to 6 dominant
+  features with a sharp cliff (Mulching_Used 0.087 → Humidity 0.021).
+- An unconstrained DT on all 19 features reaches 100% train accuracy
+  with only 66 leaves at depth 11; on the 6-feature subset, same 66
+  leaves / depth 11 / 100%.
+- Split thresholds cluster on round numbers: 25 (Soil_Moisture), ~300
+  (Rainfall_mm), ~30 (Temperature_C), ~10 (Wind_Speed_kmh).
+- Applying those four thresholds plus the two categoricals yields a
+  2⁵ × 4 = 128-cell lookup table; **every cell is pure** (0 of 128
+  mixed-label cells).
+- Inspecting the pure table shows water-supply axes (`dry`, `norain`)
+  carry 2× the weight of demand axes (`hot`, `windy`, `nomulch`), and
+  crop stage acts as a +2 bump when the crop is actively transpiring.
+
+Implications
+
+- The original dataset is **fully deterministic** on 6 features — it
+  is NOT a noisy physical simulation, it is an integer rule written
+  by the host. That closes §6's "does the original improve CV" for
+  a different reason than we thought: the original is a clean
+  target, but its rule is so simple that any competent tree (or even
+  a lookup table) reproduces it perfectly, so adding it contributes
+  information only where it disagrees with the synthetic DGP.
+- **Synthetic train/test likely uses the same or a near-identical
+  rule**, given the earlier transfer-check finding (8k-original →
+  630k-synthetic tuned bal_acc 0.96278, and categorical vocab +
+  numeric distributions align within ~1%). The ~3.7% that doesn't
+  transfer is probably label noise injected by the synthetic
+  generator, or a slight perturbation of the thresholds.
+- **Concrete next bet**: score the synthetic train with this formula
+  (pending a new `data/train.csv` download) and measure exact
+  per-row agreement. If it's near-perfect, the pack at 0.98114 is
+  almost certainly running this rule (or an equivalent one) and the
+  remaining gap is entirely label noise. If it's, say, 80%, then
+  either thresholds were shifted or weights were tweaked, and a
+  small grid search over rule parameters should recover the
+  synthetic version.
