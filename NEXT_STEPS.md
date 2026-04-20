@@ -1,94 +1,119 @@
 # Next steps
 
-Ranked plan with expected OOF deltas. Current best:
-**LGBM+EXT tuned log-bias, 5-fold CV OOF = 0.97124** (synthetic + 10k
-original concat). LB reference points: tied pack 0.98114, leader
-0.98219. Ten days to deadline, 10 LB submissions/day, 1 spent (LB
-0.96972). Updated 2026-04-20 after step 2 concat (+0.00027) and step
-3 FE (null, ruled out).
+Ranked plan with expected OOF deltas. **Current best:
+LGBM+DGP tuned log-bias, 5-fold CV OOF = 0.97271** (boundary-LGBM ties
+at 0.97284 within 1σ). LB reference points: tied pack 0.98114, leader
+0.98219. Ten days to deadline, 10 LB submissions/day, 2 spent (baseline
+LGBM 0.96972, pure rule 0.95835).
+
+Updated 2026-04-20 after the DGP-features / boundary-LGBM / flip-detector
+sweep. Steps 1–3 are closed (✓ or ruled out); step 4 is the new top
+open bet.
 
 ## 1 · Burn one submission to calibrate CV ↔ LB ✓ done 2026-04-20
 
-Submitted `submissions/submission_baseline_lgbm_tuned.csv` (LGBM +
-tuned log-bias). **LB public = 0.96972** at rank 726 / 2357 (top 31 %).
-
-- OOF 0.97097 vs LB 0.96972 → −0.00125, inside one fold-std (~0.002).
-  CV is well-calibrated — experiment deltas from 5-fold OOF can be
-  trusted going forward.
-- The pack is *not* running raw argmax (that would have landed them
-  near our 0.96 tier). Their 0.98114 comes from structural advantages:
-  feature engineering, original dataset, seed bagging, better HPs, or
-  all of the above.
-- LB budget: 1 / 10 spent; 9 remaining today.
+Submitted `submission_baseline_lgbm_tuned.csv` (LGBM + tuned log-bias).
+**LB public = 0.96972** at rank 726 / 2357 (top 31 %). OOF 0.97097 vs
+LB 0.96972 → −0.00125, inside one fold-std (~0.002). CV is
+well-calibrated.
 
 ## 2 · Original Irrigation Prediction dataset ablation ✓ done 2026-04-20
 
-Ran `scripts/benchmark_external.py` — concat synthetic + 10k original
-rows into each training fold, validate on synthetic-only folds.
-**Tuned OOF 0.97124** vs 0.97097 baseline → **Δ = +0.00027**, smaller
-than the 0.00068 fold std. Tiny free positive, not a silver bullet.
-
-Also ran `scripts/transfer_check.py` (train on 8k original, eval on
-630k synthetic): bal_acc **0.96278** — only 0.00819 below the
-5-fold synthetic baseline despite 63× less training data. DGPs
-overlap almost completely; the small concat delta reflects that 10k
-is just 1.6 % of the training pool, not that the datasets diverge.
-
-- Kept: new best OOF 0.97124; LGBM+EXT now the base model.
-- Ruled out: bigger lift from this lever (sample-weight sweeps would
-  marginally boost the original's weight, but the ceiling is bounded
-  by the transfer gap — we'd need the ~0.008 gain the transfer proves
-  is there in principle, and that requires either 10× more original
-  rows or a recipe-change, not a reweighting knob).
+`scripts/benchmark_external.py` concats 10k original rows into each
+training fold. Tuned OOF 0.97124 vs 0.97097 baseline →
+Δ = **+0.00027**, within fold-std. `scripts/transfer_check.py` (train
+on 8k original, eval on 630k synthetic) hit 0.96278 — DGPs overlap
+almost completely, the small delta reflects data-volume cap (10k ≪ 630k).
 
 ## 3 · ~~Plug domain features into LGBM~~ — ruled out 2026-04-20
 
-Ran `scripts/benchmark_fe.py` with 8 engineered cols (`ET0_proxy`,
-`Kc_stage`, `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`,
-`Eff_Rainfall_active`, `Crop_x_Stage`, `Season_x_Region`). Tuned OOF
-**0.97045** vs baseline 0.97097 (Δ = **−0.00052**, within the 0.00088
-fold std). LGBM at 127 leaves was evidently not leaf-limited on this
-dataset, so prebuilt interactions added no new splits. Parked — see
-REPORT.md §5. Move to step 4.
+`scripts/benchmark_fe.py` with 8 engineered water-balance cols
+(`ET0_proxy`, `Kc_stage`, `ETc_proxy`, `Soil_deficit`, `Is_Rainfed`,
+`Eff_Rainfall_active`, `Crop_x_Stage`, `Season_x_Region`) moved tuned
+OOF to 0.97045 vs baseline 0.97097 (Δ = −0.00052). Trees at 127 leaves
+aren't leaf-limited — prebuilt water-balance interactions add no splits.
 
-## 4 · Seed-bag LGBM+EXT (3–5 seeds) — top open bet
+## 3b · DGP features into LGBM ✓ done 2026-04-20 (new best)
 
-Average OOF probs + test probs across seeds on the **concat**
-(synthetic + 10k original) pipeline, retune bias once on the averaged
-OOF.
+`scripts/benchmark_dgp.py` adds 15 DGP-derived cols (indicators +
+`dgp_score` + signed/absolute distances to the 4 thresholds).
+Tuned OOF **0.97271** (Δ = +0.00174, ~2σ, improves every fold).
+`scripts/boundary_lgbm.py` (model trained on boundary-band rows)
+ties at **0.97284** within 1σ. The right features are the ones the
+generator actually uses, not generic water-balance terms — that's why
+step 3 failed and this succeeded.
 
-- Fold-level std on bal_acc is ~0.00068 (measured with EXT);
-  √5 reduction ≈ **+0.0005–0.001** over the 0.97124 new base.
-- Cheap — 3–5× runtime of `scripts/benchmark_external.py`, no new
-  code beyond a seed loop wrapper.
+## 4 · Meta-stack or hard-gate the flip detector — **top open bet**
 
-## 5 · LGBM+EXT + XGBoost blend
+Flip-detector diagnostic (`scripts/flip_detector.py`): binary
+"is_flipped" model hits **OOF AUC = 0.8993**; a 3-class classifier
+restricted to the 10,304 flipped rows reaches **99.37 % bal_acc on
+that subset**. The signal exists. Two hand-coded blends failed:
 
-XGB OOF already saved to `scripts/artifacts/oof_xgb_baseline.npy`.
-Geometric mean, sweep mixing weight w, retune bias — same harness as
-`scripts/blend_lgbm_mnlogit.py`.
+- `gated_pipeline.py` v1 (rule + LGBM-all-rows direction, soft blend):
+  tuned 0.97249 — ties LGBM+DGP, no lift.
+- `gated_pipeline_v2.py` (rule + flipped-only specialist, soft blend):
+  tuned 0.86765 — **broken** (specialist is OOD on clean rows; any
+  positive P_flip leaks garbage into the blend).
 
-- Expected delta: **+0.001 to +0.002** from model diversity.
-- Unlike MNLogit (blend was a null), XGB is strong enough (argmax
-  ~0.962) to plausibly contribute orthogonal splits.
+The correct mechanism is one of:
 
-## 6 · HP refresh + ordinal loss (only if still stuck)
+- **Meta-LGBM stacking**: train a final LGBM on [P_main (LGBM+DGP),
+  P_spec (flipped-only specialist), P_flip, rule one-hot] using OOF
+  columns as features. Lets the meta model learn when to route from
+  rule → specialist, and combines it with log-bias tuning.
+- **Hard gate**: `argmax(P_spec) if P_flip > τ else rule`, sweep τ.
+  Cheaper, interpretable, avoids the soft-blend contamination.
 
-- Quick Optuna on `(num_leaves, min_data_in_leaf, lr,
-  feature_fraction, bagging_fraction, reg_alpha, reg_lambda)` — 50
-  trials, one seed.
-- LGBM with `multiclassova` + custom sample weights that upweight
-  Medium↔High adjacency (ordinal-ish).
-- Expected delta: **+0.001 each**, or nothing.
+Both are cheap to run on saved OOF artefacts — no retraining.
+`scripts/gated_v3.py` is the implementation target.
 
-## 7 · Parked — DGP archaeology
+Upper-bound intuition: AUC 0.9 × 99.4% direction recall means the
+flip-row signal is almost fully available; the question is whether we
+can deploy it without hurting the 98.36% clean-row accuracy. If meta-
+stacking captures, say, 40% of the unrecovered flipped-row signal,
+OOF should reach ~0.976; if it captures all of it, ~0.979.
 
-Reverse-engineer the synthetic generator. Only if 1–6 leave us below
-0.98 and there's still time.
+**Submit to LB only after this lands** — spending another submission
+to confirm the +0.00174 DGP-features delta transfers would also be
+defensible if meta-stacking stalls.
+
+## 5 · Seed-bag the new best
+
+Once step 4 settles, seed-bag LGBM+DGP (3–5 seeds, average OOF/test
+probs, retune bias). Fold-std ≈ 0.00068 → expected SE reduction
+~+0.0005–0.001 on top of whatever step 4 reaches. Cheap insurance.
+
+## 6 · LGBM+DGP + XGBoost blend
+
+XGB OOF is already saved from earlier multi-model benchmark. Retrain
+XGB with DGP features, geometric-mean blend, retune bias. Expected
++0.001–0.002 from model diversity. Move to this only after steps 4 & 5.
+
+## 7 · Ordinal-aware loss / Medium↔High sample-weighting
+
+Confusion mass lives at Medium↔High. LGBM `multiclassova` with custom
+sample weights that upweight adjacent misclassifications is a one-file
+change. Expected +0.001 or null.
+
+## 8 · Neural-net tabular model (new, parked)
+
+`brief.md:74` explicitly states the synthetic labels were generated by
+a deep-learning model. No NN has been tried here — no MLP, TabNet, or
+torch/keras code in the repo. An MLP might recover the near-threshold
+noise band more cleanly than axis-aligned trees. High effort, unknown
+upside. Only attempt if steps 4–7 leave us below 0.978.
+
+## 9 · LGBM HP refresh — ruled out 2026-04-20
+
+Optuna TPE on 10 dims / 47 trials / 200k subsample landed at 0.97047
+prior-reweight — plateau, not a ridge. Extrapolated full-630k delta
+≤ +0.001. Baseline HPs are near-optimal at this feature set.
 
 ## Suggested immediate action
 
-Submit the tuned baseline **and** start step 2 in parallel. The
-submission result is back within minutes; the ablation within an
-hour. By end of day we'd know the LB gap and whether the external
-dataset is even the right lever.
+Run `scripts/gated_v3.py` (step 4). It operates on saved OOF arrays and
+should finish in minutes. If tuned bal_acc breaks the 0.97271 plateau
+by >1σ (0.00068), the flip detector signal is recoverable and we have
+a submission candidate. If not, move to step 5 (seed-bag) or step 8
+(neural net).
