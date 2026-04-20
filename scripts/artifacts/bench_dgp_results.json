@@ -1,0 +1,65 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    0.03244116323609758,
+    0.6689466919465481,
+    3.400768902044088
+  ],
+  "feature_cols": [
+    "Soil_pH",
+    "Soil_Moisture",
+    "Organic_Carbon",
+    "Electrical_Conductivity",
+    "Temperature_C",
+    "Humidity",
+    "Rainfall_mm",
+    "Sunlight_Hours",
+    "Wind_Speed_kmh",
+    "Field_Area_hectare",
+    "Previous_Irrigation_mm",
+    "dgp_dry",
+    "dgp_norain",
+    "dgp_hot",
+    "dgp_windy",
+    "dgp_nomulch",
+    "dgp_kc",
+    "dgp_score",
+    "dgp_dist_moist",
+    "dgp_dist_rain",
+    "dgp_dist_temp",
+    "dgp_dist_wind",
+    "dgp_abs_moist",
+    "dgp_abs_rain",
+    "dgp_abs_temp",
+    "dgp_abs_wind",
+    "Soil_Type",
+    "Crop_Type",
+    "Crop_Growth_Stage",
+    "Season",
+    "Irrigation_Type",
+    "Water_Source",
+    "Mulching_Used",
+    "Region"
+  ],
+  "results": [
+    {
+      "name": "LGBM+DGP argmax",
+      "bal_acc": 0.9634913580443379
+    },
+    {
+      "name": "LGBM+DGP prior-reweight argmax",
+      "bal_acc": 0.9725043082831197
+    },
+    {
+      "name": "LGBM+DGP tuned log-bias",
+      "bal_acc": 0.9727126135013285
+    }
+  ],
+  "best_rule": "LGBM+DGP tuned log-bias"
+}
