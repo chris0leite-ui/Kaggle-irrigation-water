@@ -398,6 +398,55 @@ README.md      TL;DR + reproduction instructions.
   entry above — that's where the remaining 0.01–0.015 to the pack
   most plausibly lives.
 
+### 2026-04-20 — LGBM+DGP FE (v1 win, v2 null) — distance geometry saturates
+
+- Goal: close the boundary-band gap by exposing the reverse-engineered
+  rule and its distance geometry to LGBM. If the label noise is a
+  learnable function of distance-to-threshold, OOF should break 0.975+.
+- v1 (`scripts/benchmark_dgp.py`, committed earlier on
+  `claude/find-dgp-formula-NOSKa`): 6 rule indicators + integer score
+  + signed distance + abs distance for all 4 continuous axes (26 total
+  features). Same 5-fold LGBM pipeline as baseline.
+  - **LGBM+DGP argmax → 0.96349** (baseline 0.96135, Δ = +0.00214)
+  - **LGBM+DGP prior-reweight → 0.97250** (baseline 0.97065, Δ = +0.00185)
+  - **LGBM+DGP tuned log-bias → 0.97271** (baseline 0.97097,
+    Δ = **+0.00174**) — real lift, ~2× fold std.
+  - Best bias: Low +0.032, Medium +0.669, High +3.401. Low bias
+    flipped sign vs baseline (was +0.232) — DGP features reshape the
+    Low/Medium boundary enough that the decision rule moves.
+- v2 (`scripts/benchmark_dgp_fe2.py`, this session): v1 features
+  + boundary-band indicator (score∈{3,4,6,7}), score² / score×nomulch
+  / score×kc, signed-squared distances, normalized min-distance +
+  n-axes-close count, counterfactual "score if this axis flips"
+  for all 4 axes (52 total features, +13 over v1).
+  - **LGBM+DGP-FE2 tuned log-bias → 0.97265** (v1 0.97271,
+    Δ = **−0.00006**, well within 1σ fold std ~0.001). Null result.
+  - Best bias: Low +0.032, Medium +0.469, High +3.501 — Medium
+    loosens, High tightens, but the aggregate doesn't move.
+  - Fold-by-fold argmax: 0.96248 / 0.96501 / 0.96428 / 0.96382 /
+    0.96390 (std 0.00086) — similar spread to v1.
+- Observation: `flip_detector.py` (committed earlier) already showed
+  the "is this row flipped?" classifier tops out at **AUC 0.899** on
+  5-fold OOF, using the same DGP features. That 0.1 AUC gap is the
+  floor for any feature-based attack — roughly 10 % of the flips are
+  feature-invariant noise, which no amount of distance encoding (v1,
+  v2, or further polynomials / interactions) can recover. Boundary
+  distance geometry is saturated; the residual is in the noise seed
+  itself, not in the features.
+- LB delta: n/a. `submission_lgbm_dgp_{argmax,tuned}.csv` and
+  `submission_lgbm_dgp_fe2_{argmax,tuned}.csv` ready but not yet
+  submitted (still 1/10 spent).
+- Expected LB for submit: given the −0.00125 OOF↔LB gap from the
+  baseline calibration, LGBM+DGP tuned should land at ~0.97146 LB —
+  still below the 0.98114 pack. Gap to pack ~0.0097, leader ~0.0108.
+- Next bet: **option 1 (DGP features) is exhausted.** The lever that
+  matters now is DGP-archaeology on the noise seed — whether the
+  label-flip is deterministic in the non-rule features
+  (`Previous_Irrigation_mm`, `Humidity`, `Soil_pH`, `Crop_Type`,
+  etc.) or a hash of row-level inputs. Parked options: seed-bag
+  LGBM+DGP (+0.0005 best case, doesn't help), LGBM+XGB+DGP blend
+  (+0.001–0.002 best case, doesn't reach 0.98).
+
 ## Hypothesis board
 
 - **Open**:
@@ -452,6 +501,16 @@ README.md      TL;DR + reproduction instructions.
     the same plateau. Extrapolated full-630k delta ≤ +0.001.
     Baseline HPs are near-optimal for this feature set; further
     gains need a different lever.
+  - **Extended DGP feature engineering (v2)** — boundary-band flags,
+    score², score × {nomulch, kc}, signed-squared distances,
+    normalized min-distance, axes-close count, counterfactual
+    flip-scores (+13 features over the v1 DGP set). Tuned OOF
+    0.97265 vs v1's 0.97271 (Δ = −0.00006, well within fold std
+    0.001). v1 DGP features (rule indicators + score + signed/abs
+    distances) are the plateau for feature-based attacks on the
+    boundary-band noise. Residual ~10 % of flips is feature-
+    invariant noise (consistent with flip-detector AUC cap of 0.899);
+    only a seed/hash exploit can recover them.
 - **Confirmed (new)**:
   - **Original Irrigation Prediction dataset is well-aligned with the
     synthetic DGP.** Transfer check: LGBM trained on 8k original,

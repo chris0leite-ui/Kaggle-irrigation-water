@@ -1,0 +1,89 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    0.03244116323609714,
+    0.4689466919465479,
+    3.500768902044088
+  ],
+  "feature_cols": [
+    "Soil_pH",
+    "Soil_Moisture",
+    "Organic_Carbon",
+    "Electrical_Conductivity",
+    "Temperature_C",
+    "Humidity",
+    "Rainfall_mm",
+    "Sunlight_Hours",
+    "Wind_Speed_kmh",
+    "Field_Area_hectare",
+    "Previous_Irrigation_mm",
+    "dgp_dry",
+    "dgp_norain",
+    "dgp_hot",
+    "dgp_windy",
+    "dgp_nomulch",
+    "dgp_kc",
+    "dgp_score",
+    "dgp_dist_moist",
+    "dgp_dist_rain",
+    "dgp_dist_temp",
+    "dgp_dist_wind",
+    "dgp_abs_moist",
+    "dgp_abs_rain",
+    "dgp_abs_temp",
+    "dgp_abs_wind",
+    "dgp_is_boundary",
+    "dgp_score_sq",
+    "dgp_score_x_nomulch",
+    "dgp_score_x_kc",
+    "dgp_sdist_moist",
+    "dgp_sdist_rain",
+    "dgp_sdist_temp",
+    "dgp_sdist_wind",
+    "dgp_norm_moist",
+    "dgp_norm_rain",
+    "dgp_norm_temp",
+    "dgp_norm_wind",
+    "dgp_min_abs_norm",
+    "dgp_n_axes_close",
+    "dgp_score_if_flip_moist",
+    "dgp_score_if_flip_rain",
+    "dgp_score_if_flip_temp",
+    "dgp_score_if_flip_wind",
+    "Soil_Type",
+    "Crop_Type",
+    "Crop_Growth_Stage",
+    "Season",
+    "Irrigation_Type",
+    "Water_Source",
+    "Mulching_Used",
+    "Region"
+  ],
+  "sigma": {
+    "moist": 11.429435421476192,
+    "rain": 596.5877088797367,
+    "temp": 4.776331087293404,
+    "wind": 2.816096665490967
+  },
+  "results": [
+    {
+      "name": "LGBM+DGP-FE2 argmax",
+      "bal_acc": 0.963899454205588
+    },
+    {
+      "name": "LGBM+DGP-FE2 prior-reweight argmax",
+      "bal_acc": 0.9723094833693565
+    },
+    {
+      "name": "LGBM+DGP-FE2 tuned log-bias",
+      "bal_acc": 0.9726547748215459
+    }
+  ],
+  "best_rule": "LGBM+DGP-FE2 tuned log-bias"
+}
