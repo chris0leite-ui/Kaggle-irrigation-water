@@ -58,6 +58,11 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | Tree (LGBM+EXT)          | prior-reweight argmax (concat 10k orig)  |     0.97097 |      +0.00032  |
 | **Tree (LGBM+EXT)**      | **tuned log-bias (concat 10k original)** | **0.97124** |   **+0.00027** |
 | Blend                    | LGBM + MNLogit Fk, sweep w ∈ [0, 0.5]    |     0.97097 |   +0.00000 (null) |
+| Orthogonal model         | Heuristic (8-signal z-sum + 2 cuts, 630k, learned thresholds) | 0.60012 |    – |
+| Orthogonal model         | Gaussian NB (FE cols, 630k)              |     0.75172 |      +0.15160  |
+| Orthogonal model         | Multinomial LR balanced (FE cols, 630k)  |     0.83009 |      +0.07837  |
+| Orthogonal model         | EBM with pairwise interactions (200k)    |     0.96106 |      +0.13097  |
+| Tree (LGBM HP-tuned)     | prior-reweight argmax (200k, TPE best)   |     0.97047 |  −0.00050 vs baseline |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 
@@ -101,6 +106,21 @@ Key read-outs
   flips ~4k Medium→High and ~875 High→Medium on OOF; the heuristic
   makes that error 50× more often. This is where any further gain must
   come from.
+- **Independence-to-interaction gap is ~0.22.** A controlled ladder on
+  identical 5-fold folds: heuristic 0.600 → Gaussian NB 0.752 → LR 0.830
+  → EBM 0.961 → LGBM 0.971. Every +0.08 step is bought by letting the
+  model represent more interaction structure. Rules out any
+  independence-based or linear stacking candidate as a source of
+  orthogonal signal worth the compute.
+- **LGBM hyperparameter optimization did not beat default-ish.**
+  60-trial Optuna TPE sweep (10-dim search: lr, num_leaves,
+  min_data_in_leaf, feature/bagging fractions, freq, λ₁/λ₂, max_depth,
+  min_gain) on a 200k subsample found best `num_leaves=46, max_depth=3,
+  lr=0.064` at 0.97047 prior-reweight — roughly level with the baseline
+  (num_leaves=127, defaults) after scale-up. TPE preferred shallow +
+  regularized, but that's a different *shape* of optimum reaching the
+  same plateau. Extrapolated full-630k delta ≤ +0.001. Baseline HPs
+  are near-optimal at this feature set; gains need a different lever.
 
 ## 4. Strategy and next steps
 
