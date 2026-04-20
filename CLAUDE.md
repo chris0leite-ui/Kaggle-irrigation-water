@@ -2,6 +2,20 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
+
+**If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
+
+Containers are ephemeral — competition data is re-downloaded on each fresh
+session. `bootstrap.sh` installs deps and fetches `train.csv`, `test.csv`,
+and `sample_submission.csv` via `kaggle competitions download`. It
+auto-uses the `KAGGLE_API_TOKEN` env var (already configured at the
+container level) and falls back to an interactive prompt if absent.
+
+Do **not** use `download_data.py` to get the competition data — that
+script targets the optional `l3llff/irrigation-water` *dataset* (real-
+world data the synthetic set was generated from), not the competition.
+
 ## Competition
 
 - **Name**: Predicting Irrigation Need (Playground Series - Season 6, Episode 4)
