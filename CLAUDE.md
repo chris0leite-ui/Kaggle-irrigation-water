@@ -95,12 +95,80 @@ README.md      TL;DR + reproduction instructions.
   balanced accuracy of argmax vs tuned decision rule — if tuned rule
   doesn't beat argmax on OOF, re-examine before burning a sub.
 
+### 2026-04-20 — benchmarks + EDA report
+
+- Goal: land a reproducible EDA (on a held-out subsample) and a dummy +
+  LGBM benchmark with decision-rule ablation on OOF.
+- Changed: `scripts/eda.py` now stratified-subsamples 50% of train
+  (seed=42) and emits `plots/eda/report.html`, a self-contained HTML
+  with embedded PNGs + feature-signal ranking tables; `scripts/benchmark.py`
+  runs the 5-fold stratified LGBM pipeline and saves OOF + test probs
+  to `scripts/artifacts/`; `submissions/baseline_lgbm_{argmax,tuned}.csv`
+  generated but not submitted.
+- Results (OOF balanced accuracy, seed=42, 5-fold CV):
+  - majority / random baselines → 0.3333 (floor)
+  - LGBM argmax → 0.96135
+  - LGBM prior-reweight argmax → 0.97065 (+0.0093)
+  - **LGBM tuned log-bias → 0.97097** (+0.0003 over prior-reweight)
+- Best log-bias: Low +0.23, Medium +0.67, High +3.40 — matches the
+  balanced-accuracy intuition that `High` needs a large positive bump.
+- Confusion-matrix mass lives in Medium↔High; Low is essentially
+  solved.
+- LB delta: n/a (still no submissions; 10/10 day budget intact).
+- Next bet: we're ~0.010 below the 0.98114 tied pack with a
+  no-feature-engineering single-seed LGBM. Cheapest gains: (a) 3–5
+  seed bag of LGBM, (b) richer feature interactions (esp.
+  Soil_Moisture × Rainfall, Crop_Growth_Stage × Mulching_Used), (c)
+  try XGBoost or CatBoost and blend.
+
+### 2026-04-20 — domain primer, heuristics, linear formulas, blend
+
+- Goal: build a physical frame of reference (non-tree baselines) so we
+  understand how much of the LGBM score is "equation" vs "interaction",
+  and test whether weaker models bring orthogonal signal.
+- Changed: `DOMAIN.md` (soil-water balance equation, feature-to-term
+  mapping, Indian cropping-season context, FAO-56 Kc lookup, soil
+  field-capacity lookup); `scripts/heuristic.py` (no-training,
+  threshold-fit-per-fold predictor); `scripts/formula_mnlogit.py` (three
+  hand-crafted MNLogit formulas F1/F2/F3); `scripts/benchmark_multi.py`
+  (XGBoost done, CatBoost killed at fold 1); `scripts/blend_lgbm_mnlogit.py`
+  (blend sweep).
+- Results (OOF balanced accuracy, 5-fold stratified, seed=42):
+  - Heuristic H1 (Soil_Moisture alone): 0.62911
+  - Heuristic H2 (raw water balance, equal z-wts): 0.60606
+  - Heuristic H3 (H2 + Kc + mulch + soil cap): 0.63041
+  - MNLogit F1 tuned: 0.64721
+  - MNLogit F2 tuned: 0.78074
+  - MNLogit F3 tuned: 0.73294
+  - LGBM tuned (prior result): 0.97097
+  - XGBoost tuned (per-fold ~0.961–0.964): ~0.962
+  - CatBoost fold-1 argmax: 0.96000 (killed; no edge)
+  - LGBM + MNLogit blend (sweep w∈[0,0.5]): Δ = +0.00000
+- Observations:
+  - Soil_Moisture alone (H1) reaches ~2/3 of the distance from random
+    to competitive. The single feature carries a huge fraction of the
+    signal, matching its F-stat lead (~82k, 4× the next feature).
+  - H2 < H1: equal-weight z-scoring dilutes a dominant signal.
+    Heuristic-weight choice is a decision, not a free parameter.
+  - H3 ≈ H1: Kc + mulch + capacity add ~0.001 — directionally right,
+    too crude to beat the "just sort by soil moisture" baseline.
+  - MNLogit F2 > F3: dropping main effects in favor of interactions
+    under L2 regularization is an inefficient parameterization.
+  - LGBM → H3 = +0.34 bal_acc on the *same* physical features — so
+    the dominant gain is from nonlinear interactions, not feature
+    selection. Any hand-engineered linear combination is a floor, not
+    a ceiling.
+  - Blend null result confirms MNLogit is simply too weak to add to
+    LGBM. Model-diversity gains need a *strong* second model.
+- LB delta: still n/a (0/10 day budget consumed).
+- Next bet: feature engineering on LGBM (plug F2/H3 engineered cols
+  into LGBM training), seed-bag LGBM, LGBM+XGB blend, then test the
+  original Irrigation Prediction dataset as an ablation. Ranked list
+  with expected deltas lives in REPORT.md §4.
+
 ## Hypothesis board
 
 - **Open**:
-  - Default `argmax` is suboptimal under balanced accuracy when classes
-    are imbalanced → tuning per-class thresholds on OOF probabilities should
-    move the score. Test on an LGBM baseline.
   - Incorporating the original Irrigation Prediction dataset (explicitly
     allowed) may help, but may also hurt if its DGP differs from the
     synthetic train distribution. Test as a controlled ablation.
@@ -109,7 +177,25 @@ README.md      TL;DR + reproduction instructions.
     seeds/models, (b) threshold tuning, (c) leveraging the ordinal
     structure (`Low < Medium < High`) via ordinal-aware losses despite
     the metric being order-agnostic.
-- **Ruled out**: (none yet)
+  - Most of the residual error is Medium↔High confusion. Feature
+    interactions that separate these two classes (e.g. Soil_Moisture ×
+    Rainfall_mm, Crop_Growth_Stage × Mulching_Used) should move bal_acc.
+- **Confirmed**:
+  - Default `argmax` is suboptimal under balanced accuracy when classes
+    are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
+    from 0.96135 → 0.97097 (+0.0096). Keep this as the decision rule
+    for every subsequent model.
+- **Ruled out**:
+  - **Equal-weight z-score fusion of water-balance axes** (H2) is
+    worse than the single-feature Soil_Moisture rule (H1). Any future
+    hand-weighted score needs per-axis weights proportional to
+    informativeness, not uniform.
+  - **Blending MNLogit into LGBM** adds 0.00000 at any mixing weight.
+    Linear model is too weak (0.78 vs 0.97) to contribute orthogonal
+    signal; parked as possible stacking feature only.
+  - **CatBoost as a standalone competitor** — fold-1 argmax 0.96000 ≈
+    LGBM/XGB, 23 min/fold training cost, killed after fold 1. Could
+    revisit as a 4th blend member only if compute budget allows late.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
