@@ -148,6 +148,70 @@ def main():
     agree_best_C = agreement(blend_C, fallback)
     disagree_count_C = int((blend_C != fallback).sum())
 
+    # ---- Blend E: pairwise-veto ----
+    # Override hybrid_v3 only on rows where the top-2 non-hybrid voters
+    # (blend_lx and lgbm_dgp) AGREE on the SAME alternative class.
+    # Strictest "two strong independent signals against best" rule.
+    blend_lx_v = preds["blend_lx"]
+    lgbm_dgp_v = preds["lgbm_dgp"]
+    override_E = (blend_lx_v == lgbm_dgp_v) & (blend_lx_v != fallback)
+    blend_E = fallback.copy()
+    blend_E[override_E] = blend_lx_v[override_E]
+    path_E = write_sub(ids, blend_E, "submission_blend_pairwise_veto.csv")
+    disagree_count_E = int((blend_E != fallback).sum())
+    agree_best_E = agreement(blend_E, fallback)
+
+    # ---- Blend F: Borda count (LB-weighted) ----
+    # Each voter ranks classes by their own prediction:
+    #   voted class gets 2 points, other 2 classes get 0
+    # Weights: LB/OOF score minus 0.9 (same as C).
+    # Ties -> hybrid_v3.
+    keys_F = keys_C
+    weights_F = weights_C
+    vm = np.stack([preds[k] for k in keys_F], axis=1)
+    n = vm.shape[0]
+    blend_F = np.empty(n, dtype=object)
+    for i in range(n):
+        scores = {"Low": 0.0, "Medium": 0.0, "High": 0.0}
+        for j in range(vm.shape[1]):
+            scores[vm[i, j]] += 2.0 * weights_F[j]
+        best = max(scores.values())
+        winners = [c for c, v in scores.items() if v == best]
+        blend_F[i] = winners[0] if len(winners) == 1 else fallback[i]
+    path_F = write_sub(ids, blend_F, "submission_blend_borda_weighted.csv")
+    disagree_count_F = int((blend_F != fallback).sum())
+    agree_best_F = agreement(blend_F, fallback)
+
+    # ---- Blend G: supermajority on "High" only ----
+    # High is the rare class (~3.3%) and drives balanced accuracy.
+    # Rule: keep hybrid_v3's prediction UNLESS (a) hybrid_v3 does NOT
+    # predict High but >= 3 of 6 diverse voters predict High, or
+    # (b) hybrid_v3 predicts High but <=1 of 6 voters agree -> switch to
+    # majority non-High class. Targets boundary {6,7,8} score rows.
+    keys_G = ["hybrid_v3", "hybrid", "blend_lx", "lgbm_dgp", "lgbm_bag", "xgb_dist"]
+    vm = np.stack([preds[k] for k in keys_G], axis=1)
+    high_votes = (vm == "High").sum(axis=1)
+    not_high_maj = np.array([
+        Counter([x for x in vm[i] if x != "High"]).most_common(1)[0][0]
+        if (vm[i] != "High").sum() > 0 else "Medium"
+        for i in range(vm.shape[0])
+    ], dtype=object)
+    high_maj = np.array([
+        Counter([x for x in vm[i] if x == "High"]).most_common(1)[0][0]
+        if (vm[i] == "High").sum() > 0 else "High"
+        for i in range(vm.shape[0])
+    ], dtype=object)
+    blend_G = fallback.copy()
+    # (a) promote to High if 3+ voters say High and hybrid_v3 didn't
+    promote = (high_votes >= 3) & (fallback != "High")
+    blend_G[promote] = "High"
+    # (b) demote from High if hybrid_v3 says High but <=1 others agree
+    demote = (high_votes <= 1) & (fallback == "High")
+    blend_G[demote] = not_high_maj[demote]
+    path_G = write_sub(ids, blend_G, "submission_blend_high_supermajority.csv")
+    disagree_count_G = int((blend_G != fallback).sum())
+    agree_best_G = agreement(blend_G, fallback)
+
     # ---- Blend D: rule-deferred hybrid_v3 ----
     # On rule-trivial scores (0,1,2,9) the DGP rule is >= 99.5% accurate
     # per CLAUDE.md. Those rows are where dgp_rule and hybrid_v3 already
@@ -181,6 +245,9 @@ def main():
     print(f"  B vote5 diverse   file={path_B.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_B:5d}  agree_best={agree_best_B:.4f}")
     print(f"  C weighted        file={path_C.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_C:5d}  agree_best={agree_best_C:.4f}")
     print(f"  D rule-deferred   file={path_D.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_D:5d}  agree_best={agree_best_D:.4f}")
+    print(f"  E pairwise-veto   file={path_E.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_E:5d}  agree_best={agree_best_E:.4f}")
+    print(f"  F borda-weighted  file={path_F.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_F:5d}  agree_best={agree_best_F:.4f}")
+    print(f"  G high-supermaj   file={path_G.name:40s}  rows_changed_vs_hybrid_v3={disagree_count_G:5d}  agree_best={agree_best_G:.4f}")
 
     # Class distribution comparison
     print("\n=== Class distribution (row counts) ===")
@@ -188,7 +255,10 @@ def main():
                       ("A vote3", blend_A),
                       ("B vote5", blend_B),
                       ("C weighted", blend_C),
-                      ("D rule-def", blend_D)]:
+                      ("D rule-def", blend_D),
+                      ("E pairwise", blend_E),
+                      ("F borda", blend_F),
+                      ("G highsupmj", blend_G)]:
         c = Counter(arr)
         print(f"  {name:12s}  Low={c.get('Low',0):6d}  Medium={c.get('Medium',0):6d}  High={c.get('High',0):6d}")
 

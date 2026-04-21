@@ -286,6 +286,49 @@ all of them on the same model.
   for the tuned metric: prior-reweight-argmax bal_acc (dividing probs
   by priors before argmax). Close enough to tuned-bias without
   running coord-ascent per epoch.
+- **Every training script MUST save OOF + test probs to
+  `scripts/artifacts/*.npy` as its final step.** Not saving them is
+  a ~30-60 min cost per model to regenerate on a fresh container
+  (Kaggle data re-download + 5-fold refit), and without them you
+  cannot do prob-space blending, log-bias re-tuning, meta-stacking,
+  or OOF-gated evaluation of ensemble candidates — reducing every
+  blend experiment to hard-vote-on-labels, whose ceiling is
+  bounded by model pairwise agreement (0.99+ on tree models here,
+  so hard-vote changes ≤0.25% of rows and expected lift is
+  ~+0.0000–0.0005). CSVs alone are a dead end for ensembles. Rule
+  for future competitions: **treat `oof_*.npy` + `test_*.npy` as
+  first-class outputs, not debug artefacts**; commit a single
+  `utils/artefacts.py` wrapper that every script calls and make
+  the CI/stop-hook verify the pair exists after any training run.
+  Container-ephemeral repos in particular need this: losing the
+  artifacts dir is the default, not the exception.
+- **Quantify committee diversity BEFORE planning a blend.** With
+  CSV labels only, agreement rate is the cheapest diagnostic:
+  pairwise `(pred_a == pred_b).mean()` across top submissions. On
+  this competition the top-8 committee clustered at 0.990–0.998
+  — which means the absolute ceiling on any hard-vote blend is
+  (1 − max_agreement) × (fraction of disagreements where majority
+  is correct) ≈ 0.01 × 0.5 ≈ +0.005, and empirically much less.
+  High agreement → regenerate OOFs for a soft blend or add a
+  genuinely different model class (not another boosted-tree
+  variant). Low agreement (< 0.95) → even hard voting has room.
+  Run this check as step 0 of any ensemble work.
+- **Under macro-recall, prefer blends that PRESERVE or GROW the
+  rare-class count.** With priors 58.7/37.9/3.3 %, a single extra
+  correct High prediction is worth ~18× a correct Low. Plain
+  plurality / LB-weighted / Borda / pairwise-veto voting tend to
+  *demote* High→Medium on boundary rows where a couple of calmer
+  models disagreed with the best one's High call — net-negative on
+  bal-acc even when the voters have similar standalone scores.
+  Diagnostic after any hard-vote blend: compare the rare-class
+  count vs the best single submission. On our 270k test: hybrid_v3
+  had 10,658 High; voting variants A/B/C/E/F produced 10,501–10,599
+  (−59 to −157), while the "promote-to-High-if-≥3-of-6-agree"
+  variant (G) produced 10,842 (+184) and was the only hard-vote
+  strategy geometrically aligned with the loss. Rule: every blend
+  design — hard or soft — should have an explicit rare-class
+  accounting step; blends that demote the rare class need to
+  justify each demotion on OOF before burning an LB probe.
 
 ## Rejected ideas
 
