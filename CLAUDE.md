@@ -1291,6 +1291,59 @@ README.md      TL;DR + reproduction instructions.
      that share the dominant component don't compound — you need
      DIFFERENT anchors to get orthogonal signal.
 
+### 2026-04-21 — training-data-quality experiments (3 nulls)
+
+- Goal: test whether training-data-level changes — heavy-weight
+  original augmentation and (target × dgp_score) stratified CV —
+  lift the XGB-dist base model past its 0.97304 OOF. Follow-up
+  after the soft-blend ceiling at ~0.9738.
+- Changed: `scripts/data_quality_experiments.py` runs 4 configs on
+  the same XGB-dist pipeline (43-feature dist set, same XGB HPs):
+  baseline, orig w=20 target-strat, no orig score-strat, and both
+  combined. Each saves `oof_xgb_dist_{config}.npy` + test counterpart.
+- Results (OOF tuned bal_acc, 5-fold, seed=42):
+  ```
+  baseline (reproduced)                      0.97304   (--)
+  orig w=20, target-strat                    0.97278   −0.00026
+  no orig, (target × score) strat            0.97278   −0.00026
+  orig w=20 + score-strat (combined)         0.97249   −0.00055
+  ```
+  All three configs net-negative. Baseline exactly reproduced
+  (fold-for-fold argmax) so the deltas are real, not noise.
+- **Diagnosis (heavy orig aug)**: 10k original is rule-perfect
+  (no NN flips) while synthetic train AND test both contain
+  10,304 deterministic NN flips. Biasing training toward the
+  rule-perfect original pulls the decision surface AWAY from the
+  flip signal. Fold-by-fold argmax shows 5/5 folds below baseline
+  avg −0.00044. Per-class: rec_M drops (−0.00066 on argmax),
+  rec_H basically flat. The flip signal lives in Medium↔High
+  boundary, and that's exactly where the model loses capacity when
+  it's anchored on rule-perfect data.
+- **Diagnosis (score-stratified CV)**: Fold variance drops from
+  σ ~0.0008 to σ ~0.0002 (stratification works on per-fold
+  calibration) but tuned OOF is unchanged at 0.97278. At 630k
+  rows, the default StratifiedKFold(shuffle=True, seed=42) already
+  produces well-balanced score-bin distributions per fold by sheer
+  sample size — explicit stratification adds zero information.
+- **Diagnosis (combined)**: the two changes compound negatively;
+  the combined score-strat + w=20 config drops −0.00055, worse
+  than either individually.
+- Meta-lesson: the LB-target signal comes from fitting the DGP NN
+  flips that live in the 630k synthetic data. External "clean"
+  data at any weight > 1× per row is counterproductive when the
+  test set shares the same noise process as the train. Rule added
+  to LEARNINGS.md: "When your train and test share a deterministic
+  noise process absent from external data, external data at any
+  weight > prior is net-negative."
+- LB budget: unchanged at 4/10 used today. No submission warranted
+  from these experiments since all configs landed below current
+  LB-verified best (greedy log-blend OOF 0.97375).
+- Next-bet status: training-data-quality ruled out. The ~0.9738
+  OOF ceiling for our tree-ensemble family appears to be the
+  genuine plateau; further lift would need a structurally
+  different model class (MLP retry with larger capacity, or a new
+  feature view).
+
 ## Hypothesis board
 
 - **Current best**: greedy log-blend

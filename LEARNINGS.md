@@ -352,6 +352,29 @@ all of them on the same model.
   genuinely different model class (not another boosted-tree
   variant). Low agreement (< 0.95) → even hard voting has room.
   Run this check as step 0 of any ensemble work.
+- **Heavy-weight external augmentation HURTS when the DGP is
+  rule + learnable-noise.** On this competition the 10k original
+  dataset is rule-perfect (no NN flips) while the 630k synthetic
+  train AND test BOTH contain 10,304 deterministic NN flips that
+  the model needs to fit for LB transfer. Augmenting training with
+  the original at w=20 per row (≈200k effective clean rows vs 630k
+  noisy) biases the decision surface toward the rule and AWAY from
+  the flip signal. Result on xgb_dist: tuned OOF 0.97278 vs
+  baseline 0.97304 (Δ = −0.00026). Medium recall drops −0.00066 on
+  argmax (flips live in Medium↔High boundary). Rule: **when your
+  training set and test set share a deterministic-noise process
+  absent from external data, external data at any weight > prior
+  is net-negative.** Safe concat weight is 1× per row (equivalent
+  to "it's just 10k extra rows"); anything heavier starts to bias.
+- **Score-stratified CV is null at 630k rows.** Stratifying
+  StratifiedKFold by (target × dgp_score_bin) vs just target gives
+  lower per-fold variance (σ drops from ~0.0008 to ~0.0002) but
+  identical global tuned OOF. The default StratifiedKFold
+  (shuffle=True, seed=42) already produces near-uniform score-bin
+  distributions per fold by sheer sample size, so explicit
+  stratification adds zero information. Rule of thumb: only
+  multi-stratify when either (a) dataset is <100k rows, or (b)
+  one of the strata has <50 rows per fold on default strat.
 - **Greedy forward log-blend is the no-hyperparameter baseline that
   beats both equal-weight and logistic meta-stack on correlated
   ensembles.** On this competition with 4 tree models whose pairwise
