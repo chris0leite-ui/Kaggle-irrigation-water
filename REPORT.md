@@ -63,6 +63,18 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | Orthogonal model         | Multinomial LR balanced (FE cols, 630k)  |     0.83009 |      +0.07837  |
 | Orthogonal model         | EBM with pairwise interactions (200k)    |     0.96106 |      +0.13097  |
 | Tree (LGBM HP-tuned)     | prior-reweight argmax (200k, TPE best)   |     0.97047 |  −0.00050 vs baseline |
+| Tree (LGBM+DGP)          | argmax (15 DGP-derived cols + distances) |     0.96349 |             –  |
+| Tree (LGBM+DGP)          | prior-reweight argmax                    |     0.97250 |      +0.00901  |
+| **Tree (LGBM+DGP)**      | **tuned log-bias (new best, 2026-04-20)**| **0.97271** |   **+0.00021** |
+| Imbalanced-ensemble      | BalancedRandomForest + DGP (tuned)       |     0.96535 |      −0.00736  |
+| Imbalanced-ensemble      | EasyEnsemble + DGP (tuned)               |     0.96932 |      −0.00339  |
+| Imbalanced-ensemble      | RUSBoost + DGP (tuned)                   |     0.96666 |      −0.00605  |
+| Blend                    | LGBM+DGP ⊗ {BRF, Easy, RUS}, sweep       |     0.97272 |      +0.00001 (null) |
+| NN (MLP+DGP v1)          | plain CE, argmax (3×256→128→64, embed)   |     0.96184 |             –  |
+| NN (MLP+DGP v1)          | plain CE, tuned log-bias                 |     0.96437 |      +0.00253  |
+| **NN (MLP+BalSoft v3)**  | **Balanced Softmax (Menon 2021) tuned**  | **0.96596** |   **+0.00159 vs v1** |
+| NN (MLP+LDAM-DRW v4)     | LDAM + eff-num CB weights (fold 1 only)  |      ~0.962 |   killed — see §5 |
+| Blend                    | LGBM+DGP ⊗ MLP+BalSoft, geometric w=0.15 |     0.97276 |      +0.00005 (null) |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 
@@ -121,6 +133,32 @@ Key read-outs
   regularized, but that's a different *shape* of optimum reaching the
   same plateau. Extrapolated full-630k delta ≤ +0.001. Baseline HPs
   are near-optimal at this feature set; gains need a different lever.
+- **MLP plateaus at ~0.966 tuned OOF — capacity-bound, not loss-bound
+  (2026-04-21).** A 3-layer tabular MLP (256-128-64, 50k params, BN +
+  dropout 0.15, Adam + cosine LR, embedded cats, all 26 DGP-enriched
+  numerics) hits 0.96437 under plain CE + post-hoc log-bias (v1) and
+  0.96596 under Balanced Softmax (v3, Menon 2021 — training-time
+  logit shift `z + log π` so raw argmax is Bayes-optimal). v3's
+  residual post-hoc bias shift collapses to `{Low: +0.3, 0, 0}` vs
+  v1's `{+1.33, +1.57, +3.40}` — BalSoft successfully substitutes
+  for coord-ascent bias tuning. But the absolute ceiling is
+  **persistently 0.007 below LGBM+DGP's 0.97271** across every fold
+  (std ≈ 0.0005), so the bottleneck is model capacity / axis-aligned
+  vs smooth boundary, not loss calibration. LDAM-DRW (v4, Cao 2019)
+  with effective-number class weights (β=0.9999) degenerated to
+  ~uniform at our 370k/239k/21k sample sizes — only the margin term
+  was active, fold 1 landed at 0.96240 argmax, killed after fold 1.
+- **MLP × LGBM+DGP blend adds +0.00005 — null (2026-04-21).**
+  Arithmetic and geometric sweeps over `w ∈ [0, 0.5]` with coord-ascent
+  bias retune per weight. Best: geometric `w=0.15 → 0.97276` vs LGBM
+  alone 0.97271, well below the 0.00068 fold-std noise floor. Confusion
+  diff: +44 High recalled, +459 Medium→High mistakes. The MLP's errors
+  are **not** orthogonal to LGBM's; both models miss the same
+  boundary-band flips. Consistent with the balanced-ensemble blend
+  null — a second model of similar bias-tuned calibration but lower
+  standalone accuracy can't contribute diversity. New rule:
+  demonstrate per-row error orthogonality (Jaccard over OOF error
+  sets) before investing in a full blend sweep.
 
 ## 4. Strategy and next steps
 
@@ -129,48 +167,48 @@ to reach the tied pack, and +0.011 to reach rank 1. Our baseline
 already includes the "threshold trick", so the remaining lift has to
 come from feature engineering, model diversity, or external data.
 
-Ranked by expected ROI / effort (post-FE-null + EXT-concat update 2026-04-20):
+Ranked by expected ROI / effort (post-MLP-plateau + blend-null update,
+2026-04-21). Current best is LGBM+DGP tuned, OOF = 0.97271; LB-
+calibrated gap to the 0.98114 tied pack is about −0.010.
 
-1. **Seed-bag LGBM+EXT (now top of list).** Run 3–5 seeds of the
-   concat pipeline (synthetic + 10k original), average OOF + test
-   probs, retune bias. Fold-level std on bal_acc is ~0.00068 (with
-   EXT) — expected SE reduction ≈ √5 → ~+0.0005–0.001 on top of the
-   +0.00027 already banked.
-2. **LGBM+EXT + XGBoost blend.** Retrain XGB with the same concat
-   trick, then blend at geometric-mean. Expected +0.001–0.002 from
-   model diversity. Base is now 0.97124, not 0.97097.
-3. ~~**Feature engineering on LGBM.**~~ **Ruled out (2026-04-20).**
-   Adding `ET0_proxy`, `Kc_stage`, `ETc_proxy`, `Soil_deficit`,
-   `Is_Rainfed`, `Eff_Rainfall_active`, `Crop_x_Stage`,
-   `Season_x_Region` moved tuned OOF from 0.97097 → 0.97045
-   (Δ = −0.00052, within 1σ fold noise). Trees already discover these
-   interactions. See §5.
-4. ~~**Original dataset concat (step 2 of old plan).**~~ **Partially
-   confirmed (2026-04-20).** Concat added only +0.00027 (< 1σ). The
-   10k rows overlap the synthetic DGP almost completely (transfer
-   score 0.96278) but don't move the needle because they're a tiny
-   fraction of the effective training data. Kept in the pipeline —
-   small free delta — but no follow-on work (e.g. sample-weight
-   sweep) expected to pay off substantially.
-3. **LGBM + XGBoost blend.** XGBoost OOF is already saved from the
-   multi-model benchmark. Geometric mean with re-tuned bias. Estimate:
-   +0.001–0.002 (model diversity, not raw strength).
-4. **Original Irrigation Prediction dataset.** Explicitly allowed and
-   not yet used. Steps: download, schema-align, add as either
-   (a) concat with train, or (b) external train and synthetic as
-   validation. Sign unknown — DGP may diverge. Estimate: −0.005 to
-   +0.005.
-5. **LGBM hyperparameter refresh.** Current config (lr=0.05, 127
-   leaves, ~280 trees) was a gut estimate, not a search. One round of
-   Optuna on (num_leaves, min_data_in_leaf, feature_fraction,
-   bagging_fraction, lr, reg_alpha, reg_lambda). Estimate: +0.001.
-6. **Ordinal-aware loss or threshold metric.** Errors cluster between
-   adjacent classes; an ordinal objective may reduce Medium↔High
-   confusion even though the metric itself is order-agnostic.
-   Estimate: +0.001 or nothing.
-7. **DGP archaeology (parked).** Reverse-engineer the synthetic
+1. **Rule × non-rule pairwise FE for LGBM (new top bet).** Explicitly
+   engineer `Humidity × Soil_Moisture`, `Previous_Irrigation_mm ×
+   Rainfall_mm`, `Electrical_Conductivity × Soil_Moisture`,
+   `Field_Area_hectare × dgp_score`, `Humidity × Crop_Growth_Stage`.
+   The 2026-04-21 EDA flagged these non-rule features as carrying
+   deterministic flip signal at d ≈ 0.08–0.11 (score=3); the MLP
+   experiment confirmed the signal is real (v3 BalSoft +0.0016 vs
+   plain CE) but not capturable by a 50k-param MLP at our training
+   budget. Explicit interaction columns let LGBM surface the signal
+   at the right scale. Estimate: **+0.0005 – 0.002**, ~30-line
+   patch to `scripts/benchmark_dgp.py`.
+2. **Seed-bag LGBM+DGP.** 3–5 seeds of `benchmark_dgp.py`, average
+   OOF + test probs, retune bias. Fold std ≈ 0.00068 → SE reduction
+   ≈ √5. Estimate: **+0.0005 – 0.001** cheap insurance.
+3. **XGBoost+DGP × LGBM+DGP prob-level blend.** Model diversity with
+   a *strong* second model (same feature set, same folds). Unlike
+   MNLogit / MLP / imbalanced-ensemble blends (all null), two
+   tree-family models on the same features typically show weak
+   orthogonality in the last +0.001 – 0.002. Validate error
+   orthogonality before committing to the full sweep.
+4. **Ordinal-aware loss / Medium↔High sample-weighting.** EDA
+   confirmed flips are *always* to the adjacent class. LGBM
+   `multiclassova` with upweighted adjacent-class mistakes or a
+   cumulative-link objective is a structural match to the noise
+   pattern. Estimate: +0.001 or null.
+5. **cRT (Kang 2020) on the v3 MLP backbone.** Retain the one
+   surviving tail-aware lever from the 2026-04-21 MLP work: freeze
+   v3's feature extractor, retrain only the final linear layer with
+   class-balanced sampling. Cheap (~1 min/fold) and may reshape the
+   MLP's error geometry enough for a blend. Low expected value after
+   the v3 blend null but the only MLP variant not yet tried.
+6. **DGP archaeology (parked).** Reverse-engineer the synthetic
    generator. High effort, unclear payoff — revisit only if stuck
-   above 0.9815 after the cheaper bets land.
+   above 0.975 after §1-§4 land.
+
+Ruled out (see §5): balanced-ensemble blends, hand-crafted
+water-balance cols in LGBM, standalone MLP as replacement for LGBM,
+MLP × LGBM prob-level blend, LGBM HP refresh, MNLogit blend.
 
 Minimum-viable first submission: the current
 `submissions/baseline_lgbm_tuned.csv` (LGBM + tuned log-bias, OOF
@@ -206,6 +244,80 @@ ready.
   `scripts/artifacts/test_lgbm_fe.npy`,
   `submissions/submission_lgbm_fe_tuned.csv`. Could revisit only if
   we ever retrain with a much smaller leaf budget or a tiny subset.
+- **Balanced-ensemble methods on DGP features (2026-04-21).**
+  BalancedRandomForest, EasyEnsemble, and RUSBoost (all from
+  `imbalanced-learn`) run under identical 5-fold CV on the 34-col
+  DGP-enriched feature set, each with base-learner configs tuned to
+  avoid the known 3-class SAMME stump-collapse failure mode. Tuned
+  OOF bal_acc: Easy 0.96932, RUSBoost 0.96666, BRF 0.96535 — all
+  below LGBM+DGP 0.97271. Pairwise and 3-way blends with LGBM+DGP
+  saturate at Δ ≤ +0.00008 (within fold noise); BRF gets zero weight
+  in every blend config. These methods produce pre-balanced
+  probabilities so log-bias has nothing to correct — argmax and tuned
+  scores are within 0.002 of each other, vs LGBM's +0.0092 log-bias
+  lift. The mechanism overlap means per-tree majority undersampling
+  is not a distinct lever from post-hoc log-bias at this feature set;
+  both pick the same balanced-accuracy operating point. Code was not
+  retained (null result); full methodology and numbers live in this
+  document and `CLAUDE.md` 2026-04-21 session entry.
+- **Standalone MLP + DGP features as replacement for LGBM+DGP
+  (2026-04-21).** Three variants on identical 5-fold seed=42 folds,
+  3-layer tabular MLP (256-128-64, 50k params, BN, dropout 0.15,
+  Adam + cosine LR, 8 embedded cats + 26 numerics including 15
+  DGP-derived cols): v1 plain CE 0.96437 tuned, v3 Balanced Softmax
+  (Menon 2021 / Ren 2020, loss `CE(z + log π, y)`) 0.96596 tuned
+  (+0.00159, ~2σ), v4 LDAM-DRW (Cao 2019) killed at fold 1 = 0.96240
+  because the effective-number class weights (β=0.9999) degenerate
+  to ~uniform at our n_c ≫ 10⁴. Plateau at ~0.966 across loss
+  changes — bottleneck is **MLP capacity vs LGBM's implicit 10⁶-
+  param axis-aligned ensemble on rule-threshold features**, not loss
+  function. Balanced Softmax did verify cleanly as the training-time
+  equivalent of post-hoc log-bias (residual bias `{+0.3, 0, 0}` vs
+  plain-CE's `{+1.33, +1.57, +3.40}`) — keep as a pattern. Artefacts:
+  `scripts/mlp_{dgp,balsoft,ldam}.py`,
+  `scripts/artifacts/oof_mlp_{dgp,balsoft}.npy`,
+  `submissions/submission_mlp_{dgp,balsoft}_tuned.csv` on branch
+  `claude/improve-balanced-accuracy-v1UtX`. Revisit only if a much
+  larger/deeper architecture (FT-Transformer, NumEmb + wide MLP) is
+  tried.
+- **MLP+BalSoft × LGBM+DGP prob-level blend (2026-04-21).**
+  `scripts/blend_lgbm_mlp.py` — arithmetic + geometric sweep over
+  `w ∈ [0, 0.5]` with coord-ascent bias retune per weight. Best:
+  geometric w=0.15 → 0.97276 tuned OOF vs LGBM alone 0.97271
+  (Δ = +0.00005, well below fold std ≈ 0.00068). Confusion diff:
+  +44 High recalled, +459 Medium→High mistakes. The MLP's errors
+  are **not orthogonal** to LGBM's — both miss the same boundary-
+  band flips. Combined with the earlier MNLogit and balanced-
+  ensemble blend nulls, this establishes the pattern: any second
+  model that's a weaker approximator on the same feature set will
+  share LGBM's errors and not contribute in a blend. Rule added:
+  demonstrate per-row error orthogonality (Jaccard over OOF error
+  sets, or equivalently McNemar test) *before* running a full blend
+  sweep; standalone OOF ≥ 0.965 is necessary but not sufficient.
+- **Hinge-loss / max-margin tie-breaker over integer separating rules
+  (2026-04-21).** Triggered by community discussion
+  [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)
+  showing the 10k original is linearly separable in a 9-binary-feature
+  space (`Soil<25, Temp>30, Rain<300, Wind>10, Mulching=Yes,
+  Crop=Flowering/Harvest/Sowing/Vegetative`) with many integer
+  solutions differing in hinge loss. `scripts/enumerate_integer_models.py`
+  reproduces the OR-Tools CP search; 743 distinct integer models with
+  `|w|≤10, 1≤θ≤10` all achieve 100 % on the 10k, hinge-loss range
+  0.0000 → 0.2981. **All 743 produce identical predictions on the
+  630k synthetic** — agreement rate 1.0000 across top-50, bal_acc
+  0.96097, raw_acc 0.98364 for every solution. The 2⁵ × 4 = 128
+  discrete cells are fully labeled by the 10k, so any separating
+  linear classifier is forced to the same cell-labeling; wider margin
+  (`(w, θ) → (2w, 2θ)`) is pure scale and doesn't move any cell
+  across the boundary. Max-margin / VC-bound extrapolation argument
+  doesn't give a usable tie-breaker in discrete-feature regimes where
+  every test row maps to a training cell. Ceiling for any linear rule
+  in this representation = 0.96097. Artefacts:
+  `scripts/artifacts/integer_separating_models.csv`,
+  `integer_models_topk_{pred_syn,pred_test,ids}.npy`,
+  `integer_models_summary.json`. Adjacent rule: **scale/shift
+  ambiguities inside a single model family are not diversity** — do
+  not ensemble over them.
 
 ## 6. Open questions
 

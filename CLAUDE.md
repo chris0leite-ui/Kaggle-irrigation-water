@@ -538,6 +538,57 @@ README.md      TL;DR + reproduction instructions.
      Previous_Irrigation × Rainfall_mm, Field_Area × score, etc.) may
      let LGBM recover the NN-learned correlations more cleanly.
 
+### 2026-04-21 — balanced-ensemble methods (ruled out)
+
+- Goal: test whether per-base-learner majority undersampling
+  (BalancedRandomForest, EasyEnsemble, RUSBoost from `imbalanced-learn`)
+  beats LGBM+DGP's 0.97271, or contributes orthogonal signal in a blend.
+  Motivated by the multi-class-imbalance research report flagging
+  "rebalance at training time" as the last unexplored data-level lever.
+- Changed: `scripts/benchmark_balanced_ensembles.py` (now deleted —
+  null result). Same 5-fold stratified split, same 34-col DGP-enriched
+  feature set, same coord-ascent log-bias decision rule.
+- Configs chosen to avoid known failure modes:
+  - BRF 400 trees, `sampling_strategy='all'`, `replacement=True`,
+    `min_samples_leaf=50`.
+  - EasyEnsemble 10 outer × inner AdaBoost(`DecisionTreeClassifier(max_depth=5)`,
+    40 iter, lr=0.3). Default stump-based inner collapses on 3-class.
+  - RUSBoost 200 iter, `DecisionTreeClassifier(max_depth=5)`, lr=0.3.
+    Default stumps produce SAMME bal_acc=0.333.
+- Results (OOF bal_acc, 5-fold, seed=42, tuned log-bias):
+  - LGBM+DGP (ref)       0.97271
+  - EasyEnsemble         0.96932  (Δ = −0.00339)
+  - RUSBoost             0.96666  (Δ = −0.00605)
+  - BalancedRF           0.96535  (Δ = −0.00736)
+  - LGBM × Easy linear   0.97279 at w=0.80 (Δ = +0.00008)
+  - LGBM × Easy geo      0.97278 at w=0.70 (Δ = +0.00007)
+  - LGBM × BRF / RUS     collapse to pure LGBM or +0.00001
+  - 3-way LGBM+Easy+BRF  0.97279 at (0.8, 0.2, 0) — collapses to
+    pairwise, BRF gets zero weight.
+- Observations:
+  - Balanced-ensemble probs are already nearly class-balanced out of the
+    box (inter-class bias deltas 0.03–0.14), so coord-ascent log-bias
+    has almost nothing to correct — argmax and tuned are within
+    0.0007–0.002 of each other. LGBM's sharper imbalanced probs
+    respond much better to log-bias tuning (+0.0092 from tuning).
+  - EasyEnsemble trades Medium recall for High recall (97.0% High)
+    vs LGBM+DGP's profile, but the High-recall bump does not survive
+    blending — log-bias on LGBM already finds the same operating point
+    on macro-recall.
+  - BRF is strictly dominated in every blend config.
+- Read-out: **per-tree/per-base-learner majority undersampling is not
+  a distinct lever from post-hoc log-bias on this feature set.** Both
+  are mechanisms for picking a balanced-accuracy-optimal operating
+  point on a fixed model. LGBM+DGP + log-bias already occupies it.
+  The broader lesson matches the 2026-04-21 DGP finding: the ceiling
+  isn't a calibration problem, it's a **model-class** problem. Axis-
+  aligned trees — rebalanced or not — bottleneck on the same smooth
+  NN decision boundary.
+- Budget impact: zero LB submissions spent. Still 2/10 used for the
+  day (both from 2026-04-20).
+- Next bet: unchanged — MLP / tabular NN with balanced softmax or
+  LDAM loss remains the top open hypothesis.
+
 ### 2026-04-21 — hinge-loss / max-margin lever ruled out
 
 - Goal: follow up on community discussion
@@ -593,35 +644,50 @@ README.md      TL;DR + reproduction instructions.
   3. The 0.98114 LB pack's edge is therefore in **within-cell
      resolution** (model capacity on the continuous features) — not in
      rule/weight choice, not in margin, not in ensembling over
-     separating solutions. The MLP / NN-surrogate bet remains the
-     right top-of-board item.
+     separating solutions. Consistent with the MLP-plateau commit on
+     main (e889f0c): a 50 k-param MLP can't match LGBM+DGP on this
+     rule-structured feature set, and rule-level ensembling (this
+     work) adds exactly zero orthogonal signal. **Pairwise rule ×
+     non-rule FE remains the top open bet.**
 - LB delta: n/a (0 LB spend this session; 2/10 total, 8 left today).
-- Next bet: unchanged — MLP trained on (rule features + continuous
-  features + interactions) to approximate the host's within-cell
-  boundary.
+- Next bet: the within-cell angle hasn't been exhausted. Two
+  adjacent experiments are cheap and still live:
+  1. **Rule × non-rule pairwise FE** (already the top bet from main's
+     e889f0c) — the CP enumeration confirms it's the right target.
+  2. **Within-cell MLP / per-cell logistic** on `Humidity,
+     Previous_Irrigation_mm, Electrical_Conductivity, Field_Area,
+     Soil_pH, Organic_Carbon, Sunlight_Hours` restricted to the rows
+     of each of the 128 cells. By construction orthogonal to any
+     rule-level ensemble, and targets exactly the 10,304 within-cell
+     flips.
 
 ## Hypothesis board
 
 - **Open**:
-  - **Neural-net tabular model (MLP / TabNet) — NEW TOP BET.**
-    `brief.md:74` states synthetic labels come from a deep learning
-    model. The 2026-04-21 EDA confirms flips are deterministic and
-    driven by non-rule features (Previous_Irrigation_mm d=+0.107,
-    Humidity d=+0.076 at score=3; both p<1e-7). Ceiling is 100 %,
-    not rule + noise. An MLP fits the DGP's shape (smooth curved
-    decision boundary in full feature space) better than axis-aligned
-    trees. No NN code exists in the repo yet.
-  - **Rule × non-rule pairwise FE for LGBM.** Specifically
+  - **Rule × non-rule pairwise FE for LGBM — NEW TOP BET** (promoted
+    from main's e889f0c after the MLP plateau). Specifically
     `Humidity × Soil_Moisture`, `Previous_Irrigation_mm × Rainfall_mm`,
     `Electrical_Conductivity × Soil_Moisture`, `Field_Area × dgp_score`.
     These are the interactions the host's NN likely learned; trees
-    can find them but may benefit from an explicit start.
+    can find them but may benefit from an explicit start. The
+    hinge-loss CP enumeration (this session) sharpens the target:
+    the 128 rule-cells are already perfectly labeled, so all
+    remaining lift must come from **within-cell** continuous features
+    — exactly what rule × non-rule interactions provide.
+  - **Within-cell per-cell logistic / MLP** on non-rule continuous
+    features (`Humidity, Previous_Irrigation_mm, Electrical_Conductivity,
+    Field_Area, Soil_pH, Organic_Carbon, Sunlight_Hours`). Fit one
+    small model per rule-cell (128 cells, ~5 k rows per cell on
+    synthetic) to recover the 10,304 within-cell flips directly. By
+    construction orthogonal to LGBM+DGP; no rule-level dependence.
   - Seed-bag LGBM+DGP (3–5 seeds, retune bias on averaged OOF).
     Cheapest remaining win; expected +0.0005–0.001 from fold-std
-    reduction. Still a fine insurance bet even if NN is the main
-    lever.
+    reduction.
   - LGBM+DGP + XGBoost-with-DGP-features blend at prob level.
-    Model-diversity lift, expected +0.001–0.002.
+    Model-diversity lift, expected +0.001–0.002. Bar from MLP /
+    balanced-ensemble / MNLogit blend nulls: need per-row error
+    orthogonality, not just standalone OOF ≥ 0.965 (see
+    `LEARNINGS.md`).
   - Ordinal-aware loss to cut Medium↔High confusion is still untested.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
@@ -669,6 +735,35 @@ README.md      TL;DR + reproduction instructions.
     blend already agree. v2 (specialist trained on flipped rows only)
     collapses to 0.86765 because the specialist predicts anti-rule
     on clean rows where P_flip > 0.
+  - **Balanced-ensemble methods (BalancedRandomForest, EasyEnsemble,
+    RUSBoost) on DGP features.** All three land below LGBM+DGP
+    0.97271 tuned: Easy 0.96932, RUSBoost 0.96666, BRF 0.96535.
+    Pairwise and 3-way blends with LGBM+DGP give Δ ≤ +0.00008, well
+    inside the ~0.0009 fold-std noise band; BRF gets zero weight in
+    every blend. These methods produce pre-balanced probabilities
+    (inter-class bias deltas 0.03–0.14) so log-bias has nothing to
+    correct — they and LGBM+log-bias are picking the same balanced-
+    accuracy operating point via different mechanisms. **Per-tree
+    majority undersampling is not a distinct lever from post-hoc
+    log-bias at this feature set.** Rule: balanced-ensemble wrappers
+    are not a useful diversity source when log-bias tuning is already
+    in the pipeline.
+  - **MLP / tabular NN** (plateaued 2026-04-21, details in `REPORT.md`
+    and `LEARNINGS.md` from main commit e889f0c; implementation code
+    on branch `claude/improve-balanced-accuracy-v1UtX`, not merged).
+    3-layer MLP (256→128→64, ~50 k params, embedded cats, 26 DGP-
+    enriched numerics): v1 plain CE + log-bias = 0.96437; v3 Balanced
+    Softmax (Menon 2021) = 0.96596; v4 LDAM-DRW killed at fold 1
+    (effective-number class weights degenerate at n_c ≫ 10 k).
+    **Blend with LGBM+DGP: geometric w=0.15 → 0.97276** vs LGBM+DGP
+    0.97271 — Δ = +0.00005, well below fold-std noise. Third
+    independent blend null (MNLogit, balanced-ensemble, MLP). New
+    rule: **blending requires per-row error orthogonality, not just
+    standalone OOF ≥ 0.965** (log in `LEARNINGS.md`). MLP is
+    capacity-bound on this rule-structured feature set at our
+    training budget; revisit only with a significantly larger
+    architecture or a structural prior matching the rule (e.g.
+    additive / monotone net).
   - **Hinge-loss / max-margin tie-breaker over integer separating
     rules** (`scripts/enumerate_integer_models.py`, per discussion
     [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)).
@@ -676,12 +771,14 @@ README.md      TL;DR + reproduction instructions.
     achieve 100 % train_acc on the 10k original. Hinge loss on 10k
     spans 0.0000 → 0.2981. **All 743 produce identical predictions on
     630k synthetic** (agreement 1.0000, bal_acc 0.96097). Cell-labeling
-    over the 2^5 × 4 = 128 discrete cells is fully determined by the
+    over the 2⁵ × 4 = 128 discrete cells is fully determined by the
     10k, so any separating linear classifier gives the same
     decision-region map. Ceiling for this representation is 0.96097 —
     the same as cdeotte's rule, the SVM, and our existing DGP rule.
     Residual signal lives in within-cell continuous variation, not
-    in weight choice.
+    in weight choice. Related rule: **don't ensemble over linearly
+    equivalent models with identical argmax — scale ambiguity ≠
+    diversity.**
   - **Gated flip-recovery as a lever** (`scripts/gated_v3.py`). Tried
     meta-LGBM stacking over `[P_main, P_spec, P_flip, rule_oh,
     rule_int]` and hard-gate `argmax(P_spec) if P_flip>τ else rule`.
