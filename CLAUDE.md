@@ -538,6 +538,57 @@ README.md      TL;DR + reproduction instructions.
      Previous_Irrigation × Rainfall_mm, Field_Area × score, etc.) may
      let LGBM recover the NN-learned correlations more cleanly.
 
+### 2026-04-21 — balanced-ensemble methods (ruled out)
+
+- Goal: test whether per-base-learner majority undersampling
+  (BalancedRandomForest, EasyEnsemble, RUSBoost from `imbalanced-learn`)
+  beats LGBM+DGP's 0.97271, or contributes orthogonal signal in a blend.
+  Motivated by the multi-class-imbalance research report flagging
+  "rebalance at training time" as the last unexplored data-level lever.
+- Changed: `scripts/benchmark_balanced_ensembles.py` (now deleted —
+  null result). Same 5-fold stratified split, same 34-col DGP-enriched
+  feature set, same coord-ascent log-bias decision rule.
+- Configs chosen to avoid known failure modes:
+  - BRF 400 trees, `sampling_strategy='all'`, `replacement=True`,
+    `min_samples_leaf=50`.
+  - EasyEnsemble 10 outer × inner AdaBoost(`DecisionTreeClassifier(max_depth=5)`,
+    40 iter, lr=0.3). Default stump-based inner collapses on 3-class.
+  - RUSBoost 200 iter, `DecisionTreeClassifier(max_depth=5)`, lr=0.3.
+    Default stumps produce SAMME bal_acc=0.333.
+- Results (OOF bal_acc, 5-fold, seed=42, tuned log-bias):
+  - LGBM+DGP (ref)       0.97271
+  - EasyEnsemble         0.96932  (Δ = −0.00339)
+  - RUSBoost             0.96666  (Δ = −0.00605)
+  - BalancedRF           0.96535  (Δ = −0.00736)
+  - LGBM × Easy linear   0.97279 at w=0.80 (Δ = +0.00008)
+  - LGBM × Easy geo      0.97278 at w=0.70 (Δ = +0.00007)
+  - LGBM × BRF / RUS     collapse to pure LGBM or +0.00001
+  - 3-way LGBM+Easy+BRF  0.97279 at (0.8, 0.2, 0) — collapses to
+    pairwise, BRF gets zero weight.
+- Observations:
+  - Balanced-ensemble probs are already nearly class-balanced out of the
+    box (inter-class bias deltas 0.03–0.14), so coord-ascent log-bias
+    has almost nothing to correct — argmax and tuned are within
+    0.0007–0.002 of each other. LGBM's sharper imbalanced probs
+    respond much better to log-bias tuning (+0.0092 from tuning).
+  - EasyEnsemble trades Medium recall for High recall (97.0% High)
+    vs LGBM+DGP's profile, but the High-recall bump does not survive
+    blending — log-bias on LGBM already finds the same operating point
+    on macro-recall.
+  - BRF is strictly dominated in every blend config.
+- Read-out: **per-tree/per-base-learner majority undersampling is not
+  a distinct lever from post-hoc log-bias on this feature set.** Both
+  are mechanisms for picking a balanced-accuracy-optimal operating
+  point on a fixed model. LGBM+DGP + log-bias already occupies it.
+  The broader lesson matches the 2026-04-21 DGP finding: the ceiling
+  isn't a calibration problem, it's a **model-class** problem. Axis-
+  aligned trees — rebalanced or not — bottleneck on the same smooth
+  NN decision boundary.
+- Budget impact: zero LB submissions spent. Still 2/10 used for the
+  day (both from 2026-04-20).
+- Next bet: unchanged — MLP / tabular NN with balanced softmax or
+  LDAM loss remains the top open hypothesis.
+
 ## Hypothesis board
 
 - **Open**:
@@ -607,6 +658,19 @@ README.md      TL;DR + reproduction instructions.
     blend already agree. v2 (specialist trained on flipped rows only)
     collapses to 0.86765 because the specialist predicts anti-rule
     on clean rows where P_flip > 0.
+  - **Balanced-ensemble methods (BalancedRandomForest, EasyEnsemble,
+    RUSBoost) on DGP features.** All three land below LGBM+DGP
+    0.97271 tuned: Easy 0.96932, RUSBoost 0.96666, BRF 0.96535.
+    Pairwise and 3-way blends with LGBM+DGP give Δ ≤ +0.00008, well
+    inside the ~0.0009 fold-std noise band; BRF gets zero weight in
+    every blend. These methods produce pre-balanced probabilities
+    (inter-class bias deltas 0.03–0.14) so log-bias has nothing to
+    correct — they and LGBM+log-bias are picking the same balanced-
+    accuracy operating point via different mechanisms. **Per-tree
+    majority undersampling is not a distinct lever from post-hoc
+    log-bias at this feature set.** Rule: balanced-ensemble wrappers
+    are not a useful diversity source when log-bias tuning is already
+    in the pipeline.
   - **Gated flip-recovery as a lever** (`scripts/gated_v3.py`). Tried
     meta-LGBM stacking over `[P_main, P_spec, P_flip, rule_oh,
     rule_int]` and hard-gate `argmax(P_spec) if P_flip>τ else rule`.
