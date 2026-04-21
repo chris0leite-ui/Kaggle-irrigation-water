@@ -93,11 +93,27 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   (98 % Low) and {4-6} (98 % Med) were net-negative.
 - **Route, don't predict, when a deterministic predictor is
   ≥99.5 % on the sub-domain AND the predicted class is
-  over-represented in the remainder.** Routing scores {1,2} (99.7 %
-  Low rule accuracy, Low already 59 % of the remaining training pool)
-  lifted XGB-dist by +0.00029. Routing {0,1,2,9} underperformed:
-  removing score 9 stripped 15 % of the entire High training pool,
-  and High calibration suffered more than routing gained.
+  over-represented in the remainder — AND the routed rows are not
+  structurally informative for neighboring-score decisions.** Four
+  routing empirics on this dataset:
+    - {1,2} (Low, 99.7 %, 237 k rows) → +0.00029 ✓
+    - {0,1,2} (Low, 99.86 %, 271 k rows) → +0.00028 ✓ (tied OOF with
+      {1,2}; +0.00047 on LB due to deterministic score-0 rule)
+    - {0,1,2,9} (adds High, 3 k rows) → −0.00014 ✗
+      (score 9 strips 15 % of the entire High training pool, hurts
+      High calibration)
+    - {0,1,2,5} (adds Medium, 79 k rows) → −0.00012 ✗
+      (score 5 is the cleanest-Medium subset; removing it destabilises
+      the Medium↔High boundary on {6,7,8})
+  The last case adds a condition the first three didn't reveal: rows
+  that would be routed must not be **anchor training data** for a
+  nearby decision boundary. Single-class-pure rows adjacent to a
+  class boundary (here: score 5 at the Medium-end, abutting the
+  Medium↔High transition at score 6–7) fail this test silently —
+  the rule predicts them perfectly, but they carry the model's
+  "cleanest Medium row" signal. Pre-check: train the model with and
+  without the candidate score; if non-routed-score class recalls
+  drop noticeably, don't route.
 - **Prefer deterministic routing at OOF-ties; reduces hidden-split
   variance.** Routing variants {0,1,2} and {1,2} tied OOF at 0.97352
   (XGB on score-0 rows learns the same Low prediction the rule
