@@ -505,6 +505,48 @@ README.md      TL;DR + reproduction instructions.
   (or try SCE / bootstrap loss instead). Ruled out on this branch:
   per-score experts, noise-inversion head, naive GCE.
 
+### 2026-04-21 — LGBM-dist seed-bag (small positive)
+
+- Goal: the cheapest remaining orthogonal lever after the three
+  nulls — reduce LGBM's internal variance (bagging / feature /
+  split randomness tied to `seed`) without changing the CV
+  structure, feature set, or HPs. Target: +0.0005–0.001.
+- Changed: `scripts/seed_bag_dist.py` — same 5-fold stratified
+  split (`random_state=42`), same 43-feature LGBM-dist config,
+  5 bag seeds `[42, 7, 123, 2024, 9999]`. For each fold × seed
+  combo it trains an independent LGBM and collects fold-local
+  val + test probs. OOF is the arithmetic mean across seeds;
+  log-bias is tuned on the averaged OOF. Artefacts:
+  `oof_lgbm_dist_bag.npy`, `test_lgbm_dist_bag.npy`,
+  `seed_bag_dist_results.json`,
+  `submission_lgbm_dist_bag_tuned.csv`.
+- Results (OOF tuned bal_acc, 5-fold stratified, same split):
+  - seed=42   : 0.97266 (matches single-seed baseline)
+  - seed=7    : 0.97261
+  - seed=123  : 0.97255
+  - seed=2024 : 0.97259
+  - seed=9999 : 0.97274
+  - **5-seed bag**: **0.97289**
+  - Δ(bag − seed=42)       = **+0.00024**
+  - Δ(bag − best single)   = **+0.00015**
+  - Per-seed spread = 0.00019 (single-seed variance is tiny —
+    LGBM with 630k rows, `num_leaves=127`, `bagging_fraction=0.9`
+    is nearly deterministic across seeds, so bagging variance
+    reduction has little room to move).
+- Observation: the bag beats **every individual seed**, which is
+  stronger evidence than the +0.00024 magnitude suggests (5/5
+  single-seed OOFs are ≤ bag is a clean 1-sided win). Still only
+  ~0.27σ of fold std (0.00088), so treat as small but real.
+- LB delta: n/a. `submission_lgbm_dist_bag_tuned.csv` is the new
+  best candidate on disk at OOF 0.97289.
+- Next bet: (a) XGBoost with the same dist features + LGBM-dist-bag
+  blend (real model diversity, not seed diversity); (b) revisit
+  the GCE loss with proper grad-scale debug so it actually trains;
+  (c) consider a 1-submission sanity check on
+  `submission_lgbm_dist_bag_tuned.csv` only if we run out of cheap
+  experiments — the OOF delta is too small to justify burning a
+  sub yet.
+
 ## Hypothesis board
 
 - **Open**:
