@@ -60,6 +60,45 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   miss the same rows and a blend at any weight just averages the
   same mistakes. Our MLP overlap was ~0.87 with LGBM on error rows;
   the blend lift was +0.00005.
+- **Low Jaccard is necessary but NOT sufficient for a useful blend.**
+  Refinement of the above after one contradictory case: CatBoost-dist
+  had Jaccard 0.74 with LGBM-dist and 0.76 with XGB-dist (well below
+  the 0.80 threshold) but adding it to the LGBM×XGB blend at any
+  weight *hurt* OOF by up to 0.00007. Root cause: Jaccard measures
+  error-SET overlap (did they both miss the same row?) but says
+  nothing about the **direction** of each error. CatBoost's unique
+  errors landed on rows LGBM/XGB got right, so weight > 0 on
+  CatBoost dragged the blend toward CatBoost's wrong answer on those
+  rows. Sufficient condition isn't just low Jaccard — it's that the
+  candidate model's unique errors have **smaller magnitude** than the
+  base blend's predicted probabilities on the same rows. Cheap test
+  after Jaccard: for rows where model X is the only one wrong, check
+  how confident X is; if X's wrong-class prob exceeds the other
+  models' right-class prob, any blend weight will hurt. Our hybrid ×
+  LGBM×XGB case (Jaccard 0.805, just *above* the old threshold) lifted
+  +0.00010 because the blend components had complementary
+  disagreement geometry — so the threshold is fuzzier than "< 0.80
+  blend, ≥ 0.80 skip". Safe default: always sweep a small blend if
+  the candidate lands within ±0.002 of current best; Jaccard only
+  decides whether to fully reject at > 0.90.
+- **Pseudo-labeling fails when the labeler is systematically wrong
+  on the rows that would most help.** On our data, hybrid (LB 0.973)
+  produced 226k pseudo-labels at τ=0.95 (84 % of test, class split
+  60/36/4). Retraining the hybrid on 630k + 226k augmented pool gave
+  OOF 0.97332 vs baseline 0.97352 (Δ = −0.00020). The hybrid's
+  errors concentrate at the Medium↔High boundary; pseudo-labels
+  encode those errors as ground truth, and the retrained model
+  pushes its decision surface further in the wrong direction on the
+  exact rows that most need correction. Pre-check before pseudo-
+  labeling: inspect the labeler's confusion matrix and plot
+  `max_prob vs correct?` by confusion cell. If high-confidence
+  errors exist (e.g. hybrid confidently calling a Medium row as
+  High with P > 0.95), pseudo-labeling will compound those errors.
+  Fixes: (a) much higher τ (≥ 0.99 to filter out the high-confidence-
+  wrong rows), (b) pseudo-label only classes where the labeler is
+  reliable (e.g. only confident-Low pseudo-labels if the model is
+  well-calibrated on Low but not High), (c) label smoothing on
+  pseudo rows to hedge against labeler overconfidence.
 - **Margin / hinge-loss tie-breaking collapses in discrete-feature
   regimes.** Classical VC / margin bounds say: among hypotheses with
   zero training error, pick the max-margin one for best
