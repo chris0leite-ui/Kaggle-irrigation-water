@@ -538,17 +538,83 @@ README.md      TL;DR + reproduction instructions.
      Previous_Irrigation × Rainfall_mm, Field_Area × score, etc.) may
      let LGBM recover the NN-learned correlations more cleanly.
 
+### 2026-04-21 — MLP+DGP stood up (v1 CE, v3 BalSoft) — plateau below LGBM
+
+- Goal: execute NEXT_STEPS §5 (MLP as structural match to the host's
+  label-generating NN). Test whether a 3-layer tabular MLP on the
+  DGP-enriched feature set beats LGBM+DGP's 0.97271 tuned OOF.
+- Changed: `scripts/mlp_dgp.py` (plain-CE MLP, 5-fold seed=42, 26
+  numerics including 15 DGP-derived cols + 8 embedded categoricals,
+  hidden=[256,128,64], BN + dropout 0.15, Adam + cosine LR, early
+  stop on val bal_acc). `scripts/mlp_balsoft.py` (same arch with
+  **Balanced Softmax** / logit adjustment, Menon 2021 / Ren 2020:
+  loss uses `z + log π` during training so raw argmax at inference
+  is Bayes-optimal under balanced risk). Artefacts:
+  `scripts/artifacts/{oof,test}_mlp_{dgp,balsoft}.npy`,
+  `mlp_{dgp,balsoft}_results.json`, per-run logs.
+- Results (OOF balanced accuracy, 5-fold stratified, seed=42, 630k):
+  - **v1 MLP+DGP (plain CE, argmax model-selection) tuned** → **0.96437**
+    (best bias {Low: +1.33, Medium: +1.57, High: +3.40}; large shift
+    from prior-reweight → MLP under-confident on Low).
+  - **v3 MLP+BalSoft tuned → 0.96596** (Δ = +0.00159 vs v1, ~2σ,
+    every fold improves; residual bias shift from zero is
+    {Low: +0.3, Med: 0, High: 0} — BalSoft successfully replaces
+    post-hoc bias tuning as designed).
+  - Baseline LGBM+DGP tuned (prior): 0.97271. **Gap v3 MLP vs LGBM
+    = −0.00675** (~7σ, persistent across every fold).
+  - Intermediate v2 (plain CE, prior-reweight model-selection) was
+    killed after fold 2 once per-fold val_pr plateau at ~0.966 made
+    projected tuned OOF ≈ v1's ~0.964 obvious; selection metric
+    alone is not the bottleneck.
+- Per-fold argmax pattern (v3): 0.96549 / 0.96623 / 0.96669 / 0.96565
+  / 0.96571, mean 0.96595, std ~0.0005. Tight distribution, no
+  outlier fold — the plateau is structural, not a bad initialisation.
+- Confusion-matrix comparison (v1 vs v3):
+  - High correct: v3 19730 vs v1 19563 (+167 High recalled).
+  - Low correct: essentially unchanged.
+  - Medium confusion: v3 misclassifies more Medium→High (3590 vs
+    2827 in v1) — BalSoft correctly shifts mass toward High to
+    reflect the balanced-accuracy objective.
+- Read-out: the NN-DGP hypothesis (NEXT_STEPS §5) **does not close
+  the gap**. Balanced Softmax delivers its expected +0.001–0.002 win
+  (training-time equivalent of our post-hoc log-bias trick works as
+  advertised), but the MLP's standalone ceiling is ~0.966 tuned
+  OOF — **well below LGBM+DGP's 0.97271**. The bottleneck is model
+  capacity / representation, not the loss function. A 50k-param MLP
+  cannot approximate the host's NN to the same precision that
+  LGBM+DGP (implicit 10⁶-param ensemble with axis-aligned splits
+  that exactly match the rule structure) does on this feature set.
+- Implication for strategy: pivot on two axes.
+  1. **Use MLP as a diversification / stacking input**, not a
+     standalone competitor. Even at 0.966 it has orthogonal errors
+     to LGBM's axis-aligned model. Blend at probability level
+     (geometric mean + retune bias) is the highest-ROI next bet.
+  2. **Keep iterating the MLP with tail-aware losses** (LDAM-DRW
+     next; cRT after) — each increment is small but compounds into
+     the blend. Moving the MLP from 0.966 to 0.968 standalone
+     would likely push the LGBM+MLP blend past LGBM alone by
+     another +0.001–0.002.
+- LB delta: still 2/10 spent; no v3 submission yet.
+- Next bet: run `scripts/mlp_ldam.py` (LDAM loss + deferred
+  re-weighting) to test whether class-dependent margins cut the
+  Medium↔High band further. Then build the MLP×LGBM+DGP prob-level
+  blend.
+
 ## Hypothesis board
 
 - **Open**:
-  - **Neural-net tabular model (MLP / TabNet) — NEW TOP BET.**
-    `brief.md:74` states synthetic labels come from a deep learning
-    model. The 2026-04-21 EDA confirms flips are deterministic and
-    driven by non-rule features (Previous_Irrigation_mm d=+0.107,
-    Humidity d=+0.076 at score=3; both p<1e-7). Ceiling is 100 %,
-    not rule + noise. An MLP fits the DGP's shape (smooth curved
-    decision boundary in full feature space) better than axis-aligned
-    trees. No NN code exists in the repo yet.
+  - **MLP+BalSoft × LGBM+DGP prob-level blend.** v3 MLP lands
+    0.96596 (below LGBM+DGP 0.97271 standalone) but its errors are
+    structurally different: smooth-manifold decisions vs LGBM's
+    axis-aligned splits. A geometric-mean blend with bias retune is
+    the highest-ROI next step; expected +0.001–0.003 beyond LGBM
+    alone even with a weaker second model.
+  - **Tail-aware MLP losses (LDAM-DRW, cRT).** v3 Balanced Softmax
+    confirmed tail-aware training lifts the MLP (+0.0016 vs plain
+    CE). LDAM adds class-dependent margins (n_c^{-1/4} scaling →
+    ~2.3× larger margin for High than Low, targeting the Medium↔High
+    bottleneck). Decoupled cRT retrains just the final linear layer
+    with class-balanced sampling on any trained backbone.
   - **Rule × non-rule pairwise FE for LGBM.** Specifically
     `Humidity × Soil_Moisture`, `Previous_Irrigation_mm × Rainfall_mm`,
     `Electrical_Conductivity × Soil_Moisture`, `Field_Area × dgp_score`.
