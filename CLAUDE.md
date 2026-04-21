@@ -547,6 +547,59 @@ README.md      TL;DR + reproduction instructions.
   experiments — the OOF delta is too small to justify burning a
   sub yet.
 
+### 2026-04-21 — XGBoost-dist + LGBM-bag blend (branch best)
+
+- Goal: real model-family diversity on the 43-feature LGBM-dist set
+  — LGBM leaf-wise vs. XGBoost level-wise hist — to break past the
+  0.97289 bag plateau. Same 5-fold split as LGBM-dist and the bag.
+- Changed: `scripts/benchmark_xgb_dist.py` (XGBoost multi:softprob,
+  `max_depth=7, min_child_weight=5, subsample=0.9,
+  colsample_bytree=0.9, tree_method=hist, enable_categorical=True`,
+  early_stopping_rounds=100) and
+  `scripts/blend_lgbm_xgb_dist.py` (sweeps α ∈ [0,1] in prob and
+  log space, tunes log-bias on each blend). Artefacts:
+  `oof_xgb_dist.npy`, `test_xgb_dist.npy`, `xgb_dist_results.json`,
+  `blend_lgbm_xgb_dist_results.json`,
+  `submission_xgb_dist_tuned.csv`,
+  `submission_blend_lgbm_xgb_dist.csv`.
+- Results (OOF tuned bal_acc, 5-fold stratified, seed=42):
+  - **XGBoost-dist standalone**: 0.97304 (+0.00038 vs single-seed
+    LGBM-dist 0.97266, +0.00015 vs LGBM-dist 5-seed bag 0.97289).
+    XGBoost trains a bit deeper (best_iter 569–690 at lr=0.05 with
+    max_depth=7) and lands marginally above the LGBM bag.
+  - **Prob-blend α sweep**: best at α≈0.50–0.65 → **0.97322** (the
+    21-point sweep is monotone-up to the middle and monotone-down
+    past it, so the signal is real, not a single-point fluke).
+  - **Log-blend α sweep** (best): α=0.45 (LGBM weight 0.45, XGB
+    weight 0.55) → **0.97327** tuned — the new on-branch best.
+  - Summary lift ladder vs baseline 0.97097:
+      single LGBM-dist        0.97266  (+0.00169)
+      LGBM-dist 5-seed bag    0.97289  (+0.00192)
+      XGBoost-dist standalone 0.97304  (+0.00207)
+      **LGBM-bag ⊗ XGB blend 0.97327  (+0.00230)**
+  - 0.97327 is +0.00038 over the better component (XGB), and
+    ~0.43σ of fold std (0.00088) — small magnitude but structurally
+    clean: the blend beats both standalones and beats pure LGBM and
+    pure XGB at every interior α in both spaces.
+- Read-out: real model-family diversity is worth ~1.5× as much as
+  seed bagging on this problem (XGB→blend Δ = +0.00023 above bag→
+  LGBM-bag Δ = +0.00024 above single; stacked the deltas compound
+  roughly additively). This is the first experiment on this branch
+  that moves OOF cleanly via orthogonal signal rather than variance
+  reduction.
+- LB delta: n/a. New best candidate on disk is
+  `submission_blend_lgbm_xgb_dist.csv` at OOF 0.97327. Expected LB
+  ≈ 0.97202 given the −0.00125 OOF↔LB gap from earlier calibration
+  — still ~0.009 below the tied pack (0.98114).
+- Next bet: (a) seed-bag XGB too, then blend 2 bags; (b) add a
+  CatBoost or ExtraTrees component for a 3-model blend; (c) stack
+  the blend's OOF probs as features into a final LGBM "meta" model
+  (classic stacking). Expected deltas per experiment are small
+  (+0.0002–0.0005) given where we are on the curve. At ~9 LB subs
+  remaining, worth burning 1 on `submission_blend_lgbm_xgb_dist.csv`
+  to verify the OOF↔LB gap is still −0.00125 and recalibrate the
+  ladder to the pack.
+
 ## Hypothesis board
 
 - **Open**:
