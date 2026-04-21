@@ -1,0 +1,18 @@
+{
+  "id": "chrisleitescha/irrigation-numemb-mlp",
+  "title": "irrigation-numemb-mlp",
+  "code_file": "numemb_mlp.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-greedy-blend-oof"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
