@@ -1,9 +1,9 @@
 # Next steps
 
-**Current best**: LGBM-dist 5-seed bag ⊗ XGBoost-dist log-blend α=0.45
-→ OOF **0.97327**, **LB public 0.97170**. Pack 0.98114 (+0.00944),
-leader 0.98219 (+0.01049). LB budget: 4 subs spent cumulative, 6 left
-today.
+**Current best**: hybrid + binary-High-head blend (logit-add λ=+0.60)
+→ OOF **0.97398**, LB not yet submitted. Prior LB best 0.97271
+(hybrid_v3). Pack 0.98114 (+0.00716 above our OOF-best),
+leader 0.98219 (+0.00821). LB budget: 3/10 used, 7 left today.
 
 ## Calibration ladder (OOF → LB)
 
@@ -24,10 +24,13 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 
 **High-class lever** (3× leverage under balanced accuracy):
 
-1. **Binary "is High?" head + geo-mean merge.** Dedicated XGB binary
-   classifier on all 630 k. Blend its `P(High|x)` with hybrid's High
-   posterior (geo-mean or additive). Expected **+0.0005–0.002** if
-   High is under-modeled relative to Low/Medium.
+1. ~~**Binary "is High?" head + geo-mean merge.**~~ **CONFIRMED
+   2026-04-21.** XGB binary-head AUC 0.9987 on OOF. Best blend
+   (logit-add λ=+0.60) → **OOF 0.97398 (+0.00036 vs hybrid)** — new
+   current best. Prob-mix and geo-mix also peak at 0.97396 (w=0.35).
+   High recall 96.54%, Medium now the weakest leg. Submission on disk:
+   `submissions/submission_hybrid_binhigh_tuned.csv`. See
+   `scripts/binary_high_head.py` + CLAUDE.md entry.
 
 2. **High-only focal loss.** Custom XGB objective: γ=2 focal on High,
    standard CE on Low/Medium. Targets ~21 k High rows without

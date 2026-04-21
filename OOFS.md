@@ -67,7 +67,8 @@ All files below live at `scripts/artifacts/`. Sizes: OOF = 15 MB, test = 6 MB.
 
 | File | OOF tuned bal_acc | Notes |
 |---|---|---|
-| `oof_hybrid_lgbmxgb_blend.npy` / `test_hybrid_lgbmxgb_blend.npy` | **0.97362** | Current best. Log-blend: `0.75 × hybrid_v3 + 0.25 × (LGBM×0.45 + XGB×0.55)`. See `scripts/blend_hybrid_lgbmxgb.py` for provenance. |
+| `oof_hybrid_binhigh.npy` / `test_hybrid_binhigh.npy` | **0.97398** | **Current best (2026-04-21).** `hybrid_lgbmxgb_blend` with binary-'is High?' head logit-added at λ=+0.60 to the High column, then row-softmax. See `scripts/binary_high_head.py` for provenance. |
+| `oof_hybrid_lgbmxgb_blend.npy` / `test_hybrid_lgbmxgb_blend.npy` | 0.97362 | Prior best. Log-blend: `0.75 × hybrid_v3 + 0.25 × (LGBM×0.45 + XGB×0.55)`. See `scripts/blend_hybrid_lgbmxgb.py` for provenance. |
 
 ### Hybrid components (if the blender wants to construct its own hybrid variant)
 
@@ -84,6 +85,7 @@ To reconstruct hybrid-v3: `hybrid[spec_rows] = spec[spec_rows]; hybrid[other_row
 |---|---|---|
 | `oof_xgb_vanilla_dist.npy` / `test_xgb_vanilla_dist.npy` | 0.97304 | XGB-dist trained on all 630 k rows, no routing. 43-feature dist set. Emitted as by-product of `scripts/xgb_dist_routed_v7.py`. |
 | `oof_lgbm_te_orig.npy` / `test_lgbm_te_orig.npy` | 0.97270 | LGBM-dist + TE from 10k original (null TE lift; proxy for vanilla LGBM-dist). `scripts/benchmark_te_orig.py`. |
+| `oof_xgb_bin_high.npy` / `test_xgb_bin_high.npy` | AUC 0.9987 | 1-D binary 'is High?' head. Same 43-feature dist set, 5-fold stratified on 3-class y, `binary:logistic`. Shape `(N,)` not `(N, 3)` — use with the hybrid via logit-add or mix. `scripts/binary_high_head.py`. |
 
 ## Other OOFs (NOT committed — regenerate with the listed script)
 

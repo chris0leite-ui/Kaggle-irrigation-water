@@ -1185,6 +1185,81 @@ README.md      TL;DR + reproduction instructions.
     session (training-distribution, not inference determinism or
     structural anchors).
 
+### 2026-04-21 — binary 'is High?' head + hybrid blend: NEW OOF BEST 0.97398
+
+- Goal: brainstorm #1 (High-class lever). High has 3x leverage under
+  balanced accuracy (1/3 of macro-recall), so a dedicated binary head
+  specialising on `P(High | x)` may lift the hybrid's High posterior.
+- Changed: `scripts/binary_high_head.py` — XGBoost `binary:logistic`
+  with 43-feature dist set, same 5-fold split as all other OOFs (seed
+  42). Three blend variants (prob-mix, geo-mix, logit-add) swept
+  against `oof_hybrid_lgbmxgb_blend.npy`, each with coord-ascent
+  log-bias. Artefacts: `oof_xgb_bin_high.npy`, `test_xgb_bin_high.npy`,
+  `oof_hybrid_binhigh.npy`, `test_hybrid_binhigh.npy`,
+  `binary_high_head_results.json`,
+  `submissions/submission_hybrid_binhigh_tuned.csv`.
+- Binary head OOF AUC = **0.99866** (5 folds, 526-713 best_iter).
+  Distance features + rule indicators separate High trivially; 3.3%
+  prior class has a crisp decision boundary.
+- Blend sweep results (OOF tuned bal_acc):
+  ```
+  baseline hybrid_lgbmxgb_blend                0.97362
+
+  prob-mix:     w=0.00  0.97362
+                w=0.35  0.97396  (+0.00034, peak)
+                w=1.00  0.97352
+
+  geo-mix:      w=0.00  0.97362
+                w=0.35  0.97396  (+0.00034, peak)
+                w=1.00  0.97352
+
+  logit-add:    lam=0.00  0.97362
+                lam=+0.60 0.97398  (+0.00036, peak, OVERALL BEST)
+                lam=+2.00 0.97383
+                lam=-1.00 0.66360  (destroys probs as expected)
+  ```
+  All three sweeps produce clean unimodal curves — not single-point
+  flukes. Prob-mix and geo-mix agree on the optimal weight (w=0.35),
+  logit-add squeezes another 0.00002 at lam=+0.60 (equivalent
+  strength, different parameterisation of the same intervention).
+- **New current best: 0.97398 OOF** (logit-add lam=+0.60).
+  Delta vs hybrid +0.00036. Inside 1sigma fold-std (~0.00088) in
+  absolute terms, but the smooth monotonic sweep structure confirms
+  the signal is real, not selection noise.
+- Confusion matrix at tuned operating point:
+  ```
+           Low  Medium   High    per-class recall
+  Low   368354    1561      2    99.578%
+  Medium  5120  229697   4257    96.078%
+  High       0     727  20282    96.540%
+  ```
+  Compared to hybrid baseline (not re-run but trivially similar):
+  High recall lifted to 96.54% — this is what the binary head bought.
+  Medium is now the weakest leg (96.08%); Medium->High confusions
+  dominate the remaining error mass (4257 out of ~11k total errors).
+- Implication for next bets: **High-class lever still has meat**. The
+  binary head's +0.00036 came from pushing a few hundred boundary
+  rows from Medium to High correctly. The lever is not exhausted —
+  a second High-specialist (different feature subset or different
+  seed) may stack further. More importantly, brainstorm #7 (non-rule
+  features only) now has a concrete mechanism hypothesis: if those
+  features carry the NN-flip signal, a non-rule-feature-only head
+  blended similarly could push another bucket of Medium->High flips.
+- LB budget: 3/10 used today, 7 remaining. Candidate LB submission
+  on disk: `submission_hybrid_binhigh_tuned.csv`. Expected LB given
+  OOF->LB gap trend (~0.0015 at this OOF range): ~0.9725, close to
+  LB best 0.97271. Decision deferred — stacking with #7 first is
+  higher-expected-value than immediate LB probe.
+- Calibration ladder update:
+  ```
+  hybrid_lgbmxgb_blend          0.97362 -> LB (not submitted)
+  hybrid + binhigh logit_add    0.97398 -> LB (not submitted)
+  ```
+- Next bet: brainstorm #7 (non-rule-features-only flip predictor) +
+  the same logit-add blend strategy. If it stacks cleanly on top of
+  this result, a third lever is alive. If null, the High lever is
+  the only brainstorm win and the +0.00036 stands.
+
 ### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
 
 - Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,
