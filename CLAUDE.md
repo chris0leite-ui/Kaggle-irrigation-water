@@ -1143,6 +1143,93 @@ README.md      TL;DR + reproduction instructions.
 - Current best unchanged: hybrid_spec_base (routed-{0,1,2} +
   spec-{6,7,8}) at OOF 0.97352 / LB 0.97271. LB budget: 3/10 used.
 
+### 2026-04-21 — soft-blend greedy forward: NEW LB BEST 0.97296
+
+- Goal: regenerate saved OOFs for the top models (they were lost when
+  the container was re-hydrated) and run a proper prob-space blend
+  with OOF-gated evaluation, to see whether ensembling over our OWN
+  pipelines produces real LB lift without adding a new model class.
+- Context: the "stack more own OOFs" framing from the prior entry
+  (rival-notebook pack is CSV ensembling) pointed at this — and we
+  had zero `.npy` artefacts on disk, so even hard-vote on submission
+  CSVs was limited to 0.99+ pairwise agreement with no way to
+  OOF-score candidates. Blanket rule added to LEARNINGS.md: every
+  training script must save `oof_*.npy + test_*.npy` as first-class
+  outputs.
+- Changed:
+  - `scripts/blend_submissions.py` — hard-vote harness over saved
+    CSVs; 7 strategies (plurality, weighted, Borda, veto, rule-
+    deferred, High-supermajority, pairwise-veto). Surfaced the
+    rare-class-preservation insight: blends that DEMOTE the rare
+    class under macro-recall are likely LB-negative, even if they
+    have similar or better OOF.
+  - `scripts/hybrid_v3_reconstruct.py` — reassembles the hybrid_v3
+    OOF from routed_v3 main + spec_678 (matches 0.97352 logged).
+  - `scripts/blend_ensemble.py` — full soft-blend pipeline
+    (standalone + pairwise α-sweep + equal-weight + greedy forward
+    + logistic meta-stack with class_weight=balanced). Uses a
+    vectorized `fast_bal_acc` that's 7.7x faster than
+    `sklearn.balanced_accuracy_score` on 630k rows. Wide log-bias
+    grid for the High class (up to +6 since optimum is ~+3.4).
+  - `scripts/blend_greedy_finalize.py` — reproduces the greedy
+    winner with a sensitivity sweep around the best weights.
+  - `scripts/blend_high_weighted.py` — class-asymmetric variant
+    that keeps hybrid_v3's Low/Medium probs and upweights consensus
+    High prob from other models.
+- Results (OOF tuned bal_acc, 5-fold stratified):
+  - `lgbm_baseline`       0.97097 (reference)
+  - `lgbm_dgp`            0.97271  rec_H=0.9603
+  - `xgb_dist`            0.97304  rec_H=0.9631
+  - `xgb_dist_routed_v3`  0.97332  rec_H=0.9657 ← highest High recall
+  - `xgb_hybrid_v3`       0.97352  rec_H=0.9639 (reference for blend)
+  - log mean of 6         0.97354
+  - pair hybrid × routed  0.97366  (but DEMOTES 343 High rows on test — bad)
+  - **greedy log-blend:**
+    **hybrid_v3 (0.45) + routed_v3 (0.40) + spec_678 (0.15) = 0.97375**
+    rec_H=0.9654 tuned bias=[0.132, 0.569, 3.401] +114 High on test
+  - meta-stack LR-balanced   0.97348 (underperforms — components too
+    correlated for a 12-feature logistic to add signal)
+- **LB probe**: `submission_blend_greedy_w045_040_015.csv` uploaded.
+  **LB public = 0.97296** (vs prior best 0.97271). Δ LB = +0.00025,
+  matching the OOF prediction almost exactly. OOF→LB gap 0.00079,
+  consistent with 0.00081 on hybrid_v3. No OOF overfit — the greedy
+  log-blend found real signal.
+- New calibration ladder:
+  ```
+  single tuned LGBM              0.97097 → 0.96972   gap 0.00125
+  LGBM+DGP                       0.97271 → 0.97137   gap 0.00134
+  bag + XGB blend                0.97327 → 0.97170   gap 0.00157
+  routed-{1,2}+spec-{6,7,8}      0.97352 → 0.97224   gap 0.00128
+  routed-{0,1,2}+spec-{6,7,8}    0.97352 → 0.97271   gap 0.00081
+  **greedy 3-way log-blend       0.97375 → 0.97296   gap 0.00079**
+  ```
+  Δ vs prior LB best: +0.00025. Pack 0.98114 still +0.00818 above;
+  leader 0.98219 still +0.00923 above. The own-pipeline stacking
+  ceiling (~0.975-0.976 per the rival-analysis note) remains the
+  expected upper bound for this approach family.
+- LB budget: 4/10 used today, 6 remaining.
+- Meta lessons (captured in LEARNINGS.md):
+  1. `oof_*.npy + test_*.npy` are first-class outputs of every
+     training script — not debug artefacts. Losing them to a
+     container rehydrate cost ~45 min of regeneration on a day
+     when blending was the entire goal.
+  2. Committee pairwise agreement is the cheapest diagnostic for
+     blend potential — 0.99+ means hard-vote blends are capped at
+     ~0.003 lift at best, and the rare-class-preservation check
+     determines whether the lift is positive or negative at all.
+     Document in every blend design: "Δ rare-class count vs best
+     standalone = ???".
+  3. Greedy forward-selection (start from best standalone, add the
+     component whose log-blend at the OOF-best α most improves
+     tuned bal_acc) is the no-hyperparameter ensemble baseline
+     that out-performed both the logistic meta-stack and the
+     equal-weight average on this problem.
+  4. Model-family diversity (LGBM × XGB) is worth ~+0.00015 — real
+     but bounded. Within-family seed bagging and specialist
+     overrides (+0.00020 each) are comparable levers; combining
+     all three via greedy gets you to +0.00023 over the best
+     single pipeline without adding a new model class.
+
 ## Hypothesis board
 
 - **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}

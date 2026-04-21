@@ -313,6 +313,29 @@ all of them on the same model.
   genuinely different model class (not another boosted-tree
   variant). Low agreement (< 0.95) → even hard voting has room.
   Run this check as step 0 of any ensemble work.
+- **Greedy forward log-blend is the no-hyperparameter baseline that
+  beats both equal-weight and logistic meta-stack on correlated
+  ensembles.** On this competition with 4 tree models whose pairwise
+  OOF agreement was 0.99+, ensemble strategies landed:
+  `greedy_log_blend 0.97375 > best_pair 0.97366 > log_mean 0.97354 >
+  meta_stack_LR_balanced 0.97348`. Greedy: start from the best
+  standalone, iteratively add the model whose log-blend at the
+  OOF-best α (swept over [0, 1] in ~7 points) most improves tuned
+  bal_acc; stop when no further add helps. The LR meta-stack on
+  concat(P₁..P_k) underperforms because 12 correlated probability
+  features give the logistic almost no new information over the best
+  single model — needs genuinely orthogonal features (raw inputs,
+  rule one-hots, dgp_score distance features) to lift above the
+  components. Use greedy first; only invest in meta-stack when your
+  component pool is diverse or you're pairing it with stacking
+  features the components don't already see.
+- **Log-space blend α around 0.15–0.50 matches the intuition that
+  "mix the best model with one other for bias-variance correction".**
+  Across 6 pairs on this problem, the α picked by the sweep always
+  landed at 0.15, 0.30, or 0.50 — a clean U-shape over the
+  bal-acc-vs-α curve, rarely an interior 0.4. Higher-dim weighted
+  greedy (3-way w=0.45/0.40/0.15) is a natural generalisation and
+  where the real lift was.
 - **Under macro-recall, prefer blends that PRESERVE or GROW the
   rare-class count.** With priors 58.7/37.9/3.3 %, a single extra
   correct High prediction is worth ~18× a correct Low. Plain
