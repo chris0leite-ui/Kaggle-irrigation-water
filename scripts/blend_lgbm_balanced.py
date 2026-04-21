@@ -70,16 +70,32 @@ for k, v in oofs.items():
     log(f"  {k:<10s} argmax bal_acc = {balanced_accuracy_score(y, oofs[k].argmax(axis=1)):.5f}")
 
 
-def tune_log_bias(oof: np.ndarray) -> tuple[float, np.ndarray]:
+_y_int = y.astype(np.int64)
+N = len(_y_int)
+CLASS_COUNTS = np.bincount(_y_int).astype(np.float64)
+
+
+def _fast_bal_acc_from_pred(pred: np.ndarray) -> float:
+    # vectorised per-class recall for 3 classes
+    correct = np.bincount(_y_int[pred == _y_int], minlength=3).astype(np.float64)
+    return float((correct / CLASS_COUNTS).mean())
+
+
+def tune_log_bias(oof: np.ndarray, coarse: bool = False) -> tuple[float, np.ndarray]:
     log_oof = np.log(np.clip(oof, 1e-9, 1.0))
 
     def score_bias(bias):
-        return balanced_accuracy_score(y, (log_oof + bias).argmax(axis=1))
+        return _fast_bal_acc_from_pred((log_oof + bias).argmax(axis=1))
 
     bias = -np.log(prior)
     best = score_bias(bias)
-    grid = np.linspace(-2.5, 2.5, 51)
-    for _ in range(20):
+    if coarse:
+        grid = np.linspace(-1.5, 1.5, 13)
+        max_iter = 3
+    else:
+        grid = np.linspace(-2.5, 2.5, 51)
+        max_iter = 20
+    for _ in range(max_iter):
         improved = False
         for k in range(len(CLASSES)):
             base = bias.copy()
@@ -97,18 +113,21 @@ def tune_log_bias(oof: np.ndarray) -> tuple[float, np.ndarray]:
     return best, bias
 
 
-log("=== pairwise LGBM+DGP x balanced-ensemble blends ===")
+log("=== pairwise LGBM+DGP x balanced-ensemble blends (coarse w sweep) ===")
 blend_sweep = {}
-ws = np.round(np.arange(0.0, 1.01, 0.05), 2)
+ws = np.round(np.arange(0.0, 1.01, 0.1), 2)
 for partner in ["easy", "brf", "rusb"]:
     results = []
     for w in ws:
         blend = w * oofs["lgbm_dgp"] + (1 - w) * oofs[partner]
-        bal, bias = tune_log_bias(blend)
+        bal, bias = tune_log_bias(blend, coarse=True)
         results.append((float(w), bal, bias.tolist()))
     best = max(results, key=lambda r: r[1])
-    blend_sweep[partner] = {"sweep": results, "best_w": best[0], "best_bal": best[1], "best_bias": best[2]}
-    log(f"  lgbm_dgp x {partner:<4s}  best w={best[0]:.2f}  bal={best[1]:.5f}  bias={[round(b,3) for b in best[2]]}")
+    # refine at best w with full grid
+    blend = best[0] * oofs["lgbm_dgp"] + (1 - best[0]) * oofs[partner]
+    fine_bal, fine_bias = tune_log_bias(blend, coarse=False)
+    blend_sweep[partner] = {"sweep": results, "best_w": best[0], "best_bal": fine_bal, "best_bias": fine_bias.tolist()}
+    log(f"  lgbm_dgp x {partner:<4s}  best w={best[0]:.2f}  bal={fine_bal:.5f}  bias={[round(b,3) for b in fine_bias.tolist()]}")
 
 log("=== pairwise LGBM+DGP x balanced-ensemble (geometric blend) ===")
 geo_sweep = {}
@@ -119,11 +138,16 @@ for partner in ["easy", "brf", "rusb"]:
         lp = np.log(oofs[partner])
         blend = np.exp(w * lo + (1 - w) * lp)
         blend /= blend.sum(axis=1, keepdims=True)
-        bal, bias = tune_log_bias(blend)
+        bal, bias = tune_log_bias(blend, coarse=True)
         results.append((float(w), bal, bias.tolist()))
     best = max(results, key=lambda r: r[1])
-    geo_sweep[partner] = {"sweep": results, "best_w": best[0], "best_bal": best[1], "best_bias": best[2]}
-    log(f"  geo lgbm_dgp x {partner:<4s}  best w={best[0]:.2f}  bal={best[1]:.5f}")
+    lo = np.log(oofs["lgbm_dgp"])
+    lp = np.log(oofs[partner])
+    blend = np.exp(best[0] * lo + (1 - best[0]) * lp)
+    blend /= blend.sum(axis=1, keepdims=True)
+    fine_bal, fine_bias = tune_log_bias(blend, coarse=False)
+    geo_sweep[partner] = {"sweep": results, "best_w": best[0], "best_bal": fine_bal, "best_bias": fine_bias.tolist()}
+    log(f"  geo lgbm_dgp x {partner:<4s}  best w={best[0]:.2f}  bal={fine_bal:.5f}")
 
 log("=== three-way blend (LGBM+DGP, Easy, BRF) — coarse simplex ===")
 simplex_results = []
@@ -133,9 +157,12 @@ for w1 in np.round(np.arange(0.0, 1.01, 0.1), 2):
         if w3 < -1e-9:
             continue
         blend = w1 * oofs["lgbm_dgp"] + w2 * oofs["easy"] + w3 * oofs["brf"]
-        bal, bias = tune_log_bias(blend)
+        bal, bias = tune_log_bias(blend, coarse=True)
         simplex_results.append((float(w1), float(w2), float(w3), bal, bias.tolist()))
 best3 = max(simplex_results, key=lambda r: r[3])
+b3_blend = best3[0] * oofs["lgbm_dgp"] + best3[1] * oofs["easy"] + best3[2] * oofs["brf"]
+best3_bal, best3_bias = tune_log_bias(b3_blend, coarse=False)
+best3 = (best3[0], best3[1], best3[2], best3_bal, best3_bias.tolist())
 log(f"  3-way best  w_lgbm={best3[0]}  w_easy={best3[1]}  w_brf={best3[2]}  bal={best3[3]:.5f}")
 
 log("=== three-way blend (LGBM+DGP, Easy, RUSBoost) — coarse simplex ===")
@@ -149,6 +176,9 @@ for w1 in np.round(np.arange(0.0, 1.01, 0.1), 2):
         bal, bias = tune_log_bias(blend)
         simplex4.append((float(w1), float(w2), float(w3), bal, bias.tolist()))
 best4 = max(simplex4, key=lambda r: r[3])
+b4_blend = best4[0] * oofs["lgbm_dgp"] + best4[1] * oofs["easy"] + best4[2] * oofs["rusb"]
+best4_bal, best4_bias = tune_log_bias(b4_blend, coarse=False)
+best4 = (best4[0], best4[1], best4[2], best4_bal, best4_bias.tolist())
 log(f"  3-way best  w_lgbm={best4[0]}  w_easy={best4[1]}  w_rusb={best4[2]}  bal={best4[3]:.5f}")
 
 log("=== four-way blend (all models) — coarse simplex, step 0.1 ===")
@@ -163,6 +193,9 @@ for w1 in np.round(np.arange(0.0, 1.01, 0.1), 2):
             bal, bias = tune_log_bias(blend)
             simplex_all.append((float(w1), float(w2), float(w3), float(w4), bal, bias.tolist()))
 bestA = max(simplex_all, key=lambda r: r[4])
+bA_blend = bestA[0] * oofs["lgbm_dgp"] + bestA[1] * oofs["easy"] + bestA[2] * oofs["brf"] + bestA[3] * oofs["rusb"]
+bestA_bal, bestA_bias = tune_log_bias(bA_blend, coarse=False)
+bestA = (bestA[0], bestA[1], bestA[2], bestA[3], bestA_bal, bestA_bias.tolist())
 log(f"  4-way best  w=({bestA[0]},{bestA[1]},{bestA[2]},{bestA[3]})  bal={bestA[4]:.5f}")
 
 
