@@ -7,7 +7,15 @@ features (soil chemistry, weather, crop/irrigation metadata). Train 630,000
 rows, test 270,000 rows. Metric: **balanced accuracy** (macro-recall).
 Severe class imbalance: 58.7 / 37.9 / **3.3** %.
 
-Best public LB: **—** (not yet submitted).
+Best public LB: **0.97352** — greedy 3-way log-blend
+(hybrid_v3 0.45 + routed_v3 0.40 + spec_678 0.15) with an extra
+log-space weight 0.15 of a non-rule-features-only XGB head (using
+only `Soil_Type, Soil_pH, Organic_Carbon, Electrical_Conductivity,
+Humidity, Sunlight_Hours, Crop_Type, Season, Irrigation_Type,
+Water_Source, Field_Area_hectare, Previous_Irrigation_mm, Region`).
+Submission at `submissions/submission_greedy_nonrule_blend.csv`;
+build via `python scripts/nonrule_features_only.py` after the
+greedy base is reconstructed by `greedy_binhigh_minimal.py`.
 
 > **For any fresh Claude session / new container**: run `./bootstrap.sh`
 > first. It installs deps and downloads the competition data. The

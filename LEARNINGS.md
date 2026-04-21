@@ -332,3 +332,85 @@ all of them on the same model.
   all separating the 10k with hinge 0.0000 → 0.2981 give identical
   predictions on 630k synthetic (0.96097 bal_acc, 1.0000 agreement).
   Cells are discrete; wider margin doesn't move any cell.
+
+## Ensembling / blend methodology
+
+- **Fixed-baseline-bias sweep is the pre-LB filter.** When adding a
+  new component to an already-OOF-tuned stack, ALWAYS sweep its
+  weight with the baseline's fitted log-bias reused as-is. If
+  fixed-bias OOF doesn't lift, the component is redundant with the
+  baseline; retuning bias on top will manufacture fake lift that
+  vanishes on LB. Concrete: binhigh experiment tuned
+  log-bias per blend variant → OOF +0.00036 but LB −0.00084
+  (gap blew up from 0.00079 to 0.00186, 2.4×). Same component
+  swept at fixed bias → monotonic negative from λ=0. Cost-free rule
+  that prevents ~1 overfit LB burn per session.
+- **Real LB delta ≈ 1/3 OOF delta when stacking tuned blends on
+  tuned baselines.** Compounding OOF-selection biases: blend weight
+  sweep + log-bias retune + component-picking. Each layer adds
+  ~0.0001–0.0005 of OOF-only inflation. Budget LB submissions with
+  this discount unless the lift is architectural (see next rule).
+- **Gap shrinkage is the signature of honest architectural signal.**
+  Greedy baseline had LB-OOF gap 0.00079. Adding non-rule-features-
+  only blend (fixed bias) lifted OOF +0.00047, LB +0.00056, and the
+  gap SHRANK to 0.00069. Architectural levers transfer better than
+  OOF-tuned ones; if your gap grows when adding a component, it's
+  selection overfit.
+- **Rank/Borda blending is strictly dominated by prob/log-space
+  blending for 3-class log-bias-tuned decision rules.** Row-softmax
+  of ranks squashes class posteriors toward uniform, losing the
+  absolute-probability separation log-bias needs. All 12 rank/Borda
+  variants we tried landed 0.006 below the prob-space blend.
+  Calibration-invariance ISN'T a benefit when components share loss.
+- **Prefer deterministic routing over learning when a rule is ≥99.99%
+  accurate on a sub-domain, even at OOF parity.** XGB trained
+  including score-0 rows vs XGB trained excluding them (rule routes
+  score-0) tied on OOF (both 0.97352) but the routing variant beat
+  the learning one by +0.00047 LB. Deterministic predictors have
+  zero test-time variance; learned models misfire on OOD extremes.
+- **Training-distribution engineering ≠ inference-routing for
+  boosted trees.** Routing rule-predicts-Low rows to the rule at
+  inference time (no training change) HURT vs the vanilla model.
+  Dropping those rows from training AND routing at inference HELPED.
+  The lift comes from class-prior rebalancing in the training data,
+  not from inference determinism. Rule: only route a class through
+  the rule at inference when you ALSO drop those rows from training,
+  AND the rule predicts the over-represented class.
+- **Specialist sub-models work ONLY on sub-domains with 20–80%
+  minority class.** {6,7,8} specialist (69% Med / 31% High) lifted
+  the hybrid by +0.00019 OOF. Low-spec (98% Low) and Medium-spec
+  (98% Medium) collapsed to majority predictors (bal_acc ~0.5).
+  Minimum minority-class threshold for a specialist to contribute:
+  ~20%. Below that, specialization is just restricted-data
+  degradation.
+- **Don't augment specialist training with clean data if the
+  specialist's job is to deviate from a clean predictor.** Adding
+  982 rule-correct original-dataset rows (1.75% of training pool)
+  to the flip-recovery specialist eroded its advantage: hybrid
+  lift dropped from +0.00019 to −0.00010. The specialist's value
+  is trained-only-on-disagreement.
+- **Architectural diversity from "ignoring a feature class" beats
+  diversity from "using it differently".** Non-rule-features-only
+  XGB lifted greedy LB +0.00056 because it systematically ignored
+  the rule features greedy depends on. LGBM on the same 13 features
+  tracked XGB to 3 decimals (null). EBM same. Adding rule_pred to
+  nonrule XGB (standalone 0.96481, above rule) blended null because
+  it pulled predictions into rule-feature territory where greedy
+  already dominates. **Feature-access diversity is orthogonal to
+  architectural diversity; the former is more powerful when the
+  baseline already ensembles multiple architectures on the dominant
+  feature class.**
+- **Feature-subspace bagging on a small top-N pool underperforms the
+  full-feature model.** 5 XGB sub-models each on 4-of-7 top non-rule
+  features gave a log-mean ensemble tuned 0.537 vs full-13 XGB 0.570.
+  Rule of thumb: subsets need enough mutual entropy (feature pool
+  ≥ ~3× subset size) to generate orthogonal decision surfaces, or
+  the ensemble collapses to a weaker version of the full model.
+- **Shift-target framings collapse when the majority class dominates
+  ≥95% of the target.** 5-class shift `y − rule_pred + 2`: 98.4% of
+  rows are shift=0, so early stopping saturates on the majority
+  class (best_iter 59-108 vs 1100+ for direct-y). Model collapses
+  to "parrot rule_pred". Sample_weight upweight fixes the collapse
+  but overshoots into over-prediction of flips. Direct-y 3-class
+  on the same features is better behaved — forces per-row
+  discrimination across all rows.
