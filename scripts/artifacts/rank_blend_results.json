@@ -1,0 +1,236 @@
+{
+  "rank_avg_all4": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.9679959060799215,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_avg_no_hybrid": {
+    "members": [
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.968100767994115,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_avg_hybrid+xgb_v3": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3"
+    ],
+    "tuned_bal_acc": 0.9673879211539879,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_avg_hybrid+all_base": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.9679959060799215,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_wavg_all4": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "weights": [
+      0.2729372210721517,
+      0.25707054677626123,
+      0.2428206252980665,
+      0.22717160685352064
+    ],
+    "tuned_bal_acc": 0.9680004037320127,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_wavg_no_hybrid": {
+    "members": [
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "weights": [
+      0.353574071217545,
+      0.3339747712792258,
+      0.31245115750322916
+    ],
+    "tuned_bal_acc": 0.9680784596990543,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_wavg_hybrid+xgb_v3": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3"
+    ],
+    "weights": [
+      0.5149683412757344,
+      0.4850316587242657
+    ],
+    "tuned_bal_acc": 0.9674149415175844,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "rank_wavg_hybrid+all_base": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "weights": [
+      0.2729372210721517,
+      0.25707054677626123,
+      0.2428206252980665,
+      0.22717160685352064
+    ],
+    "tuned_bal_acc": 0.9680004037320127,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "borda_softmax_all4": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.9679959060799215,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "borda_softmax_no_hybrid": {
+    "members": [
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.968100767994115,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "borda_softmax_hybrid+xgb_v3": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3"
+    ],
+    "tuned_bal_acc": 0.9673879211539879,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "borda_softmax_hybrid+all_base": {
+    "members": [
+      "hybrid_lgbmxgb_blend",
+      "xgb_dist_routed_v3",
+      "xgb_vanilla_dist",
+      "lgbm_te_orig"
+    ],
+    "tuned_bal_acc": 0.9679959060799215,
+    "bias": [
+      4.232441163236097,
+      3.7689466919465486,
+      3.400768902044088
+    ]
+  },
+  "mix_rank_prob_hybrid_xgbv3": {
+    "sweep": [
+      [
+        0.0,
+        0.9736840421858753
+      ],
+      [
+        0.1,
+        0.9736165717022018
+      ],
+      [
+        0.2,
+        0.9735021916560932
+      ],
+      [
+        0.30000000000000004,
+        0.9736021517881207
+      ],
+      [
+        0.4,
+        0.973621183245398
+      ],
+      [
+        0.5,
+        0.9733958668001058
+      ],
+      [
+        0.6000000000000001,
+        0.9732290184512977
+      ],
+      [
+        0.7000000000000001,
+        0.9729223507243324
+      ],
+      [
+        0.8,
+        0.9734822368679111
+      ],
+      [
+        0.9,
+        0.9736366566022729
+      ],
+      [
+        1.0,
+        0.9673879211539879
+      ]
+    ]
+  },
+  "baselines": {
+    "hybrid_lgbmxgb_blend": 0.97362146096627,
+    "xgb_dist_routed_v3": 0.9733220046612904,
+    "xgb_vanilla_dist": 0.9730368669360977,
+    "lgbm_te_orig": 0.972703780465796
+  }
+}

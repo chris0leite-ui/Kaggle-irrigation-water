@@ -1185,6 +1185,66 @@ README.md      TL;DR + reproduction instructions.
     session (training-distribution, not inference determinism or
     structural anchors).
 
+### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
+
+- Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,
+  hybrid×blend) were prob-space or log-space. Rank-averaging is
+  calibration-invariant; if the per-model confidence-scale was
+  limiting prob blends, rank-avg should lift.
+- Changed: `scripts/rank_blend.py` — per-column rank-normalisation to
+  `[0, 1]`, averaged across model subsets, softmaxed row-wise, coord-
+  ascent log-bias. Three aggregators (rank_avg, rank_wavg weighted
+  by standalone bal_acc, Borda via softmax), four subsets (all 4
+  committed OOFs, no-hybrid, hybrid+xgb_v3, hybrid+all_base).
+  Artefact: `scripts/artifacts/rank_blend_results.json`.
+- Results (OOF tuned bal_acc, 5-fold stratified, seed=42):
+  ```
+  baseline hybrid_lgbmxgb_blend (current best)   0.97362
+  baseline xgb_dist_routed_v3                    0.97332
+  baseline xgb_vanilla_dist                      0.97304
+  baseline lgbm_te_orig                          0.97270
+
+  rank_avg_all4                                  0.96800
+  rank_avg_no_hybrid                             0.96810
+  rank_avg_hybrid+xgb_v3                         0.96739
+  rank_wavg_all4                                 0.96800
+  rank_wavg_no_hybrid                            0.96808
+  borda_softmax_all4                             0.96800
+  borda_softmax_no_hybrid                        0.96810
+  ```
+  All 12 rank/Borda variants land at **0.96739–0.96810** —
+  **−0.0055 to −0.0062 below current best**, far worse than every
+  base learner and clearly outside fold-noise.
+- Mix sweep (α = rank-weight in a `α·rank + (1−α)·prob` blend of
+  hybrid + xgb_v3):
+  ```
+  α=0.00  0.97368   ← pure prob-avg, tiny +0.00006 over hybrid
+  α=0.10  0.97362   ← ties hybrid
+  α=0.50  0.97340
+  α=1.00  0.96739   ← pure rank, null
+  ```
+  α=0.00 found a +0.00006 crumb (simple 50/50 prob-avg of hybrid +
+  xgb_v3 edges the current best) but that's within fold-std noise
+  (~0.00088) and has nothing to do with rank aggregation — it's just
+  a different point in prob space.
+- Read-out: **rank aggregation throws away absolute-probability
+  information that log-bias tuning needs.** Balanced-accuracy tuning
+  for a 3-class problem requires per-class calibrated probabilities
+  to shift operating points; a rank distribution squashes class
+  posteriors to nearly-uniform after row-softmax, losing the sharp
+  separation LGBM/XGB provide on clean rows. Calibration-invariance
+  isn't actually a benefit here — the component models already
+  produce comparable probability scales because they train on the
+  same loss.
+- New rule: **for 3-class balanced-accuracy problems with
+  log-bias-tuned decision rules, rank-space blending is strictly
+  dominated by prob/log-space blending.** Don't retry rank-avg
+  variants. Keep prob and log blends for component-model fusion.
+- LB delta: n/a (0 LB spend; 3/10 cumulative).
+- Current best unchanged: `oof_hybrid_lgbmxgb_blend` at OOF 0.97362 /
+  LB-best 0.97271. First of the brainstorm batch — moving to bet #1
+  (binary "is High?" head) next.
+
 ## Hypothesis board
 
 - **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
