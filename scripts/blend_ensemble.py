@@ -66,6 +66,19 @@ def per_class_recall(y: np.ndarray, pred: np.ndarray) -> dict[str, float]:
     return out
 
 
+def fast_bal_acc(y: np.ndarray, pred: np.ndarray, n_class: int = 3,
+                 class_counts: np.ndarray | None = None) -> float:
+    """Vectorized macro-recall — ~30x faster than sklearn for 630k rows."""
+    if class_counts is None:
+        class_counts = np.bincount(y, minlength=n_class)
+    hit = np.zeros(n_class, dtype=np.int64)
+    matches = (pred == y)
+    for k in range(n_class):
+        hit[k] = matches[y == k].sum()
+    rec = hit / np.maximum(class_counts, 1)
+    return float(rec.mean())
+
+
 def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray,
                   high_grid_wide: bool = True, coarse: bool = False):
     """Coord-ascent log-bias. If high_grid_wide, extend the search
@@ -75,7 +88,8 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray,
     """
     log_oof = np.log(np.clip(oof, 1e-9, 1.0))
     bias = -np.log(prior)
-    best = balanced_accuracy_score(y, (log_oof + bias).argmax(axis=1))
+    cc = np.bincount(y, minlength=3)
+    best = fast_bal_acc(y, (log_oof + bias).argmax(axis=1), class_counts=cc)
     if coarse:
         grid_default = np.linspace(-2.0, 2.0, 21)
         grid_high = np.linspace(-1.0, 5.0, 25)
@@ -92,7 +106,7 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray,
             scores = []
             for g in grid:
                 base[k] = bias[k] + g
-                scores.append(balanced_accuracy_score(y, (log_oof + base).argmax(axis=1)))
+                scores.append(fast_bal_acc(y, (log_oof + base).argmax(axis=1), class_counts=cc))
             j = int(np.argmax(scores))
             if scores[j] > best + 1e-6:
                 bias[k] = bias[k] + grid[j]

@@ -2,6 +2,19 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST
+
+**Never upload a submission CSV to Kaggle without explicit user
+confirmation for that specific submission.** Building candidate
+CSVs locally and reporting their OOF scores is fine; running
+`kaggle competitions submit` (or equivalent) is not — it burns
+from the 10/day budget and once final-selected, from the 2 final
+slots. Always present the candidate + its OOF score + the
+expected LB outcome to the user and wait for a go-ahead before
+submitting. This rule applies even when a blend's OOF beats the
+current best — the LB is an adversarial split and OOF-to-LB
+calibration can drift.
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
