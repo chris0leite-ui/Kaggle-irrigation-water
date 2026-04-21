@@ -1288,6 +1288,54 @@ README.md      TL;DR + reproduction instructions.
   additional tuning to see if the High-head signal survives the
   selection-tightened baseline.
 
+### 2026-04-21 — binhigh lever falsified on greedy stack (fixed-bias sweep)
+
+- Goal: test whether the +0.00036 OOF lift from binhigh survives
+  honest tuning, by adding it to the LB-validated greedy blend with
+  a single parameter (logit-add lam on the High column) and the
+  greedy's already-fitted log-bias reused as-is.
+- Changed: `scripts/greedy_binhigh_minimal.py` — reconstructs greedy
+  from committed components (hybrid_v3 = routed_v3 with spec_678
+  override on dgp_score ∈ {6,7,8}, then 0.45 hybrid + 0.40 routed +
+  0.15 spec log-blend), fits log-bias once, sweeps lam ∈ {0, 0.05,
+  …, 0.50} with that bias FIXED. Artefacts: `oof_greedy_blend.npy`,
+  `test_greedy_blend.npy`, `greedy_binhigh_minimal_results.json`.
+- Results (OOF bal_acc at fixed greedy bias = [0.1324, 0.5689, 3.4008]):
+  ```
+  greedy baseline (lam=0)      0.97375  (matches prior LB-0.97296 sub)
+  lam=0.05                     0.97372  (−0.00002)
+  lam=0.10                     0.97364  (−0.00011)
+  lam=0.15                     0.97330  (−0.00044)
+  lam=0.20                     0.97302  (−0.00072)
+  lam=0.30                     0.97246  (−0.00129)
+  lam=0.50                     0.97168  (−0.00207)
+  ```
+  **Monotonic decrease.** Binary-High head adds zero information to
+  the greedy stack; with tuned bias reused as-is, any positive lam
+  strictly hurts OOF.
+- **Binhigh lever is DEAD** as a greedy-stack add-on. The earlier
+  +0.00036 OOF lift on `hybrid_lgbmxgb_blend` was a log-bias
+  artefact: retuning bias after injecting P(High) lets coord-ascent
+  push the High threshold up, which inflates OOF without new signal.
+  That's exactly why it lost 0.00084 LB vs greedy.
+- Gap math now reconciled:
+  ```
+  greedy   OOF 0.97375 − LB 0.97296 = 0.00079  (honest calibration)
+  binhigh  OOF 0.97398 − LB 0.97212 = 0.00186  (overfit by 0.00107)
+  ```
+  The 0.00107 overfit = all of the log-bias-retune inflation.
+- No LB submission (fixed-bias sweep strictly negative). Budget
+  unchanged at 5/10 used, 5 remaining.
+- New rule: **when adding a component to a tuned blend, sweep with
+  fixed baseline bias first.** If fixed-bias OOF doesn't improve,
+  the component is redundant with the blend — retuning bias on top
+  will manufacture a fake lift that vanishes on LB.
+- Next bet: brainstorm #7 (non-rule-features-only flip predictor).
+  Architectural not tuning — tests whether the NN-generator's flip
+  signal hides in `Humidity, Prev_Irrig, EC, Soil_pH, Organic_C,
+  Sunlight, Field_Area, Region, Crop_Type, Soil_Type`, which trees
+  on the rule features alone can't fully access.
+
 ### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
 
 - Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,

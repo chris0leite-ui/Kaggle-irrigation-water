@@ -1,0 +1,49 @@
+{
+  "greedy_tuned_oof": 0.973746084242468,
+  "greedy_bias": [
+    0.13244116323609723,
+    0.568946691946548,
+    3.400768902044088
+  ],
+  "sweep": [
+    {
+      "lam": 0.0,
+      "oof_bal_acc_fixed_bias": 0.973746084242468
+    },
+    {
+      "lam": 0.05,
+      "oof_bal_acc_fixed_bias": 0.9737230811027894
+    },
+    {
+      "lam": 0.1,
+      "oof_bal_acc_fixed_bias": 0.9736394529361002
+    },
+    {
+      "lam": 0.15,
+      "oof_bal_acc_fixed_bias": 0.973302739397131
+    },
+    {
+      "lam": 0.2,
+      "oof_bal_acc_fixed_bias": 0.9730211764121499
+    },
+    {
+      "lam": 0.25,
+      "oof_bal_acc_fixed_bias": 0.9727289885428506
+    },
+    {
+      "lam": 0.3,
+      "oof_bal_acc_fixed_bias": 0.972456707474118
+    },
+    {
+      "lam": 0.4,
+      "oof_bal_acc_fixed_bias": 0.9720834072136578
+    },
+    {
+      "lam": 0.5,
+      "oof_bal_acc_fixed_bias": 0.9716777543374019
+    }
+  ],
+  "action": "no_submission",
+  "best_lam": 0.0,
+  "best_oof": 0.973746084242468
+}

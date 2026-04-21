@@ -36,15 +36,15 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 
 **High-class lever** (3× leverage under balanced accuracy):
 
-1. ~~**Binary "is High?" head + geo-mean merge.**~~ **OOF WIN,
-   LB OVERFIT 2026-04-21.** XGB binary-head AUC 0.9987 on OOF. Best
-   blend (logit-add λ=+0.60) → OOF 0.97398 (+0.00036 vs hybrid).
-   **LB 0.97212** — 0.00084 *below* greedy-blend LB best 0.97296,
-   OOF→LB gap 0.00186 (2.4× the greedy's 0.00079). Rule: component
-   blend-sweep + log-bias retune compounded selection overfit. The
-   binary-head OOF carries real signal (AUC 0.9987) — retry as a
-   minimally-tuned additive in the *greedy* stack (no per-blend log-
-   bias retune) before concluding the lever is dead.
+1. ~~**Binary "is High?" head.**~~ **FALSIFIED 2026-04-21.** Two-stage
+   test: first `hybrid_lgbmxgb_blend + binhigh (75-point sweep +
+   bias retune)` showed +0.00036 OOF / −0.00084 LB (overfit). Second
+   test `greedy + binhigh (fixed bias, 9-point sweep)` showed
+   monotonic decrease — λ=0.05 → −0.00002, λ=0.30 → −0.00129. The
+   binary head (AUC 0.9987) carries information that is already
+   fully absorbed by the greedy blend's High column; any additional
+   injection + bias-retune manufactures fake OOF lift. **Lever dead.**
+   See `scripts/greedy_binhigh_minimal.py` + CLAUDE.md entry.
 
 2. **High-only focal loss.** Custom XGB objective: γ=2 focal on High,
    standard CE on Low/Medium. Targets ~21 k High rows without
