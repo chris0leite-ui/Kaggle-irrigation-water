@@ -1,11 +1,11 @@
 # Next steps
 
-**Current LB best**: `submission_blend_greedy_w045_040_015.csv`
-(greedy 3-way log-blend hybrid_v3 0.45 + routed_v3 0.40 + spec_678
-0.15) → OOF 0.97375 / **LB 0.97296** (gap 0.00079). Our binhigh
-experiment (OOF 0.97398) LB-submitted at 0.97212 — overfit
-(gap 0.00186). Pack 0.98114 (+0.00818 above LB-best), leader 0.98219
-(+0.00923). LB budget: **5/10 used today**, 5 remaining.
+**Current LB best**: `submission_greedy_nonrule_blend.csv`
+(greedy 3-way + non-rule-features-only XGB log-blend α=0.15, fixed
+greedy bias) → OOF **0.97421** / **LB 0.97352** (gap 0.00069 —
+shrunk from greedy's 0.00079, confirming honest architectural
+signal). Pack 0.98114 (+0.00762 above LB-best), leader 0.98219
+(+0.00867). LB budget: **6/10 used today**, 4 remaining.
 
 ## Calibration ladder (OOF → LB)
 
@@ -16,8 +16,9 @@ experiment (OOF 0.97398) LB-submitted at 0.97212 — overfit
 | Bag × XGB blend | 0.97327 | 0.97170 | −0.00157 |
 | hybrid_v3 (routed {1,2}) | 0.97352 | 0.97224 | −0.00128 |
 | hybrid_v3 (routed {0,1,2}) | 0.97352 | 0.97271 | −0.00081 |
-| **greedy 3-way log-blend** | **0.97375** | **0.97296** | **−0.00079** |
+| greedy 3-way log-blend | 0.97375 | 0.97296 | −0.00079 |
 | hybrid + binhigh logit-add | 0.97398 | 0.97212 | −0.00186 ← **overfit** |
+| **greedy + nonrule α=0.15** | **0.97421** | **0.97352** | **−0.00069 ← NEW BEST** |
 
 **Selection overfit lesson (2026-04-21):** the binhigh experiment
 added +0.00036 OOF but *lost* 0.00084 LB vs the greedy blend. Layering
@@ -77,11 +78,14 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 
 **NN-flip hypothesis** (non-DGP features drive label flips):
 
-7. **Non-rule-features-only flip predictor.** Train LGBM/XGB restricted
-   to `Humidity, Prev_Irrig, EC, Soil_pH, Organic_C, Sunlight,
-   Field_Area, Region, Crop_Type, Soil_Type` predicting either
-   `flip direction` or full `y`. Orthogonal by construction to
-   LGBM+DGP. ~30 min.
+7. ~~**Non-rule-features-only flip predictor.**~~ **CONFIRMED
+   2026-04-21. NEW LB BEST.** XGB 3-class on 13 non-rule features,
+   log-blended into greedy at α=0.15 (fixed greedy bias). Standalone
+   bal_acc 0.430 (near-random) but lifts greedy from OOF 0.97375 →
+   **0.97421 (+0.00047)**. **LB: 0.97352 (+0.00056 vs greedy
+   0.97296)**, OOF→LB gap shrunk to 0.00069. High recall +0.38pp
+   via non-rule-driven flips. See `scripts/nonrule_features_only.py`
+   + CLAUDE.md entry. Lever ALIVE.
 
 8. **Two-stage rule-base + non-rule-correction.** Rule gives ordinal
    base; XGB predicts signed shift `y − rule ∈ {−2,−1,0,+1,+2}`
@@ -155,10 +159,26 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 
 ## Suggested immediate action
 
-Brainstorm #4 (rank-sum) falsified 2026-04-21. Next: #1 (binary
-"is High?" head) → #7 (non-rule-features-only predictor). One covers
-the High-class lever directly, the other covers the NN-flip
-hypothesis. ~1.5 h total, one lever each.
+Non-rule lever validated (LB 0.97352, +0.00056). Stack follow-ups
+ranked cheapest-first:
+
+1. **Seed-bag the non-rule model** (5 seeds, ~20 min). Variance
+   reduction on the only-architecturally-diverse leg. Expected
+   +0.00005–0.0002 on LB.
+2. **Brainstorm #8 (two-stage rule-base + non-rule correction)** —
+   explicitly predict `y − rule_pred` as signed ordinal shift using
+   non-rule features only. Well-motivated now that #7 worked. Expected
+   +0.0001–0.0005.
+3. **LGBM variant of the non-rule model** + 2-way or 3-way log-blend
+   into greedy. Model-family diversity inside the non-rule leg.
+   Expected +0.0001–0.0003.
+4. **Non-rule + rule_pred as explicit feature** — lets the model
+   condition its correction on what the rule says. Mid-risk: could
+   leak rule features back and lose the architectural orthogonality
+   that made #7 work.
+
+Methodology: every follow-up uses the **fixed-greedy-bias sweep
+first**; only LB-probe if fixed-bias OOF lifts ≥ +0.0003.
 
 See `REPORT.md` §4 for the full ranked plan with per-experiment
 deltas; this file is the action-oriented short list.

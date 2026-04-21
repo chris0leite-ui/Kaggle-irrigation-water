@@ -1336,6 +1336,85 @@ README.md      TL;DR + reproduction instructions.
   Sunlight, Field_Area, Region, Crop_Type, Soil_Type`, which trees
   on the rule features alone can't fully access.
 
+### 2026-04-21 — non-rule-features-only blend: NEW LB BEST 0.97352 (+0.00056)
+
+- Goal: brainstorm #7. The NN label generator (`brief.md:74`) likely
+  used non-rule features to perturb labels away from the rule. A
+  model restricted to just those features captures exactly that
+  perturbation signal, orthogonal by construction to tree models
+  that are dominated by the 6 rule features.
+- Changed: `scripts/nonrule_features_only.py` — XGBoost 3-class
+  `multi:softprob` on 13 non-rule features only (`Soil_Type, Soil_pH,
+  Organic_Carbon, Electrical_Conductivity, Humidity, Sunlight_Hours,
+  Crop_Type, Season, Irrigation_Type, Water_Source, Field_Area_hectare,
+  Previous_Irrigation_mm, Region`), same 5-fold split (seed=42) as all
+  other OOFs. Fixed-greedy-bias sweep over log-blend α. Artefacts:
+  `oof_xgb_nonrule.npy`, `test_xgb_nonrule.npy`, `nonrule_results.json`,
+  `submission_greedy_nonrule_blend.csv`.
+- Standalone (non-rule features only): OOF argmax = 0.42965,
+  tuned = 0.56966 — barely above random. Model learns almost nothing
+  class-predictive from these features alone.
+- Fixed-bias log-blend sweep (greedy tuned baseline = 0.97375,
+  bias = [0.1324, 0.5689, 3.4008]):
+  ```
+  alpha_nonrule=0.00  OOF = 0.97375  Δ = +0.00000  (baseline)
+  alpha_nonrule=0.05  OOF = 0.97383  Δ = +0.00008
+  alpha_nonrule=0.10  OOF = 0.97400  Δ = +0.00026
+  alpha_nonrule=0.15  OOF = 0.97421  Δ = +0.00047   ← peak
+  alpha_nonrule=0.20  OOF = 0.97419  Δ = +0.00044
+  alpha_nonrule=0.25  OOF = 0.97397  Δ = +0.00022
+  alpha_nonrule=0.30  OOF = 0.97379  Δ = +0.00004
+  alpha_nonrule=0.40  OOF = 0.97262  Δ = -0.00113
+  alpha_nonrule=0.50  OOF = 0.96998  Δ = -0.00377
+  ```
+  Clean unimodal peak at α=0.15, symmetric curve. FIXED bias throughout —
+  no retune compensation. The signal is real, not calibration-manufactured.
+- Confusion-matrix deltas at α=0.15 (blend − greedy):
+  ```
+                    Low recall    Medium recall   High recall
+  greedy (ref)      0.99566       0.96013         0.96544
+  greedy + nonrule  0.99554       0.95785         0.96925
+  delta            -0.00012      -0.00228        +0.00381
+  ```
+  Non-rule blend trades ~540 Medium rows for ~80 High flips. Net
+  positive because High has 3× leverage under balanced accuracy.
+  Mechanism: non-rule features (especially `Humidity`,
+  `Previous_Irrigation_mm`, `Region`) carry the NN-generator's flip
+  signal that axis-aligned trees on rule features can't fully access.
+- **LB probe: submitted at 18:26, result 0.97352** — **new LB best**,
+  +0.00056 vs greedy's 0.97296.
+- Calibration ladder update:
+  ```
+  hybrid_lgbmxgb_blend          0.97362 -> LB (not submitted)
+  greedy 3-way log-blend        0.97375 -> 0.97296   gap 0.00079
+  hybrid + binhigh (overfit)    0.97398 -> 0.97212   gap 0.00186
+  **greedy + nonrule α=0.15**   **0.97421 -> 0.97352   gap 0.00069 ← NEW BEST**
+  ```
+  **Gap shrunk from 0.00079 to 0.00069** — honest architectural lever,
+  opposite of the binhigh experiment where gap blew up on retune.
+  Confirms the methodology: fixed-bias fixed-sweep over a new model
+  family is a reliable way to validate lifts before LB.
+- Hypothesis confirmed: **the NN label generator does perturb labels
+  via non-rule features**. The effect is small (~80 flips per 630k
+  rows) but real. Any further gains on this lever should stack
+  cleanly because the non-rule model isn't using rule features at
+  all — there's no information leak with the greedy ensemble.
+- LB budget: **6/10 used today**, 4 remaining.
+- Next bets unlocked by this result:
+  1. **Second non-rule model** (LGBM or CatBoost variant, or different
+     seed) — bag the non-rule predictor, then blend. Expected
+     +0.00005–0.0002 cheap variance reduction.
+  2. **Brainstorm #8 (two-stage rule-base + non-rule correction)** —
+     explicitly predict `y − rule_pred` instead of y from non-rule
+     features. Now well-motivated since we know the lever works.
+  3. **Non-rule model with rule_pred or dgp_score as an input** —
+     lets the model learn "predict rule unless non-rule features
+     suggest otherwise". Hybrid of the two frames.
+  4. **Stack with the existing binhigh head** — binhigh and nonrule
+     attack different rows (binhigh = amplify rule-strong rows,
+     nonrule = correct rule-wrong rows). The second overfit didn't
+     mean the first was worthless — they may stack.
+
 ### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
 
 - Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,
