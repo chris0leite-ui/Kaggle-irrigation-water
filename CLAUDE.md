@@ -538,6 +538,68 @@ README.md      TL;DR + reproduction instructions.
      Previous_Irrigation × Rainfall_mm, Field_Area × score, etc.) may
      let LGBM recover the NN-learned correlations more cleanly.
 
+### 2026-04-21 — hinge-loss / max-margin lever ruled out
+
+- Goal: follow up on community discussion
+  [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)
+  by @broccoli-beef. The post shows the 10k original is linearly
+  separable in a 9-binary-feature space (`Soil<25, Temp>30, Rain<300,
+  Wind>10, Mulching=Yes, Crop=Flowering/Harvest/Sowing/Vegetative`),
+  enumerates every integer linear model `|w|≤10, 1≤θ≤10` that
+  separates it, and observes each model has a different hinge loss.
+  Conjecture (ours): under the classical max-margin / VC-bound argument,
+  the lowest-hinge-loss solution should transfer best to the 630k
+  synthetic — i.e. hinge loss is a free tie-breaker picking the model
+  closest to the host's NN decision surface.
+- Changed: `scripts/enumerate_integer_models.py` reproduces the
+  discussion's OR-Tools CP search, computes multiclass hinge loss per
+  solution on the 10k, scores **every separating model** on 630k
+  synthetic, saves per-model predictions + ranked table to
+  `scripts/artifacts/integer_separating_models.csv`,
+  `integer_models_summary.json`, and `integer_models_topk_*.npy`.
+  One-liner: `Soil<26` in the discussion's display column is just a
+  label — the actual separating inequality is `Soil_Moisture < 25`
+  (a threshold sweep confirms `<25` gives exact 100 %, `<25.5` gives
+  99.5 %, `<26` gives 99.0 %).
+- Results:
+  - **CP emits exactly 743 distinct integer models, all with
+    train_acc_orig = 1.00000**, reproducing the discussion's count.
+  - Hinge loss on 10k: range **0.0000** (many tied SVM-style max-margin
+    solutions) to **0.2981** (the compact cdeotte-style solution:
+    `w=[2,1,2,1,-1,0,-2,-2,0], θ=3`).
+  - **All 743 models produce IDENTICAL predictions on the 630k
+    synthetic** — agreement rate across top-50 = 1.0000, bal_acc_syn
+    = 0.96097 and raw_acc_syn = 0.98364 to 5 decimals for every
+    solution. Spearman(hinge, bal_acc_syn) is undefined (zero variance
+    on bal_acc). The max-margin argument collapses because every
+    synthetic row maps to one of the 128 unique discrete cells
+    (`2^5 × 4`), every cell's label is unambiguous in the 10k, and
+    every separating linear classifier is forced to agree on the
+    cell-labeling. Wider margin (scaling `(w,θ) → (2w, 2θ)`) does
+    not move any cell across the boundary.
+  - Cdeotte's rule is structurally identical to our DGP rule; the
+    LinearSVC posted in the discussion is just a `2×` scale of it.
+- Implications:
+  1. **Hinge loss is NOT a useful tie-breaker in this competition.**
+     The ceiling for any 9-binary-feature linear classifier is
+     0.96097, set by the cell-labeling, not by margin choice. Any
+     "pick the best rule" approach plateaus here.
+  2. The remaining 2.6 % residual (10,304 flipped rows) lives
+     **entirely within the 128 cells**, as already flagged by the
+     2026-04-21 per-cell-majority analysis (raw 0.98384 / bal 0.95983,
+     only 1/64 cells has a cell-majority flip). The flip signal is
+     within-cell variation driven by continuous non-rule features
+     (`Humidity`, `Previous_Irrigation_mm`, etc.), confirmed earlier.
+  3. The 0.98114 LB pack's edge is therefore in **within-cell
+     resolution** (model capacity on the continuous features) — not in
+     rule/weight choice, not in margin, not in ensembling over
+     separating solutions. The MLP / NN-surrogate bet remains the
+     right top-of-board item.
+- LB delta: n/a (0 LB spend this session; 2/10 total, 8 left today).
+- Next bet: unchanged — MLP trained on (rule features + continuous
+  features + interactions) to approximate the host's within-cell
+  boundary.
+
 ## Hypothesis board
 
 - **Open**:
@@ -607,6 +669,19 @@ README.md      TL;DR + reproduction instructions.
     blend already agree. v2 (specialist trained on flipped rows only)
     collapses to 0.86765 because the specialist predicts anti-rule
     on clean rows where P_flip > 0.
+  - **Hinge-loss / max-margin tie-breaker over integer separating
+    rules** (`scripts/enumerate_integer_models.py`, per discussion
+    [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)).
+    CP enumeration finds 743 integer models with `|w|≤10, θ≤10` that
+    achieve 100 % train_acc on the 10k original. Hinge loss on 10k
+    spans 0.0000 → 0.2981. **All 743 produce identical predictions on
+    630k synthetic** (agreement 1.0000, bal_acc 0.96097). Cell-labeling
+    over the 2^5 × 4 = 128 discrete cells is fully determined by the
+    10k, so any separating linear classifier gives the same
+    decision-region map. Ceiling for this representation is 0.96097 —
+    the same as cdeotte's rule, the SVM, and our existing DGP rule.
+    Residual signal lives in within-cell continuous variation, not
+    in weight choice.
   - **Gated flip-recovery as a lever** (`scripts/gated_v3.py`). Tried
     meta-LGBM stacking over `[P_main, P_spec, P_flip, rule_oh,
     rule_int]` and hard-gate `argmax(P_spec) if P_flip>τ else rule`.

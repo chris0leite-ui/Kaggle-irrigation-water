@@ -1,0 +1,40 @@
+{
+  "n_models": 743,
+  "n_unique_feature_rows_orig": 128,
+  "spearman_hinge_vs_bal_acc": NaN,
+  "top1_by_bal_acc": {
+    "id": 25,
+    "hinge": 0.0,
+    "train_acc_orig": 1.0,
+    "bal_acc_syn": 0.9609734412171452,
+    "raw_acc_syn": 0.9836444444444444,
+    "Soil<25": 4,
+    "Temp>30": 2,
+    "Rain<300": 4,
+    "Wind>10": 2,
+    "Mulching=Yes": -2,
+    "Crop=Flowering": -1,
+    "Crop=Harvest": -5,
+    "Crop=Sowing": -5,
+    "Crop=Vegetative": -1,
+    "theta": 6
+  },
+  "top1_by_low_hinge": {
+    "id": 25,
+    "hinge": 0.0,
+    "train_acc_orig": 1.0,
+    "bal_acc_syn": 0.9609734412171452,
+    "raw_acc_syn": 0.9836444444444444,
+    "Soil<25": 4,
+    "Temp>30": 2,
+    "Rain<300": 4,
+    "Wind>10": 2,
+    "Mulching=Yes": -2,
+    "Crop=Flowering": -1,
+    "Crop=Harvest": -5,
+    "Crop=Sowing": -5,
+    "Crop=Vegetative": -1,
+    "theta": 6
+  },
+  "top_k_saved": 50
+}
