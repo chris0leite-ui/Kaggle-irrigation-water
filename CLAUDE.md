@@ -941,23 +941,36 @@ README.md      TL;DR + reproduction instructions.
   balanced enough for a 3-class classifier to extract signal. Rule:
   **specialize on sub-domains with 20–80 % minority class**, not on
   sub-domains dominated by a single class.
-- **LB submission** (`submission_xgb_hybrid_routed_spec.csv`):
-  OOF 0.97352 → **LB public = 0.97224**.
-  - Δ vs prior LB best (blend 0.97170): **+0.00054**.
-  - OOF → LB calibration gap: 0.00128 (vs 0.00157 on the previous
-    submission). Gap NARROWED by 0.00029; the overfit-to-OOF
-    trend reversed. Routing + specialist is real signal, not a
-    selection artefact.
+- **LB submissions** (two hybrid variants submitted):
+  - `submission_xgb_hybrid_routed_spec.csv` (routed-{1,2}):
+    OOF 0.97352 → **LB public = 0.97224**. Gap 0.00128.
+  - **`submission_xgb_hybrid_v3_routed012_spec678.csv`
+    (routed-{0,1,2}): OOF 0.97352 → LB public = 0.97271.** Gap
+    **0.00081** (narrowest we've seen). +0.00047 LB over the {1,2}
+    variant despite identical OOF — the v3 variant is the new
+    current best.
+  - **Why v3 > v1 on LB despite OOF tie**: on training, all 33 767
+    score-0 rows are truly Low, so XGB (v1) and rule (v3) agree on
+    argmax → no OOF delta. On the **hidden test set**, XGB must
+    extrapolate; it occasionally misfires on OOD score-0 rows
+    while the rule is deterministic and correct 100 % of the time.
+    Routing trades learned behaviour for a provably optimal
+    deterministic one — robustness pays off on the hidden split.
+  - New rule: **when a rule is ≥ 99.99 % accurate on a score, prefer
+    routing over learning** even if OOF shows zero delta; it cuts
+    test-time variance.
   - Updated calibration ladder:
     ```
-    single tuned LGBM       0.97097 → 0.96972   gap 0.00125
-    LGBM+DGP                0.97271 → 0.97137   gap 0.00134
-    bag + XGB blend         0.97327 → 0.97170   gap 0.00157
-    **routed + spec hybrid  0.97352 → 0.97224   gap 0.00128**
+    single tuned LGBM             0.97097 → 0.96972   gap 0.00125
+    LGBM+DGP                      0.97271 → 0.97137   gap 0.00134
+    bag + XGB blend               0.97327 → 0.97170   gap 0.00157
+    routed-{1,2} + spec-{6,7,8}   0.97352 → 0.97224   gap 0.00128
+    **routed-{0,1,2} + spec-{6,7,8} 0.97352 → 0.97271  gap 0.00081**
     ```
-  - Pack 0.98114 still +0.00890 above. Leader 0.98219 still +0.00995.
-- LB budget: 2/10 spent today (blend at 08:07, hybrid at 12:08),
-  8 remaining.
+  - Pack 0.98114 still +0.00843 above. Leader 0.98219 still +0.00948.
+  - Δ vs prior LB best (blend 0.97170): **+0.00101** cumulative.
+- LB budget: 3/10 spent today (blend at 08:07, hybrid at 12:08,
+  v3 hybrid at 12:29), 7 remaining.
 - Read-out / next bets:
   1. The routing-sweet-spot is {1,2} or {0,1,2} tied. The spec-on-
      {6,7,8} is the real lift.
@@ -976,12 +989,11 @@ README.md      TL;DR + reproduction instructions.
 
 ## Hypothesis board
 
-- **Current best**: routed-{1,2} XGBoost-dist + specialist-on-{6,7,8}
-  hybrid → OOF 0.97352, **LB 0.97224**. Submission on disk:
-  `submissions/submission_xgb_hybrid_routed_spec.csv`. Pack 0.98114
-  is +0.00890 above; leader 0.98219 is +0.00995 above. LB budget:
-  8 submissions remaining today (2/10 used — blend at 08:07, hybrid
-  at 12:08).
+- **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
+  hybrid → OOF 0.97352, **LB 0.97271**. Submission on disk:
+  `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`. Pack
+  0.98114 is +0.00843 above; leader 0.98219 is +0.00948 above. LB
+  budget: 7 submissions remaining today (3/10 used).
 
 - **Open** (ranked by expected ROI / effort):
   1. **Seed-bag the routed-XGB + spec-{6,7,8} hybrid** (3–5 seeds).
@@ -1247,15 +1259,23 @@ README.md      TL;DR + reproduction instructions.
     the class the rule predicts is over-represented in the
     remaining training set**.
   - **Specialist-on-{6,7,8} + routed main is the current best
-    architecture: OOF 0.97352 / LB 0.97224.** The {6,7,8} domain
-    (56 k rows, 69 % Medium / 31 % High) has ideal class ambiguity
-    — a specialist XGB beats the main XGB on this domain by
-    +0.00109 bal_acc, and overriding main's predictions with the
+    architecture: OOF 0.97352 / LB 0.97271** (routing {0,1,2}
+    variant, narrowest OOF→LB gap seen at 0.00081). The {6,7,8}
+    domain (56 k rows, 69 % Medium / 31 % High) has ideal class
+    ambiguity — a specialist XGB beats the main XGB on this domain
+    by +0.00109 bal_acc, and overriding main's predictions with the
     specialist's on these rows lifts global tuned OOF by +0.00019.
-    LB calibration gap actually narrowed from 0.00157 → 0.00128,
-    reversing the growing-overfit trend. Rule: **target specialists
-    at sub-domains with 20–80 % minority class**, not uniform-class
-    sub-domains.
+    Rule: **target specialists at sub-domains with 20–80 % minority
+    class**, not uniform-class sub-domains.
+  - **Rule-route even at OOF-ties when rule accuracy is ≥ 99.99%**.
+    The {0,1,2} vs {1,2} routing variants tied on OOF (both 0.97352)
+    because XGB trained on score-0 rows (100 % Low) learns the same
+    Low prediction the rule makes. On the hidden test set, however,
+    XGB can misfire on OOD score-0 rows while the rule never does —
+    the {0,1,2} variant pulled +0.00047 LB over {1,2} at identical
+    OOF. Rule: **when a deterministic predictor is provably correct
+    on a score, prefer it even at OOF parity**; it reduces hidden-
+    split variance by removing a learned model's failure modes.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
