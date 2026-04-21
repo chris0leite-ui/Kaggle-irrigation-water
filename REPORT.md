@@ -206,6 +206,22 @@ ready.
   `scripts/artifacts/test_lgbm_fe.npy`,
   `submissions/submission_lgbm_fe_tuned.csv`. Could revisit only if
   we ever retrain with a much smaller leaf budget or a tiny subset.
+- **Balanced-ensemble methods on DGP features (2026-04-21).**
+  BalancedRandomForest, EasyEnsemble, and RUSBoost (all from
+  `imbalanced-learn`) run under identical 5-fold CV on the 34-col
+  DGP-enriched feature set, each with base-learner configs tuned to
+  avoid the known 3-class SAMME stump-collapse failure mode. Tuned
+  OOF bal_acc: Easy 0.96932, RUSBoost 0.96666, BRF 0.96535 — all
+  below LGBM+DGP 0.97271. Pairwise and 3-way blends with LGBM+DGP
+  saturate at Δ ≤ +0.00008 (within fold noise); BRF gets zero weight
+  in every blend config. These methods produce pre-balanced
+  probabilities so log-bias has nothing to correct — argmax and tuned
+  scores are within 0.002 of each other, vs LGBM's +0.0092 log-bias
+  lift. The mechanism overlap means per-tree majority undersampling
+  is not a distinct lever from post-hoc log-bias at this feature set;
+  both pick the same balanced-accuracy operating point. Code was not
+  retained (null result); full methodology and numbers live in this
+  document and `CLAUDE.md` 2026-04-21 session entry.
 
 ## 6. Open questions
 
