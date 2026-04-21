@@ -160,23 +160,22 @@ def log_blend(oofs: list[np.ndarray], weights: np.ndarray, eps: float = 1e-9) ->
 def pairwise_sweep(oof_a: np.ndarray, oof_b: np.ndarray,
                    test_a: np.ndarray, test_b: np.ndarray,
                    y: np.ndarray, prior: np.ndarray):
-    """Return (best_alpha, best_tuned, space, oof_blend, test_blend, bias)."""
-    alphas = np.linspace(0.0, 1.0, 11)
-    best = (None, -1.0, None, None, None, None)
-    for space in ("prob", "log"):
-        for a in alphas:
-            if space == "prob":
-                blend = a * oof_a + (1 - a) * oof_b
-                tblend = a * test_a + (1 - a) * test_b
-            else:
-                blend = log_blend([oof_a, oof_b], np.array([a, 1 - a]))
-                tblend = log_blend([test_a, test_b], np.array([a, 1 - a]))
-            bias, tuned = tune_log_bias(blend, y, prior, coarse=True)
-            if tuned > best[1]:
-                best = (float(a), float(tuned), space, blend, tblend, bias)
-    # refine winner with full tune
-    _, refined = tune_log_bias(best[3], y, prior)
-    bias_ref, _ = tune_log_bias(best[3], y, prior)
+    """Return (best_alpha, best_tuned, space, oof_blend, test_blend, bias).
+
+    Log-space only (prob-space is nearly equivalent on this data, and
+    the prior experiment's winning blend was log-space). 7 α values
+    covers the shape well, and we refine the winner with a full tune.
+    """
+    alphas = np.array([0.0, 0.15, 0.3, 0.5, 0.7, 0.85, 1.0])
+    best = (None, -1.0, "log", None, None, None)
+    for a in alphas:
+        blend = log_blend([oof_a, oof_b], np.array([a, 1 - a]))
+        tblend = log_blend([test_a, test_b], np.array([a, 1 - a]))
+        bias, tuned = tune_log_bias(blend, y, prior, coarse=True)
+        if tuned > best[1]:
+            best = (float(a), float(tuned), "log", blend, tblend, bias)
+    # refine winner with full tune (single call)
+    bias_ref, refined = tune_log_bias(best[3], y, prior)
     best = (best[0], float(refined), best[2], best[3], best[4], bias_ref)
     return best
 
@@ -261,7 +260,7 @@ def meta_stack(oofs: dict[str, np.ndarray], tests: dict[str, np.ndarray],
     # residual bias.
     for f, (tr, va) in enumerate(skf.split(X_oof, y)):
         lr = LogisticRegression(
-            multi_class="multinomial", solver="lbfgs", C=1.0,
+            solver="lbfgs", C=1.0,
             class_weight="balanced", max_iter=1000, n_jobs=1)
         lr.fit(X_oof[tr], y[tr])
         meta_oof[va] = lr.predict_proba(X_oof[va])
@@ -314,16 +313,26 @@ def main():
             f"rec_L={pcr['Low']:.4f} rec_M={pcr['Medium']:.4f} "
             f"rec_H={pcr['High']:.4f}  bias={np.round(bias, 2).tolist()}")
 
-    # (2) pairwise α sweep
-    log("\n=== pairwise prob + log blend ===")
-    for a, b in combinations(oofs.keys(), 2):
-        best_alpha, best_tuned, space, _, _, _ = pairwise_sweep(
+    # (2) pairwise α sweep — skip spec_678 (broken standalone) and
+    # lgbm_baseline (dominated) as components; focus on the 4 strong
+    # standalones (lgbm_dgp, xgb_dist, xgb_routed_v3, xgb_hybrid_v3)
+    # -> C(4,2) = 6 pairs, ~6 min instead of 15.
+    log("\n=== pairwise prob + log blend (strong 4 only) ===")
+    skip_in_pairs = {"xgb_spec_678", "lgbm_baseline"}
+    pair_pool = [k for k in oofs.keys() if k not in skip_in_pairs]
+    best_pairwise = {"tuned": -1.0}
+    for a, b in combinations(pair_pool, 2):
+        t0 = time.time()
+        best_alpha, best_tuned, space, oof_b, test_b, bias_b = pairwise_sweep(
             oofs[a], oofs[b], tests[a], tests[b], y, prior)
         results["pairwise"].append({
             "a": a, "b": b, "alpha": best_alpha,
             "space": space, "tuned": best_tuned,
         })
-        log(f"  {a:18s} x {b:18s}  alpha={best_alpha:.2f} space={space} tuned={best_tuned:.5f}")
+        log(f"  {a:18s} x {b:18s}  alpha={best_alpha:.2f} space={space} tuned={best_tuned:.5f}  ({time.time()-t0:.0f}s)")
+        if best_tuned > best_pairwise["tuned"]:
+            best_pairwise = {"a": a, "b": b, "tuned": best_tuned,
+                             "oof": oof_b, "test": test_b, "bias": bias_b}
 
     # (3) equal-weight multi
     log("\n=== equal-weight prob/log across all components ===")
@@ -358,10 +367,17 @@ def main():
 
     # pick best and write submission
     candidates = []
-    best_standalone = max(results["standalone"].values())
+    standalone_scores = {k: v["tuned"] if isinstance(v, dict) else v
+                         for k, v in results["standalone"].items()}
+    best_standalone = max(standalone_scores.values())
     candidates.append(("standalone_best", best_standalone, None, None, None))
     for r in results["pairwise"]:
         candidates.append(("pair_" + r["a"] + "_" + r["b"], r["tuned"], None, None, None))
+    # include the best-pair artefacts (so we can actually write its submission)
+    if "oof" in best_pairwise:
+        candidates.append((f"pairwise_best_{best_pairwise['a']}_{best_pairwise['b']}",
+                           best_pairwise["tuned"], best_pairwise["oof"],
+                           best_pairwise["test"], best_pairwise["bias"]))
     candidates.append(("equal_prob", b_avg, o_avg, t_avg, None))
     candidates.append(("equal_log", b_geo, o_geo, t_geo, None))
     candidates.append(("greedy", g_tuned, g_oof, g_test, g_bias))
