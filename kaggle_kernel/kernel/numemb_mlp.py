@@ -53,10 +53,11 @@ def _gpu_arch():
 _arches = _gpu_arch()
 print(f"[boot] gpu compute_cap = {_arches}", flush=True)
 if any(a in ("6.0", "6.1") for a in _arches):
-    print("[boot] sm_60/61 detected — installing torch 2.8.0 cu121 (has P100 kernels)", flush=True)
+    print("[boot] sm_60/61 detected — installing torch 2.5.1 cu121 (has P100 kernels)", flush=True)
     subprocess.check_call([
         sys.executable, "-m", "pip", "install", "--quiet",
-        "torch==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu121",
+        "--upgrade", "--force-reinstall", "--no-deps",
+        "torch==2.5.1", "--index-url", "https://download.pytorch.org/whl/cu121",
     ])
     print("[boot] torch reinstall done", flush=True)
 
