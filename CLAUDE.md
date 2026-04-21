@@ -1344,6 +1344,57 @@ README.md      TL;DR + reproduction instructions.
   different model class (MLP retry with larger capacity, or a new
   feature view).
 
+### 2026-04-21 — end-of-day session wrap-up
+
+- **Leaderboard final state**: **LB 0.97296** via
+  `submission_blend_greedy_w045_040_015.csv` (greedy log-blend of
+  hybrid_v3 0.45 + routed_v3 0.40 + spec_678 0.15). This is the
+  verified LB best and should be locked as one of the 2 final-
+  selection submissions.
+- **Final-selection candidates** (pick 2 of 2 before competition
+  close):
+  1. **Primary**: `submission_blend_greedy_w045_040_015.csv`
+     (OOF 0.97375 / LB 0.97296). Current best.
+  2. **Safe fallback**:
+     `submission_xgb_hybrid_v3_routed012_spec678.csv`
+     (OOF 0.97352 / LB 0.97271). Minimal variance, clean pipeline.
+     Good hedge if the blend overfits on private LB.
+  If a genuinely different model (MLP with capacity) lands a lift
+  before the deadline, swap the safe fallback for that.
+
+- **Single highest-ROI remaining experiment: large-capacity
+  tabular NN.** Rationale:
+  1. The label-generation process is a deterministic NN (per
+     2026-04-21 DGP residuals EDA). Our best trees plateau at
+     ~0.9738 OOF regardless of FE/blending/data-quality lever.
+  2. A 3-layer 50k-param MLP previously plateaued at 0.966, but
+     that's 1-2 orders of magnitude below a serious tabular NN.
+     Capacity-bound, not structurally wrong.
+  3. Every non-NN lever explored this session (DQ, cross-lineage
+     blend, class-asymmetric High mixing, meta-stack) converged
+     to within ±0.00002 of the same OOF ceiling — signature of
+     an architectural bottleneck, not a tuning one.
+
+  **Concrete action plan for next session**:
+  - Target: FT-Transformer (1-3M params) or NumEmb + wide MLP
+    (500k params) on the 43-feature dist set.
+  - Bootstrap: `./bootstrap.sh` (data rehydrate).
+  - Pre-check after 1 fold: compute OOF error Jaccard vs
+    `oof_xgb_hybrid_v3.npy`. Gate decision:
+    - Jaccard ≥ 0.90: kill, NN is mimicking the tree ensemble.
+    - Jaccard < 0.85: run all 5 folds, then blend into greedy.
+    - 0.85 ≤ Jaccard < 0.90: run all 5 folds, but treat the blend
+      lift ceiling as +0.00015 not +0.001+ (same as the MNLogit /
+      balanced-ensemble diagnosis rule).
+  - Expected: +0.001 to +0.003 LB if the NN is genuinely
+    orthogonal; 0 if it plateaus at the tree ceiling.
+  - Budget: ~1-2 hours compute (GPU strongly preferred).
+
+  Second-priority experiment if NN plateaus: **seed-bag the
+  greedy log-blend** (3 seeds × same weight vector). Variance
+  reduction on the current best. Expected +0.0001-0.0003 LB.
+  Cheap (~60 min) and guaranteed-safe.
+
 ## Hypothesis board
 
 - **Current best**: greedy log-blend
@@ -1393,45 +1444,71 @@ Opens five follow-up ideas:
   boundaries: 2× score-3 Medium rows, 2× score-6 High rows. Forces
   XGB to attend to exactly the rows the rule gets wrong.
 
-- **Open** (ranked by expected ROI / effort):
-  1. **Seed-bag the routed-XGB + spec-{6,7,8} hybrid** (3–5 seeds).
-     Mirrors the prior LGBM-bag pattern; variance reduction on both
-     legs of the hybrid. Expected +0.0001–0.0003. Cheap follow-up
-     to the 0.97352 hybrid.
-  2. **Blend hybrid with LGBM-bag.** LGBM-bag artefacts need
-     regeneration (~17 min on this feature set). Then blend
-     log/prob with the hybrid across α∈[0,1]. Expected +0.0002–0.0005
-     if model-family diversity still contributes on top of
-     spec-routing. Dual-lever bet: if the hybrid has already
-     absorbed XGB's slack, the blend lift may be smaller than the
-     prior +0.00038 gain on un-routed base learners.
+- **Open** (ranked by expected ROI after this session's sweep of
+  tree-family + blend + training-data levers ruled most items out):
+
+  1. **[TOP BET] Large-capacity tabular NN.** Only untried model
+     class with a **structural match to the DGP** (labels are
+     deterministic NN outputs per the 2026-04-21 residuals EDA).
+     Prior 3-layer 50k-param MLP plateaued at 0.966 standalone /
+     +0.00005 blend — likely capacity-bound, not structurally wrong.
+     Candidates to try in priority order:
+       (a) **FT-Transformer** (1-3M params, proper tabular
+           self-attention). Structural match to "generator learned
+           a function of all feature interactions."
+       (b) **NumEmb + wide MLP** (~500k params with learnable
+           numeric embeddings per feature, then 3×512 hidden).
+           Cheaper than FT-Transformer, still massively larger
+           capacity than the prior 50k plateaued attempt.
+       (c) **Tabular-ResNet** (skip connections, GELU, stronger
+           regularisation). Good for deep tabular problems.
+     Pre-check before training: measure OOF error Jaccard with
+     hybrid_v3. If ≥ 0.90, the NN is likely mimicking the
+     tree-ensemble and won't add diversity — cut early. If < 0.85,
+     commit to the full run. Expected +0.001 to +0.003 LB if it
+     hits, 0 if it plateaus like before. ~1-2 hours compute
+     (GPU ideal).
+  2. **Seed-bag the greedy winner** (3 seeds of the LGBM/XGB
+     components with the same log-blend weights). Variance
+     reduction on the already-best blend. Expected +0.0001–0.0003
+     LB; cheapest lever left. ~60 min compute.
   3. **Spec on score {3}** (102 k rows, 95 % Low / 5 % Medium,
-     4.80 % rule-error rate). Parallel structure to spec-{6,7,8}.
-     95/5 is less ideal than 69/31 but still above the 98/2 where
-     Low-spec failed. Expected +0.0001–0.0003 if adopted into
-     hybrid.
-  4. **Within-cell per-cell logistic / MLP** on non-rule continuous
-     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
-     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
-     128 rule-cells (~5 k rows each). The only remaining lever that
-     avoids axis-aligned tree splits. Previously the top bet after
-     tree-FE nulls — stays relevant since routing/spec didn't touch
-     the within-cell continuous signal. Expected +0.0005–0.002.
-  5. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
-     beats both standalones at every interior α — model-family
-     diversity is the lever. A 4-fold CatBoost adds a 3rd decision
-     function on the same feature set. Pre-check: Jaccard overlap
-     between CatBoost and (LGBM ∪ XGB) OOF errors; only commit the
-     full 5-fold + 3-way blend if overlap < 0.8. Expected +0.0002–0.0008
-     for a stacked 3-way blend.
-  7. **Stack the hybrid OOF probs as meta-features into a final
-     LGBM meta-model.** Takes hybrid (3) + LGBM-bag (3) + optional
-     CatBoost (3) component probs, plus a small number of
-     rule/distance features as inputs. Expected +0.0001–0.0005.
-  8. **Ordinal-aware loss** for Medium↔High confusion. Still
-     untested; lowest priority of the "Open" bets since it needs a
-     custom objective and log-bias already nearly saturates
-     macro-recall.
+     4.80 % rule-error rate). Parallel to spec-{6,7,8}. 95/5 is
+     below the 20-80 % minority-class heuristic but above the 98/2
+     where Low-spec collapsed. Expected +0.0001–0.0003 if fused
+     into the current hybrid. ~15 min compute.
+  4. **Per-score log-bias tuning** (30 params = 10 score bins × 3
+     classes vs 3 global). Nested CV to avoid overfit; high risk.
+     Expected +0.0003–0.0008. ~30 min.
+  5. **Blend greedy-winner with a distinct-anchor blend.** Our
+     greedy and main's `hybrid_lgbmxgb_blend` both anchor on
+     `xgb_hybrid_v3` (cross-lineage pairwise null). A blend whose
+     anchor is the 5-seed LGBM bag or a CatBoost-dist bag would be
+     structurally different — could add +0.00005–0.00015. Contingent
+     on (1) or another anchor existing.
+
+- **Ruled out this session** (2026-04-21 soft-blend + DQ experiments):
+  - Hard-vote plurality/Borda/veto across top submissions (0.99+
+    pairwise agreement → <0.005 ceiling, and plain plurality
+    demotes the rare class; only "High-supermajority" and rule-
+    deferred are geometrically aligned with macro-recall but still
+    speculative without OOF gating).
+  - Logistic meta-stacker on (P_hv3 + P_routed + P_dgp + P_xgbdist)
+    with class_weight=balanced: 0.97348, below greedy log-blend.
+    Components too correlated to let 12-feature LR add signal.
+  - Cross-lineage blending with main's `hybrid_lgbmxgb_blend`:
+    pairwise picks w_ours=0.95 → 0.97376 (null vs our greedy
+    0.97375). Shared anchor on hybrid_v3 — two blends that share
+    the dominant component don't compound.
+  - **Heavy-weight original-dataset augmentation** (w=20 per row):
+    −0.00026 on xgb_dist. Medium recall drops −0.00066 on argmax.
+    Rule-perfect external data biases the model AWAY from the
+    deterministic NN flips that generalize to LB. Safe weight is
+    1× per row (prior +0.00027 result); anything heavier hurts.
+  - **(target × dgp_score) stratified CV**: tuned OOF unchanged
+    (0.97278 both ways); fold variance drops σ ~0.0008 → ~0.0002
+    but means nothing for the global OOF. At 630k rows, default
+    StratifiedKFold(shuffle=True) is already well-balanced.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
     are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
