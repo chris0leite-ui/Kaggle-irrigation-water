@@ -1,0 +1,93 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "specialists": {
+    "low": {
+      "scores": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "rule_tag": "Low",
+      "n_train": 373601,
+      "n_test": 159924,
+      "class_dist": [
+        368332,
+        5269,
+        0
+      ],
+      "best_iters": [
+        376,
+        383,
+        338,
+        332,
+        321
+      ],
+      "rule_raw_acc": 0.9858967186918665,
+      "rule_bal_acc": 0.5,
+      "spec_raw_acc": 0.9859904015246211,
+      "spec_bal_acc": 0.5049114456732118
+    },
+    "med": {
+      "scores": [
+        4,
+        5,
+        6
+      ],
+      "rule_tag": "Medium",
+      "n_train": 235456,
+      "n_test": 101040,
+      "class_dist": [
+        1585,
+        232113,
+        1758
+      ],
+      "best_iters": [
+        321,
+        289,
+        413,
+        288,
+        336
+      ],
+      "rule_raw_acc": 0.9858020182114705,
+      "rule_bal_acc": 0.3333333333333333,
+      "spec_raw_acc": 0.9866174571894537,
+      "spec_bal_acc": 0.3888262739496897
+    },
+    "high": {
+      "scores": [
+        7,
+        8,
+        9
+      ],
+      "rule_tag": "High",
+      "n_train": 20943,
+      "n_test": 9036,
+      "class_dist": [
+        0,
+        1692,
+        19251
+      ],
+      "best_iters": [
+        225,
+        193,
+        236,
+        227,
+        174
+      ],
+      "rule_raw_acc": 0.919209282337774,
+      "rule_bal_acc": 0.5,
+      "spec_raw_acc": 0.9705390822709259,
+      "spec_bal_acc": 0.8489375241076176
+    }
+  },
+  "fused_argmax_bal_acc": 0.9636431340905548,
+  "fused_reweight_bal_acc": 0.9720998412464624,
+  "fused_tuned_bal_acc": 0.9722557618959371,
+  "log_bias": [
+    0.13244116323609767,
+    0.6689466919465481,
+    3.400768902044088
+  ]
+}
