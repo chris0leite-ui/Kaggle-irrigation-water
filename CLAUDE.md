@@ -859,47 +859,169 @@ README.md      TL;DR + reproduction instructions.
   signal can enter the model; tree-shaped models plateau regardless
   of how they encode the interactions.
 
+### 2026-04-21 — score-routing + spec-{6,7,8} hybrid: NEW LB BEST 0.97224
+
+- Goal: test whether routing rows where the rule is near-100 %
+  accurate to the rule (at predict time), and training XGB only on
+  ambiguous rows, produces a better balanced-accuracy-optimal
+  pipeline than training on all 630k.
+- Motivation: the rule-error-rate-per-score table (computed this
+  session) shows the flip mass is concentrated in a narrow band:
+  ```
+  score  rows     rule errors  err%      (rule predicts)
+  0      33,767   0           0.000%    Low
+  1      115,457  5           0.004%    Low
+  2      122,220  365         0.299%    Low
+  3      102,157  4,899       4.80%     Low (boundary)
+  4      117,837  1,520       1.29%     Medium
+  5      79,203   274         0.35%     Medium
+  6      38,416   1,549       4.03%     Medium (boundary)
+  7      15,026   1,360       9.05%     High
+  8      2,680    330         12.31%    High
+  9      3,237    2           0.062%    High
+  ```
+  Scores {0,1,2,5,9} are very clean. Scores {3,6,7,8} carry >95 %
+  of rule-errors.
+- Changed: `scripts/xgb_dist_routed.py` (routing {1,2}),
+  `xgb_dist_routed_v2.py` ({0,1,2,9}), `xgb_dist_routed_v3.py`
+  ({0,1,2}), `xgb_dist_routed_v4.py` ({0,1}),
+  `xgb_specialist_678.py` (specialist XGB on scores {6,7,8}),
+  `hybrid_routed_spec.py` (glue: main routed-{1,2} overridden by
+  spec on {6,7,8}), `xgb_per_class_specialists.py` (three
+  specialists, one per rule class). Artefacts in
+  `scripts/artifacts/`; submissions in `submissions/`.
+- Routing-set ablation (tuned OOF bal_acc, 5-fold stratified):
+  ```
+  baseline XGB-dist (no routing)        0.97304
+  route {1,2}     (v1)                  0.97333   +0.00029
+  route {0,1,2}   (v3)                  0.97332   +0.00028   ≈ v1
+  route {0,1}     (v4)                  0.97326   +0.00022   < v1
+  route {0,1,2,9} (v2)                  0.97319   +0.00015   < v1
+  ```
+  Clean pattern:
+  - Score 2 is net-positive to route (122 k × 99.7 % Low rows
+    waste XGB boosting capacity on a near-trivial split).
+  - Score 0 is a wash (too few examples at 33 k to matter).
+  - Score 9 is net-negative to route (3.2 k High rows is 15 % of
+    the entire High training pool; removing them hurts High
+    calibration more than rule-routing gains).
+  - General rule: **only route if (a) rule ≥ 99.5 % on the score
+    AND (b) the class the rule predicts is over-represented in
+    the non-routed training set**.
+- Specialist on scores {6,7,8} (`xgb_specialist_678.py`):
+  - Domain: 56,122 train rows, 69 % Medium / 31 % High (0 % Low).
+  - 5-fold stratified-on-global-y XGB trained only on spec domain.
+  - Specialist argmax bal_acc on its domain: 0.95198
+  - Main XGB argmax bal_acc on same domain: 0.95088
+  - Δ spec − main = +0.00109 (small but clean)
+- **Hybrid pipeline (`hybrid_routed_spec.py`): new current best.**
+  - Override routed-{1,2} XGB predictions on scores {6,7,8} with
+    the specialist's predictions. Retune log-bias on the hybrid
+    OOF (coord-ascent).
+  - routed-{1,2} alone:                                  0.97333
+  - routed-{1,2} + spec on {6,7,8}:  **0.97352**  Δ = +0.00019
+  - Hybrid variant routed-{0,1,2} + spec {6,7,8}: 0.97352 (tied —
+    score 0 routing doesn't touch {6,7,8} rows, no change).
+- Per-class specialists (`xgb_per_class_specialists.py`): **null.**
+  Three specialists, one per rule-class:
+  ```
+  Low-spec   (scores 0-3, 374k rows, 98 % Low)   dom bal_acc 0.505
+  Med-spec   (scores 4-6, 235k rows, 98 % Med)   dom bal_acc 0.389
+  High-spec  (scores 7-9,  21k rows, 92 % High)  dom bal_acc 0.849
+  Fused OOF (per-row routed to matching specialist): **0.97226**
+  Δ vs hybrid 0.97352: −0.00126
+  ```
+  Reading: specialization only helps when the domain has genuine
+  class ambiguity. Low-domain (98 % Low) and Medium-domain (98.5 %
+  Medium) specialists collapse into "predict the majority", so
+  bal_acc on their minority flips is random (~0.5). Only High-spec
+  made real use of specialization (+0.349 vs rule), because its
+  domain is actually 3-class. The {6,7,8} spec works for the same
+  reason — it's the only sub-domain where class distribution is
+  balanced enough for a 3-class classifier to extract signal. Rule:
+  **specialize on sub-domains with 20–80 % minority class**, not on
+  sub-domains dominated by a single class.
+- **LB submission** (`submission_xgb_hybrid_routed_spec.csv`):
+  OOF 0.97352 → **LB public = 0.97224**.
+  - Δ vs prior LB best (blend 0.97170): **+0.00054**.
+  - OOF → LB calibration gap: 0.00128 (vs 0.00157 on the previous
+    submission). Gap NARROWED by 0.00029; the overfit-to-OOF
+    trend reversed. Routing + specialist is real signal, not a
+    selection artefact.
+  - Updated calibration ladder:
+    ```
+    single tuned LGBM       0.97097 → 0.96972   gap 0.00125
+    LGBM+DGP                0.97271 → 0.97137   gap 0.00134
+    bag + XGB blend         0.97327 → 0.97170   gap 0.00157
+    **routed + spec hybrid  0.97352 → 0.97224   gap 0.00128**
+    ```
+  - Pack 0.98114 still +0.00890 above. Leader 0.98219 still +0.00995.
+- LB budget: 2/10 spent today (blend at 08:07, hybrid at 12:08),
+  8 remaining.
+- Read-out / next bets:
+  1. The routing-sweet-spot is {1,2} or {0,1,2} tied. The spec-on-
+     {6,7,8} is the real lift.
+  2. Next architectural lever: **seed-bag the routed-XGB** (5 seeds,
+     mirrors earlier LGBM-bag work, expected +0.0001–0.0003).
+  3. **Blend routed-XGB-bag with LGBM-bag** — LGBM-bag artefacts
+     need to be regenerated (~17 min). Expected +0.0002–0.0005.
+  4. **Specialist-bag on {6,7,8}** — 56 k rows × 5 seeds is
+     cheap. Expected +0.0001.
+  5. **Spec on {3}** (4.8 % err rate, 102 k rows, 95 % Low / 5 %
+     Medium). Worth trying since the class distribution is 95/5,
+     not 98/2, and the 5 % minority is meaningful (4.9 k flips).
+     Parallel structure to spec-{6,7,8}.
+  6. Within-cell per-cell MLP remains the largest orthogonal lever
+     (unexplored; expected +0.0005–0.002).
+
 ## Hypothesis board
 
-- **Current best**: LGBM-dist 5-seed bag ⊗ XGBoost-dist
-  log-blend α=0.45 → OOF 0.97327, **LB 0.97170**. Submission on
-  disk: `submissions/submission_blend_lgbm_xgb_dist.csv`. Pack
-  0.98114 is +0.00944 above; leader 0.98219 is +0.01049 above.
-  LB budget: 6 submissions remaining today.
+- **Current best**: routed-{1,2} XGBoost-dist + specialist-on-{6,7,8}
+  hybrid → OOF 0.97352, **LB 0.97224**. Submission on disk:
+  `submissions/submission_xgb_hybrid_routed_spec.csv`. Pack 0.98114
+  is +0.00890 above; leader 0.98219 is +0.00995 above. LB budget:
+  8 submissions remaining today (2/10 used — blend at 08:07, hybrid
+  at 12:08).
 
 - **Open** (ranked by expected ROI / effort):
-  1. **Within-cell per-cell logistic / MLP** on non-rule continuous
+  1. **Seed-bag the routed-XGB + spec-{6,7,8} hybrid** (3–5 seeds).
+     Mirrors the prior LGBM-bag pattern; variance reduction on both
+     legs of the hybrid. Expected +0.0001–0.0003. Cheap follow-up
+     to the 0.97352 hybrid.
+  2. **Blend hybrid with LGBM-bag.** LGBM-bag artefacts need
+     regeneration (~17 min on this feature set). Then blend
+     log/prob with the hybrid across α∈[0,1]. Expected +0.0002–0.0005
+     if model-family diversity still contributes on top of
+     spec-routing. Dual-lever bet: if the hybrid has already
+     absorbed XGB's slack, the blend lift may be smaller than the
+     prior +0.00038 gain on un-routed base learners.
+  3. **Spec on score {3}** (102 k rows, 95 % Low / 5 % Medium,
+     4.80 % rule-error rate). Parallel structure to spec-{6,7,8}.
+     95/5 is less ideal than 69/31 but still above the 98/2 where
+     Low-spec failed. Expected +0.0001–0.0003 if adopted into
+     hybrid.
+  4. **Within-cell per-cell logistic / MLP** on non-rule continuous
      features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
      Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
-     128 rule-cells (~5 k rows each). By construction orthogonal to
-     both LGBM-dist and XGB-dist, and the only lever left that avoids
-     axis-aligned tree splits entirely. Now promoted to top bet after
-     three consecutive tree-FE nulls (water-balance, EB-cell,
-     pairwise rule×non-rule). Expected +0.0005–0.002 if blend
-     residuals concentrate in a few cells.
-  2. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
+     128 rule-cells (~5 k rows each). The only remaining lever that
+     avoids axis-aligned tree splits. Previously the top bet after
+     tree-FE nulls — stays relevant since routing/spec didn't touch
+     the within-cell continuous signal. Expected +0.0005–0.002.
+  5. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
      beats both standalones at every interior α — model-family
      diversity is the lever. A 4-fold CatBoost adds a 3rd decision
      function on the same feature set. Pre-check: Jaccard overlap
      between CatBoost and (LGBM ∪ XGB) OOF errors; only commit the
      full 5-fold + 3-way blend if overlap < 0.8. Expected +0.0002–0.0008
      for a stacked 3-way blend.
-  3. **Seed-bag XGB-dist** (3–5 seeds) before the 3-way blend.
-     Mirrors the LGBM bag; expected +0.00015 (LGBM bag lifted by
-     that much over single seed; XGB variance is in the same
-     ballpark).
-  4. **Stack the blend's OOF probs as meta-features into a final
-     LGBM meta-model.** Takes the 3 × 3 = 9 component probs
-     (LGBM-bag / XGB / CatBoost) + a small number of rule/distance
-     features as inputs. Expected +0.0001–0.0005.
-  5. **LB recalibration sub** (+1 LB sub) on any of the above once
-     OOF gains compound. Calibration gap has been growing
-     (0.00125 → 0.00134 → 0.00157); sub 4 will tell us whether
-     stacking adds more gap.
-  6. **Ordinal-aware loss** for Medium↔High confusion. Still
+  7. **Stack the hybrid OOF probs as meta-features into a final
+     LGBM meta-model.** Takes hybrid (3) + LGBM-bag (3) + optional
+     CatBoost (3) component probs, plus a small number of
+     rule/distance features as inputs. Expected +0.0001–0.0005.
+  8. **Ordinal-aware loss** for Medium↔High confusion. Still
      untested; lowest priority of the "Open" bets since it needs a
-     custom objective and LGBM + log-bias already nearly
-     saturates macro-recall.
+     custom objective and log-bias already nearly saturates
+     macro-recall.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
     are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
@@ -1021,6 +1143,27 @@ README.md      TL;DR + reproduction instructions.
     rule×non-rule). Rule: trees at 127-leaves / max_depth=7 already
     find pairwise interactions internally; engineered products add
     no new signal regardless of how physically motivated they are.
+  - **Extended score-routing to {0, 1, 2, 9}**
+    (`scripts/xgb_dist_routed_v2.py`): tuned OOF 0.97319 vs v1
+    `{1,2}` at 0.97333. Adding score 9 to routing removes 3,237
+    High rows from training — 15 % of the 21 k total High pool.
+    Since High is the rare class, losing this many training
+    examples hurts High calibration more than the marginal
+    rule-routing gain (99.938 % rule accuracy on score 9). Rule:
+    **don't route a score to the rule if removing it strips >10 %
+    of any class's training pool**. Safe routing set: {1, 2} or
+    {0, 1, 2} (tied at 0.97333).
+  - **Per-rule-class specialists (Low-spec on 0-3, Medium-spec on
+    4-6, High-spec on 7-9)**
+    (`scripts/xgb_per_class_specialists.py`). Fused per-row-routed
+    OOF = 0.97226 (Δ = −0.00126 vs hybrid 0.97352). Low-domain is
+    98 % Low and Medium-domain is 98.5 % Medium, so their
+    specialists collapse into "predict majority" with bal_acc ~0.5.
+    Only the High-spec (92 %/8 %) made real use of its small
+    domain. Rule: **specialize on sub-domains with 20–80 % minority
+    class**, not sub-domains dominated by one class. The {6,7,8}
+    specialist works for exactly this reason (69 % Medium / 31 %
+    High).
   - **Hinge-loss / max-margin tie-breaker over integer separating
     rules** (`scripts/enumerate_integer_models.py`, per discussion
     [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)).
@@ -1090,6 +1233,29 @@ README.md      TL;DR + reproduction instructions.
     LGBM+DGP's 0.97137), confirming the OOF lift transfers. New
     rule for this feature set: **LGBM ⊗ XGB is the default
     decision rule, not plain LGBM.**
+  - **Score-routing to the rule is net-positive when the class the
+    rule predicts is abundant in the non-routed training set.**
+    Routing scores {1, 2} (237 k rows, 99.7 % Low rule-accuracy)
+    moves XGB-dist from 0.97304 → 0.97333 (+0.00029). Routing
+    {0, 1, 2} ties (adds score 0 = 33 k Low rows with 0 errors,
+    no effect since Low is already over-represented). Routing
+    {0, 1, 2, 9} underperforms by 0.00014 because removing score 9
+    strips 3.2 k High rows (15 % of the entire High training pool)
+    from XGB's training set; since High is the rare class, this
+    hurts High-class calibration more than rule-routing gains.
+    Rule: **only route if (a) rule ≥ 99.5 % on the score AND (b)
+    the class the rule predicts is over-represented in the
+    remaining training set**.
+  - **Specialist-on-{6,7,8} + routed main is the current best
+    architecture: OOF 0.97352 / LB 0.97224.** The {6,7,8} domain
+    (56 k rows, 69 % Medium / 31 % High) has ideal class ambiguity
+    — a specialist XGB beats the main XGB on this domain by
+    +0.00109 bal_acc, and overriding main's predictions with the
+    specialist's on these rows lifts global tuned OOF by +0.00019.
+    LB calibration gap actually narrowed from 0.00157 → 0.00128,
+    reversing the growing-overfit trend. Rule: **target specialists
+    at sub-domains with 20–80 % minority class**, not uniform-class
+    sub-domains.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
