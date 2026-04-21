@@ -1054,6 +1054,82 @@ README.md      TL;DR + reproduction instructions.
 - Current best unchanged: hybrid_spec_base (routed-{0,1,2} + spec
   on {6,7,8}) at OOF **0.97352** / LB 0.97271.
 
+### 2026-04-21 — model-stacking-exploration session: 9 nulls + routing-lever refinement
+
+- Goal: a disciplined sweep over every plausible non-FE lever to close
+  the +0.00843 gap to the 0.98114 pack (later revealed to be an
+  ensemble of public-notebook submissions, not a modeling trick).
+  Hypothesis board Open items systematically tested.
+- Changed: 10+ new scripts in `scripts/`, all on
+  `claude/model-stacking-exploration-s2osn`. Key adds:
+  `per_cell_lr.py`, `per_cell_lr_blend_rule.py`, `xgb_specialist_3.py`,
+  `xgb_specialist_46.py`, `xgb_specialist_678_aug.py`,
+  `hybrid_routed_spec_aug.py`, `rule_distillation.py`,
+  `benchmark_te_orig.py`, `benchmark_te_oof.py`,
+  `benchmark_catboost_dist.py`, `xgb_dist_routed_v6.py`,
+  `xgb_dist_routed_v7.py`, `pseudo_label_hybrid.py`.
+
+- **Nine nulls** (ordered by when they landed):
+  ```
+  per-cell LR rule-blend               +0.00189  (just log-bias recal)
+  specialist-{6,7,8} aug w=1.0         -0.00029  (hybrid)
+  specialist-{6,7,8} aug w=0.3         -0.00026  (hybrid)
+  spec-3 (95/5 domain)                  0.00000  (sub-heuristic)
+  TE-from-original + LGBM              +0.00004
+  OOF-TE + flip-rate + LGBM            +0.00005
+  rule-distillation (10k features)     -0.00047
+  spec-{4,6} (98/1/1 domain)            0.00000  (sub-heuristic)
+  routed v6 {0,1,2,5}                  -0.00012
+  routed v7 decoupled (all train + infer route)  -0.00044
+  ```
+
+- **The one new insight** — the routing lever is training-distribution
+  rebalancing, not inference determinism or capacity-freeing:
+  ```
+  vanilla XGB-dist (train all, no route)       0.97304
+  v3  (drop {0,1,2} train + route infer)       0.97332   ← best
+  v6  (drop {0,1,2,5} both)                    0.97320
+  v7  (train all, route {0,1,2,5} at infer)    0.97288
+  ```
+  V7 isolated the inference-routing component: train-on-all + route-
+  infer is **worse** than vanilla XGB. This falsified the "anchor-row"
+  theory (score-5 rows structurally informative for {6,7,8}
+  boundary). The real lever: v3's training filter removes 271k easy-
+  Low rows, which implicitly rebalances XGB's class prior — a pre-hoc
+  version of what log-bias does post-hoc. Score 5 fails because
+  dropping 79k clean-Medium rows unbalances in the wrong direction.
+
+  Related lesson: **training-distribution engineering (remove easy
+  rule-trivial rows) is more powerful than inference-routing for
+  boosted trees.** Rule-route at inference for LB robustness only;
+  the OOF lever lives entirely in the training data composition.
+
+- **Three heuristics falsified / confirmed**:
+  - Specialist 20-80 band confirmed empirically: {6,7,8} 69/31 lifts
+    (+0.00019); {0-3} 98/2, {4-6} 98/1/1, score-3 95/5 all null.
+    Minimum minority threshold is ~20%.
+  - Routing heuristic gained a 3rd condition: routed rows must not
+    be structurally informative (score-5 failure).
+  - TE + LGBM fully falsified at num_leaves=127 on cat cards 2-6
+    (TE-orig 0.97270, TE-oof 0.97271 both matching vanilla 0.97266).
+
+- **Rival-approach analysis**: public notebook at LB 0.98114 pulls
+  other people's submission CSVs as Kaggle Dataset inputs
+  (`5(4)-0.98074.csv`, `5(5)-0.98057.csv`, `5(7)-0.98057.csv`, etc.)
+  and ensembles them. The 0.98114 pack is a public-notebook-blend
+  ceiling, not a modeling breakthrough. For our own pipeline, the
+  ceiling is ~0.975–0.976 via compound own-pipeline diversity, not
+  ~0.98. Re-framed the +0.01 target from "missing lever" to "stack
+  more own OOFs".
+
+- **Still running at session snapshot time**: CatBoost-dist (~1h10m
+  wall, expected ~5 more min), pseudo-labeling hybrid (~30m wall
+  expected). Results will land on `claude/model-stacking-exploration-
+  s2osn` and can be merged separately.
+
+- Current best unchanged: hybrid_spec_base (routed-{0,1,2} +
+  spec-{6,7,8}) at OOF 0.97352 / LB 0.97271. LB budget: 3/10 used.
+
 ## Hypothesis board
 
 - **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
