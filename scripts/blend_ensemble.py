@@ -50,6 +50,7 @@ CANDIDATES = {
     "xgb_routed_v3":    ("oof_xgb_dist_routed_v3.npy", "test_xgb_dist_routed_v3.npy"),
     "xgb_spec_678":     ("oof_xgb_spec_678.npy",      "test_xgb_spec_678.npy"),
     "xgb_hybrid":       ("oof_xgb_hybrid_routed_spec.npy", "test_xgb_hybrid_routed_spec.npy"),
+    "xgb_hybrid_v3":    ("oof_xgb_hybrid_v3.npy",     "test_xgb_hybrid_v3.npy"),
 }
 
 
@@ -66,18 +67,24 @@ def per_class_recall(y: np.ndarray, pred: np.ndarray) -> dict[str, float]:
 
 
 def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray,
-                  high_grid_wide: bool = True):
+                  high_grid_wide: bool = True, coarse: bool = False):
     """Coord-ascent log-bias. If high_grid_wide, extend the search
     range for the High class to [-3, 6] since the optimum is typically
-    around +3.4 on this dataset (see CLAUDE.md) — a tighter grid
-    saturates at +3 and misses the optimum on some blends.
+    around +3.4 on this dataset (see CLAUDE.md). If coarse, use a
+    smaller grid + fewer outer iters (for inner-loop sweeps).
     """
     log_oof = np.log(np.clip(oof, 1e-9, 1.0))
     bias = -np.log(prior)
     best = balanced_accuracy_score(y, (log_oof + bias).argmax(axis=1))
-    grid_default = np.linspace(-3.0, 3.0, 61)
-    grid_high = np.linspace(-3.0, 6.0, 91) if high_grid_wide else grid_default
-    for _ in range(25):
+    if coarse:
+        grid_default = np.linspace(-2.0, 2.0, 21)
+        grid_high = np.linspace(-1.0, 5.0, 25)
+        max_iter = 6
+    else:
+        grid_default = np.linspace(-3.0, 3.0, 61)
+        grid_high = np.linspace(-3.0, 6.0, 91) if high_grid_wide else grid_default
+        max_iter = 25
+    for _ in range(max_iter):
         improved = False
         for k in range(len(CLASSES)):
             grid = grid_high if k == 2 else grid_default  # k=2 is High
@@ -140,7 +147,7 @@ def pairwise_sweep(oof_a: np.ndarray, oof_b: np.ndarray,
                    test_a: np.ndarray, test_b: np.ndarray,
                    y: np.ndarray, prior: np.ndarray):
     """Return (best_alpha, best_tuned, space, oof_blend, test_blend, bias)."""
-    alphas = np.linspace(0.0, 1.0, 21)
+    alphas = np.linspace(0.0, 1.0, 11)
     best = (None, -1.0, None, None, None, None)
     for space in ("prob", "log"):
         for a in alphas:
@@ -150,9 +157,13 @@ def pairwise_sweep(oof_a: np.ndarray, oof_b: np.ndarray,
             else:
                 blend = log_blend([oof_a, oof_b], np.array([a, 1 - a]))
                 tblend = log_blend([test_a, test_b], np.array([a, 1 - a]))
-            bias, tuned = tune_log_bias(blend, y, prior)
+            bias, tuned = tune_log_bias(blend, y, prior, coarse=True)
             if tuned > best[1]:
                 best = (float(a), float(tuned), space, blend, tblend, bias)
+    # refine winner with full tune
+    _, refined = tune_log_bias(best[3], y, prior)
+    bias_ref, _ = tune_log_bias(best[3], y, prior)
+    best = (best[0], float(refined), best[2], best[3], best[4], bias_ref)
     return best
 
 
@@ -180,13 +191,13 @@ def greedy_forward(oofs: dict[str, np.ndarray], tests: dict[str, np.ndarray],
             # add with equal weight first, then sweep mixing weight
             oofs_try = current_oofs + [oofs[cand]]
             tests_try = current_tests + [tests[cand]]
-            # sweep mixing weight of the new model
+            # sweep mixing weight of the new model (coarse, then refine)
             best_w = (None, -1.0, None, None)
-            for wnew in np.linspace(0.05, 0.95, 19):
+            for wnew in np.linspace(0.1, 0.9, 9):
                 ws = np.array(current_weights + [wnew * sum(current_weights) / (1 - wnew)])
                 blend_oof = log_blend(oofs_try, ws)
                 blend_test = log_blend(tests_try, ws)
-                _, tuned = tune_log_bias(blend_oof, y, prior)
+                _, tuned = tune_log_bias(blend_oof, y, prior, coarse=True)
                 if tuned > best_w[1]:
                     best_w = (float(wnew), float(tuned), blend_oof, blend_test)
             if best_w[1] > best_new[1]:
