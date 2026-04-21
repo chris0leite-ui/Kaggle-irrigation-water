@@ -165,6 +165,84 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   reach for Cao 2019's defaults without checking the `β^n_c` term
   is actually non-trivial for your sample sizes.
 
+## Target encoding & FE menu (seen in competitive tabular notebooks)
+
+Catalog of TE / FE techniques used by top notebooks in this kind of
+synthetic-tabular competition. Each item is one lever to try when the
+current pipeline plateaus; expect diminishing returns when stacking
+all of them on the same model.
+
+- **Leak-free TE from a separate dataset.** If an auxiliary
+  noise-free dataset exists (e.g. a "Playground Series" original), TE
+  the competition's categoricals against **its** labels. By
+  construction no inner CV is needed because the encoder never sees
+  the target you're predicting. Works only when the auxiliary dataset
+  is actually distributionally aligned (verify via a transfer-check
+  before trusting).
+- **Out-of-fold TE from the training labels.** Encoder computed from
+  the other K-1 folds' labels and applied to the held-out fold. Same
+  recipe for test (encoder built on all train). Mild in-fold leak is
+  acceptable when per-category sample sizes are huge (`n_c ≫ 1000`);
+  rigorously correct version uses nested CV (~5× slower).
+- **Per-class TE vs scalar TE.** Emit `P(y=c | cat)` for each class
+  c instead of a single encoded value. Three columns per categorical
+  × class × interaction. Gives trees a separate signal channel per
+  class.
+- **Flip-rate / residual TE.** If you have a known deterministic
+  predictor (rule, formula, base model), encode `P(y != rule(x) | cat)`
+  as a column. Directly injects "which categories deviate from the
+  deterministic predictor" signal, which plain per-class TE cannot
+  (the class probs may match the rule's expected output per category).
+  Especially powerful when the competition has a reverse-engineered
+  rule + a learned noise layer.
+- **Categorical-interaction TE.** Concatenate two or three
+  categoricals, then TE the joint. Raises effective cardinality from
+  `max_i(|c_i|)` to `∏_i |c_i|` at the cost of more smoothing (higher
+  Laplace `α`). Selects for interactions LGBM/XGB's single-feature
+  splits cannot reach in one split. Watch cardinality carefully — if
+  per-combo rows drop below ~30, the TE is mostly noise.
+- **TE statistics beyond the mean (InnerCV TE).** Attach per-category
+  **std, percentiles (25/75), count** of the target using nested CV.
+  Mean captures central tendency; std flags category-level
+  heteroscedasticity the trees can exploit (e.g. "is this category
+  reliably Low, or a 50/50 toss-up?"). Useful when category-level
+  dispersion carries information above and beyond mean.
+- **CatBoost native ordered TE ≠ mean TE.** CatBoost's built-in
+  `cat_features` uses a *permutation-ordered* row-wise TE: each
+  training row gets TE computed from rows preceding it in a random
+  permutation, plus injected noise, and averaged over many
+  permutations. This is structurally different from a simple
+  out-of-fold mean TE and cannot be reproduced exactly with
+  post-hoc Python TE. If OOF mean TE gives nothing but CatBoost-
+  native lifts, the noise-injection / row-permutation structure is
+  doing real work.
+- **Formula-derived features.** If the host's label-generating rule
+  is (partly) known — from the brief, a discussion post, or reverse
+  engineering — build all the rule's intermediate terms as columns:
+  binary indicators for each threshold, signed distance to each
+  threshold, the score/sum, the rule's prediction. Trees at moderate
+  leaf budgets already rediscover these internally on big tabular
+  data (ours nulled at num_leaves=127); useful at tiny leaf budgets,
+  on NNs, or when CatBoost-style TE is on top (the TE then conditions
+  on rule-pred / score).
+- **Digit extraction from numerical features.** Literally pull out
+  individual decimal digits as integer columns. E.g. `Soil_pH = 6.14`
+  → `digit_tenths = 1, digit_hundredths = 4`. Catches generator
+  quantization patterns — if the synthesizer rounded to 2 decimals
+  or sampled from a discrete grid in disguise, digit frequencies
+  will be non-uniform and a tree can exploit it. Near-zero cost;
+  skip only when you've inspected the numeric distributions and
+  confirmed continuous-looking decimals.
+- **When LGBM-native cat splits make single-TE redundant.** At
+  cardinality 2–6 and `num_leaves=127`, LGBM's native categorical
+  splits already handle per-class distributions cleanly. Simple
+  single-cat mean TE from a separate dataset will typically null
+  (our result: +0.00004). TE only pays when (a) cardinality is high
+  (pairwise / triple interactions), (b) the encoding target is
+  something raw cats cannot encode (flip-rate, class-specific
+  log-odds), or (c) the downstream model is weaker than high-leaf
+  LGBM (linear/shallow NN).
+
 ## DGP / archaeology
 
 - (e.g. seed recovery attempts, closed-form recovery, pooled-feature
