@@ -209,9 +209,8 @@ def main() -> None:
     test_main_new[te_rule_mask] = rule_prob_low
 
     # 4. Retrain SPEC-{6,7,8} with augmented {6,7,8} training
-    log(f"retraining spec-{{6,7,8}} with +{int((pseudo_scores >= 6) & (pseudo_scores <= 8)).sum()} pseudo-spec rows")
     pseudo_spec_mask = np.isin(pseudo_scores, SPEC_SCORES)
-    log(f"  pseudo rows in {{6,7,8}}: {int(pseudo_spec_mask.sum())}")
+    log(f"retraining spec-{{6,7,8}} with +{int(pseudo_spec_mask.sum())} pseudo-spec rows")
     oof_spec_new = np.zeros((len(tr), 3), dtype=np.float64)
     test_spec_new = np.zeros((len(te), 3), dtype=np.float64)
     dte_spec = xgb.DMatrix(X_test.iloc[te_spec_mask], enable_categorical=True)
