@@ -1415,6 +1415,50 @@ README.md      TL;DR + reproduction instructions.
      nonrule = correct rule-wrong rows). The second overfit didn't
      mean the first was worthless — they may stack.
 
+### 2026-04-21 — nonrule + rule_pred + dgp_score (null, confirms orthogonality)
+
+- Goal: test whether augmenting the 13 non-rule features with
+  `rule_pred` (categorical, 3 classes) and `dgp_score` (int 0-9)
+  lets XGB learn corrections like "rule says Low but Humidity +
+  Prev_Irrig pattern → actually Medium" that pure nonrule can't
+  express. Risk: the model simply parrots `rule_pred`, losing the
+  architectural orthogonality that makes #7 work.
+- Changed: `scripts/nonrule_with_rulepred.py` — 3-class XGB on 15
+  features (13 non-rule + rule_pred cat + dgp_score num), same
+  5-fold split (seed=42), fixed-greedy-bias sweeps. Artefacts:
+  `oof_xgb_nonrule_rulepred.npy`, `test_xgb_nonrule_rulepred.npy`,
+  `nonrule_rulepred_results.json`.
+- Results (OOF, 5-fold, seed=42):
+  - Standalone argmax = 0.96052 (rule's ceiling), tuned = 0.96481.
+    Above pure rule's 0.96097 — the model DID learn non-rule
+    corrections on top of the rule signal.
+  - Onto greedy alone: peak α=0.05 → 0.97382 (+0.00007 vs 0.97375,
+    within fold noise). Every α > 0.05 strictly hurts.
+  - Onto base (greedy + XGB-nonrule @0.15): β=0 peak 0.97421,
+    monotonic decrease.
+  - 3-way (XGB-nonrule + this + greedy): best at a=0.15, b=0.05,
+    g=0.80 → 0.97418 (Δ = −0.00003 vs base).
+  - Error Jaccard (new vs XGB-nonrule) = 0.037 — they make very
+    different errors (inter 12k, union 333k; new model has
+    6-7× fewer errors overall because it uses rule).
+- **Architectural confirmation**: the non-rule lever works precisely
+  BECAUSE it ignores rule features. Adding `rule_pred` pulls the
+  model's predictions close to greedy (which also uses rule
+  features) — the different errors vs XGB-nonrule are exactly the
+  errors greedy already corrects. So the blend adds redundancy,
+  not orthogonality.
+- New rule: **diversity from "ignoring a feature class" is
+  additive to a model that DOES use that feature class; but
+  diversity from "using the same feature class differently" is
+  usually redundant in a blend**. XGB-nonrule wins by being
+  rule-free, not by being a tree.
+- No submission (fixed-bias sweep capped below +0.0003). LB budget
+  unchanged at 6/10 used, 4 remaining.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Next bets unchanged from previous entry (seed-bag, pseudo-label,
+  self-distillation, rule × non-rule pairwise FE on greedy).
+
 ### 2026-04-21 — nonrule-lever stacking batch: LGBM + weighted-shift + featsubset + EBM (four nulls)
 
 After the non-rule-features-only lever hit LB 0.97352 (+0.00056), this

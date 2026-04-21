@@ -178,9 +178,14 @@ non-rule features".
    parity with XGB (0.424), 29 min/fold compute not justified.
 5. ~~Feature-subset bagging on top-7 non-rule.~~ **NULL 2026-04-21.**
    5 subsets overlap too much; ensemble below XGB-full.
-6. **Non-rule + rule_pred as 1 extra feature** — previously flagged as
-   risky. Fixed-bias sweep will give honest answer. If lifts, rule-
-   aware posterior + non-rule features stacks. Cheap (~15 min).
+6. ~~**Non-rule + rule_pred + dgp_score as features.**~~ **NULL
+   2026-04-21.** Standalone tuned 0.96481 (above rule's 0.96097,
+   so model learned beyond the rule). Blend: onto greedy peak
+   α=0.05 → 0.97382 (+0.00007); onto base monotonic negative;
+   3-way best Δ=−0.00003. Error-Jaccard 0.037 vs XGB-nonrule but
+   the different errors are ones greedy already corrects.
+   **Confirms the lever depends on rule-ignorance**, not just
+   capacity. See `scripts/nonrule_with_rulepred.py`.
 7. **Pseudo-labeling via LB-best**. τ=0.95 was null earlier on
    hybrid_lgbmxgb_blend base; retry with the stronger greedy+nonrule
    base. ~40 min.
