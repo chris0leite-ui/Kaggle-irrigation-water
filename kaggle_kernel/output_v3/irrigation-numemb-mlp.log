@@ -1,0 +1,74 @@
+[{"stream_name":"stdout","time":16.143038475,"data":"[22:27:21] torch 2.10.0+cu128 cuda=True device=cuda\n"}
+,{"stream_name":"stdout","time":16.149713809,"data":"[22:27:21] listing /kaggle/input/\n"}
+,{"stream_name":"stdout","time":16.1648293,"data":"[22:27:21]   /kaggle/input/competitions/playground-series-s6e4/sample_submission.csv\n"}
+,{"stream_name":"stdout","time":16.165589132,"data":"[22:27:21]   /kaggle/input/competitions/playground-series-s6e4/test.csv\n"}
+,{"stream_name":"stdout","time":16.165991876,"data":"[22:27:21]   /kaggle/input/competitions/playground-series-s6e4/train.csv\n"}
+,{"stream_name":"stdout","time":16.166003338,"data":"[22:27:21]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/oof_greedy_blend.npy\n"}
+,{"stream_name":"stdout","time":16.166008875,"data":"[22:27:21]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/test_greedy_blend.npy\n"}
+,{"stream_name":"stdout","time":16.166022228,"data":"[22:27:21] loading data\n"}
+,{"stream_name":"stdout","time":16.170287583,"data":"[22:27:21] train csv: /kaggle/input/competitions/playground-series-s6e4/train.csv\n"}
+,{"stream_name":"stdout","time":16.170300009,"data":"[22:27:21] test csv:  /kaggle/input/competitions/playground-series-s6e4/test.csv\n"}
+,{"stream_name":"stdout","time":16.170304526,"data":"[22:27:21] gate oof:  /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/oof_greedy_blend.npy\n"}
+,{"stream_name":"stdout","time":18.86645066,"data":"[22:27:24] train (630000, 21) test (270000, 20)  gate OOF (630000, 3)\n"}
+,{"stream_name":"stdout","time":18.866488834,"data":"[22:27:24] feature engineering\n"}
+,{"stream_name":"stdout","time":19.115572166,"data":"[22:27:24] features: 35 numeric + 8 categorical\n"}
+,{"stream_name":"stdout","time":19.115648696,"data":"[22:27:24]   cat cols: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region']\n"}
+,{"stream_name":"stdout","time":20.216538675,"data":"[22:27:25]   cat cardinalities: {'Soil_Type': 4, 'Crop_Type': 6, 'Crop_Growth_Stage': 4, 'Season': 3, 'Irrigation_Type': 4, 'Water_Source': 4, 'Mulching_Used': 2, 'Region': 5}\n"}
+,{"stream_name":"stdout","time":20.548437755,"data":"[22:27:25] class priors: {'Low': np.float64(0.5872), 'Medium': np.float64(0.3795), 'High': np.float64(0.0333)}\n"}
+,{"stream_name":"stdout","time":20.644169985,"data":"[22:27:25] --- fold 1/5 | train 504000 val 126000 ---\n"}
+,{"stream_name":"stderr","time":20.831145534,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":20.831206983,"data":"    Found GPU0 Tesla P100-PCIE-16GB which is of cuda capability 6.0.\n"}
+,{"stream_name":"stderr","time":20.831213612,"data":"    Minimum and Maximum cuda capability supported by this version of PyTorch is\n"}
+,{"stream_name":"stderr","time":20.831218817,"data":"    (7.0) - (12.0)\n"}
+,{"stream_name":"stderr","time":20.831223887,"data":"    \n"}
+,{"stream_name":"stderr","time":20.831228798,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":20.831233808,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":20.83123909,"data":"    Please install PyTorch with a following CUDA\n"}
+,{"stream_name":"stderr","time":20.831244374,"data":"    configurations:  12.6 following instructions at\n"}
+,{"stream_name":"stderr","time":20.831249672,"data":"    https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":20.831254822,"data":"    \n"}
+,{"stream_name":"stderr","time":20.831259814,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":20.831581876,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":20.831615096,"data":"Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the current PyTorch installation.\n"}
+,{"stream_name":"stderr","time":20.831619884,"data":"The current PyTorch install supports CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.\n"}
+,{"stream_name":"stderr","time":20.831624084,"data":"If you want to use the Tesla P100-PCIE-16GB GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":20.831628544,"data":"\n"}
+,{"stream_name":"stderr","time":20.831632698,"data":"  queued_call()\n"}
+,{"stream_name":"stdout","time":21.000576582,"data":"[22:27:26]   model params: 1,009,075\n"}
+,{"stream_name":"stderr","time":27.621860298,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":27.621904335,"data":"  File \"/kaggle/src/script.py\", line 437, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":27.622357739,"data":"    main()\n"}
+,{"stream_name":"stderr","time":27.622399877,"data":"  File \"/kaggle/src/script.py\", line 314, in main\n"}
+,{"stream_name":"stderr","time":27.62264701,"data":"    logits = model(xn, xc)\n"}
+,{"stream_name":"stderr","time":27.622744392,"data":"             ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.622778408,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":27.6256569,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":27.625749835,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.625761684,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":27.626158138,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":27.626223647,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.626258812,"data":"  File \"/kaggle/src/script.py\", line 162, in forward\n"}
+,{"stream_name":"stderr","time":27.626463325,"data":"    e_num = self.num_emb(x_num).flatten(1)  # (B, n_num * emb_num)\n"}
+,{"stream_name":"stderr","time":27.626514602,"data":"            ^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.626528786,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":27.626957384,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":27.627050242,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.627099054,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":27.627564189,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":27.627615357,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":27.627664907,"data":"  File \"/kaggle/src/script.py\", line 138, in forward\n"}
+,{"stream_name":"stderr","time":27.627853845,"data":"    return x.unsqueeze(-1) * self.w + self.b\n"}
+,{"stream_name":"stderr","time":27.62791735,"data":"           ~~~~~~~~~~~~~~~~^~~~~~~~\n"}
+,{"stream_name":"stderr","time":27.627987022,"data":"torch.AcceleratorError: CUDA error: no kernel image is available for execution on the device\n"}
+,{"stream_name":"stderr","time":27.627998178,"data":"Search for `cudaErrorNoKernelImageForDevice' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.\n"}
+,{"stream_name":"stderr","time":27.628015831,"data":"CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\n"}
+,{"stream_name":"stderr","time":27.628019797,"data":"For debugging consider passing CUDA_LAUNCH_BLOCKING=1\n"}
+,{"stream_name":"stderr","time":27.628022389,"data":"Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n"}
+,{"stream_name":"stderr","time":27.628024905,"data":"\n"}
+,{"stream_name":"stderr","time":33.653216982000004,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":33.653254268,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":34.050844447,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":34.050871041,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":34.869137102,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":36.564442298,"data":"[NbConvertApp] Writing 376882 bytes to __results__.html\n"}
+]

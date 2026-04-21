@@ -33,8 +33,32 @@ Outputs (/kaggle/working):
   submission_mlp_numemb_tuned.csv
 """
 from __future__ import annotations
-import json, math, os, time
+import json, math, os, subprocess, sys, time
 from pathlib import Path
+
+# Kaggle's pre-installed torch 2.10 drops sm_60 (P100) support. If we
+# happen to land on a P100 kernel (random allocation), detect that and
+# install torch 2.8 with cu121 which still ships sm_60 kernels. This
+# only runs when needed — on T4/L4/etc we keep the pre-installed torch.
+def _gpu_arch():
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+            text=True, timeout=10,
+        ).strip().splitlines()
+        return [x.strip() for x in out if x.strip()]
+    except Exception as e:
+        return [f"err:{e}"]
+
+_arches = _gpu_arch()
+print(f"[boot] gpu compute_cap = {_arches}", flush=True)
+if any(a in ("6.0", "6.1") for a in _arches):
+    print("[boot] sm_60/61 detected — installing torch 2.8.0 cu121 (has P100 kernels)", flush=True)
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--quiet",
+        "torch==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu121",
+    ])
+    print("[boot] torch reinstall done", flush=True)
 
 import numpy as np
 import pandas as pd
