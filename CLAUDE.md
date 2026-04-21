@@ -587,10 +587,22 @@ README.md      TL;DR + reproduction instructions.
   roughly additively). This is the first experiment on this branch
   that moves OOF cleanly via orthogonal signal rather than variance
   reduction.
-- LB delta: n/a. New best candidate on disk is
-  `submission_blend_lgbm_xgb_dist.csv` at OOF 0.97327. Expected LB
-  ≈ 0.97202 given the −0.00125 OOF↔LB gap from earlier calibration
-  — still ~0.009 below the tied pack (0.98114).
+- LB delta: submitted `submission_blend_lgbm_xgb_dist.csv` →
+  **LB public = 0.97170**. Δ vs last LB (`lgbm_dgp_tuned`, 0.97137)
+  = **+0.00033** — real lift, carries the bag + model-diversity
+  story through to LB. Δ vs first LB (`baseline_lgbm_tuned`,
+  0.96972) = **+0.00198**.
+- Calibration ladder (OOF − LB gap widens as OOF climbs):
+    single tuned LGBM       0.97097 → 0.96972  gap 0.00125
+    LGBM+DGP (prior merge)  0.97271 → 0.97137  gap 0.00134
+    **bag + blend (today)   0.97327 → 0.97170  gap 0.00157**
+  Gap grew +0.00032 over the ladder — modest OOF overfit from
+  stacked selections (log-bias coord ascent on OOF + α sweep on
+  OOF + model picking). Still well below 1σ fold noise (0.00088),
+  so OOF remains a useful proxy; just apply a bit of discount to
+  predicted LB above 0.972.
+- LB budget: 3/10 spent today, 7 remaining. Pack at 0.98114 is
+  +0.00944 above us; leader 0.98219 +0.01049 above.
 - Next bet: (a) seed-bag XGB too, then blend 2 bags; (b) add a
   CatBoost or ExtraTrees component for a 3-model blend; (c) stack
   the blend's OOF probs as features into a final LGBM "meta" model
