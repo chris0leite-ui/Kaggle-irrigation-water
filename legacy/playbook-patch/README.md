@@ -67,6 +67,21 @@ existing Day 1 / Workflow / Methodology scaffold:
 7. **Daily-log format** (goal/changed/result/read-out/next-bet)
 8. **Hypothesis board structure** (current best / open bets / ruled
    out / parked).
-9. **Anti-patterns to refuse** (LB without OOF gate, retuning bias
-   on layered blends, etc.).
-10. **Session-close checklist.**
+9. **Error analysis as first-class primitive** — default diagnostics
+   (confusion matrix, per-row inspection, Cohen's d on errors,
+   confidence-correctness scatter, per-group error rates).
+10. **Parallel-Claude-instance coordination** — branch-naming, LB
+    budget splits declared in CLAUDE.md, OOFS.md as shared manifest,
+    session-start protocol, merge-conflict playbook.
+11. **Compute-budget-aware strategy** — Laptop / 1-GPU / Cluster
+    table matching experiments to compute envelope; implications
+    for what to front-load vs skip.
+12. **Kill-fold-early heuristic** — 2σ below current best at fold 1
+    stops the run; exceptions for noisy metrics and exploratory runs.
+13. **Tie-breaker decision table** — 8 rules (deterministic>learned,
+    fewer-HPs>more, simpler-features>larger, prob>rank,
+    architectural>same-family, seed-bag>single, inference-time>train-
+    time, proven-LB>unknown-LB). Used for final-submission selection.
+14. **Anti-patterns to refuse** (LB without OOF gate, retuning bias
+    on layered blends, one-more-experiment-when-Δ<fold-std, etc.).
+15. **Session-close checklist.**

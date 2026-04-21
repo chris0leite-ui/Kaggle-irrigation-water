@@ -1,8 +1,8 @@
 From 16077a04feeb6247dd55aa56b130cc5b10e5bf5b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Tue, 21 Apr 2026 21:20:55 +0000
-Subject: [PATCH] Expand methodology playbook with learnings from irrigation
- competition
+Subject: [PATCH 1/2] Expand methodology playbook with learnings from
+ irrigation competition
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -427,6 +427,179 @@ index 78fcf68..011ad8e 100644
  
  ## Rejected ideas
  
+-- 
+2.43.0
+
+
+From 80dba7e5231f1d618fd3cc7b89c3f8d9a0913d96 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 21 Apr 2026 21:26:55 +0000
+Subject: [PATCH 2/2] Add error-analysis, parallel-coordination,
+ compute-budget, kill-fold, tie-breaker sections
+
+Five additional sections to the playbook, derived from patterns that
+surfaced during the irrigation competition sessions:
+
+1. Error analysis as first-class primitive. Default diagnostics
+   (confusion matrix, per-row inspection, Cohen's d on errors,
+   confidence-correctness scatter, per-group error rates) belong
+   in the normal loop, not a last-resort.
+2. Parallel-Claude-instance coordination. Branch-naming, LB-budget
+   splits declared in CLAUDE.md, OOFS.md as the shared artifact
+   manifest, session-start protocol, merge-conflict expectations.
+3. Compute-budget-aware strategy. Table matching Laptop / 1 GPU /
+   Cluster envelopes to cheap/medium/skip experiments. Implications
+   for what to front-load and what to skip.
+4. Kill-fold-early heuristic. 2sigma below current best at fold 1 =
+   stop. Exceptions for high-variance metrics and exploratory runs.
+5. Tie-breaker decision table. Deterministic > learned at parity,
+   fewer HPs > more, simpler features > larger, prob/log > rank,
+   architectural > same-family, seed-bag > single, proven LB >
+   new-with-unknown-LB. Used for final-submission selection.
+---
+ CLAUDE.md | 129 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 129 insertions(+)
+
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 5539b6e..c8dd456 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -246,6 +246,135 @@ phase, not per commit.
+ - **Ruled out this competition**: with 1–2 line reason
+ - **Parked**: for possible revival if stuck
+ 
++## Error analysis is a first-class primitive
++
++Error analysis belongs in the normal experiment loop, not a
++"we've plateaued" last-resort. It routinely surfaces the single
++highest-ROI next lever by telling you **which rows are wrong**
++rather than **how wrong the average is**.
++
++Default diagnostics to run after any model hits a CV ceiling:
++
++- **Confusion matrix + per-class recall/precision.** Where is the
++  mass? For imbalanced problems, "X → Y" count vs "Y → X" count
++  reveals which boundary needs work and at which decision
++  threshold.
++- **Per-row error inspection on a stratified subsample.** Sample
++  50–100 misclassified rows per confusion cell. Look for
++  per-feature patterns (e.g. all errors have Humidity > 70 %).
++- **Cohen's d on candidate-lever features, computed only on the
++  error subset.** Rank "which feature moves between correct and
++  wrong rows". Features that look useless on the full-train
++  F-stat ranking often light up here.
++- **Confidence × correctness scatter.** If high-confidence errors
++  exist (P > 0.95 but wrong), pseudo-labeling and self-training
++  will compound them. Tells you whether the model is
++  miscalibrated or just wrong.
++- **Error-set Jaccard between candidate blend models.** Already
++  covered in blending section — apply it before spending compute
++  on a weight sweep.
++- **Per-group error rates** (e.g. per-score bin, per-category,
++  per-fold). Uncovers sub-domain specialists worth building or
++  routing rules worth adding.
++
++Commit the error-analysis artifact (`plots/errors/*.html` or a
++single notebook) next to the model that produced it so a future
++session can replay the diagnostic without re-running inference.
++
++## Parallel-Claude-instance coordination
++
++It's common to have 2–3 Claude Code sessions working on the same
++competition in parallel, each on its own feature branch. Without
++coordination, both can burn LB submissions and duplicate work.
++
++Conventions that work:
++
++- **One branch per session**, named `claude/<topic>-<suffix>`.
++  Never commit directly to `main` without merging through a
++  branch.
++- **LB budget split declared in `CLAUDE.md`.** "Budget today:
++  6/10 used; branch A may use 2 more, branch B may use 2 more."
++  Update after every submission.
++- **`OOFS.md` is the shared artifact manifest.** Every branch
++  appends its committed OOF files; other branches blend against
++  them via `np.load("scripts/artifacts/<their-file>")`.
++- **Session start protocol**: fetch `origin`, `git log --oneline
++  origin/main..HEAD` and `origin/main..origin/<other-branches>`
++  to see what landed since last session. Update `CLAUDE.md`'s
++  "Current best" from the freshest LB result.
++- **When stuck above a plateau**, prefer dispatching an
++  architecturally different branch (e.g. one on NN, one on
++  stacking) over both branches grinding the same lever.
++- **Merge conflict expected files**: `CLAUDE.md`, `NEXT_STEPS.md`,
++  `REPORT.md`, `LEARNINGS.md`. Resolve by concatenating both
++  sides (session logs) or picking the winner (hypothesis board).
++
++## Compute-budget-aware strategy
++
++Different compute envelopes change which experiments are cheap
++and which are expensive. Match the strategy to what you have.
++
++| Envelope | Cheap | Medium | Skip |
++|---|---|---|---|
++| **Laptop, no GPU** | LGBM/XGB 5-fold on 100k sample, heuristics, linear baselines, log-bias tuning, per-row error EDA | full-train CV of a single model, 3-seed bagging | CatBoost, NN, Optuna HP sweep, 10-seed bagging |
++| **1 GPU, 16 CPU cores** | everything in Laptop, plus full-train LGBM/XGB CV, small MLP, CatBoost, FT-Transformer on subsets | 5-seed bagging, pairwise blends, 50-trial Optuna, medium NN | distillation across 10 models, full 200-trial HP search on big data |
++| **Multi-GPU / cluster** | everything above | full-scale HP search, ensemble of deep tabular NNs, pseudo-labeling with retraining | (no hard limit — budget on $/delta) |
++
++Implications:
++
++- On a laptop, **front-load EDA and heuristics** — they're
++  disproportionately valuable when full-train CV is expensive.
++- With 1 GPU, still default to CPU-only trees; reserve GPU for
++  the one NN experiment that has a genuine architectural
++  hypothesis.
++- Don't promote a technique to the playbook until it's been
++  validated on the compute envelope typical for Kaggle
++  Playgrounds (laptop or small instance) — methods that only
++  work on a cluster aren't portable.
++
++## Kill-fold-early heuristic
++
++When a new experiment's fold 1 score lands 2σ or more below the
++current best, **stop at fold 1** — 4 more folds are unlikely to
++recover. Use the fold-to-fold std on the current best (typically
++~0.0007–0.001 on tabular competitions after scale) to set σ.
++
++Exceptions:
++
++- Fold 1 happened to draw a harder-than-average validation slice
++  — check per-class recall; if one class is anomalously low,
++  re-run a different seed rather than killing.
++- The metric is noisier than fold-std (small test set, heavy
++  class imbalance at k<5) — require 3σ margin before killing.
++- The experiment's expected value was "learn something, not
++  top the leaderboard" (architectural exploration, ablation,
++  sanity check) — complete all folds regardless.
++
++Document killed experiments as nulls with "killed at fold 1,
++delta was −X" so the next session doesn't retry.
++
++## Tie-breaker decision table
++
++When two approaches have equal OOF, pick the one that will
++transfer better to LB. Rules, roughly in priority order:
++
++| Tie between | Prefer | Why |
++|---|---|---|
++| Deterministic rule ≥99.99% vs learned model | Rule | Zero test-time variance; learned can misfire on OOD |
++| Fewer tuned hyperparameters vs more | Fewer | Selection overfit compounds per tuning dimension |
++| Simpler feature set vs larger | Simpler | Distribution shift risk grows with feature count |
++| Prob/log blend vs rank/Borda | Prob/log | Preserves calibrated posteriors needed for threshold-tuned metrics |
++| Architectural diversity vs same-family diversity | Architectural | Same-family often produces correlated errors |
++| Seed-bag vs single seed | Seed-bag | Cheap variance reduction |
++| Inference-time ensemble vs train-time mixture | Inference-time | Reproducible, diagnosable; can swap components later |
++| New model with unknown LB vs proven LB at same OOF | Proven LB | Known transfer > unknown transfer |
++
++On the final-submission-selection step (typically 2 of 2), use
++this table to pick **one safe and one stretch**: the safe one
++wins every tie-breaker above; the stretch one may accept a
++tie-breaker loss in exchange for a higher OOF / architectural
++novelty expectation.
++
+ ## Anti-patterns (refuse these)
+ 
+ - **LB submission without an OOF gate.** Every submission should
 -- 
 2.43.0
 
