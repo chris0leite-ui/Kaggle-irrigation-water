@@ -1415,6 +1415,51 @@ README.md      TL;DR + reproduction instructions.
      nonrule = correct rule-wrong rows). The second overfit didn't
      mean the first was worthless — they may stack.
 
+### 2026-04-21 — two-stage shift-correction (brainstorm #8, null)
+
+- Goal: predict ordinal shift `y - rule_pred + 2 ∈ {0..4}` from
+  non-rule features only, convert to y-probs via the rule offset
+  map, blend into greedy with fixed bias. Hypothesis: by baking
+  rule_pred into the target, the model concentrates capacity on the
+  NN-perturbation residual instead of re-learning the class prior.
+- Changed: `scripts/nonrule_shift_correction.py` — 5-class
+  `multi:softprob` XGB on 13 non-rule features, same 5-fold stratified
+  split on y (seed=42). Conversion `shift5_to_y3(p_shift, rule_pred)`
+  with clipping at y=[0,2]. Artefacts: `oof_xgb_shift5.npy`,
+  `test_xgb_shift5.npy`, `oof_xgb_shift_to_y.npy`,
+  `test_xgb_shift_to_y.npy`, `shift_results.json`.
+- Observed shift distribution on train (after conversion):
+  `shift=-1: 0.52%`, `shift=0: 98.36%`, `shift=+1: 1.12%`. **No shift
+  of ±2** — the NN never flips two classes.
+- Results (OOF tuned bal_acc, 5-fold, seed=42, fixed greedy bias):
+  - Standalone shift->y: argmax 0.96097, tuned 0.96097 — matches the
+    rule's ceiling. Model converged to "parrot rule_pred".
+  - Onto greedy: α=0.00 peak 0.97375, α=0.05 0.97372 (−0.00002),
+    α=0.15 0.97326 (−0.00049). Monotone negative.
+  - Onto greedy+nonrule (current LB best): α=0.00 peak 0.97421,
+    α=0.10 0.97393 (−0.00028). Also monotone negative.
+- Diagnostic: best_iter 59-108 rounds (vs 1100+ for direct-y
+  nonrule #7). Early stopping saturated on "predict shift=0 always"
+  — the 98.36% majority dominates 5-class log-loss and the rare
+  shift-±1 signal never gets enough gradient to matter.
+- **Lesson**: the shift framing is structurally fragile when the
+  majority class dominates ≥95% of the target. Direct-y 3-class
+  keeps the model learning per-row Low/Medium/High discrimination
+  across all 630k rows; shift framing lets it collapse to a
+  one-class predictor. Would need either (a) heavy sample-weight
+  upweighting of shift-±1 rows, (b) stratified balanced sampling,
+  or (c) binary classifier on "is flipped?" + direction head.
+- No LB submission (fixed-bias sweep strictly negative). LB budget
+  unchanged at 6/10 used, 4 remaining.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Next bet: brainstorm #7 follow-up #1 — seed-bag the non-rule
+  model (5 seeds, ~15 min). Cheapest variance reduction on the
+  only architecturally-diverse leg we have. Or #4 — stack the
+  binhigh head with non-rule in the greedy pipeline (still on
+  fixed bias, just a 2-parameter sweep); binhigh's diagonal
+  ~0.99 AUC on High was never fully tested with honest tuning.
+
 ### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
 
 - Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,

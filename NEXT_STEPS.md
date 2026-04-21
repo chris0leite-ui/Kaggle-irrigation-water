@@ -165,10 +165,18 @@ ranked cheapest-first:
 1. **Seed-bag the non-rule model** (5 seeds, ~20 min). Variance
    reduction on the only-architecturally-diverse leg. Expected
    +0.00005–0.0002 on LB.
-2. **Brainstorm #8 (two-stage rule-base + non-rule correction)** —
-   explicitly predict `y − rule_pred` as signed ordinal shift using
-   non-rule features only. Well-motivated now that #7 worked. Expected
-   +0.0001–0.0005.
+2. ~~**Brainstorm #8 (two-stage rule-base + non-rule correction).**~~
+   **FALSIFIED 2026-04-21.** 5-class ordinal shift `y−rule_pred+2` is
+   structurally fragile: 98.36% of rows have shift=0, so early
+   stopping saturates on the majority class (best_iter 59-108 vs
+   1100+ for direct-y #7). Standalone converged to rule's 0.96097
+   ceiling; blend onto greedy monotonically negative. Direct-y
+   framing (#7) keeps the model learning per-row Low/Medium/High
+   discrimination across all rows; shift framing collapses to
+   "parrot rule_pred". Revisit only with sample-weighted training
+   (upweight ±1 shift 100×) or binary flip-detector + direction
+   head — neither is "cheap" anymore. See
+   `scripts/nonrule_shift_correction.py` + CLAUDE.md entry.
 3. **LGBM variant of the non-rule model** + 2-way or 3-way log-blend
    into greedy. Model-family diversity inside the non-rule leg.
    Expected +0.0001–0.0003.
