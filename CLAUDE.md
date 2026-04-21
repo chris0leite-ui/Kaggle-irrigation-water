@@ -1415,6 +1415,72 @@ README.md      TL;DR + reproduction instructions.
      nonrule = correct rule-wrong rows). The second overfit didn't
      mean the first was worthless — they may stack.
 
+### 2026-04-21 — nonrule-lever stacking batch: LGBM + weighted-shift + featsubset + EBM (four nulls)
+
+After the non-rule-features-only lever hit LB 0.97352 (+0.00056), this
+session tested four follow-ups to stack more diversity into the
+same lever. All four null — the non-rule signal is fully captured
+by the single XGB-nonrule model on 13 features; no additional
+architecture or feature view adds orthogonal bits at this base.
+
+- **LGBM variant of nonrule** (`scripts/nonrule_lgbm_blend.py`).
+  Standalone OOF argmax 0.42924 / tuned 0.56791 — tracks XGB-
+  nonrule (0.42965 / 0.56966) to 3 decimals. Onto greedy alone:
+  peak α=0.20 → 0.97415 (+0.00041, below XGB's +0.00047).
+  2D sweep XGB_nr + LGBM_nr + greedy: best (0.05, 0.15, 0.80) →
+  0.97421 ties the base. 1D stacking: β=0 wins. LGBM and XGB
+  produce near-identical predictions on 13 non-rule features —
+  leaf-wise vs level-wise tree construction not enough diversity.
+
+- **Weighted-shift retry** (`scripts/nonrule_shift_weighted.py`).
+  Sample_weight=100 on shift≠0 rows. Model learns flip
+  discrimination now (y-argmax 0.76 vs vanilla's 0.96 parrot-
+  rule) but standalone tuned 0.95892 — WORSE than the rule
+  (0.96097). Blend sweep monotone negative from α=0. Upweight
+  100x overshot: model predicts too many rows as flipped,
+  degrading clean-row predictions. Would need HP tuning on the
+  weight.
+
+- **Feature-subset bagging (#+ user idea)**
+  (`scripts/nonrule_featsubset_bag.py`). 5 XGB sub-models, each
+  on a different 4-feature subset of 7 top non-rule features
+  (Humidity, Prev_Irrig, EC, Field_Area, Region, Crop_Type,
+  Soil_Type). Log-mean ensemble standalone tuned 0.53720 —
+  BELOW both XGB-nonrule full (0.56966) and every individual
+  subset except D (0.40620, weakest). Onto greedy alone: peak
+  α=0.15 → 0.97383 (+0.00009, way below XGB's +0.00047). Onto
+  base monotone negative. 3-way XGB+ens+greedy also null. Each
+  individual subset at β=0.10 onto base: all −0.00011 to
+  −0.00031. Diagnosis: the 5 subsets share too many features
+  (each feature in 3 subsets), ensemble converges to a weaker
+  version of XGB-nonrule-full. Feature-subspace diversity on
+  only 7 features doesn't have room.
+
+- **EBM variant** (`scripts/nonrule_ebm_blend.py`). Fold 1 took
+  **1742s (29 min)**, argmax bal 0.42421 — identical to XGB (0.42913)
+  and LGBM (0.42730). Killed after fold 1: (a) 5 folds would cost
+  2.5+ hours, (b) fold-1 argmax parity with LGBM/XGB means EBM
+  won't add blend diversity at this feature set — same ceiling,
+  different architecture. Saved for potential revival only if a
+  lever shows up that makes the compute justifiable.
+
+- **Summary of the stacking batch**: XGB-nonrule-full on 13
+  features is the single best expression of the non-rule lever.
+  LGBM, EBM, feature-subset, and shift-weighted all track or
+  underperform it. The diversity we need has to come from
+  somewhere OTHER than "different model on the same non-rule
+  features" — likely from either different features (rule ×
+  non-rule cross FE still untested on greedy), a different fold
+  split (seed-bag), or a genuinely new data source.
+
+- LB budget: **6/10 used today** (unchanged). Current best:
+  `submission_greedy_nonrule_blend.csv` OOF 0.97421 / LB 0.97352.
+- Next bet: seed-bag XGB-nonrule (5 seeds), OR try
+  rule_pred-as-feature for nonrule (which we'd rejected as
+  architectural leak but is worth a fixed-bias probe), OR go
+  broader: test-time augmentation, self-distillation, or
+  pseudo-labeling via current best.
+
 ### 2026-04-21 — two-stage shift-correction (brainstorm #8, null)
 
 - Goal: predict ordinal shift `y - rule_pred + 2 ∈ {0..4}` from

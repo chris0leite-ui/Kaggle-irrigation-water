@@ -162,28 +162,32 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 Non-rule lever validated (LB 0.97352, +0.00056). Stack follow-ups
 ranked cheapest-first:
 
+**2026-04-21 update**: four stacking follow-ups all null. XGB-nonrule-
+full on 13 features is the single best expression of the non-rule
+lever; LGBM/EBM/feature-subset/weighted-shift all track or underperform
+it. Diversity has to come from OUTSIDE "different model on same
+non-rule features".
+
 1. **Seed-bag the non-rule model** (5 seeds, ~20 min). Variance
    reduction on the only-architecturally-diverse leg. Expected
-   +0.00005–0.0002 on LB.
-2. ~~**Brainstorm #8 (two-stage rule-base + non-rule correction).**~~
-   **FALSIFIED 2026-04-21.** 5-class ordinal shift `y−rule_pred+2` is
-   structurally fragile: 98.36% of rows have shift=0, so early
-   stopping saturates on the majority class (best_iter 59-108 vs
-   1100+ for direct-y #7). Standalone converged to rule's 0.96097
-   ceiling; blend onto greedy monotonically negative. Direct-y
-   framing (#7) keeps the model learning per-row Low/Medium/High
-   discrimination across all rows; shift framing collapses to
-   "parrot rule_pred". Revisit only with sample-weighted training
-   (upweight ±1 shift 100×) or binary flip-detector + direction
-   head — neither is "cheap" anymore. See
-   `scripts/nonrule_shift_correction.py` + CLAUDE.md entry.
-3. **LGBM variant of the non-rule model** + 2-way or 3-way log-blend
-   into greedy. Model-family diversity inside the non-rule leg.
-   Expected +0.0001–0.0003.
-4. **Non-rule + rule_pred as explicit feature** — lets the model
-   condition its correction on what the rule says. Mid-risk: could
-   leak rule features back and lose the architectural orthogonality
-   that made #7 work.
+   +0.00005–0.0002 on LB. Cheapest remaining insurance.
+2. ~~Brainstorm #8 shift-correction.~~ **FALSIFIED.**
+3. ~~LGBM variant of nonrule.~~ **NULL 2026-04-21.** Tracks XGB to 3
+   decimals on 13 features.
+4. ~~EBM variant of nonrule.~~ **ABORTED 2026-04-21.** Fold-1 argmax
+   parity with XGB (0.424), 29 min/fold compute not justified.
+5. ~~Feature-subset bagging on top-7 non-rule.~~ **NULL 2026-04-21.**
+   5 subsets overlap too much; ensemble below XGB-full.
+6. **Non-rule + rule_pred as 1 extra feature** — previously flagged as
+   risky. Fixed-bias sweep will give honest answer. If lifts, rule-
+   aware posterior + non-rule features stacks. Cheap (~15 min).
+7. **Pseudo-labeling via LB-best**. τ=0.95 was null earlier on
+   hybrid_lgbmxgb_blend base; retry with the stronger greedy+nonrule
+   base. ~40 min.
+8. **Self-distillation** — train XGB to match LB-best predictions on
+   all train rows. ~40 min.
+9. **Rule × non-rule pairwise FE applied to greedy base models**
+   (ruled out on hybrid_lgbmxgb_blend; worth re-checking on greedy).
 
 Methodology: every follow-up uses the **fixed-greedy-bias sweep
 first**; only LB-probe if fixed-bias OOF lifts ≥ +0.0003.
