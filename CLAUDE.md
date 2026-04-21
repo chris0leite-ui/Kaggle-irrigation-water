@@ -458,6 +458,53 @@ README.md      TL;DR + reproduction instructions.
   Cell-level empirical Bayes is henceforth ruled out as a stacking
   candidate.
 
+### 2026-04-21 — per-score experts + noise-inversion head + GCE loss (three nulls)
+
+- Goal: test brainstorm ideas #3 (noise-inversion head), #5 (GCE
+  noise-robust loss), #8 (per-score expert models) to see whether
+  any of the unexplored orthogonal levers beats LGBM-dist (0.97266).
+- Changed: `scripts/score_experts.py` (one LGBM per score bin,
+  dropping rule cols, routing val rows by their score);
+  `scripts/noise_inversion.py` (three per-rule-label LGBM heads,
+  rule cols removed so each head specialises on P(y_obs | rule, x));
+  `scripts/lgbm_gce.py` (custom multiclass GCE objective q=0.7,
+  class-major grad/hess, same feature set as benchmark_dist).
+  Artefacts: `oof_score_experts.npy`, `oof_noise_inversion.npy`,
+  `oof_lgbm_gce.npy` and matching JSONs + submissions.
+- Results (OOF bal_acc, 5-fold stratified, seed=42):
+  - **Per-score experts (#8)**: 0.97149 tuned (+0.00052 vs
+    baseline, −0.00117 vs LGBM-dist). Splitting 630k rows into
+    10 score bins (~80–120k each) and training binary/3-class
+    specialists loses more data per expert than specialisation
+    gains.
+  - **Noise-inversion head (#3)**: 0.96768 tuned (**−0.00329** vs
+    baseline). Dropping the 6 rule cols to force the head onto
+    non-rule features removed too much distance information;
+    the rule=High head (only 20 943 rows) is especially starved.
+    Bias drifted to [−2.27, −1.83, +3.40] — the Low-vs-Medium head
+    trains to a flat prob vector dominated by priors.
+  - **LGBM + GCE q=0.7 (#5)**: 0.96500 tuned — buggy. LGBM hits
+    `best_iter=1` on every fold (training does not progress after
+    the first boosting round), then log-bias tuning converges to
+    [+3.33, +3.27, +3.40] to rescue argmax. The grad/hess scaling
+    of the custom objective is almost certainly off; a q=0.7 GCE
+    that early-stops instantly is not the real GCE. Parked until
+    someone wants to tune scale + learning rate properly.
+- Observation: the "split data into specialists" class of ideas
+  (#3, #8) both lose to a single 630k-row LGBM that already has
+  the score/distance features. Sklearn-style base-learner ensembles
+  aren't orthogonal to LGBM's tree-level splits — the trees find
+  the same per-score partitions for free at no data cost.
+- LB delta: n/a. Best candidate on disk remains
+  `submission_lgbm_dist_tuned.csv` (OOF 0.97266, statistically tied
+  with `submission_lgbm_dgp_tuned.csv`).
+- Next bet: the remaining orthogonal levers worth trying before
+  burning an LB sub are (a) seed-bag LGBM-dist (3–5 seeds, retune
+  bias on averaged OOF), (b) XGBoost on the same dist features
+  and blend, (c) rework GCE with proper grad-scale debugging
+  (or try SCE / bootstrap loss instead). Ruled out on this branch:
+  per-score experts, noise-inversion head, naive GCE.
+
 ## Hypothesis board
 
 - **Open**:
@@ -512,6 +559,26 @@ README.md      TL;DR + reproduction instructions.
     hand-engineered domain features ruled out earlier. Cell
     probabilities only help if paired with a model that doesn't
     already see the 6 rule cols.
+  - **Per-score expert LGBMs** (#8) — 0.97149 tuned OOF, below
+    both baseline LGBM (0.97097 by +0.00052, within fold noise)
+    and LGBM-dist (0.97266 by −0.00117). Partitioning train into
+    10 score bins and training binary/3-class specialists per bin
+    loses more data per fit than specialisation buys back. LGBM at
+    127 leaves already splits on (score, stage) internally, so
+    "explicit experts" is redundant.
+  - **Noise-inversion head** (#3) — 0.96768 tuned OOF, **−0.00329
+    vs baseline**. Three per-rule-label LGBM heads (Low / Medium /
+    High routed by rule(x)), with rule cols removed so each head
+    specialises on P(y_obs | rule, x). The rule=High head is
+    data-starved (~21k rows) and the Low-vs-Medium head trains to
+    a near-prior flat vector. Dropping rule cols removes distance
+    information the heads desperately need.
+  - **Naive GCE loss** (#5, q=0.7) — 0.96500 tuned OOF. Custom
+    multiclass objective hits `best_iter=1` on every fold: the
+    grad/hess scaling doesn't let LGBM progress past the first
+    round. Result is essentially a uniform-prob prediction rescued
+    by an aggressive log-bias. Real GCE requires debug on the
+    gradient scale and learning-rate; parked until that's done.
   - **LGBM hyperparameter optimization** (Optuna TPE, 47 trials,
     200k subsample, 10-dim search space). Best
     `num_leaves=46, max_depth=3, lr=0.064` hit 0.97047
