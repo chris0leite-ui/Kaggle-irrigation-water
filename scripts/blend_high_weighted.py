@@ -27,7 +27,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import balanced_accuracy_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
+
+
+def fast_bal_acc(y, pred, cc):
+    m = pred == y
+    hit = np.array([m[y == k].sum() for k in range(3)])
+    return float((hit / np.maximum(cc, 1)).mean())
 
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
@@ -38,10 +44,10 @@ CLS2IDX = {c: i for i, c in enumerate(CLASSES)}
 IDX2CLS = {i: c for c, i in CLS2IDX.items()}
 
 
-def tune_log_bias(oof, y, prior):
+def tune_log_bias(oof, y, prior, cc):
     log_oof = np.log(np.clip(oof, 1e-9, 1.0))
     bias = -np.log(prior)
-    best = balanced_accuracy_score(y, (log_oof + bias).argmax(axis=1))
+    best = fast_bal_acc(y, (log_oof + bias).argmax(axis=1), cc)
     gd = np.linspace(-3.0, 3.0, 61)
     gh = np.linspace(-3.0, 6.0, 91)
     for _ in range(20):
@@ -52,7 +58,7 @@ def tune_log_bias(oof, y, prior):
             scores = []
             for g in grid:
                 base[k] = bias[k] + g
-                scores.append(balanced_accuracy_score(y, (log_oof + base).argmax(axis=1)))
+                scores.append(fast_bal_acc(y, (log_oof + base).argmax(axis=1), cc))
             j = int(np.argmax(scores))
             if scores[j] > best + 1e-6:
                 bias[k] = bias[k] + grid[j]
@@ -73,6 +79,7 @@ def main():
     te_ids = pd.read_csv("data/test.csv", usecols=[ID])[ID].values
     y = tr[TARGET].map(CLS2IDX).values.astype(np.int32)
     prior = np.bincount(y) / len(y)
+    cc = np.bincount(y, minlength=3)
 
     # anchor: hybrid_v3 (current best).
     oof_h = np.load(ART / "oof_xgb_hybrid_v3.npy")
@@ -92,7 +99,7 @@ def main():
             others_test.append(np.load(p))
     print(f"hybrid_v3 OOF shape {oof_h.shape}; {len(others)} other models for consensus")
 
-    bias_h, bal_h = tune_log_bias(oof_h, y, prior)
+    bias_h, bal_h = tune_log_bias(oof_h, y, prior, cc)
     pred_h = (np.log(np.clip(oof_h, 1e-9, 1.0)) + bias_h).argmax(axis=1)
     pcr_h = per_class_recall(y, pred_h)
     print(f"hybrid_v3 standalone: bal={bal_h:.5f}  "
@@ -124,7 +131,7 @@ def main():
             test_adj = np.clip(test_adj, 1e-9, None)
             test_adj /= test_adj.sum(axis=1, keepdims=True)
 
-            bias, tuned = tune_log_bias(oof_adj, y, prior)
+            bias, tuned = tune_log_bias(oof_adj, y, prior, cc)
             pred = (np.log(np.clip(oof_adj, 1e-9, 1.0)) + bias).argmax(axis=1)
             pcr = per_class_recall(y, pred)
             rows.append({"gamma": float(gamma), "tuned": float(tuned),

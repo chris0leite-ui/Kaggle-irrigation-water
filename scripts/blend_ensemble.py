@@ -51,6 +51,10 @@ CANDIDATES = {
     "xgb_spec_678":     ("oof_xgb_spec_678.npy",      "test_xgb_spec_678.npy"),
     "xgb_hybrid":       ("oof_xgb_hybrid_routed_spec.npy", "test_xgb_hybrid_routed_spec.npy"),
     "xgb_hybrid_v3":    ("oof_xgb_hybrid_v3.npy",     "test_xgb_hybrid_v3.npy"),
+    "main_hybrid_lgbmxgb": ("oof_hybrid_lgbmxgb_blend.npy", "test_hybrid_lgbmxgb_blend.npy"),
+    "main_lgbm_te_orig": ("oof_lgbm_te_orig.npy",    "test_lgbm_te_orig.npy"),
+    "main_xgb_vanilla":  ("oof_xgb_vanilla_dist.npy", "test_xgb_vanilla_dist.npy"),
+    "our_greedy":        ("oof_blend_greedy_final.npy", "test_blend_greedy_final.npy"),
 }
 
 
