@@ -798,6 +798,67 @@ README.md      TL;DR + reproduction instructions.
      rule-level ensemble, and targets exactly the 10,304 within-cell
      flips.
 
+### 2026-04-21 — rule × non-rule pairwise FE (null result)
+
+- Goal: execute the top-ranked Open bet from the hypothesis board —
+  add 8 pairwise products targeting the non-rule features that showed
+  significant Cohen's d on flipped rows (2026-04-21 DGP-residuals
+  EDA), re-train LGBM-dist bag + XGB-dist, re-run the blend.
+- Hypothesis: the flip-band residuals are a smooth NN function of
+  `(Previous_Irrigation × Rainfall, Humidity × Soil_Moisture,
+  Humidity × Temperature, EC × Soil_Moisture, Field_Area × score)`.
+  Giving trees explicit products of rule × non-rule pairs should
+  replace many weak splits with a single strong one and let the
+  model trace the smooth decision surface.
+- Changed: `scripts/seed_bag_dist_fe.py` (LGBM 5-seed bag on 51
+  features = 43 dist + 8 pairwise), `scripts/benchmark_xgb_dist_fe.py`
+  (XGB on same 51 features), `scripts/blend_lgbm_xgb_dist_fe.py`
+  (α sweep + log-bias tuning). 8 new cols: `humidity_x_sm`,
+  `humidity_x_sm_dist`, `prev_irrig_x_rf`, `prev_irrig_x_rf_dist`,
+  `prev_irrig_minus_rf`, `vpd_proxy` (= `Temperature_C *
+  (100 − Humidity)/100`), `ec_x_sm`, `field_area_x_score`.
+- Results (OOF bal_acc, 5-fold stratified, seed=42):
+  - LGBM-dist bag (no FE, reference)    0.97289
+  - **LGBM-dist-FE bag**                 **0.97270**   Δ = −0.00019
+  - XGB-dist (no FE, reference)         0.97304
+  - **XGB-dist-FE**                      **0.97313**   Δ = +0.00009
+  - Non-FE blend (current best)          0.97327
+  - **FE blend (log-α=0.05)**            **0.97320**   Δ = **−0.00007**
+  - Prob-blend sweep: best α=0.05 → 0.97317. Log-blend best
+    α=0.05 → 0.97320. Both pick essentially pure XGB-FE (95 %),
+    because LGBM-FE's signal is redundant. Monotonically decreasing
+    from α=0.05 through α=1.0.
+- Read-out: the pairwise FE changes nothing at the ensemble level.
+  All three deltas (LGBM, XGB, blend) sit well inside the ~0.00088
+  fold-std noise band. This is the third tree-FE null in a row:
+    - 2026-04-20 LGBM+FE (8 water-balance cols):  Δ = −0.00052
+    - 2026-04-21 128-cell empirical Bayes blend:  Δ = 0
+    - 2026-04-21 rule × non-rule pairwise FE:     Δ = −0.00007
+  Trees at 127 leaves (LGBM) / max_depth=7 (XGB) already discover
+  these interactions as splits; prebuilt products add no new
+  information. Crucially, the optimal blend weight SHIFTED from
+  α=0.45 (LGBM-bag / XGB balanced) without FE to α=0.05 (nearly
+  pure XGB) with FE — the added LGBM features didn't just fail to
+  help LGBM, they also broke LGBM's complementarity with XGB.
+- Implication: "trees can't see the interaction" is definitively
+  the wrong diagnosis for the ~0.01 gap to the 0.98114 pack. The
+  pack's edge lives either (a) in a fundamentally different model
+  class (a NN that matches the host's label generator structure),
+  or (b) in within-cell continuous-feature modelling that avoids
+  axis-aligned splits entirely (per-cell logistic/MLP).
+- LB delta: n/a (0 LB spend; 6 remaining today). Candidate
+  submission on disk (`submission_blend_lgbm_xgb_dist_fe.csv`) is
+  strictly worse than the current LB-0.97170 submission, so no LB
+  probe is warranted.
+- New current best: unchanged — **LGBM-dist 5-seed bag × XGB-dist
+  blend OOF 0.97327 / LB 0.97170**. Submission:
+  `submissions/submission_blend_lgbm_xgb_dist.csv`.
+- Next bet: within-cell per-cell logistic / MLP (Open #5 → now #1),
+  which targets the only remaining architecturally distinct lever.
+  The 8 non-rule continuous features are the only way the flip
+  signal can enter the model; tree-shaped models plateau regardless
+  of how they encode the interactions.
+
 ## Hypothesis board
 
 - **Current best**: LGBM-dist 5-seed bag ⊗ XGBoost-dist
@@ -807,14 +868,15 @@ README.md      TL;DR + reproduction instructions.
   LB budget: 6 submissions remaining today.
 
 - **Open** (ranked by expected ROI / effort):
-  1. **Rule × non-rule pairwise FE applied to BOTH LGBM-dist and
-     XGB-dist.** Specifically `Humidity × Soil_Moisture`,
-     `Previous_Irrigation × Rainfall_mm`, `Humidity × Temperature_C`
-     (≈ VPD), `EC × Soil_Moisture`, `Field_Area × dgp_score`.
-     Target the four non-rule features with significant d>0.03 on
-     flipped rows (2026-04-21 EDA). Re-run the bag + blend on the
-     enriched feature set. Expected +0.0005–0.002 on top of 0.97327.
-     ~30-line patch.
+  1. **Within-cell per-cell logistic / MLP** on non-rule continuous
+     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
+     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
+     128 rule-cells (~5 k rows each). By construction orthogonal to
+     both LGBM-dist and XGB-dist, and the only lever left that avoids
+     axis-aligned tree splits entirely. Now promoted to top bet after
+     three consecutive tree-FE nulls (water-balance, EB-cell,
+     pairwise rule×non-rule). Expected +0.0005–0.002 if blend
+     residuals concentrate in a few cells.
   2. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
      beats both standalones at every interior α — model-family
      diversity is the lever. A 4-fold CatBoost adds a 3rd decision
@@ -830,17 +892,11 @@ README.md      TL;DR + reproduction instructions.
      LGBM meta-model.** Takes the 3 × 3 = 9 component probs
      (LGBM-bag / XGB / CatBoost) + a small number of rule/distance
      features as inputs. Expected +0.0001–0.0005.
-  5. **Within-cell per-cell logistic / MLP** on non-rule continuous
-     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
-     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
-     128 rule-cells (~5 k rows each). By construction orthogonal to
-     both LGBM-dist and XGB-dist. Expected +0.0005–0.002 if the
-     blend residuals concentrate in a few cells.
-  6. **LB recalibration sub** (+1 LB sub) on any of the above once
+  5. **LB recalibration sub** (+1 LB sub) on any of the above once
      OOF gains compound. Calibration gap has been growing
      (0.00125 → 0.00134 → 0.00157); sub 4 will tell us whether
      stacking adds more gap.
-  7. **Ordinal-aware loss** for Medium↔High confusion. Still
+  6. **Ordinal-aware loss** for Medium↔High confusion. Still
      untested; lowest priority of the "Open" bets since it needs a
      custom objective and LGBM + log-bias already nearly
      saturates macro-recall.
@@ -948,6 +1004,23 @@ README.md      TL;DR + reproduction instructions.
     training budget; revisit only with a significantly larger
     architecture or a structural prior matching the rule (e.g.
     additive / monotone net).
+  - **Rule × non-rule pairwise FE** (`scripts/seed_bag_dist_fe.py`,
+    `benchmark_xgb_dist_fe.py`, `blend_lgbm_xgb_dist_fe.py`). 8 new
+    cols on top of the 43-feature dist set (`humidity_x_sm`,
+    `humidity_x_sm_dist`, `prev_irrig_x_rf`, `prev_irrig_x_rf_dist`,
+    `prev_irrig_minus_rf`, `vpd_proxy`, `ec_x_sm`,
+    `field_area_x_score`) targeting the non-rule features with
+    significant Cohen's d on flipped rows (2026-04-21 EDA). OOF:
+    LGBM-FE bag 0.97270 (Δ = −0.00019), XGB-FE 0.97313 (Δ = +0.00009),
+    blend log-α=0.05 → 0.97320 (Δ = **−0.00007** vs non-FE blend
+    0.97327). All deltas are well inside the fold-std noise band
+    (~0.00088). Optimal blend weight collapsed from α=0.45 to
+    α=0.05 — the added LGBM features didn't just fail to help, they
+    also broke LGBM's complementarity with XGB. Third tree-FE null
+    in a row (water-balance cols, 128-cell empirical Bayes, pairwise
+    rule×non-rule). Rule: trees at 127-leaves / max_depth=7 already
+    find pairwise interactions internally; engineered products add
+    no new signal regardless of how physically motivated they are.
   - **Hinge-loss / max-margin tie-breaker over integer separating
     rules** (`scripts/enumerate_integer_models.py`, per discussion
     [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)).
