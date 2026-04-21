@@ -160,6 +160,38 @@ Key read-outs
   demonstrate per-row error orthogonality (Jaccard over OOF error
   sets) before investing in a full blend sweep.
 
+## 3.x Soft-blend ensemble (2026-04-21, NEW LB BEST 0.97296)
+
+Greedy forward-selection over 5 regenerated OOF pipelines. Starts from
+the best standalone (xgb_hybrid_v3 at OOF 0.97352) and iteratively adds
+the component whose log-blend at the OOF-best α most improves tuned
+bal_acc. Winner after 2 additions:
+
+    w = (0.45, 0.40, 0.15) on (hybrid_v3, routed_v3, spec_678)
+    log-blend, tuned bias [0.132, 0.569, 3.401]
+    OOF bal_acc = 0.97375, LB public = 0.97296
+
+Δ LB vs prior best = +0.00025, matching the +0.00023 OOF prediction
+(OOF→LB gap 0.00079, consistent with 0.00081 on standalone hybrid_v3).
+No OOF-selection overfit — the greedy log-blend found real
+model-diversity signal.
+
+**Three independent blend strategies converged to the same ceiling**
+(OOF ~0.9738 ± 0.00002):
+  - greedy log-blend (this section): 0.97375
+  - class-asymmetric High-prob mixing on hybrid_v3 (`blend_high_weighted`
+    mean_other_high γ=+0.40): 0.97377
+  - cross-lineage with main branch's `hybrid_lgbmxgb_blend` (OOF 0.97362):
+    pairwise best w_ours=0.95 → 0.97376
+
+Log-space blending on this problem has saturated. Further LB lift
+needs an orthogonal model class (MLP retry with larger architecture,
+CatBoost with DGP features) or a new structural lever outside the
+current tree-ensemble basin. Logistic-regression meta-stack on
+concat(P_hv3, P_routed, P_dgp, P_xgbdist) with class_weight=balanced
+gave 0.97348 — underperformed the simple greedy blend because the
+component probs are too correlated for 12-feature logistic to add signal.
+
 ## 4. Strategy and next steps
 
 Rough rule of thumb for the remaining 10 days: we need +0.010 bal_acc
@@ -168,8 +200,8 @@ already includes the "threshold trick", so the remaining lift has to
 come from feature engineering, model diversity, or external data.
 
 Ranked by expected ROI / effort (post-MLP-plateau + blend-null update,
-2026-04-21). Current best is LGBM+DGP tuned, OOF = 0.97271; LB-
-calibrated gap to the 0.98114 tied pack is about −0.010.
+2026-04-21). Current best is **greedy log-blend OOF 0.97375 / LB
+0.97296** (was LGBM+DGP OOF 0.97271 / LB 0.97137 earlier this same day).
 
 1. **Rule × non-rule pairwise FE for LGBM (new top bet).** Explicitly
    engineer `Humidity × Soil_Moisture`, `Previous_Irrigation_mm ×

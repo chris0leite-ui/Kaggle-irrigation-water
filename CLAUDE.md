@@ -1232,11 +1232,18 @@ README.md      TL;DR + reproduction instructions.
 
 ## Hypothesis board
 
-- **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
-  hybrid → OOF 0.97352, **LB 0.97271**. Submission on disk:
-  `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`. Pack
-  0.98114 is +0.00843 above; leader 0.98219 is +0.00948 above. LB
-  budget: 7 submissions remaining today (3/10 used).
+- **Current best**: greedy log-blend
+  `hybrid_v3(0.45) + routed_v3(0.40) + spec_678(0.15)` → OOF 0.97375,
+  **LB 0.97296**. Submission on disk:
+  `submissions/submission_blend_greedy_w045_040_015.csv` (tuned bias
+  [0.132, 0.569, 3.401]). Pack 0.98114 is +0.00818 above; leader
+  0.98219 is +0.00923 above. LB budget: 6 submissions remaining today
+  (4/10 used).
+
+  Prior best (still on disk as safe fallback for final selection):
+  routed-{0,1,2} XGB + specialist-{6,7,8} hybrid → OOF 0.97352,
+  LB 0.97271. Submission:
+  `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`.
 
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
