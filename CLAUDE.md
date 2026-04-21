@@ -475,6 +475,45 @@ README.md      TL;DR + reproduction instructions.
   generated (`brief.md:74` confirms a DL model was used).
 - LB delta: n/a.
 
+### 2026-04-20 — 128-cell empirical Bayes + LGBM-dist replication (stacking null + replication)
+
+- Goal: test ideas #1 (128-cell empirical Bayes) and #2 (LGBM with
+  signed/abs distance-to-threshold features) from the brainstorm,
+  and check whether a blend of the two beats either component.
+- Changed: `scripts/empirical_bayes_cell.py` (pack 6 rule features
+  into a single cell-id in `[0,128)`, estimate `P(y | cell)` with
+  Laplace smoothing out-of-fold, save OOF+test probs +
+  `submission_eb_cell_tuned.csv`). `scripts/benchmark_dist.py`
+  (LGBM with 43 features: original 19 + DGP score/bool indicators
+  + 4 signed distances + 4 absolute distances + score-band
+  distances + min-axis distance + 4 pairwise interactions).
+  `scripts/blend_eb_dist.py` sweeps α ∈ [0,1] in prob and log
+  space. Artefacts: `oof_eb_cell.npy`, `test_eb_cell.npy`,
+  `oof_lgbm_dist.npy`, `test_lgbm_dist.npy`,
+  `eb_cell_results.json`, `bench_dist_results.json`,
+  `blend_eb_dist_results.json`.
+- Results (5-fold stratified OOF bal_acc, seed=42, 630k):
+  - Rule argmax (pure DGP formula): 0.96097 (prior).
+  - **EB-cell tuned log-bias**: **0.96339** — the Bayes-optimal
+    ceiling given only the 6 rule features.
+  - **LGBM+dist tuned log-bias**: **0.97266** — matches the prior
+    `benchmark_dgp.py` result (0.97271) within fold noise
+    (σ ≈ 0.00088). Confirms the +0.00174 DGP-aware lift is
+    reproducible; `benchmark_dist.py` is a feature superset of
+    `benchmark_dgp.py` with the same effective performance.
+  - EB-cell + LGBM-dist prob blend: monotonic in α → pure LGBM
+    (α=1.0) wins. EB brings zero orthogonal signal.
+- Observation: the 128-cell cube uses the same 6 features the
+  LGBM already splits on near-optimally — the model has no trouble
+  recovering per-cell class distributions from interaction splits.
+- Read-out: the ~0.008 gap between EB-cell (0.96339) and LGBM-dist
+  (0.97266) is the **information in the 13 non-rule features**
+  (Soil_pH, Humidity, Sunlight_Hours, Organic_Carbon, EC, Field_Area,
+  Previous_Irrigation, Region, Crop_Type, Soil_Type, plus Mulching
+  and Stage already in the rule). Any future "noise-model" approach
+  has to either capture those features or beat LGBM at using the
+  distance-to-threshold signal, not just restate the rule.
+
 ### 2026-04-21 — DGP is a learnable NN function, not a noise process
 
 - Goal: answer whether the ~10k "flipped" rows are a Bernoulli-style
@@ -589,6 +628,104 @@ README.md      TL;DR + reproduction instructions.
 - Next bet: unchanged — MLP / tabular NN with balanced softmax or
   LDAM loss remains the top open hypothesis.
 
+### 2026-04-21 — per-score experts + noise-inversion head + GCE loss (three nulls)
+
+- Goal: test brainstorm ideas #3 (noise-inversion head), #5 (GCE
+  noise-robust loss), #8 (per-score expert models) to see whether
+  any of the unexplored orthogonal levers beats LGBM-dist (0.97266).
+- Changed: `scripts/score_experts.py` (one LGBM per score bin,
+  dropping rule cols, routing val rows by their score);
+  `scripts/noise_inversion.py` (three per-rule-label LGBM heads,
+  rule cols removed so each head specialises on P(y_obs | rule, x));
+  `scripts/lgbm_gce.py` (custom multiclass GCE objective q=0.7,
+  class-major grad/hess, same feature set as benchmark_dist).
+- Results (OOF bal_acc, 5-fold stratified, seed=42):
+  - **Per-score experts (#8)**: 0.97149 tuned (−0.00117 vs LGBM-dist).
+    Splitting 630k into 10 score bins (~80–120k each) loses more to
+    per-expert data shortage than specialisation recovers.
+  - **Noise-inversion head (#3)**: 0.96768 tuned (−0.00498 vs
+    LGBM-dist). Dropping rule cols removed distance information; the
+    rule=High head (21 k rows) is especially starved.
+  - **LGBM + GCE q=0.7 (#5)**: 0.96500 tuned — buggy. best_iter=1 on
+    every fold (training stalls after round 1); log-bias then
+    rescues argmax from flat prior-dominated probs. Grad/hess scaling
+    of the custom objective is almost certainly off; parked pending
+    a proper debug.
+- Observation: split-and-ensemble approaches don't add orthogonal
+  signal over a single 630k-row LGBM that already has the
+  score/distance features — trees find the same per-score partitions
+  for free at no data cost.
+
+### 2026-04-21 — LGBM-dist seed-bag (small positive)
+
+- Goal: cheap variance reduction on top of LGBM-dist — 5 seeds,
+  averaged OOF, retune log-bias on the mean. Target: +0.0005–0.001.
+- Changed: `scripts/seed_bag_dist.py` — same 5-fold split, same
+  43-feature LGBM-dist config, seeds `[42, 7, 123, 2024, 9999]`.
+  Artefacts: `oof_lgbm_dist_bag.npy`, `test_lgbm_dist_bag.npy`,
+  `seed_bag_dist_results.json`,
+  `submission_lgbm_dist_bag_tuned.csv`.
+- Results (OOF tuned bal_acc):
+  - Per-seed range 0.97255 → 0.97274 (spread 0.00019).
+  - **5-seed bag**: **0.97289** — beats every individual seed
+    (clean 5/5 one-sided win, small but real).
+  - Δ vs single-seed baseline = +0.00024.
+- Read-out: LGBM at `num_leaves=127, bagging_fraction=0.9` on 630k
+  rows is nearly deterministic across seeds, so bagging variance
+  reduction has little room. The gain is real but bounded. New best
+  candidate on disk at this point: OOF 0.97289.
+
+### 2026-04-21 — XGBoost-dist + LGBM-bag blend (CURRENT BEST, LB 0.97170)
+
+- Goal: real model-family diversity on the 43-feature LGBM-dist set
+  — LGBM leaf-wise vs XGBoost level-wise hist — to break past the
+  0.97289 bag plateau.
+- Changed: `scripts/benchmark_xgb_dist.py` (XGBoost multi:softprob,
+  `max_depth=7, min_child_weight=5, subsample=0.9,
+  colsample_bytree=0.9, tree_method=hist, enable_categorical=True`,
+  early_stopping_rounds=100) and `scripts/blend_lgbm_xgb_dist.py`
+  (α ∈ [0,1] sweep in prob and log space, log-bias tuned per blend).
+  Artefacts: `oof_xgb_dist.npy`, `test_xgb_dist.npy`,
+  `xgb_dist_results.json`, `blend_lgbm_xgb_dist_results.json`,
+  `submission_xgb_dist_tuned.csv`, `submission_blend_lgbm_xgb_dist.csv`.
+- Results (OOF tuned bal_acc, 5-fold stratified, seed=42):
+  - **XGBoost-dist standalone**: **0.97304** (+0.00038 vs single
+    LGBM-dist 0.97266, +0.00015 vs 5-seed LGBM-dist bag 0.97289).
+  - Prob-blend α sweep: best ≈ 0.50–0.65 → 0.97322, monotone-up to
+    middle then monotone-down past it — signal is real, not a
+    single-point fluke.
+  - **Log-blend α=0.45 (LGBM 0.45 / XGB 0.55) → 0.97327 tuned** —
+    **new current best**, beats both standalones at every interior
+    α in both spaces.
+  - Lift ladder vs baseline 0.97097:
+      single LGBM-dist        0.97266  (+0.00169)
+      LGBM-dist 5-seed bag    0.97289  (+0.00192)
+      XGBoost-dist standalone 0.97304  (+0.00207)
+      **LGBM-bag ⊗ XGB blend 0.97327  (+0.00230)**
+- Read-out: real model-family diversity is worth ~1.5× as much as
+  seed bagging on this problem — first experiment on this lineage
+  that moves OOF cleanly via orthogonal signal rather than variance
+  reduction.
+- LB delta: submitted `submission_blend_lgbm_xgb_dist.csv` →
+  **LB public = 0.97170** (**new LB best**). Δ vs LGBM+DGP's LB =
+  +0.00033. Δ vs baseline LGBM's LB = +0.00198.
+- Calibration ladder (OOF → LB gap widens with OOF):
+    single tuned LGBM       0.97097 → 0.96972  gap 0.00125
+    LGBM+DGP                0.97271 → 0.97137  gap 0.00134
+    **bag + XGB blend       0.97327 → 0.97170  gap 0.00157**
+  Gap grew +0.00032 across the ladder — modest OOF selection
+  overfit (log-bias coord ascent + α sweep + model picking) but
+  still below 1σ fold std (0.00088). Treat OOF above 0.972 as a
+  proxy with ~0.0015 discount to predicted LB.
+- LB budget: 3 submissions spent cumulatively on this lineage
+  (baseline, LGBM+DGP, blend) + 1 DGP-rule probe on main (0.95835)
+  = 4 total. 6 LB submissions remaining today.
+- Next bet: (a) seed-bag XGB too, blend 2 bags; (b) CatBoost or
+  ExtraTrees as a 3rd leg — model-family diversity compounding;
+  (c) stack the blend's OOF probs as meta-features into a final
+  LGBM meta-model; (d) rule × non-rule pairwise FE applied to
+  both LGBM-dist AND XGB-dist, then re-run the bag + blend.
+
 ### 2026-04-21 — hinge-loss / max-margin lever ruled out
 
 - Goal: follow up on community discussion
@@ -663,32 +800,50 @@ README.md      TL;DR + reproduction instructions.
 
 ## Hypothesis board
 
-- **Open**:
-  - **Rule × non-rule pairwise FE for LGBM — NEW TOP BET** (promoted
-    from main's e889f0c after the MLP plateau). Specifically
-    `Humidity × Soil_Moisture`, `Previous_Irrigation_mm × Rainfall_mm`,
-    `Electrical_Conductivity × Soil_Moisture`, `Field_Area × dgp_score`.
-    These are the interactions the host's NN likely learned; trees
-    can find them but may benefit from an explicit start. The
-    hinge-loss CP enumeration (this session) sharpens the target:
-    the 128 rule-cells are already perfectly labeled, so all
-    remaining lift must come from **within-cell** continuous features
-    — exactly what rule × non-rule interactions provide.
-  - **Within-cell per-cell logistic / MLP** on non-rule continuous
-    features (`Humidity, Previous_Irrigation_mm, Electrical_Conductivity,
-    Field_Area, Soil_pH, Organic_Carbon, Sunlight_Hours`). Fit one
-    small model per rule-cell (128 cells, ~5 k rows per cell on
-    synthetic) to recover the 10,304 within-cell flips directly. By
-    construction orthogonal to LGBM+DGP; no rule-level dependence.
-  - Seed-bag LGBM+DGP (3–5 seeds, retune bias on averaged OOF).
-    Cheapest remaining win; expected +0.0005–0.001 from fold-std
-    reduction.
-  - LGBM+DGP + XGBoost-with-DGP-features blend at prob level.
-    Model-diversity lift, expected +0.001–0.002. Bar from MLP /
-    balanced-ensemble / MNLogit blend nulls: need per-row error
-    orthogonality, not just standalone OOF ≥ 0.965 (see
-    `LEARNINGS.md`).
-  - Ordinal-aware loss to cut Medium↔High confusion is still untested.
+- **Current best**: LGBM-dist 5-seed bag ⊗ XGBoost-dist
+  log-blend α=0.45 → OOF 0.97327, **LB 0.97170**. Submission on
+  disk: `submissions/submission_blend_lgbm_xgb_dist.csv`. Pack
+  0.98114 is +0.00944 above; leader 0.98219 is +0.01049 above.
+  LB budget: 6 submissions remaining today.
+
+- **Open** (ranked by expected ROI / effort):
+  1. **Rule × non-rule pairwise FE applied to BOTH LGBM-dist and
+     XGB-dist.** Specifically `Humidity × Soil_Moisture`,
+     `Previous_Irrigation × Rainfall_mm`, `Humidity × Temperature_C`
+     (≈ VPD), `EC × Soil_Moisture`, `Field_Area × dgp_score`.
+     Target the four non-rule features with significant d>0.03 on
+     flipped rows (2026-04-21 EDA). Re-run the bag + blend on the
+     enriched feature set. Expected +0.0005–0.002 on top of 0.97327.
+     ~30-line patch.
+  2. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
+     beats both standalones at every interior α — model-family
+     diversity is the lever. A 4-fold CatBoost adds a 3rd decision
+     function on the same feature set. Pre-check: Jaccard overlap
+     between CatBoost and (LGBM ∪ XGB) OOF errors; only commit the
+     full 5-fold + 3-way blend if overlap < 0.8. Expected +0.0002–0.0008
+     for a stacked 3-way blend.
+  3. **Seed-bag XGB-dist** (3–5 seeds) before the 3-way blend.
+     Mirrors the LGBM bag; expected +0.00015 (LGBM bag lifted by
+     that much over single seed; XGB variance is in the same
+     ballpark).
+  4. **Stack the blend's OOF probs as meta-features into a final
+     LGBM meta-model.** Takes the 3 × 3 = 9 component probs
+     (LGBM-bag / XGB / CatBoost) + a small number of rule/distance
+     features as inputs. Expected +0.0001–0.0005.
+  5. **Within-cell per-cell logistic / MLP** on non-rule continuous
+     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
+     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
+     128 rule-cells (~5 k rows each). By construction orthogonal to
+     both LGBM-dist and XGB-dist. Expected +0.0005–0.002 if the
+     blend residuals concentrate in a few cells.
+  6. **LB recalibration sub** (+1 LB sub) on any of the above once
+     OOF gains compound. Calibration gap has been growing
+     (0.00125 → 0.00134 → 0.00157); sub 4 will tell us whether
+     stacking adds more gap.
+  7. **Ordinal-aware loss** for Medium↔High confusion. Still
+     untested; lowest priority of the "Open" bets since it needs a
+     custom objective and LGBM + log-bias already nearly
+     saturates macro-recall.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
     are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
@@ -720,6 +875,35 @@ README.md      TL;DR + reproduction instructions.
     close to LGBM but diversity value is bounded by the 0.01 gap.
     Rule: any future stacking candidate must hit ≥0.965 standalone
     OOF to be worth the compute.
+  - **128-cell empirical Bayes as a stacking feature** — standalone
+    OOF 0.96339 (vs rule 0.96097, LGBM-dist 0.97266). Prob-space
+    blend with LGBM-dist is monotonic in α → pure LGBM wins; EB
+    adds zero orthogonal signal because LGBM already splits on the
+    same 6 rule features and recovers cell-level class
+    distributions via interaction splits. Same lesson as the
+    hand-engineered domain features ruled out earlier. Cell
+    probabilities only help if paired with a model that doesn't
+    already see the 6 rule cols.
+  - **Per-score expert LGBMs** (#8) — 0.97149 tuned OOF, below
+    both baseline LGBM (0.97097 by +0.00052, within fold noise)
+    and LGBM-dist (0.97266 by −0.00117). Partitioning train into
+    10 score bins and training binary/3-class specialists per bin
+    loses more data per fit than specialisation buys back. LGBM at
+    127 leaves already splits on (score, stage) internally, so
+    "explicit experts" is redundant.
+  - **Noise-inversion head** (#3) — 0.96768 tuned OOF, **−0.00329
+    vs baseline**. Three per-rule-label LGBM heads (Low / Medium /
+    High routed by rule(x)), with rule cols removed so each head
+    specialises on P(y_obs | rule, x). The rule=High head is
+    data-starved (~21k rows) and the Low-vs-Medium head trains to
+    a near-prior flat vector. Dropping rule cols removes distance
+    information the heads desperately need.
+  - **Naive GCE loss** (#5, q=0.7) — 0.96500 tuned OOF. Custom
+    multiclass objective hits `best_iter=1` on every fold: the
+    grad/hess scaling doesn't let LGBM progress past the first
+    round. Result is essentially a uniform-prob prediction rescued
+    by an aggressive log-bias. Real GCE requires debug on the
+    gradient scale and learning-rate; parked until that's done.
   - **LGBM hyperparameter optimization** (Optuna TPE, 47 trials,
     200k subsample, 10-dim search space). Best
     `num_leaves=46, max_depth=3, lr=0.064` hit 0.97047
@@ -816,6 +1000,23 @@ README.md      TL;DR + reproduction instructions.
     99.37 % bal_acc on flipped rows. The residual signal is real and
     learnable; the open question is how to deploy it in the
     prediction pipeline without breaking clean-row predictions.
+  - **DGP features transfer cleanly to the LB.** LGBM+DGP tuned OOF
+    0.97271 → LB public 0.97137, gap 0.00134 (within the +0.00010
+    the baseline submission's 0.00125 gap set). +0.00165 LB lift
+    vs baseline LGBM (0.96972). The OOF→LB calibration is honest
+    for DGP-enriched feature sets.
+  - **Model-family diversity (LGBM × XGBoost) beats seed bagging
+    ~1.5×.** On the 43-feature LGBM-dist feature set, the
+    progression single LGBM (0.97266) → 5-seed LGBM bag (0.97289,
+    +0.00023) → LGBM-bag × XGB log-blend α=0.45 (0.97327, +0.00038)
+    shows model-family blending stacks cleanly on top of seed
+    bagging and gives ~1.5× the delta for the same compute budget.
+    XGB beats both LGBM standalone and the LGBM bag at every
+    interior α in prob and log space — structurally clean lift,
+    not a single-point fluke. **LB public 0.97170** (+0.00033 vs
+    LGBM+DGP's 0.97137), confirming the OOF lift transfers. New
+    rule for this feature set: **LGBM ⊗ XGB is the default
+    decision rule, not plain LGBM.**
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
