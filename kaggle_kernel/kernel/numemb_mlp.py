@@ -69,7 +69,6 @@ JACCARD_KILL = 0.90
 JACCARD_WARN = 0.85
 
 # Kaggle paths (resolved at runtime in main())
-IN_GATE = Path("/kaggle/input/irrigation-greedy-blend-oof")
 OUT = Path("/kaggle/working")
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -209,22 +208,24 @@ def main():
             log(f"  {p}")
 
     log("loading data")
-    # Resolve competition dir flexibly — Kaggle has occasionally mounted
-    # it under a different slug or required the rules-accepted path.
-    candidates = [
-        Path("/kaggle/input/playground-series-s6e4"),
-        Path("/kaggle/input/playground-series-season-6-episode-4"),
-    ]
-    comp = next((c for c in candidates if (c / "train.csv").exists()), None)
-    if comp is None:
-        # last resort: find any train.csv under /kaggle/input
-        for p in Path("/kaggle/input").rglob("train.csv"):
-            comp = p.parent; break
-    assert comp is not None, "no train.csv under /kaggle/input"
-    log(f"competition dir: {comp}")
-    tr = pd.read_csv(comp / "train.csv")
-    te = pd.read_csv(comp / "test.csv")
-    gate_oof = np.load(IN_GATE / "oof_greedy_blend.npy")
+    # Kaggle mounts competitions at /kaggle/input/competitions/<slug>/
+    # and datasets at /kaggle/input/datasets/<user>/<slug>/. Resolve via
+    # rglob so we're robust to any future mount-path change.
+    def find_one(pattern):
+        for p in Path("/kaggle/input").rglob(pattern):
+            return p
+        return None
+    train_csv = find_one("train.csv")
+    test_csv = find_one("test.csv")
+    gate_oof_path = find_one("oof_greedy_blend.npy")
+    assert train_csv and test_csv, f"missing comp csvs; train={train_csv} test={test_csv}"
+    assert gate_oof_path, "missing oof_greedy_blend.npy (gate dataset not attached?)"
+    log(f"train csv: {train_csv}")
+    log(f"test csv:  {test_csv}")
+    log(f"gate oof:  {gate_oof_path}")
+    tr = pd.read_csv(train_csv)
+    te = pd.read_csv(test_csv)
+    gate_oof = np.load(gate_oof_path)
     assert gate_oof.shape == (len(tr), 3), f"gate shape {gate_oof.shape}"
     log(f"train {tr.shape} test {te.shape}  gate OOF {gate_oof.shape}")
 
