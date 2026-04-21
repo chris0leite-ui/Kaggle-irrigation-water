@@ -1,9 +1,11 @@
 # Next steps
 
-**Current best**: hybrid + binary-High-head blend (logit-add λ=+0.60)
-→ OOF **0.97398**, LB not yet submitted. Prior LB best 0.97271
-(hybrid_v3). Pack 0.98114 (+0.00716 above our OOF-best),
-leader 0.98219 (+0.00821). LB budget: 3/10 used, 7 left today.
+**Current LB best**: `submission_blend_greedy_w045_040_015.csv`
+(greedy 3-way log-blend hybrid_v3 0.45 + routed_v3 0.40 + spec_678
+0.15) → OOF 0.97375 / **LB 0.97296** (gap 0.00079). Our binhigh
+experiment (OOF 0.97398) LB-submitted at 0.97212 — overfit
+(gap 0.00186). Pack 0.98114 (+0.00818 above LB-best), leader 0.98219
+(+0.00923). LB budget: **5/10 used today**, 5 remaining.
 
 ## Calibration ladder (OOF → LB)
 
@@ -11,10 +13,20 @@ leader 0.98219 (+0.00821). LB budget: 3/10 used, 7 left today.
 |---|---|---|---|
 | Baseline LGBM tuned | 0.97097 | 0.96972 | −0.00125 |
 | LGBM+DGP tuned | 0.97271 | 0.97137 | −0.00134 |
-| **Bag × XGB blend** | **0.97327** | **0.97170** | −0.00157 |
+| Bag × XGB blend | 0.97327 | 0.97170 | −0.00157 |
+| hybrid_v3 (routed {1,2}) | 0.97352 | 0.97224 | −0.00128 |
+| hybrid_v3 (routed {0,1,2}) | 0.97352 | 0.97271 | −0.00081 |
+| **greedy 3-way log-blend** | **0.97375** | **0.97296** | **−0.00079** |
+| hybrid + binhigh logit-add | 0.97398 | 0.97212 | −0.00186 ← **overfit** |
 
-Gap is growing ~+0.00032/tier (selection overfit). Discount predicted
-LB by ~0.0015 above OOF 0.972.
+**Selection overfit lesson (2026-04-21):** the binhigh experiment
+added +0.00036 OOF but *lost* 0.00084 LB vs the greedy blend. Layering
+a tuned component (75-point sweep + log-bias retune) on top of an
+already-OOF-tuned stack compounds selection bias ~5.2× (gap blew up
+from 0.00079 to 0.00186). **Rule: expect real LB delta ≈ 1/3 of OOF
+delta** when stacking tuned blends on tuned baselines. Prefer
+architectural levers (new feature sets, orthogonal models) over more
+tuning.
 
 ## Open bets (ranked by ROI / effort)
 
@@ -24,13 +36,15 @@ Grouped by lever. Each bet sized to ≤45 min of compute unless noted.
 
 **High-class lever** (3× leverage under balanced accuracy):
 
-1. ~~**Binary "is High?" head + geo-mean merge.**~~ **CONFIRMED
-   2026-04-21.** XGB binary-head AUC 0.9987 on OOF. Best blend
-   (logit-add λ=+0.60) → **OOF 0.97398 (+0.00036 vs hybrid)** — new
-   current best. Prob-mix and geo-mix also peak at 0.97396 (w=0.35).
-   High recall 96.54%, Medium now the weakest leg. Submission on disk:
-   `submissions/submission_hybrid_binhigh_tuned.csv`. See
-   `scripts/binary_high_head.py` + CLAUDE.md entry.
+1. ~~**Binary "is High?" head + geo-mean merge.**~~ **OOF WIN,
+   LB OVERFIT 2026-04-21.** XGB binary-head AUC 0.9987 on OOF. Best
+   blend (logit-add λ=+0.60) → OOF 0.97398 (+0.00036 vs hybrid).
+   **LB 0.97212** — 0.00084 *below* greedy-blend LB best 0.97296,
+   OOF→LB gap 0.00186 (2.4× the greedy's 0.00079). Rule: component
+   blend-sweep + log-bias retune compounded selection overfit. The
+   binary-head OOF carries real signal (AUC 0.9987) — retry as a
+   minimally-tuned additive in the *greedy* stack (no per-blend log-
+   bias retune) before concluding the lever is dead.
 
 2. **High-only focal loss.** Custom XGB objective: γ=2 focal on High,
    standard CE on Low/Medium. Targets ~21 k High rows without

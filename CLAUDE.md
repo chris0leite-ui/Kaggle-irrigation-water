@@ -1245,20 +1245,48 @@ README.md      TL;DR + reproduction instructions.
   features only) now has a concrete mechanism hypothesis: if those
   features carry the NN-flip signal, a non-rule-feature-only head
   blended similarly could push another bucket of Medium->High flips.
-- LB budget: 3/10 used today, 7 remaining. Candidate LB submission
-  on disk: `submission_hybrid_binhigh_tuned.csv`. Expected LB given
-  OOF->LB gap trend (~0.0015 at this OOF range): ~0.9725, close to
-  LB best 0.97271. Decision deferred — stacking with #7 first is
-  higher-expected-value than immediate LB probe.
+- **LB probe: submitted at 17:44, result 0.97212** — worse than current
+  LB best (`submission_blend_greedy_w045_040_015.csv` submitted
+  earlier today by parallel session, 0.97296 on LB / 0.97375 OOF).
+  OOF->LB gap for binhigh = 0.97398 − 0.97212 = **0.00186**, far wider
+  than the greedy blend's 0.00079. **The OOF gain did not transfer.**
+- **Root cause: selection overfit on top of an already-tuned
+  pipeline.** This experiment optimised:
+  1. Binary-head XGB (4k round early stopping on fold val bal_acc).
+  2. Log-bias coord-ascent on hybrid baseline (already done).
+  3. Three blend parameterisations × ~20-30 grid points = ~75
+     candidates, each with its own log-bias coord-ascent.
+  4. Argmax over all sweep points.
+  Each nested tuning on OOF compounds small selection biases that
+  don't exist on the hidden LB. The prior hybrid had already been
+  OOF-tuned (blend weights, log-bias) — layering another round of
+  OOF tuning added ~0.0011 OOF-only inflation on top of a baseline
+  that had ~0.0015 worth of same.
+- **Rule: when adding a new component on top of a stack that is
+  already OOF-tuned (blend weights + log-bias), expect the real LB
+  delta to be ~1/3 of the OOF delta.** Current-best OOF 0.97398 →
+  LB 0.97212 (0.00186 gap, 5.2x above the 0.00036 OOF lift). The
+  greedy 3-way blend submitted earlier by parallel session was the
+  right reference baseline (0.97375 OOF / 0.97296 LB, 0.00079 gap)
+  because it tuned fewer hyperparameters per additional component.
+- **Revised current best**: `submission_blend_greedy_w045_040_015.csv`
+  at LB **0.97296** (submitted 16:09 today, not by this branch).
+  Our OOF best (0.97398) is on disk but LB-inferior to the greedy.
+- LB budget: **5/10 used today** (was under-counted earlier; the
+  greedy sub by parallel session counts), 5 remaining.
 - Calibration ladder update:
   ```
-  hybrid_lgbmxgb_blend          0.97362 -> LB (not submitted)
-  hybrid + binhigh logit_add    0.97398 -> LB (not submitted)
+  hybrid_lgbmxgb_blend          0.97362 -> ~0.9727 expected (not subbed)
+  greedy 3-way log-blend        0.97375 -> 0.97296   gap 0.00079 <- LB BEST
+  hybrid + binhigh logit_add    0.97398 -> 0.97212   gap 0.00186 <- OVERFIT
   ```
-- Next bet: brainstorm #7 (non-rule-features-only flip predictor) +
-  the same logit-add blend strategy. If it stacks cleanly on top of
-  this result, a third lever is alive. If null, the High lever is
-  the only brainstorm win and the +0.00036 stands.
+- Next bet: instead of piling more tuned blends on top, run
+  brainstorm #7 (non-rule-features-only flip predictor) — it's
+  architecturally orthogonal, so new information not new
+  OOF-selection. And consider adding binhigh to the *greedy*
+  blend pipeline (not the hybrid_lgbmxgb_blend) with minimal
+  additional tuning to see if the High-head signal survives the
+  selection-tightened baseline.
 
 ### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
 
