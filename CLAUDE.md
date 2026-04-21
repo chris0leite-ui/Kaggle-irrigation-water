@@ -600,21 +600,83 @@ README.md      TL;DR + reproduction instructions.
   Medium↔High band further. Then build the MLP×LGBM+DGP prob-level
   blend.
 
+### 2026-04-21 — MLP+LDAM-DRW and LGBM×MLP blend — both null
+
+- Goal: close the remaining 0.007 gap via the two natural follow-ups
+  to v3 BalSoft — (a) LDAM-DRW (Cao 2019) for class-dependent margins
+  targeting the Medium↔High confusion, and (b) a prob-level blend
+  with LGBM+DGP to harvest any orthogonal signal from the MLP.
+- Changed: `scripts/mlp_ldam.py` (LDAM loss + DRW schedule: plain CE
+  for epochs 0-14, then LDAM with effective-number (β=0.9999) class
+  weights for epochs 15-29, no early stop). `scripts/blend_lgbm_mlp.py`
+  (arithmetic + geometric sweeps over w∈[0, 0.5] with coord-ascent
+  bias retune per weight). `scripts/artifacts/oof_lgbm_dgp.npy`
+  regenerated from scratch — matches the historical 0.97271 tuned
+  OOF exactly.
+- Results:
+  - **v4 MLP+LDAM-DRW fold 1 → 0.96240 argmax** (vs v3 BalSoft fold
+    1 = 0.96549). DRW phase transition at ep 15 lifted val_raw
+    0.96026 → 0.96205 in one step, then bounced around 0.961-0.962
+    for the remaining 14 LDAM+CB epochs. Run killed after fold 1
+    because the per-fold pattern made it clear LDAM-DRW was below
+    v3 BalSoft by ~0.003.
+    - Diagnosis: effective-number class weights with β=0.9999
+      degenerate to ~uniform (β^n ≈ 0 for all our n_c ≫ 10⁴), so
+      only the LDAM margin component is active. Cao 2019's β=0.9999
+      was calibrated for long-tail CIFAR (n_c ≤ 500); for our
+      dataset we'd need an aggressive inverse-frequency schedule
+      (w_c ∝ 1/n_c gives High 17× Low) or much smaller β. Parking
+      the variant; not the highest-ROI path.
+  - **Blend LGBM+DGP ⊗ MLP+BalSoft → 0.97276 tuned (Δ = +0.00005)**.
+    - Arithmetic best: w=0.05 → 0.97273.
+    - Geometric best: w=0.15 → 0.97276.
+    - LGBM+DGP alone: 0.97271. MLP+BalSoft alone: 0.96589.
+    - The blend lift is well within any sensible noise floor
+      (fold-std ≈ 0.00068 for LGBM+DGP). Confusion-matrix diff
+      vs LGBM alone: +44 High correctly recalled (20218 vs 20174);
+      +459 Medium→High errors (4381 vs 3922). Net Δ positive by
+      rounding.
+- Read-out: the MLP's errors are **not structurally orthogonal** to
+  LGBM+DGP's. Both models bottom out on the same rows — the
+  boundary-band near-threshold flips where `dgp_score ∈ {3, 6}`.
+  Concretely: the MLP learned the same "rule + small non-rule
+  perturbation" approximation as LGBM, just less precisely. The
+  smooth-manifold hypothesis predicted the MLP would pick up rows
+  where LGBM's axis-aligned splits miss a curved NN boundary; the
+  blend null says that's not where the residual signal lives.
+- Implication (hardened): **the NN-DGP thesis from the 2026-04-21
+  morning EDA is likely wrong about *which* features carry the
+  flip signal, not about whether flips are deterministic**. LGBM+DGP
+  recovers 19 % of rule flips. MLP+BalSoft recovers a similar
+  fraction of mostly the same flips. If the host's NN is using
+  Previous_Irrigation_mm + Humidity + Electrical_Conductivity in
+  specific non-additive combinations, neither our MLP nor LGBM has
+  found the right interaction yet. Pair-wise or ternary FE (§6 in
+  NEXT_STEPS) is the most direct remaining attack.
+- LB delta: still 2/10 spent; neither v4 nor blend submitted.
+- New rule of thumb added to "Ruled out": a second-model blend needs
+  per-row **error orthogonality** to add signal; standalone OOF above
+  0.965 is necessary but not sufficient. Orthogonality can be
+  measured cheaply via mismatch rate on OOF predictions before
+  committing to a full blend sweep.
+
 ## Hypothesis board
 
 - **Open**:
-  - **MLP+BalSoft × LGBM+DGP prob-level blend.** v3 MLP lands
-    0.96596 (below LGBM+DGP 0.97271 standalone) but its errors are
-    structurally different: smooth-manifold decisions vs LGBM's
-    axis-aligned splits. A geometric-mean blend with bias retune is
-    the highest-ROI next step; expected +0.001–0.003 beyond LGBM
-    alone even with a weaker second model.
-  - **Tail-aware MLP losses (LDAM-DRW, cRT).** v3 Balanced Softmax
-    confirmed tail-aware training lifts the MLP (+0.0016 vs plain
-    CE). LDAM adds class-dependent margins (n_c^{-1/4} scaling →
-    ~2.3× larger margin for High than Low, targeting the Medium↔High
-    bottleneck). Decoupled cRT retrains just the final linear layer
-    with class-balanced sampling on any trained backbone.
+  - **Rule × non-rule pairwise FE for LGBM (now top open bet).** The
+    LGBM×MLP blend null (2026-04-21 PM) confirms MLP errors are
+    correlated with LGBM errors — both models miss the same
+    boundary-band flips. The residual signal likely lives in
+    specific non-additive combinations of non-rule features
+    (Previous_Irrigation_mm, Humidity, Electrical_Conductivity)
+    with rule axes. Explicit pairwise / ternary FE is the most
+    direct untried attack.
+  - **Decoupled cRT on v3 MLP backbone** (Kang 2020) — freeze v3's
+    feature extractor, retrain just the final linear layer with
+    class-balanced sampling. Cheapest remaining MLP variant (~1 min
+    per fold vs 3 min for retrain). Included for completeness even
+    though the blend null reduced expected value — could reshape
+    the MLP's error geometry enough to add diversity.
   - **Rule × non-rule pairwise FE for LGBM.** Specifically
     `Humidity × Soil_Moisture`, `Previous_Irrigation_mm × Rainfall_mm`,
     `Electrical_Conductivity × Soil_Moisture`, `Field_Area × dgp_score`.
@@ -673,6 +735,24 @@ README.md      TL;DR + reproduction instructions.
     blend already agree. v2 (specialist trained on flipped rows only)
     collapses to 0.86765 because the specialist predicts anti-rule
     on clean rows where P_flip > 0.
+  - **Standalone MLP as replacement for LGBM+DGP.** Three variants:
+    v1 plain CE (0.96437 tuned), v3 Balanced Softmax (0.96596, best),
+    v4 LDAM-DRW (killed at fold 1 = 0.96240 argmax). Plateau at
+    ~0.966 persists across loss changes — bottleneck is **50k-param
+    MLP capacity vs LGBM's implicit 10⁶-param axis-aligned ensemble
+    on rule-threshold features**, not loss function. Revisit only
+    if a much larger/deeper architecture (FT-Transformer,
+    NumEmb + MLP-large) is tried.
+  - **MLP+BalSoft blended with LGBM+DGP.** Probability-level blend
+    (`scripts/blend_lgbm_mlp.py`) over arithmetic + geometric mixing,
+    w ∈ [0, 0.5], coord-ascent bias retune per weight. Best:
+    geometric w=0.15 → 0.97276 vs LGBM alone 0.97271 (Δ = +0.00005,
+    below fold-std noise 0.00068). **Null result** — the MLP's
+    errors are correlated with LGBM's, not orthogonal. Both miss
+    the same boundary-band flips. New rule: any candidate blend
+    partner must demonstrate per-row *error orthogonality* (low
+    Jaccard overlap on OOF error sets), not just ≥0.965 standalone
+    OOF, before investing in the full sweep.
   - **Gated flip-recovery as a lever** (`scripts/gated_v3.py`). Tried
     meta-LGBM stacking over `[P_main, P_spec, P_flip, rule_oh,
     rule_int]` and hard-gate `argmax(P_spec) if P_flip>τ else rule`.
