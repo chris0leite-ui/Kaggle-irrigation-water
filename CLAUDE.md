@@ -1143,6 +1143,61 @@ README.md      TL;DR + reproduction instructions.
 - Current best unchanged: hybrid_spec_base (routed-{0,1,2} +
   spec-{6,7,8}) at OOF 0.97352 / LB 0.97271. LB budget: 3/10 used.
 
+### 2026-04-21 — session wrap-up: new OOF best 0.97362 + artifacts for cross-branch blending
+
+- Goal: close out the CatBoost + pseudo-labeling experiments and find
+  one more lift via architectural blending.
+
+- **NEW CURRENT BEST: hybrid × LGBM×XGB log-blend @ w_hyb=0.75 →
+  OOF 0.97362 (+0.00010 vs hybrid alone).** First lift of the session
+  after 12 nulls. Submission on disk:
+  `submissions/submission_hybrid_lgbmxgb_blend.csv`. Blend is
+  `0.75 × hybrid_v3 + 0.25 × (LGBM-dist × 0.45 + XGB-dist × 0.55)` in
+  log space. Jaccard hybrid vs LGBM×XGB = 0.8053 (above our prior
+  "skip" threshold) but blend still works — complementary error
+  magnitudes rescued the borderline Jaccard.
+
+- **CatBoost-dist standalone: 0.97128 (−0.00138 vs LGBM-dist).**
+  Weakest of the three. Native ordered TE didn't help on 43-feature
+  dist set. Jaccards with LGBM / XGB: 0.736 / 0.756 — both below
+  0.80. Best 3-way blend `(L=0.4, X=0.5, C=0.1)` = 0.97320, **worse
+  by 0.00007** than the 2-way LGBM×XGB. New negative-result rule:
+  **low Jaccard is necessary but NOT sufficient for a useful blend**.
+  CatBoost's unique errors landed on rows LGBM/XGB got right — any
+  weight > 0 dragged the blend toward its wrong answers.
+
+- **Pseudo-labeling τ=0.95 hybrid: −0.00020 null.** 226,749 test
+  rows (84 %) pass confidence threshold, split 60/36/4 Low/Med/High.
+  Augmented training: 630 k → 856 k per fold. Pseudo-hybrid tuned OOF
+  0.97332 vs baseline 0.97352. Probable cause: hybrid's boundary-band
+  errors get encoded in pseudo-labels; adding them with wrong class
+  pushes decision surface in the wrong direction on exactly the rows
+  the hybrid already mis-predicts.
+
+- **Cross-container blending setup**: committed 5 OOF + 5 test `.npy`
+  artifacts (~104 MB) to `scripts/artifacts/` via targeted `.gitignore`
+  exception entries, plus `OOFS.md` manifest documenting fold
+  convention (`StratifiedKFold seed=42`, 5-fold), class order
+  (Low=0, Medium=1, High=2), load/tune/blend recipes, and regen
+  instructions. Allows another container/branch to `git checkout
+  main` and blend with our predictions via `np.load()`.
+
+- Final tally this session: **13 experiments, 12 nulls, 1 lift.**
+  Current best OOF 0.97362 (single-digit bps above 0.97352). LB best
+  still 0.97271 (new blend unsubmitted; expected ~0.9728 at our ~0.0008
+  OOF→LB gap). LB budget: 3/10 used.
+
+- Lessons logged to LEARNINGS.md:
+  - **Jaccard necessary but not sufficient for blend.** CatBoost
+    Jaccard 0.74 with LGBM/XGB but blend hurt → need complementary
+    error magnitudes, not just non-overlap.
+  - **Pseudo-labeling compounds boundary errors when the labeler is
+    systematically wrong on the boundary.** τ=0.95 was not high
+    enough to filter out the hybrid's Medium↔High mistakes.
+  - Routing heuristic 3rd condition already logged earlier in the
+    session (training-distribution, not inference determinism or
+    structural anchors).
+
 ### 2026-04-21 — soft-blend greedy forward: NEW LB BEST 0.97296
 
 - Goal: regenerate saved OOFs for the top models (they were lost when
@@ -1229,6 +1284,12 @@ README.md      TL;DR + reproduction instructions.
      overrides (+0.00020 each) are comparable levers; combining
      all three via greedy gets you to +0.00023 over the best
      single pipeline without adding a new model class.
+  5. Cross-lineage blending is bounded by the anchor-model overlap.
+     Main's `hybrid_lgbmxgb_blend` (OOF 0.97362) and our greedy
+     (0.97375) both anchor on `xgb_hybrid_v3`; pairwise log-blend
+     picks w_ours=0.95 → OOF 0.97376 (+0.00001, null). Two blends
+     that share the dominant component don't compound — you need
+     DIFFERENT anchors to get orthogonal signal.
 
 ## Hypothesis board
 
