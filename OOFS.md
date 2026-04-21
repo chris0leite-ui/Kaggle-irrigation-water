@@ -65,9 +65,12 @@ All files below live at `scripts/artifacts/`. Sizes: OOF = 15 MB, test = 6 MB.
 
 ### Current best (recommended for blending as a single contribution)
 
-| File | OOF tuned bal_acc | Notes |
-|---|---|---|
-| `oof_hybrid_lgbmxgb_blend.npy` / `test_hybrid_lgbmxgb_blend.npy` | **0.97362** | Current best. Log-blend: `0.75 × hybrid_v3 + 0.25 × (LGBM×0.45 + XGB×0.55)`. See `scripts/blend_hybrid_lgbmxgb.py` for provenance. |
+| File | OOF tuned bal_acc | LB | Notes |
+|---|---|---|---|
+| `oof_greedy_blend.npy` + `oof_xgb_nonrule.npy` | **0.97421** (log-blend α=0.15) | **0.97352** | **Current best (2026-04-21).** Greedy 3-way blend (`0.45 hybrid_v3 + 0.40 routed_v3 + 0.15 spec_678`) log-blended with non-rule-features-only XGB at α_nonrule=0.15, FIXED greedy bias [0.1324, 0.5689, 3.4008]. See `scripts/nonrule_features_only.py` for provenance. |
+| `oof_greedy_blend.npy` / `test_greedy_blend.npy` | 0.97375 | 0.97296 | Greedy 3-way log-blend (reconstructed from components). See `scripts/greedy_binhigh_minimal.py`. |
+| `oof_hybrid_binhigh.npy` / `test_hybrid_binhigh.npy` | 0.97398 | 0.97212 (**overfit**) | Binary-High head stacked on hybrid_lgbmxgb_blend via logit-add λ=+0.60, with bias retuned per blend. Selection-overfit; keep for reference, do not use as a blend leg. `scripts/binary_high_head.py`. |
+| `oof_hybrid_lgbmxgb_blend.npy` / `test_hybrid_lgbmxgb_blend.npy` | 0.97362 | — | Log-blend: `0.75 × hybrid_v3 + 0.25 × (LGBM×0.45 + XGB×0.55)`. `scripts/blend_hybrid_lgbmxgb.py`. |
 
 ### Hybrid components (if the blender wants to construct its own hybrid variant)
 
@@ -84,6 +87,8 @@ To reconstruct hybrid-v3: `hybrid[spec_rows] = spec[spec_rows]; hybrid[other_row
 |---|---|---|
 | `oof_xgb_vanilla_dist.npy` / `test_xgb_vanilla_dist.npy` | 0.97304 | XGB-dist trained on all 630 k rows, no routing. 43-feature dist set. Emitted as by-product of `scripts/xgb_dist_routed_v7.py`. |
 | `oof_lgbm_te_orig.npy` / `test_lgbm_te_orig.npy` | 0.97270 | LGBM-dist + TE from 10k original (null TE lift; proxy for vanilla LGBM-dist). `scripts/benchmark_te_orig.py`. |
+| `oof_xgb_bin_high.npy` / `test_xgb_bin_high.npy` | AUC 0.9987 | 1-D binary 'is High?' head. Same 43-feature dist set, 5-fold stratified on 3-class y, `binary:logistic`. Shape `(N,)` not `(N, 3)` — use with the hybrid via logit-add or mix. `scripts/binary_high_head.py`. **Lever dead after fixed-bias falsification.** |
+| `oof_xgb_nonrule.npy` / `test_xgb_nonrule.npy` | 0.42965 argmax / 0.56966 tuned standalone | 3-class XGB on 13 non-rule features only (`Soil_Type, Soil_pH, Organic_Carbon, Electrical_Conductivity, Humidity, Sunlight_Hours, Crop_Type, Season, Irrigation_Type, Water_Source, Field_Area_hectare, Previous_Irrigation_mm, Region`). Near-random standalone, but log-blended at α=0.15 with greedy lifts LB +0.00056. `scripts/nonrule_features_only.py`. |
 
 ## Other OOFs (NOT committed — regenerate with the listed script)
 

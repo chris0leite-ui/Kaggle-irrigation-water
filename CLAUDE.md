@@ -1395,6 +1395,451 @@ README.md      TL;DR + reproduction instructions.
   reduction on the current best. Expected +0.0001-0.0003 LB.
   Cheap (~60 min) and guaranteed-safe.
 
+### 2026-04-21 — binary 'is High?' head + hybrid blend: NEW OOF BEST 0.97398
+
+- Goal: brainstorm #1 (High-class lever). High has 3x leverage under
+  balanced accuracy (1/3 of macro-recall), so a dedicated binary head
+  specialising on `P(High | x)` may lift the hybrid's High posterior.
+- Changed: `scripts/binary_high_head.py` — XGBoost `binary:logistic`
+  with 43-feature dist set, same 5-fold split as all other OOFs (seed
+  42). Three blend variants (prob-mix, geo-mix, logit-add) swept
+  against `oof_hybrid_lgbmxgb_blend.npy`, each with coord-ascent
+  log-bias. Artefacts: `oof_xgb_bin_high.npy`, `test_xgb_bin_high.npy`,
+  `oof_hybrid_binhigh.npy`, `test_hybrid_binhigh.npy`,
+  `binary_high_head_results.json`,
+  `submissions/submission_hybrid_binhigh_tuned.csv`.
+- Binary head OOF AUC = **0.99866** (5 folds, 526-713 best_iter).
+  Distance features + rule indicators separate High trivially; 3.3%
+  prior class has a crisp decision boundary.
+- Blend sweep results (OOF tuned bal_acc):
+  ```
+  baseline hybrid_lgbmxgb_blend                0.97362
+
+  prob-mix:     w=0.00  0.97362
+                w=0.35  0.97396  (+0.00034, peak)
+                w=1.00  0.97352
+
+  geo-mix:      w=0.00  0.97362
+                w=0.35  0.97396  (+0.00034, peak)
+                w=1.00  0.97352
+
+  logit-add:    lam=0.00  0.97362
+                lam=+0.60 0.97398  (+0.00036, peak, OVERALL BEST)
+                lam=+2.00 0.97383
+                lam=-1.00 0.66360  (destroys probs as expected)
+  ```
+  All three sweeps produce clean unimodal curves — not single-point
+  flukes. Prob-mix and geo-mix agree on the optimal weight (w=0.35),
+  logit-add squeezes another 0.00002 at lam=+0.60 (equivalent
+  strength, different parameterisation of the same intervention).
+- **New current best: 0.97398 OOF** (logit-add lam=+0.60).
+  Delta vs hybrid +0.00036. Inside 1sigma fold-std (~0.00088) in
+  absolute terms, but the smooth monotonic sweep structure confirms
+  the signal is real, not selection noise.
+- Confusion matrix at tuned operating point:
+  ```
+           Low  Medium   High    per-class recall
+  Low   368354    1561      2    99.578%
+  Medium  5120  229697   4257    96.078%
+  High       0     727  20282    96.540%
+  ```
+  Compared to hybrid baseline (not re-run but trivially similar):
+  High recall lifted to 96.54% — this is what the binary head bought.
+  Medium is now the weakest leg (96.08%); Medium->High confusions
+  dominate the remaining error mass (4257 out of ~11k total errors).
+- Implication for next bets: **High-class lever still has meat**. The
+  binary head's +0.00036 came from pushing a few hundred boundary
+  rows from Medium to High correctly. The lever is not exhausted —
+  a second High-specialist (different feature subset or different
+  seed) may stack further. More importantly, brainstorm #7 (non-rule
+  features only) now has a concrete mechanism hypothesis: if those
+  features carry the NN-flip signal, a non-rule-feature-only head
+  blended similarly could push another bucket of Medium->High flips.
+- **LB probe: submitted at 17:44, result 0.97212** — worse than current
+  LB best (`submission_blend_greedy_w045_040_015.csv` submitted
+  earlier today by parallel session, 0.97296 on LB / 0.97375 OOF).
+  OOF->LB gap for binhigh = 0.97398 − 0.97212 = **0.00186**, far wider
+  than the greedy blend's 0.00079. **The OOF gain did not transfer.**
+- **Root cause: selection overfit on top of an already-tuned
+  pipeline.** This experiment optimised:
+  1. Binary-head XGB (4k round early stopping on fold val bal_acc).
+  2. Log-bias coord-ascent on hybrid baseline (already done).
+  3. Three blend parameterisations × ~20-30 grid points = ~75
+     candidates, each with its own log-bias coord-ascent.
+  4. Argmax over all sweep points.
+  Each nested tuning on OOF compounds small selection biases that
+  don't exist on the hidden LB. The prior hybrid had already been
+  OOF-tuned (blend weights, log-bias) — layering another round of
+  OOF tuning added ~0.0011 OOF-only inflation on top of a baseline
+  that had ~0.0015 worth of same.
+- **Rule: when adding a new component on top of a stack that is
+  already OOF-tuned (blend weights + log-bias), expect the real LB
+  delta to be ~1/3 of the OOF delta.** Current-best OOF 0.97398 →
+  LB 0.97212 (0.00186 gap, 5.2x above the 0.00036 OOF lift). The
+  greedy 3-way blend submitted earlier by parallel session was the
+  right reference baseline (0.97375 OOF / 0.97296 LB, 0.00079 gap)
+  because it tuned fewer hyperparameters per additional component.
+- **Revised current best**: `submission_blend_greedy_w045_040_015.csv`
+  at LB **0.97296** (submitted 16:09 today, not by this branch).
+  Our OOF best (0.97398) is on disk but LB-inferior to the greedy.
+- LB budget: **5/10 used today** (was under-counted earlier; the
+  greedy sub by parallel session counts), 5 remaining.
+- Calibration ladder update:
+  ```
+  hybrid_lgbmxgb_blend          0.97362 -> ~0.9727 expected (not subbed)
+  greedy 3-way log-blend        0.97375 -> 0.97296   gap 0.00079 <- LB BEST
+  hybrid + binhigh logit_add    0.97398 -> 0.97212   gap 0.00186 <- OVERFIT
+  ```
+- Next bet: instead of piling more tuned blends on top, run
+  brainstorm #7 (non-rule-features-only flip predictor) — it's
+  architecturally orthogonal, so new information not new
+  OOF-selection. And consider adding binhigh to the *greedy*
+  blend pipeline (not the hybrid_lgbmxgb_blend) with minimal
+  additional tuning to see if the High-head signal survives the
+  selection-tightened baseline.
+
+### 2026-04-21 — binhigh lever falsified on greedy stack (fixed-bias sweep)
+
+- Goal: test whether the +0.00036 OOF lift from binhigh survives
+  honest tuning, by adding it to the LB-validated greedy blend with
+  a single parameter (logit-add lam on the High column) and the
+  greedy's already-fitted log-bias reused as-is.
+- Changed: `scripts/greedy_binhigh_minimal.py` — reconstructs greedy
+  from committed components (hybrid_v3 = routed_v3 with spec_678
+  override on dgp_score ∈ {6,7,8}, then 0.45 hybrid + 0.40 routed +
+  0.15 spec log-blend), fits log-bias once, sweeps lam ∈ {0, 0.05,
+  …, 0.50} with that bias FIXED. Artefacts: `oof_greedy_blend.npy`,
+  `test_greedy_blend.npy`, `greedy_binhigh_minimal_results.json`.
+- Results (OOF bal_acc at fixed greedy bias = [0.1324, 0.5689, 3.4008]):
+  ```
+  greedy baseline (lam=0)      0.97375  (matches prior LB-0.97296 sub)
+  lam=0.05                     0.97372  (−0.00002)
+  lam=0.10                     0.97364  (−0.00011)
+  lam=0.15                     0.97330  (−0.00044)
+  lam=0.20                     0.97302  (−0.00072)
+  lam=0.30                     0.97246  (−0.00129)
+  lam=0.50                     0.97168  (−0.00207)
+  ```
+  **Monotonic decrease.** Binary-High head adds zero information to
+  the greedy stack; with tuned bias reused as-is, any positive lam
+  strictly hurts OOF.
+- **Binhigh lever is DEAD** as a greedy-stack add-on. The earlier
+  +0.00036 OOF lift on `hybrid_lgbmxgb_blend` was a log-bias
+  artefact: retuning bias after injecting P(High) lets coord-ascent
+  push the High threshold up, which inflates OOF without new signal.
+  That's exactly why it lost 0.00084 LB vs greedy.
+- Gap math now reconciled:
+  ```
+  greedy   OOF 0.97375 − LB 0.97296 = 0.00079  (honest calibration)
+  binhigh  OOF 0.97398 − LB 0.97212 = 0.00186  (overfit by 0.00107)
+  ```
+  The 0.00107 overfit = all of the log-bias-retune inflation.
+- No LB submission (fixed-bias sweep strictly negative). Budget
+  unchanged at 5/10 used, 5 remaining.
+- New rule: **when adding a component to a tuned blend, sweep with
+  fixed baseline bias first.** If fixed-bias OOF doesn't improve,
+  the component is redundant with the blend — retuning bias on top
+  will manufacture a fake lift that vanishes on LB.
+- Next bet: brainstorm #7 (non-rule-features-only flip predictor).
+  Architectural not tuning — tests whether the NN-generator's flip
+  signal hides in `Humidity, Prev_Irrig, EC, Soil_pH, Organic_C,
+  Sunlight, Field_Area, Region, Crop_Type, Soil_Type`, which trees
+  on the rule features alone can't fully access.
+
+### 2026-04-21 — non-rule-features-only blend: NEW LB BEST 0.97352 (+0.00056)
+
+- Goal: brainstorm #7. The NN label generator (`brief.md:74`) likely
+  used non-rule features to perturb labels away from the rule. A
+  model restricted to just those features captures exactly that
+  perturbation signal, orthogonal by construction to tree models
+  that are dominated by the 6 rule features.
+- Changed: `scripts/nonrule_features_only.py` — XGBoost 3-class
+  `multi:softprob` on 13 non-rule features only (`Soil_Type, Soil_pH,
+  Organic_Carbon, Electrical_Conductivity, Humidity, Sunlight_Hours,
+  Crop_Type, Season, Irrigation_Type, Water_Source, Field_Area_hectare,
+  Previous_Irrigation_mm, Region`), same 5-fold split (seed=42) as all
+  other OOFs. Fixed-greedy-bias sweep over log-blend α. Artefacts:
+  `oof_xgb_nonrule.npy`, `test_xgb_nonrule.npy`, `nonrule_results.json`,
+  `submission_greedy_nonrule_blend.csv`.
+- Standalone (non-rule features only): OOF argmax = 0.42965,
+  tuned = 0.56966 — barely above random. Model learns almost nothing
+  class-predictive from these features alone.
+- Fixed-bias log-blend sweep (greedy tuned baseline = 0.97375,
+  bias = [0.1324, 0.5689, 3.4008]):
+  ```
+  alpha_nonrule=0.00  OOF = 0.97375  Δ = +0.00000  (baseline)
+  alpha_nonrule=0.05  OOF = 0.97383  Δ = +0.00008
+  alpha_nonrule=0.10  OOF = 0.97400  Δ = +0.00026
+  alpha_nonrule=0.15  OOF = 0.97421  Δ = +0.00047   ← peak
+  alpha_nonrule=0.20  OOF = 0.97419  Δ = +0.00044
+  alpha_nonrule=0.25  OOF = 0.97397  Δ = +0.00022
+  alpha_nonrule=0.30  OOF = 0.97379  Δ = +0.00004
+  alpha_nonrule=0.40  OOF = 0.97262  Δ = -0.00113
+  alpha_nonrule=0.50  OOF = 0.96998  Δ = -0.00377
+  ```
+  Clean unimodal peak at α=0.15, symmetric curve. FIXED bias throughout —
+  no retune compensation. The signal is real, not calibration-manufactured.
+- Confusion-matrix deltas at α=0.15 (blend − greedy):
+  ```
+                    Low recall    Medium recall   High recall
+  greedy (ref)      0.99566       0.96013         0.96544
+  greedy + nonrule  0.99554       0.95785         0.96925
+  delta            -0.00012      -0.00228        +0.00381
+  ```
+  Non-rule blend trades ~540 Medium rows for ~80 High flips. Net
+  positive because High has 3× leverage under balanced accuracy.
+  Mechanism: non-rule features (especially `Humidity`,
+  `Previous_Irrigation_mm`, `Region`) carry the NN-generator's flip
+  signal that axis-aligned trees on rule features can't fully access.
+- **LB probe: submitted at 18:26, result 0.97352** — **new LB best**,
+  +0.00056 vs greedy's 0.97296.
+- Calibration ladder update:
+  ```
+  hybrid_lgbmxgb_blend          0.97362 -> LB (not submitted)
+  greedy 3-way log-blend        0.97375 -> 0.97296   gap 0.00079
+  hybrid + binhigh (overfit)    0.97398 -> 0.97212   gap 0.00186
+  **greedy + nonrule α=0.15**   **0.97421 -> 0.97352   gap 0.00069 ← NEW BEST**
+  ```
+  **Gap shrunk from 0.00079 to 0.00069** — honest architectural lever,
+  opposite of the binhigh experiment where gap blew up on retune.
+  Confirms the methodology: fixed-bias fixed-sweep over a new model
+  family is a reliable way to validate lifts before LB.
+- Hypothesis confirmed: **the NN label generator does perturb labels
+  via non-rule features**. The effect is small (~80 flips per 630k
+  rows) but real. Any further gains on this lever should stack
+  cleanly because the non-rule model isn't using rule features at
+  all — there's no information leak with the greedy ensemble.
+- LB budget: **6/10 used today**, 4 remaining.
+- Next bets unlocked by this result:
+  1. **Second non-rule model** (LGBM or CatBoost variant, or different
+     seed) — bag the non-rule predictor, then blend. Expected
+     +0.00005–0.0002 cheap variance reduction.
+  2. **Brainstorm #8 (two-stage rule-base + non-rule correction)** —
+     explicitly predict `y − rule_pred` instead of y from non-rule
+     features. Now well-motivated since we know the lever works.
+  3. **Non-rule model with rule_pred or dgp_score as an input** —
+     lets the model learn "predict rule unless non-rule features
+     suggest otherwise". Hybrid of the two frames.
+  4. **Stack with the existing binhigh head** — binhigh and nonrule
+     attack different rows (binhigh = amplify rule-strong rows,
+     nonrule = correct rule-wrong rows). The second overfit didn't
+     mean the first was worthless — they may stack.
+
+### 2026-04-21 — nonrule + rule_pred + dgp_score (null, confirms orthogonality)
+
+- Goal: test whether augmenting the 13 non-rule features with
+  `rule_pred` (categorical, 3 classes) and `dgp_score` (int 0-9)
+  lets XGB learn corrections like "rule says Low but Humidity +
+  Prev_Irrig pattern → actually Medium" that pure nonrule can't
+  express. Risk: the model simply parrots `rule_pred`, losing the
+  architectural orthogonality that makes #7 work.
+- Changed: `scripts/nonrule_with_rulepred.py` — 3-class XGB on 15
+  features (13 non-rule + rule_pred cat + dgp_score num), same
+  5-fold split (seed=42), fixed-greedy-bias sweeps. Artefacts:
+  `oof_xgb_nonrule_rulepred.npy`, `test_xgb_nonrule_rulepred.npy`,
+  `nonrule_rulepred_results.json`.
+- Results (OOF, 5-fold, seed=42):
+  - Standalone argmax = 0.96052 (rule's ceiling), tuned = 0.96481.
+    Above pure rule's 0.96097 — the model DID learn non-rule
+    corrections on top of the rule signal.
+  - Onto greedy alone: peak α=0.05 → 0.97382 (+0.00007 vs 0.97375,
+    within fold noise). Every α > 0.05 strictly hurts.
+  - Onto base (greedy + XGB-nonrule @0.15): β=0 peak 0.97421,
+    monotonic decrease.
+  - 3-way (XGB-nonrule + this + greedy): best at a=0.15, b=0.05,
+    g=0.80 → 0.97418 (Δ = −0.00003 vs base).
+  - Error Jaccard (new vs XGB-nonrule) = 0.037 — they make very
+    different errors (inter 12k, union 333k; new model has
+    6-7× fewer errors overall because it uses rule).
+- **Architectural confirmation**: the non-rule lever works precisely
+  BECAUSE it ignores rule features. Adding `rule_pred` pulls the
+  model's predictions close to greedy (which also uses rule
+  features) — the different errors vs XGB-nonrule are exactly the
+  errors greedy already corrects. So the blend adds redundancy,
+  not orthogonality.
+- New rule: **diversity from "ignoring a feature class" is
+  additive to a model that DOES use that feature class; but
+  diversity from "using the same feature class differently" is
+  usually redundant in a blend**. XGB-nonrule wins by being
+  rule-free, not by being a tree.
+- No submission (fixed-bias sweep capped below +0.0003). LB budget
+  unchanged at 6/10 used, 4 remaining.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Next bets unchanged from previous entry (seed-bag, pseudo-label,
+  self-distillation, rule × non-rule pairwise FE on greedy).
+
+### 2026-04-21 — nonrule-lever stacking batch: LGBM + weighted-shift + featsubset + EBM (four nulls)
+
+After the non-rule-features-only lever hit LB 0.97352 (+0.00056), this
+session tested four follow-ups to stack more diversity into the
+same lever. All four null — the non-rule signal is fully captured
+by the single XGB-nonrule model on 13 features; no additional
+architecture or feature view adds orthogonal bits at this base.
+
+- **LGBM variant of nonrule** (`scripts/nonrule_lgbm_blend.py`).
+  Standalone OOF argmax 0.42924 / tuned 0.56791 — tracks XGB-
+  nonrule (0.42965 / 0.56966) to 3 decimals. Onto greedy alone:
+  peak α=0.20 → 0.97415 (+0.00041, below XGB's +0.00047).
+  2D sweep XGB_nr + LGBM_nr + greedy: best (0.05, 0.15, 0.80) →
+  0.97421 ties the base. 1D stacking: β=0 wins. LGBM and XGB
+  produce near-identical predictions on 13 non-rule features —
+  leaf-wise vs level-wise tree construction not enough diversity.
+
+- **Weighted-shift retry** (`scripts/nonrule_shift_weighted.py`).
+  Sample_weight=100 on shift≠0 rows. Model learns flip
+  discrimination now (y-argmax 0.76 vs vanilla's 0.96 parrot-
+  rule) but standalone tuned 0.95892 — WORSE than the rule
+  (0.96097). Blend sweep monotone negative from α=0. Upweight
+  100x overshot: model predicts too many rows as flipped,
+  degrading clean-row predictions. Would need HP tuning on the
+  weight.
+
+- **Feature-subset bagging (#+ user idea)**
+  (`scripts/nonrule_featsubset_bag.py`). 5 XGB sub-models, each
+  on a different 4-feature subset of 7 top non-rule features
+  (Humidity, Prev_Irrig, EC, Field_Area, Region, Crop_Type,
+  Soil_Type). Log-mean ensemble standalone tuned 0.53720 —
+  BELOW both XGB-nonrule full (0.56966) and every individual
+  subset except D (0.40620, weakest). Onto greedy alone: peak
+  α=0.15 → 0.97383 (+0.00009, way below XGB's +0.00047). Onto
+  base monotone negative. 3-way XGB+ens+greedy also null. Each
+  individual subset at β=0.10 onto base: all −0.00011 to
+  −0.00031. Diagnosis: the 5 subsets share too many features
+  (each feature in 3 subsets), ensemble converges to a weaker
+  version of XGB-nonrule-full. Feature-subspace diversity on
+  only 7 features doesn't have room.
+
+- **EBM variant** (`scripts/nonrule_ebm_blend.py`). Fold 1 took
+  **1742s (29 min)**, argmax bal 0.42421 — identical to XGB (0.42913)
+  and LGBM (0.42730). Killed after fold 1: (a) 5 folds would cost
+  2.5+ hours, (b) fold-1 argmax parity with LGBM/XGB means EBM
+  won't add blend diversity at this feature set — same ceiling,
+  different architecture. Saved for potential revival only if a
+  lever shows up that makes the compute justifiable.
+
+- **Summary of the stacking batch**: XGB-nonrule-full on 13
+  features is the single best expression of the non-rule lever.
+  LGBM, EBM, feature-subset, and shift-weighted all track or
+  underperform it. The diversity we need has to come from
+  somewhere OTHER than "different model on the same non-rule
+  features" — likely from either different features (rule ×
+  non-rule cross FE still untested on greedy), a different fold
+  split (seed-bag), or a genuinely new data source.
+
+- LB budget: **6/10 used today** (unchanged). Current best:
+  `submission_greedy_nonrule_blend.csv` OOF 0.97421 / LB 0.97352.
+- Next bet: seed-bag XGB-nonrule (5 seeds), OR try
+  rule_pred-as-feature for nonrule (which we'd rejected as
+  architectural leak but is worth a fixed-bias probe), OR go
+  broader: test-time augmentation, self-distillation, or
+  pseudo-labeling via current best.
+
+### 2026-04-21 — two-stage shift-correction (brainstorm #8, null)
+
+- Goal: predict ordinal shift `y - rule_pred + 2 ∈ {0..4}` from
+  non-rule features only, convert to y-probs via the rule offset
+  map, blend into greedy with fixed bias. Hypothesis: by baking
+  rule_pred into the target, the model concentrates capacity on the
+  NN-perturbation residual instead of re-learning the class prior.
+- Changed: `scripts/nonrule_shift_correction.py` — 5-class
+  `multi:softprob` XGB on 13 non-rule features, same 5-fold stratified
+  split on y (seed=42). Conversion `shift5_to_y3(p_shift, rule_pred)`
+  with clipping at y=[0,2]. Artefacts: `oof_xgb_shift5.npy`,
+  `test_xgb_shift5.npy`, `oof_xgb_shift_to_y.npy`,
+  `test_xgb_shift_to_y.npy`, `shift_results.json`.
+- Observed shift distribution on train (after conversion):
+  `shift=-1: 0.52%`, `shift=0: 98.36%`, `shift=+1: 1.12%`. **No shift
+  of ±2** — the NN never flips two classes.
+- Results (OOF tuned bal_acc, 5-fold, seed=42, fixed greedy bias):
+  - Standalone shift->y: argmax 0.96097, tuned 0.96097 — matches the
+    rule's ceiling. Model converged to "parrot rule_pred".
+  - Onto greedy: α=0.00 peak 0.97375, α=0.05 0.97372 (−0.00002),
+    α=0.15 0.97326 (−0.00049). Monotone negative.
+  - Onto greedy+nonrule (current LB best): α=0.00 peak 0.97421,
+    α=0.10 0.97393 (−0.00028). Also monotone negative.
+- Diagnostic: best_iter 59-108 rounds (vs 1100+ for direct-y
+  nonrule #7). Early stopping saturated on "predict shift=0 always"
+  — the 98.36% majority dominates 5-class log-loss and the rare
+  shift-±1 signal never gets enough gradient to matter.
+- **Lesson**: the shift framing is structurally fragile when the
+  majority class dominates ≥95% of the target. Direct-y 3-class
+  keeps the model learning per-row Low/Medium/High discrimination
+  across all 630k rows; shift framing lets it collapse to a
+  one-class predictor. Would need either (a) heavy sample-weight
+  upweighting of shift-±1 rows, (b) stratified balanced sampling,
+  or (c) binary classifier on "is flipped?" + direction head.
+- No LB submission (fixed-bias sweep strictly negative). LB budget
+  unchanged at 6/10 used, 4 remaining.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Next bet: brainstorm #7 follow-up #1 — seed-bag the non-rule
+  model (5 seeds, ~15 min). Cheapest variance reduction on the
+  only architecturally-diverse leg we have. Or #4 — stack the
+  binhigh head with non-rule in the greedy pipeline (still on
+  fixed bias, just a 2-parameter sweep); binhigh's diagonal
+  ~0.99 AUC on High was never fully tested with honest tuning.
+
+### 2026-04-21 — rank-sum / Borda blend (null, first of brainstorm batch)
+
+- Goal: falsify the "sum" lever. All prior blends (LGBM×XGB,
+  hybrid×blend) were prob-space or log-space. Rank-averaging is
+  calibration-invariant; if the per-model confidence-scale was
+  limiting prob blends, rank-avg should lift.
+- Changed: `scripts/rank_blend.py` — per-column rank-normalisation to
+  `[0, 1]`, averaged across model subsets, softmaxed row-wise, coord-
+  ascent log-bias. Three aggregators (rank_avg, rank_wavg weighted
+  by standalone bal_acc, Borda via softmax), four subsets (all 4
+  committed OOFs, no-hybrid, hybrid+xgb_v3, hybrid+all_base).
+  Artefact: `scripts/artifacts/rank_blend_results.json`.
+- Results (OOF tuned bal_acc, 5-fold stratified, seed=42):
+  ```
+  baseline hybrid_lgbmxgb_blend (current best)   0.97362
+  baseline xgb_dist_routed_v3                    0.97332
+  baseline xgb_vanilla_dist                      0.97304
+  baseline lgbm_te_orig                          0.97270
+
+  rank_avg_all4                                  0.96800
+  rank_avg_no_hybrid                             0.96810
+  rank_avg_hybrid+xgb_v3                         0.96739
+  rank_wavg_all4                                 0.96800
+  rank_wavg_no_hybrid                            0.96808
+  borda_softmax_all4                             0.96800
+  borda_softmax_no_hybrid                        0.96810
+  ```
+  All 12 rank/Borda variants land at **0.96739–0.96810** —
+  **−0.0055 to −0.0062 below current best**, far worse than every
+  base learner and clearly outside fold-noise.
+- Mix sweep (α = rank-weight in a `α·rank + (1−α)·prob` blend of
+  hybrid + xgb_v3):
+  ```
+  α=0.00  0.97368   ← pure prob-avg, tiny +0.00006 over hybrid
+  α=0.10  0.97362   ← ties hybrid
+  α=0.50  0.97340
+  α=1.00  0.96739   ← pure rank, null
+  ```
+  α=0.00 found a +0.00006 crumb (simple 50/50 prob-avg of hybrid +
+  xgb_v3 edges the current best) but that's within fold-std noise
+  (~0.00088) and has nothing to do with rank aggregation — it's just
+  a different point in prob space.
+- Read-out: **rank aggregation throws away absolute-probability
+  information that log-bias tuning needs.** Balanced-accuracy tuning
+  for a 3-class problem requires per-class calibrated probabilities
+  to shift operating points; a rank distribution squashes class
+  posteriors to nearly-uniform after row-softmax, losing the sharp
+  separation LGBM/XGB provide on clean rows. Calibration-invariance
+  isn't actually a benefit here — the component models already
+  produce comparable probability scales because they train on the
+  same loss.
+- New rule: **for 3-class balanced-accuracy problems with
+  log-bias-tuned decision rules, rank-space blending is strictly
+  dominated by prob/log-space blending.** Don't retry rank-avg
+  variants. Keep prob and log blends for component-model fusion.
+- LB delta: n/a (0 LB spend; 3/10 cumulative).
+- Current best unchanged: `oof_hybrid_lgbmxgb_blend` at OOF 0.97362 /
+  LB-best 0.97271. First of the brainstorm batch — moving to bet #1
+  (binary "is High?" head) next.
+
 ## Hypothesis board
 
 - **Current best**: greedy log-blend

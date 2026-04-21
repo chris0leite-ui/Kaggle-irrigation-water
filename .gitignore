@@ -66,3 +66,11 @@ logs/
 !scripts/artifacts/test_xgb_vanilla_dist.npy
 !scripts/artifacts/oof_lgbm_te_orig.npy
 !scripts/artifacts/test_lgbm_te_orig.npy
+!scripts/artifacts/oof_xgb_bin_high.npy
+!scripts/artifacts/test_xgb_bin_high.npy
+!scripts/artifacts/oof_hybrid_binhigh.npy
+!scripts/artifacts/test_hybrid_binhigh.npy
+!scripts/artifacts/oof_greedy_blend.npy
+!scripts/artifacts/test_greedy_blend.npy
+!scripts/artifacts/oof_xgb_nonrule.npy
+!scripts/artifacts/test_xgb_nonrule.npy

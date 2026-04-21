@@ -75,6 +75,15 @@ All 5-fold stratified CV, seed 42. OOF balanced accuracy.
 | **NN (MLP+BalSoft v3)**  | **Balanced Softmax (Menon 2021) tuned**  | **0.96596** |   **+0.00159 vs v1** |
 | NN (MLP+LDAM-DRW v4)     | LDAM + eff-num CB weights (fold 1 only)  |      ~0.962 |   killed — see §5 |
 | Blend                    | LGBM+DGP ⊗ MLP+BalSoft, geometric w=0.15 |     0.97276 |      +0.00005 (null) |
+| Routed/spec (hybrid_v3)  | routed{0,1,2}+XGB + spec-{6,7,8} override|    0.97352 |      LB **0.97271**  |
+| 3-way log-blend (greedy) | 0.45 hybrid_v3 + 0.40 routed_v3 + 0.15 spec_678 |  0.97375 | LB **0.97296** |
+| Binary-High head (overfit)| hybrid_lgbmxgb + binhigh logit-add λ=+0.60 |   0.97398 | LB 0.97212 (gap blew up) |
+| Binhigh on greedy (fixed bias) | same head stacked on greedy, no retune | 0.97375 (λ=0) | — (no submit) |
+| **Non-rule-only blend**  | **greedy + XGB(non-rule features only) @ α=0.15** | **0.97421** | **LB 0.97352 ← best** |
+| LGBM variant of nonrule  | same 13 features, different tree style   |     0.97415 |      null vs base    |
+| Feature-subset bag       | 5×XGB on 4-of-7 non-rule subsets         |     0.97383 |      null vs base    |
+| Nonrule + rule_pred      | 13 non-rule + rule_pred + dgp_score      |     0.97382 |      null vs base    |
+| Weighted-shift (w=100)   | upweight flip rows 100×, shift-5 XGB     |     0.97375 (α=0) | — (null)    |
 | LB reference             | LB tied pack (~100 teams)                |     0.98114 |             –  |
 | LB reference             | LB leader (Chris Deotte)                 |     0.98219 |             –  |
 
@@ -293,9 +302,93 @@ the NN-augmented blend.
 - (target × dgp_score) stratified CV: unchanged tuned OOF; default
   StratifiedKFold is already well-balanced at 630k rows.
 
-Ruled out (see §5): balanced-ensemble blends, hand-crafted
-water-balance cols in LGBM, standalone MLP as replacement for LGBM,
-MLP × LGBM prob-level blend, LGBM HP refresh, MNLogit blend.
+## 4.1 Strategy update — late-night 2026-04-21 (LB 0.97352)
+
+**Session snapshot 2026-04-21 late-night**: after a 13-experiment
+session on branch `claude/improve-balanced-accuracy-dXEHv`, current
+best is **greedy 3-way log-blend + non-rule-features-only XGB
+@ α=0.15 → OOF 0.97421 / LB 0.97352** (gap 0.00069 — tightest of
+any submission). Pack at 0.98114 remains +0.00762 above; leader
+0.98219 +0.00867. LB budget 6/10 used today, 4 remaining.
+
+**One architectural win**: a 3-class XGB trained only on the 13
+non-rule features (Soil_Type, Soil_pH, Organic_Carbon, EC, Humidity,
+Sunlight_Hours, Crop_Type, Season, Irrigation_Type, Water_Source,
+Field_Area_hectare, Previous_Irrigation_mm, Region) — standalone
+bal_acc just 0.570 (barely above random) — log-blended at 15 %
+weight into the greedy stack lifts LB +0.00056. Validates the
+hypothesis that the host's NN label generator uses non-rule features
+to perturb labels from the rule's 0.96097-ceiling prediction.
+
+**Six nulls confirming the lever is cornered within its architecture**:
+
+| Attempt | Fixed-bias lift vs base |
+|---|---|
+| LGBM variant of nonrule | +0.00000 (best α=0.05 ≈ base) |
+| EBM variant of nonrule | aborted (fold 1 = 0.424, 29 min/fold) |
+| Feature-subset bag (5×4/7) | +0.00009 (below XGB's +0.00047) |
+| Nonrule + rule_pred+dgp_score | +0.00007 (loses orthogonality) |
+| Shift-5 target + non-rule | monotonic negative |
+| Shift + weight=100 | standalone below rule, blend negative |
+
+**Methodology rules earned this session** (now in LEARNINGS.md):
+
+1. **Fixed-baseline-bias sweep is the pre-LB filter.** If a new
+   component doesn't lift OOF with the baseline's bias reused
+   as-is, retuning bias manufactures fake lift that vanishes on LB.
+2. **Real LB delta ≈ 1/3 OOF delta** when stacking tuned blends on
+   tuned baselines. Architectural levers have 1:1 transfer.
+3. **Gap shrinkage is the signature of honest architectural
+   signal.** Greedy → greedy+nonrule: gap went 0.00079 → 0.00069.
+4. **Rank/Borda blending is strictly dominated** by prob/log-space
+   for 3-class log-bias-tuned decision rules.
+5. **Diversity from "ignoring a feature class"** is more powerful
+   than diversity from "using it differently" when the baseline
+   already ensembles over the dominant class. XGB-nonrule wins by
+   being rule-free, not by being a tree.
+6. **Shift-target framings collapse** when any target class owns
+   ≥95% of rows; boosted trees early-stop on the trivial majority.
+
+Ranked by expected ROI / effort for the remaining days. Current
+best: greedy+nonrule blend, OOF = 0.97421 / LB = 0.97352.
+
+1. **Seed-bag XGB-nonrule** (5 seeds, ~20 min). Cheapest remaining
+   insurance on the only architecturally-diverse leg. Expected
+   **+0.00005 – 0.0002** LB, boring but not zero.
+2. **Pseudo-labeling via current LB-best.** Previously null at
+   τ=0.95 on the weaker hybrid_lgbmxgb base. Retry with the
+   stronger greedy+nonrule base. Estimate: **+0.0002 – 0.001**
+   if the stronger base produces cleaner high-confidence labels.
+3. **Self-distillation on greedy+nonrule predictions.** Train a
+   fresh XGB to match the current ensemble's probabilities on train
+   rows, then blend back in. Forces the model to replicate the
+   ensemble's decision surface via a different inductive path.
+   Estimate: +0.0001 – 0.0005.
+4. **Rule × non-rule pairwise FE on greedy base models.**
+   Previously null on hybrid_lgbmxgb_blend (blend weight collapsed
+   from 0.45 to 0.05 when FE cols added). Retest on the greedy base
+   now that we have the fixed-bias methodology. Expected 0.0002 or
+   null; confirms whether the null was architecture-specific.
+5. **Ordinal-aware loss / Medium↔High sample-weighting.** EDA
+   confirmed flips are *always* to the adjacent class. LGBM
+   `multiclassova` with upweighted adjacent-class mistakes or a
+   cumulative-link objective is a structural match to the noise
+   pattern. Estimate: +0.001 or null.
+6. **cRT on a fresh MLP backbone.** The 2026-04-21 MLP work
+   plateaued at 0.966; not yet re-tried with non-rule features as
+   the primary input stream. FT-Transformer or wide-MLP with
+   non-rule features only might match the XGB-nonrule lift in a
+   different architecture — orthogonal blend candidate.
+7. **DGP archaeology (parked).** Reverse-engineer the synthetic
+   generator. High effort, unclear payoff — revisit only if stuck
+   above 0.975 after §1-§6 land.
+
+Ruled out (see §5 + LEARNINGS.md methodology rules): balanced-
+ensemble blends, hand-crafted water-balance cols in LGBM, standalone
+MLP as replacement for LGBM, MLP × LGBM prob-level blend, LGBM HP
+refresh, MNLogit blend, rank/Borda blending, binary-High head
+stacking on tuned blends, per-cell logistic, shift-5 framing, LGBM/
+EBM/feature-subset/+rule_pred variants of nonrule.
 
 Minimum-viable first submission: the current
 `submissions/baseline_lgbm_tuned.csv` (LGBM + tuned log-bias, OOF
