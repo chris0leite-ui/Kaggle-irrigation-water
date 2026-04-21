@@ -60,6 +60,29 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   miss the same rows and a blend at any weight just averages the
   same mistakes. Our MLP overlap was ~0.87 with LGBM on error rows;
   the blend lift was +0.00005.
+- **Margin / hinge-loss tie-breaking collapses in discrete-feature
+  regimes.** Classical VC / margin bounds say: among hypotheses with
+  zero training error, pick the max-margin one for best
+  generalization. Trap: if the training data is a complete cover of a
+  *discrete* feature-cell partition (here 2⁵ × 4 = 128 cells, all
+  occupied in the 10k), every separating linear classifier is forced
+  to the same cell-labeling. Scaling `(w, θ) → (c·w, c·θ)` widens
+  margin without moving any cell across the decision boundary, so
+  all solutions produce **identical argmax** on any test row that
+  maps to a training cell. On our competition, CP enumeration found
+  743 integer rules (`|w|≤10, θ≤10`) spanning hinge 0.0000 → 0.2981
+  but all giving identical bal_acc=0.96097 on the 630k synthetic. The
+  max-margin story only bites when there's genuine extrapolation —
+  i.e. test rows outside the training feature-cell support. Check:
+  count unique feature vectors in the hypothesis space before
+  investing in margin-selection machinery.
+- **Scale / shift ambiguity inside a model family is not diversity.**
+  If two models are related by `(w, θ) → (c·w, c·θ)` or a constant
+  shift that's absorbed by a sum-to-one feature, they give identical
+  predictions and their "ensemble" is a no-op. Holds more broadly
+  than just linear classifiers: check whether candidate ensemble
+  members are related by a reparameterization of the same decision
+  function before running a weight sweep.
 
 ## Multi-class imbalance — tactical gotchas
 
@@ -120,4 +143,7 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
 
 ## Rejected ideas
 
-- (with one-line reason each)
+- **Ensembling over linearly equivalent rules** — 743 integer rules
+  all separating the 10k with hinge 0.0000 → 0.2981 give identical
+  predictions on 630k synthetic (0.96097 bal_acc, 1.0000 agreement).
+  Cells are discrete; wider margin doesn't move any cell.

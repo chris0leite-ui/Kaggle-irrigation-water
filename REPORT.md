@@ -294,6 +294,30 @@ ready.
   demonstrate per-row error orthogonality (Jaccard over OOF error
   sets, or equivalently McNemar test) *before* running a full blend
   sweep; standalone OOF ≥ 0.965 is necessary but not sufficient.
+- **Hinge-loss / max-margin tie-breaker over integer separating rules
+  (2026-04-21).** Triggered by community discussion
+  [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)
+  showing the 10k original is linearly separable in a 9-binary-feature
+  space (`Soil<25, Temp>30, Rain<300, Wind>10, Mulching=Yes,
+  Crop=Flowering/Harvest/Sowing/Vegetative`) with many integer
+  solutions differing in hinge loss. `scripts/enumerate_integer_models.py`
+  reproduces the OR-Tools CP search; 743 distinct integer models with
+  `|w|≤10, 1≤θ≤10` all achieve 100 % on the 10k, hinge-loss range
+  0.0000 → 0.2981. **All 743 produce identical predictions on the
+  630k synthetic** — agreement rate 1.0000 across top-50, bal_acc
+  0.96097, raw_acc 0.98364 for every solution. The 2⁵ × 4 = 128
+  discrete cells are fully labeled by the 10k, so any separating
+  linear classifier is forced to the same cell-labeling; wider margin
+  (`(w, θ) → (2w, 2θ)`) is pure scale and doesn't move any cell
+  across the boundary. Max-margin / VC-bound extrapolation argument
+  doesn't give a usable tie-breaker in discrete-feature regimes where
+  every test row maps to a training cell. Ceiling for any linear rule
+  in this representation = 0.96097. Artefacts:
+  `scripts/artifacts/integer_separating_models.csv`,
+  `integer_models_topk_{pred_syn,pred_test,ids}.npy`,
+  `integer_models_summary.json`. Adjacent rule: **scale/shift
+  ambiguities inside a single model family are not diversity** — do
+  not ensemble over them.
 
 ## 6. Open questions
 
