@@ -49,3 +49,6 @@ scripts/artifacts/*.db
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
+
+# Training logs
+logs/
