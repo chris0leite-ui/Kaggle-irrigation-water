@@ -286,3 +286,85 @@ Implications
   either thresholds were shifted or weights were tweaked, and a
   small grid search over rule parameters should recover the
   synthetic version.
+
+## 8. DGP is NN-generated, not rule + noise (2026-04-21)
+
+The rule matches 630k synthetic with raw acc 0.98364 (10,304 flips).
+We initially modeled the flips as a near-threshold label-flip noise
+process, but `brief.md:74` (host states labels come from a deep
+learning model trained on the 10k original) plus the 2026-04-21 EDA
+force a different interpretation.
+
+### Evidence the "flips" are deterministic
+
+1. **Zero exact feature-vector duplicates** in 630,000 rows. A
+   rule + Bernoulli-flip DGP would naturally produce duplicate rows
+   (it only has finitely many continuous values in each synthetic
+   sample). Continuous-feature generators (VAE / diffusion) produce
+   unique rows — which is what we see.
+2. **Non-rule features differ significantly between flipped and
+   non-flipped rows at score=3** (4,899 flips / 102,157 rows,
+   t-test on mean difference):
+
+   | feature                 | d     | mean flipped | mean non-flipped | p       |
+   |---                      |---:   |---:          |---:              |---:     |
+   | Previous_Irrigation_mm  | +0.107 |  64.87      |  61.26           | 5e-14   |
+   | Humidity                | +0.076 |  62.05      |  60.57           | 8e-8    |
+   | Electrical_Conductivity | +0.037 |   1.77      |   1.74           | 1e-2    |
+   | Field_Area_hectare      | +0.035 |   7.60      |   7.46           | 2e-2    |
+   | Soil_pH                 | −0.013 |   6.47      |   6.48           | n.s.    |
+   | Organic_Carbon          | −0.008 |   0.92      |   0.92           | n.s.    |
+   | Sunlight_Hours          | −0.004 |   7.52      |   7.53           | n.s.    |
+
+   A Bernoulli-flip noise process gives d ≈ 0 on every non-rule
+   feature. Instead, rows that "flipped" to Medium have systematically
+   higher Humidity and Previous_Irrigation_mm — an agronomically
+   plausible shift consistent with a NN that absorbed subtle
+   correlations from the 10k original during training.
+
+3. **Per-cell majority on the 64 rule-cells gives raw 0.98384 /
+   bal 0.95983** — essentially identical to the rule. Only 1 cell
+   has a synthetic majority different from the rule's assignment
+   (308 rows, 0.05%). So the "noise" is not cell-level flipping;
+   it is within-cell variation driven by continuous position and
+   non-rule features.
+
+4. **Flips are always to the adjacent class**, confirmed by the
+   per-score breakdown: score=3 flips to Medium (never High),
+   score=6 flips to High (never Low), score=7 flips to Medium
+   (never Low), etc. The DGP's decision boundary is smooth and
+   local, exactly like a NN's.
+
+### Properties deducible from "labels come from a NN"
+
+- Labels are a **deterministic** function of the feature vector
+  (`argmax(NN(x))`). No stochastic process. No irreducible error.
+- Theoretical ceiling is 100 %. LB leader at 0.98219 implies nobody
+  has fully recovered the generator yet, but there is no "noise
+  floor" argument against trying.
+- **Axis-aligned trees are structurally handicapped.** A NN's
+  decision boundary is a smooth curved manifold in the full feature
+  space. LGBM needs O(many) axis-aligned splits to approximate
+  each NN neuron's contribution, and tree regularization prunes
+  small-effect-size signals (d=0.1) that the NN kept.
+- Non-rule features (Previous_Irrigation_mm, Humidity,
+  Electrical_Conductivity, Field_Area_hectare) carry deterministic
+  signal. They are inputs to the current LGBM+DGP but the model
+  has not fully integrated them into boundary decisions.
+- **The pack at 0.98114 is almost certainly reproducing the NN
+  (via FE that captures NN-friendly interactions, or an actual DL
+  model), not denoising a stochastic process.**
+
+### Implications for strategy
+
+- **Reframe**: "how do I denoise labels?" → "how do I approximate
+  the label-generating NN?" Different question, different toolbox.
+- **MLP promoted to top open bet** (see NEXT_STEPS §5). Structural
+  match to the DGP.
+- **Pairwise FE of rule × non-rule features** (Humidity × Soil_Moisture,
+  Prev_Irrigation × Rainfall_mm, Field_Area × dgp_score) may let
+  LGBM capture NN-learned interactions without the full setup cost
+  of a neural model. See NEXT_STEPS §6.
+- LGBM+DGP's 0.97271 is a strong tree baseline but not the ceiling.
+  The remaining 0.01 gap to the pack is recoverable signal, not
+  irreducible noise.

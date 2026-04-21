@@ -475,19 +475,91 @@ README.md      TL;DR + reproduction instructions.
   generated (`brief.md:74` confirms a DL model was used).
 - LB delta: n/a.
 
+### 2026-04-21 — DGP is a learnable NN function, not a noise process
+
+- Goal: answer whether the ~10k "flipped" rows are a Bernoulli-style
+  noise process layered on the rule (as we'd been modeling), or a
+  deterministic output of the host's label-generating NN
+  (`brief.md:74`) applied to features the rule ignores.
+- Changed: `scripts/eda_dgp_residuals.py` (self-contained HTML EDA at
+  `plots/eda/dgp_residuals.html`) plus an in-notebook statistical
+  test on score=3 rows. No new model code yet.
+- Findings:
+  - **Zero exact feature-vector duplicates in 630k rows.** Consistent
+    with a continuous-feature generator (VAE/diffusion), not with a
+    rule + Bernoulli-flip process.
+  - **Non-rule features are significantly different between flipped
+    and non-flipped rows.** At score=3 (4,899 flips / 102k rows):
+    - `Previous_Irrigation_mm`: d = +0.107 (mean 64.9 vs 61.3, p=5e-14)
+    - `Humidity`:               d = +0.076 (mean 62.0 vs 60.6, p=8e-8)
+    - `Electrical_Conductivity`: d = +0.037 (p=0.011)
+    - `Field_Area_hectare`:     d = +0.035 (p=0.019)
+    - `Soil_pH`, `Organic_Carbon`, `Sunlight_Hours`: ~0, n.s.
+    Effect sizes are small, but the sample size (100k) makes them
+    crushingly significant. Direction is agronomically sensible
+    (higher humidity + more recent irrigation → label bumps from
+    Low to Medium).
+  - **Per-cell majority predictor gives raw 0.98384 / bal 0.95983.**
+    Only 1 of 64 rule-cells has a synthetic majority different from
+    the rule (covering 308 rows, 0.05%). So the "noise" isn't
+    cell-level flipping — it's within-cell variation driven by
+    continuous position and non-rule features.
+  - **LGBM+DGP error geometry confirms**: errors have median
+    |distance-to-threshold| 0.79–0.87 of correct rows on moist / rain
+    / temp, but 1.03 on wind → wind distance is uninformative of
+    errors. 81 % of LGBM errors sit at scores 3 (4,849) and 6 (3,541)
+    — the two class-boundary scores.
+  - **LGBM+DGP recovers only 19 % of rule flips (1,969 / 10,304) and
+    introduces 3,151 new errors** on rule-correct rows. Net: LGBM
+    tuned has *more* total errors (11,486) than the rule alone
+    (10,304). It only wins on bal_acc because bias tuning redistributes
+    errors toward the Medium class to lift High recall.
+- Read-out: the DGP is a **deterministic function** (the host's NN),
+  not rule + IID noise. Properties:
+  1. Flip recovery has no irreducible-noise floor — theoretical
+     ceiling is 100 %.
+  2. The NN's decision boundary is a smooth curved manifold in the
+     full feature space. Axis-aligned trees are structurally
+     handicapped; they need many splits to approximate a curve each
+     NN neuron represents.
+  3. Non-rule features (`Previous_Irrigation_mm`, `Humidity`, etc.)
+     carry deterministic signal the NN learned from the original
+     10k. LGBM has them as inputs but hasn't fully integrated them
+     into boundary-level decisions (effect size 0.1 gets washed out
+     by tree regularisation).
+  4. The 0.98114 pack is almost certainly **reproducing the NN's
+     decisions** (with FE or a DL model), not denoising a stochastic
+     process.
+- Implication for strategy: reframe from "how do I denoise labels?"
+  to "how do I approximate the label-generating NN?" Two consequences:
+  1. **MLP / tabular NN is now the top bet**, not parked. Structural
+     match to the DGP.
+  2. **Pairwise FE of rule × non-rule features** (Humidity × Soil_Moisture,
+     Previous_Irrigation × Rainfall_mm, Field_Area × score, etc.) may
+     let LGBM recover the NN-learned correlations more cleanly.
+
 ## Hypothesis board
 
 - **Open**:
+  - **Neural-net tabular model (MLP / TabNet) — NEW TOP BET.**
+    `brief.md:74` states synthetic labels come from a deep learning
+    model. The 2026-04-21 EDA confirms flips are deterministic and
+    driven by non-rule features (Previous_Irrigation_mm d=+0.107,
+    Humidity d=+0.076 at score=3; both p<1e-7). Ceiling is 100 %,
+    not rule + noise. An MLP fits the DGP's shape (smooth curved
+    decision boundary in full feature space) better than axis-aligned
+    trees. No NN code exists in the repo yet.
+  - **Rule × non-rule pairwise FE for LGBM.** Specifically
+    `Humidity × Soil_Moisture`, `Previous_Irrigation_mm × Rainfall_mm`,
+    `Electrical_Conductivity × Soil_Moisture`, `Field_Area × dgp_score`.
+    These are the interactions the host's NN likely learned; trees
+    can find them but may benefit from an explicit start.
   - Seed-bag LGBM+DGP (3–5 seeds, retune bias on averaged OOF).
     Cheapest remaining win; expected +0.0005–0.001 from fold-std
-    reduction.
+    reduction. Still a fine insurance bet even if NN is the main
+    lever.
   - LGBM+DGP + XGBoost-with-DGP-features blend at prob level.
     Model-diversity lift, expected +0.001–0.002.
-  - Neural-net tabular model (MLP / TabNet). No NN code in the repo.
-    `brief.md:74` states the synthetic labels were generated by a DL
-    model; an MLP might recover the near-threshold noise band in a
-    way axis-aligned trees structurally can't. Unknown upside,
-    non-trivial setup.
   - Ordinal-aware loss to cut Medium↔High confusion is still untested.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
