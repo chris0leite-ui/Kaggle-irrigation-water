@@ -1062,6 +1062,40 @@ README.md      TL;DR + reproduction instructions.
   0.98114 is +0.00843 above; leader 0.98219 is +0.00948 above. LB
   budget: 7 submissions remaining today (3/10 used).
 
+### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
+
+The v6 {0,1,2,5} null (−0.00012) revealed that single-class-pure rows
+adjacent to a class boundary act as training anchors for the model's
+boundary calibration. Removing score-5 Medium rows destabilized the
+Medium↔High boundary on {6,7,8} (Medium→High errors +703 vs v3).
+Opens five follow-up ideas:
+
+  **A1. Decoupled routing (v7): train on all, route inference only.**
+  If v6's loss was purely the training-side anchor removal, training
+  vanilla XGB on all 630k rows and routing {0,1,2,5} only at inference
+  should recover v3's OOF. Cheap, direct test. **Launched as
+  `scripts/xgb_dist_routed_v7.py`** (in progress).
+
+  **A2. Upweight anchor rows instead of removing.** Give clean-class
+  rows near boundaries `sample_weight > 1` (e.g. score-5 at 1.5×,
+  score-9 at 1.3×). Strengthens the Medium anchor for {6,7,8}
+  calibration. One-line XGB param change; ~15 min run.
+
+  **A3. Soft routing with per-score α.** Replace hard override with
+  `pred = α(score) · rule_onehot + (1−α) · XGB_softmax`. Tune α per
+  score on OOF: α≈0.98 for {0,1,2,9}, α≈0.85 for {3,5}, α=0 for
+  {6,7,8}. Keeps XGB's probability distribution while rewarding
+  rule-reliable scores. ~20 min with α sweep.
+
+  **A4. Per-score log-bias tuning.** Current bias is 3 global params;
+  tune 30 (10 score bins × 3 classes). Lets the decision rule
+  account for score-specific error patterns. Overfitting risk —
+  needs nested CV. Expected +0.0003–0.0008.
+
+  **A5. Explicit boundary-row oversampling.** Duplicate rows at class
+  boundaries: 2× score-3 Medium rows, 2× score-6 High rows. Forces
+  XGB to attend to exactly the rows the rule gets wrong.
+
 - **Open** (ranked by expected ROI / effort):
   1. **Seed-bag the routed-XGB + spec-{6,7,8} hybrid** (3–5 seeds).
      Mirrors the prior LGBM-bag pattern; variance reduction on both
