@@ -68,8 +68,7 @@ GRAD_CLIP = 1.0
 JACCARD_KILL = 0.90
 JACCARD_WARN = 0.85
 
-# Kaggle paths
-IN_COMP = Path("/kaggle/input/playground-series-s6e4")
+# Kaggle paths (resolved at runtime in main())
 IN_GATE = Path("/kaggle/input/irrigation-greedy-blend-oof")
 OUT = Path("/kaggle/working")
 OUT.mkdir(parents=True, exist_ok=True)
@@ -204,9 +203,27 @@ def main():
     log(f"torch {torch.__version__} cuda={torch.cuda.is_available()} device={DEVICE}")
     torch.manual_seed(SEED); np.random.seed(SEED)
 
+    log("listing /kaggle/input/")
+    for p in sorted(Path("/kaggle/input").rglob("*")):
+        if p.is_file():
+            log(f"  {p}")
+
     log("loading data")
-    tr = pd.read_csv(IN_COMP / "train.csv")
-    te = pd.read_csv(IN_COMP / "test.csv")
+    # Resolve competition dir flexibly — Kaggle has occasionally mounted
+    # it under a different slug or required the rules-accepted path.
+    candidates = [
+        Path("/kaggle/input/playground-series-s6e4"),
+        Path("/kaggle/input/playground-series-season-6-episode-4"),
+    ]
+    comp = next((c for c in candidates if (c / "train.csv").exists()), None)
+    if comp is None:
+        # last resort: find any train.csv under /kaggle/input
+        for p in Path("/kaggle/input").rglob("train.csv"):
+            comp = p.parent; break
+    assert comp is not None, "no train.csv under /kaggle/input"
+    log(f"competition dir: {comp}")
+    tr = pd.read_csv(comp / "train.csv")
+    te = pd.read_csv(comp / "test.csv")
     gate_oof = np.load(IN_GATE / "oof_greedy_blend.npy")
     assert gate_oof.shape == (len(tr), 3), f"gate shape {gate_oof.shape}"
     log(f"train {tr.shape} test {te.shape}  gate OOF {gate_oof.shape}")
