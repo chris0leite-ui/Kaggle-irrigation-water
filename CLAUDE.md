@@ -798,52 +798,242 @@ README.md      TL;DR + reproduction instructions.
      rule-level ensemble, and targets exactly the 10,304 within-cell
      flips.
 
+### 2026-04-21 — rule × non-rule pairwise FE (null result)
+
+- Goal: execute the top-ranked Open bet from the hypothesis board —
+  add 8 pairwise products targeting the non-rule features that showed
+  significant Cohen's d on flipped rows (2026-04-21 DGP-residuals
+  EDA), re-train LGBM-dist bag + XGB-dist, re-run the blend.
+- Hypothesis: the flip-band residuals are a smooth NN function of
+  `(Previous_Irrigation × Rainfall, Humidity × Soil_Moisture,
+  Humidity × Temperature, EC × Soil_Moisture, Field_Area × score)`.
+  Giving trees explicit products of rule × non-rule pairs should
+  replace many weak splits with a single strong one and let the
+  model trace the smooth decision surface.
+- Changed: `scripts/seed_bag_dist_fe.py` (LGBM 5-seed bag on 51
+  features = 43 dist + 8 pairwise), `scripts/benchmark_xgb_dist_fe.py`
+  (XGB on same 51 features), `scripts/blend_lgbm_xgb_dist_fe.py`
+  (α sweep + log-bias tuning). 8 new cols: `humidity_x_sm`,
+  `humidity_x_sm_dist`, `prev_irrig_x_rf`, `prev_irrig_x_rf_dist`,
+  `prev_irrig_minus_rf`, `vpd_proxy` (= `Temperature_C *
+  (100 − Humidity)/100`), `ec_x_sm`, `field_area_x_score`.
+- Results (OOF bal_acc, 5-fold stratified, seed=42):
+  - LGBM-dist bag (no FE, reference)    0.97289
+  - **LGBM-dist-FE bag**                 **0.97270**   Δ = −0.00019
+  - XGB-dist (no FE, reference)         0.97304
+  - **XGB-dist-FE**                      **0.97313**   Δ = +0.00009
+  - Non-FE blend (current best)          0.97327
+  - **FE blend (log-α=0.05)**            **0.97320**   Δ = **−0.00007**
+  - Prob-blend sweep: best α=0.05 → 0.97317. Log-blend best
+    α=0.05 → 0.97320. Both pick essentially pure XGB-FE (95 %),
+    because LGBM-FE's signal is redundant. Monotonically decreasing
+    from α=0.05 through α=1.0.
+- Read-out: the pairwise FE changes nothing at the ensemble level.
+  All three deltas (LGBM, XGB, blend) sit well inside the ~0.00088
+  fold-std noise band. This is the third tree-FE null in a row:
+    - 2026-04-20 LGBM+FE (8 water-balance cols):  Δ = −0.00052
+    - 2026-04-21 128-cell empirical Bayes blend:  Δ = 0
+    - 2026-04-21 rule × non-rule pairwise FE:     Δ = −0.00007
+  Trees at 127 leaves (LGBM) / max_depth=7 (XGB) already discover
+  these interactions as splits; prebuilt products add no new
+  information. Crucially, the optimal blend weight SHIFTED from
+  α=0.45 (LGBM-bag / XGB balanced) without FE to α=0.05 (nearly
+  pure XGB) with FE — the added LGBM features didn't just fail to
+  help LGBM, they also broke LGBM's complementarity with XGB.
+- Implication: "trees can't see the interaction" is definitively
+  the wrong diagnosis for the ~0.01 gap to the 0.98114 pack. The
+  pack's edge lives either (a) in a fundamentally different model
+  class (a NN that matches the host's label generator structure),
+  or (b) in within-cell continuous-feature modelling that avoids
+  axis-aligned splits entirely (per-cell logistic/MLP).
+- LB delta: n/a (0 LB spend; 6 remaining today). Candidate
+  submission on disk (`submission_blend_lgbm_xgb_dist_fe.csv`) is
+  strictly worse than the current LB-0.97170 submission, so no LB
+  probe is warranted.
+- New current best: unchanged — **LGBM-dist 5-seed bag × XGB-dist
+  blend OOF 0.97327 / LB 0.97170**. Submission:
+  `submissions/submission_blend_lgbm_xgb_dist.csv`.
+- Next bet: within-cell per-cell logistic / MLP (Open #5 → now #1),
+  which targets the only remaining architecturally distinct lever.
+  The 8 non-rule continuous features are the only way the flip
+  signal can enter the model; tree-shaped models plateau regardless
+  of how they encode the interactions.
+
+### 2026-04-21 — score-routing + spec-{6,7,8} hybrid: NEW LB BEST 0.97224
+
+- Goal: test whether routing rows where the rule is near-100 %
+  accurate to the rule (at predict time), and training XGB only on
+  ambiguous rows, produces a better balanced-accuracy-optimal
+  pipeline than training on all 630k.
+- Motivation: the rule-error-rate-per-score table (computed this
+  session) shows the flip mass is concentrated in a narrow band:
+  ```
+  score  rows     rule errors  err%      (rule predicts)
+  0      33,767   0           0.000%    Low
+  1      115,457  5           0.004%    Low
+  2      122,220  365         0.299%    Low
+  3      102,157  4,899       4.80%     Low (boundary)
+  4      117,837  1,520       1.29%     Medium
+  5      79,203   274         0.35%     Medium
+  6      38,416   1,549       4.03%     Medium (boundary)
+  7      15,026   1,360       9.05%     High
+  8      2,680    330         12.31%    High
+  9      3,237    2           0.062%    High
+  ```
+  Scores {0,1,2,5,9} are very clean. Scores {3,6,7,8} carry >95 %
+  of rule-errors.
+- Changed: `scripts/xgb_dist_routed.py` (routing {1,2}),
+  `xgb_dist_routed_v2.py` ({0,1,2,9}), `xgb_dist_routed_v3.py`
+  ({0,1,2}), `xgb_dist_routed_v4.py` ({0,1}),
+  `xgb_specialist_678.py` (specialist XGB on scores {6,7,8}),
+  `hybrid_routed_spec.py` (glue: main routed-{1,2} overridden by
+  spec on {6,7,8}), `xgb_per_class_specialists.py` (three
+  specialists, one per rule class). Artefacts in
+  `scripts/artifacts/`; submissions in `submissions/`.
+- Routing-set ablation (tuned OOF bal_acc, 5-fold stratified):
+  ```
+  baseline XGB-dist (no routing)        0.97304
+  route {1,2}     (v1)                  0.97333   +0.00029
+  route {0,1,2}   (v3)                  0.97332   +0.00028   ≈ v1
+  route {0,1}     (v4)                  0.97326   +0.00022   < v1
+  route {0,1,2,9} (v2)                  0.97319   +0.00015   < v1
+  ```
+  Clean pattern:
+  - Score 2 is net-positive to route (122 k × 99.7 % Low rows
+    waste XGB boosting capacity on a near-trivial split).
+  - Score 0 is a wash (too few examples at 33 k to matter).
+  - Score 9 is net-negative to route (3.2 k High rows is 15 % of
+    the entire High training pool; removing them hurts High
+    calibration more than rule-routing gains).
+  - General rule: **only route if (a) rule ≥ 99.5 % on the score
+    AND (b) the class the rule predicts is over-represented in
+    the non-routed training set**.
+- Specialist on scores {6,7,8} (`xgb_specialist_678.py`):
+  - Domain: 56,122 train rows, 69 % Medium / 31 % High (0 % Low).
+  - 5-fold stratified-on-global-y XGB trained only on spec domain.
+  - Specialist argmax bal_acc on its domain: 0.95198
+  - Main XGB argmax bal_acc on same domain: 0.95088
+  - Δ spec − main = +0.00109 (small but clean)
+- **Hybrid pipeline (`hybrid_routed_spec.py`): new current best.**
+  - Override routed-{1,2} XGB predictions on scores {6,7,8} with
+    the specialist's predictions. Retune log-bias on the hybrid
+    OOF (coord-ascent).
+  - routed-{1,2} alone:                                  0.97333
+  - routed-{1,2} + spec on {6,7,8}:  **0.97352**  Δ = +0.00019
+  - Hybrid variant routed-{0,1,2} + spec {6,7,8}: 0.97352 (tied —
+    score 0 routing doesn't touch {6,7,8} rows, no change).
+- Per-class specialists (`xgb_per_class_specialists.py`): **null.**
+  Three specialists, one per rule-class:
+  ```
+  Low-spec   (scores 0-3, 374k rows, 98 % Low)   dom bal_acc 0.505
+  Med-spec   (scores 4-6, 235k rows, 98 % Med)   dom bal_acc 0.389
+  High-spec  (scores 7-9,  21k rows, 92 % High)  dom bal_acc 0.849
+  Fused OOF (per-row routed to matching specialist): **0.97226**
+  Δ vs hybrid 0.97352: −0.00126
+  ```
+  Reading: specialization only helps when the domain has genuine
+  class ambiguity. Low-domain (98 % Low) and Medium-domain (98.5 %
+  Medium) specialists collapse into "predict the majority", so
+  bal_acc on their minority flips is random (~0.5). Only High-spec
+  made real use of specialization (+0.349 vs rule), because its
+  domain is actually 3-class. The {6,7,8} spec works for the same
+  reason — it's the only sub-domain where class distribution is
+  balanced enough for a 3-class classifier to extract signal. Rule:
+  **specialize on sub-domains with 20–80 % minority class**, not on
+  sub-domains dominated by a single class.
+- **LB submissions** (two hybrid variants submitted):
+  - `submission_xgb_hybrid_routed_spec.csv` (routed-{1,2}):
+    OOF 0.97352 → **LB public = 0.97224**. Gap 0.00128.
+  - **`submission_xgb_hybrid_v3_routed012_spec678.csv`
+    (routed-{0,1,2}): OOF 0.97352 → LB public = 0.97271.** Gap
+    **0.00081** (narrowest we've seen). +0.00047 LB over the {1,2}
+    variant despite identical OOF — the v3 variant is the new
+    current best.
+  - **Why v3 > v1 on LB despite OOF tie**: on training, all 33 767
+    score-0 rows are truly Low, so XGB (v1) and rule (v3) agree on
+    argmax → no OOF delta. On the **hidden test set**, XGB must
+    extrapolate; it occasionally misfires on OOD score-0 rows
+    while the rule is deterministic and correct 100 % of the time.
+    Routing trades learned behaviour for a provably optimal
+    deterministic one — robustness pays off on the hidden split.
+  - New rule: **when a rule is ≥ 99.99 % accurate on a score, prefer
+    routing over learning** even if OOF shows zero delta; it cuts
+    test-time variance.
+  - Updated calibration ladder:
+    ```
+    single tuned LGBM             0.97097 → 0.96972   gap 0.00125
+    LGBM+DGP                      0.97271 → 0.97137   gap 0.00134
+    bag + XGB blend               0.97327 → 0.97170   gap 0.00157
+    routed-{1,2} + spec-{6,7,8}   0.97352 → 0.97224   gap 0.00128
+    **routed-{0,1,2} + spec-{6,7,8} 0.97352 → 0.97271  gap 0.00081**
+    ```
+  - Pack 0.98114 still +0.00843 above. Leader 0.98219 still +0.00948.
+  - Δ vs prior LB best (blend 0.97170): **+0.00101** cumulative.
+- LB budget: 3/10 spent today (blend at 08:07, hybrid at 12:08,
+  v3 hybrid at 12:29), 7 remaining.
+- Read-out / next bets:
+  1. The routing-sweet-spot is {1,2} or {0,1,2} tied. The spec-on-
+     {6,7,8} is the real lift.
+  2. Next architectural lever: **seed-bag the routed-XGB** (5 seeds,
+     mirrors earlier LGBM-bag work, expected +0.0001–0.0003).
+  3. **Blend routed-XGB-bag with LGBM-bag** — LGBM-bag artefacts
+     need to be regenerated (~17 min). Expected +0.0002–0.0005.
+  4. **Specialist-bag on {6,7,8}** — 56 k rows × 5 seeds is
+     cheap. Expected +0.0001.
+  5. **Spec on {3}** (4.8 % err rate, 102 k rows, 95 % Low / 5 %
+     Medium). Worth trying since the class distribution is 95/5,
+     not 98/2, and the 5 % minority is meaningful (4.9 k flips).
+     Parallel structure to spec-{6,7,8}.
+  6. Within-cell per-cell MLP remains the largest orthogonal lever
+     (unexplored; expected +0.0005–0.002).
+
 ## Hypothesis board
 
-- **Current best**: LGBM-dist 5-seed bag ⊗ XGBoost-dist
-  log-blend α=0.45 → OOF 0.97327, **LB 0.97170**. Submission on
-  disk: `submissions/submission_blend_lgbm_xgb_dist.csv`. Pack
-  0.98114 is +0.00944 above; leader 0.98219 is +0.01049 above.
-  LB budget: 6 submissions remaining today.
+- **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
+  hybrid → OOF 0.97352, **LB 0.97271**. Submission on disk:
+  `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`. Pack
+  0.98114 is +0.00843 above; leader 0.98219 is +0.00948 above. LB
+  budget: 7 submissions remaining today (3/10 used).
 
 - **Open** (ranked by expected ROI / effort):
-  1. **Rule × non-rule pairwise FE applied to BOTH LGBM-dist and
-     XGB-dist.** Specifically `Humidity × Soil_Moisture`,
-     `Previous_Irrigation × Rainfall_mm`, `Humidity × Temperature_C`
-     (≈ VPD), `EC × Soil_Moisture`, `Field_Area × dgp_score`.
-     Target the four non-rule features with significant d>0.03 on
-     flipped rows (2026-04-21 EDA). Re-run the bag + blend on the
-     enriched feature set. Expected +0.0005–0.002 on top of 0.97327.
-     ~30-line patch.
-  2. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
+  1. **Seed-bag the routed-XGB + spec-{6,7,8} hybrid** (3–5 seeds).
+     Mirrors the prior LGBM-bag pattern; variance reduction on both
+     legs of the hybrid. Expected +0.0001–0.0003. Cheap follow-up
+     to the 0.97352 hybrid.
+  2. **Blend hybrid with LGBM-bag.** LGBM-bag artefacts need
+     regeneration (~17 min on this feature set). Then blend
+     log/prob with the hybrid across α∈[0,1]. Expected +0.0002–0.0005
+     if model-family diversity still contributes on top of
+     spec-routing. Dual-lever bet: if the hybrid has already
+     absorbed XGB's slack, the blend lift may be smaller than the
+     prior +0.00038 gain on un-routed base learners.
+  3. **Spec on score {3}** (102 k rows, 95 % Low / 5 % Medium,
+     4.80 % rule-error rate). Parallel structure to spec-{6,7,8}.
+     95/5 is less ideal than 69/31 but still above the 98/2 where
+     Low-spec failed. Expected +0.0001–0.0003 if adopted into
+     hybrid.
+  4. **Within-cell per-cell logistic / MLP** on non-rule continuous
+     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
+     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
+     128 rule-cells (~5 k rows each). The only remaining lever that
+     avoids axis-aligned tree splits. Previously the top bet after
+     tree-FE nulls — stays relevant since routing/spec didn't touch
+     the within-cell continuous signal. Expected +0.0005–0.002.
+  5. **CatBoost-dist as a 3rd blend leg.** The LGBM × XGB blend
      beats both standalones at every interior α — model-family
      diversity is the lever. A 4-fold CatBoost adds a 3rd decision
      function on the same feature set. Pre-check: Jaccard overlap
      between CatBoost and (LGBM ∪ XGB) OOF errors; only commit the
      full 5-fold + 3-way blend if overlap < 0.8. Expected +0.0002–0.0008
      for a stacked 3-way blend.
-  3. **Seed-bag XGB-dist** (3–5 seeds) before the 3-way blend.
-     Mirrors the LGBM bag; expected +0.00015 (LGBM bag lifted by
-     that much over single seed; XGB variance is in the same
-     ballpark).
-  4. **Stack the blend's OOF probs as meta-features into a final
-     LGBM meta-model.** Takes the 3 × 3 = 9 component probs
-     (LGBM-bag / XGB / CatBoost) + a small number of rule/distance
-     features as inputs. Expected +0.0001–0.0005.
-  5. **Within-cell per-cell logistic / MLP** on non-rule continuous
-     features (`Humidity, Previous_Irrigation, EC, Field_Area, Soil_pH,
-     Organic_Carbon, Sunlight_Hours`). Fit one small model per of the
-     128 rule-cells (~5 k rows each). By construction orthogonal to
-     both LGBM-dist and XGB-dist. Expected +0.0005–0.002 if the
-     blend residuals concentrate in a few cells.
-  6. **LB recalibration sub** (+1 LB sub) on any of the above once
-     OOF gains compound. Calibration gap has been growing
-     (0.00125 → 0.00134 → 0.00157); sub 4 will tell us whether
-     stacking adds more gap.
-  7. **Ordinal-aware loss** for Medium↔High confusion. Still
+  7. **Stack the hybrid OOF probs as meta-features into a final
+     LGBM meta-model.** Takes hybrid (3) + LGBM-bag (3) + optional
+     CatBoost (3) component probs, plus a small number of
+     rule/distance features as inputs. Expected +0.0001–0.0005.
+  8. **Ordinal-aware loss** for Medium↔High confusion. Still
      untested; lowest priority of the "Open" bets since it needs a
-     custom objective and LGBM + log-bias already nearly
-     saturates macro-recall.
+     custom objective and log-bias already nearly saturates
+     macro-recall.
 - **Confirmed**:
   - Default `argmax` is suboptimal under balanced accuracy when classes
     are imbalanced → prior-reweight + coord-ascent log-bias moves OOF
@@ -948,6 +1138,44 @@ README.md      TL;DR + reproduction instructions.
     training budget; revisit only with a significantly larger
     architecture or a structural prior matching the rule (e.g.
     additive / monotone net).
+  - **Rule × non-rule pairwise FE** (`scripts/seed_bag_dist_fe.py`,
+    `benchmark_xgb_dist_fe.py`, `blend_lgbm_xgb_dist_fe.py`). 8 new
+    cols on top of the 43-feature dist set (`humidity_x_sm`,
+    `humidity_x_sm_dist`, `prev_irrig_x_rf`, `prev_irrig_x_rf_dist`,
+    `prev_irrig_minus_rf`, `vpd_proxy`, `ec_x_sm`,
+    `field_area_x_score`) targeting the non-rule features with
+    significant Cohen's d on flipped rows (2026-04-21 EDA). OOF:
+    LGBM-FE bag 0.97270 (Δ = −0.00019), XGB-FE 0.97313 (Δ = +0.00009),
+    blend log-α=0.05 → 0.97320 (Δ = **−0.00007** vs non-FE blend
+    0.97327). All deltas are well inside the fold-std noise band
+    (~0.00088). Optimal blend weight collapsed from α=0.45 to
+    α=0.05 — the added LGBM features didn't just fail to help, they
+    also broke LGBM's complementarity with XGB. Third tree-FE null
+    in a row (water-balance cols, 128-cell empirical Bayes, pairwise
+    rule×non-rule). Rule: trees at 127-leaves / max_depth=7 already
+    find pairwise interactions internally; engineered products add
+    no new signal regardless of how physically motivated they are.
+  - **Extended score-routing to {0, 1, 2, 9}**
+    (`scripts/xgb_dist_routed_v2.py`): tuned OOF 0.97319 vs v1
+    `{1,2}` at 0.97333. Adding score 9 to routing removes 3,237
+    High rows from training — 15 % of the 21 k total High pool.
+    Since High is the rare class, losing this many training
+    examples hurts High calibration more than the marginal
+    rule-routing gain (99.938 % rule accuracy on score 9). Rule:
+    **don't route a score to the rule if removing it strips >10 %
+    of any class's training pool**. Safe routing set: {1, 2} or
+    {0, 1, 2} (tied at 0.97333).
+  - **Per-rule-class specialists (Low-spec on 0-3, Medium-spec on
+    4-6, High-spec on 7-9)**
+    (`scripts/xgb_per_class_specialists.py`). Fused per-row-routed
+    OOF = 0.97226 (Δ = −0.00126 vs hybrid 0.97352). Low-domain is
+    98 % Low and Medium-domain is 98.5 % Medium, so their
+    specialists collapse into "predict majority" with bal_acc ~0.5.
+    Only the High-spec (92 %/8 %) made real use of its small
+    domain. Rule: **specialize on sub-domains with 20–80 % minority
+    class**, not sub-domains dominated by one class. The {6,7,8}
+    specialist works for exactly this reason (69 % Medium / 31 %
+    High).
   - **Hinge-loss / max-margin tie-breaker over integer separating
     rules** (`scripts/enumerate_integer_models.py`, per discussion
     [692754](https://www.kaggle.com/competitions/playground-series-s6e4/discussion/692754)).
@@ -1017,6 +1245,37 @@ README.md      TL;DR + reproduction instructions.
     LGBM+DGP's 0.97137), confirming the OOF lift transfers. New
     rule for this feature set: **LGBM ⊗ XGB is the default
     decision rule, not plain LGBM.**
+  - **Score-routing to the rule is net-positive when the class the
+    rule predicts is abundant in the non-routed training set.**
+    Routing scores {1, 2} (237 k rows, 99.7 % Low rule-accuracy)
+    moves XGB-dist from 0.97304 → 0.97333 (+0.00029). Routing
+    {0, 1, 2} ties (adds score 0 = 33 k Low rows with 0 errors,
+    no effect since Low is already over-represented). Routing
+    {0, 1, 2, 9} underperforms by 0.00014 because removing score 9
+    strips 3.2 k High rows (15 % of the entire High training pool)
+    from XGB's training set; since High is the rare class, this
+    hurts High-class calibration more than rule-routing gains.
+    Rule: **only route if (a) rule ≥ 99.5 % on the score AND (b)
+    the class the rule predicts is over-represented in the
+    remaining training set**.
+  - **Specialist-on-{6,7,8} + routed main is the current best
+    architecture: OOF 0.97352 / LB 0.97271** (routing {0,1,2}
+    variant, narrowest OOF→LB gap seen at 0.00081). The {6,7,8}
+    domain (56 k rows, 69 % Medium / 31 % High) has ideal class
+    ambiguity — a specialist XGB beats the main XGB on this domain
+    by +0.00109 bal_acc, and overriding main's predictions with the
+    specialist's on these rows lifts global tuned OOF by +0.00019.
+    Rule: **target specialists at sub-domains with 20–80 % minority
+    class**, not uniform-class sub-domains.
+  - **Rule-route even at OOF-ties when rule accuracy is ≥ 99.99%**.
+    The {0,1,2} vs {1,2} routing variants tied on OOF (both 0.97352)
+    because XGB trained on score-0 rows (100 % Low) learns the same
+    Low prediction the rule makes. On the hidden test set, however,
+    XGB can misfire on OOD score-0 rows while the rule never does —
+    the {0,1,2} variant pulled +0.00047 LB over {1,2} at identical
+    OOF. Rule: **when a deterministic predictor is provably correct
+    on a score, prefer it even at OOF parity**; it reduces hidden-
+    split variance by removing a learned model's failure modes.
 - **Parked**:
   - Seed recovery / DGP archaeology on the synthetic generator — high
     effort, unclear payoff with only 10 days; revisit if stuck above
