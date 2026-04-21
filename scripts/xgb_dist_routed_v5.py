@@ -291,7 +291,6 @@ def main() -> None:
             "routed_scores": list(ROUTED_SCORES),
             "train_rows_routed": int(tr_routed_mask.sum()),
             "test_rows_routed": int(te_routed_mask.sum()),
-            "rule_raw_acc_on_routed": float(rule_raw_acc),
             "best_iters_per_fold": [int(x) for x in best_iters],
             "n_features": len(feat_cols),
             "class_priors": prior.tolist(),
