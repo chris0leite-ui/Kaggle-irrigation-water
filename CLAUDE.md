@@ -987,6 +987,73 @@ README.md      TL;DR + reproduction instructions.
   6. Within-cell per-cell MLP remains the largest orthogonal lever
      (unexplored; expected +0.0005–0.002).
 
+### 2026-04-21 — per-cell LR + specialist-augmented-with-original (two nulls)
+
+- Goal: execute the two top bets for the "stacking exploration"
+  branch: (a) per-cell logistic regression on within-cell continuous
+  features as the within-cell architectural lever, and (b) augment the
+  {6,7,8} specialist's training data with the 982 rule-clean rows from
+  the 10k original dataset that have score in {6,7,8}.
+- Changed: `scripts/per_cell_lr.py` (128-cell LR on 7 non-rule
+  continuous features, Laplace-EB fallback for small/single-class
+  cells), `scripts/per_cell_lr_blend_rule.py` (rule ⊗ LR sweep +
+  error-overlap diagnostic), `scripts/xgb_specialist_678_aug.py`
+  (synthetic-{6,7,8} ∪ original-{6,7,8} training with configurable
+  sample weight), `scripts/hybrid_routed_spec_aug.py` (4-variant
+  hybrid comparison).
+
+- **Per-cell LR result (null)**:
+  - With `class_weight='balanced'`: recovers **47.6% of rule-wrong
+    rows** (4,908 / 10,304) but introduces **196,368 new false
+    positives** on rule-right rows. Standalone OOF 0.73082.
+  - Without balanced weights (correctly learns per-cell posteriors):
+    standalone **0.96280 tuned** (vs EB-cell 0.96339, just below).
+    Rule ⊗ LR log-blend tops at **0.96286** at α=0.20 (+0.00189 over
+    rule-only; fully explained by log-bias tuning on a slightly
+    richer prior — not by new signal).
+  - LR recovers only 3.86% of rule-wrong rows after recalibration.
+    Hard-gate over-rule at any τ ∈ {0.5,…,0.9} stays below rule-only.
+  - Read-out: within-cell continuous features **do not carry
+    orthogonal signal at LR capacity**. The rule's cell-majority
+    prediction already uses all the information LR could extract.
+    Same lesson as the 128-cell empirical Bayes null from 2026-04-21:
+    any predictor that only sees a cell's row-level context through
+    non-rule continuous features plateaus at ~0.963. MLP won't rescue
+    it — same feature set, same per-cell data budget; the bottleneck
+    is information, not model capacity.
+
+- **Specialist augmentation result (null)**:
+  - Original dataset has 982 rows with `dgp_score ∈ {6,7,8}` (666
+    Medium + 316 High, all rule-correct). Synthetic {6,7,8} has
+    56,122 rows with 13% rule-error rate.
+  - Specialist-aug w=1.0 OOF on spec-domain: **0.95149** vs baseline
+    specialist **0.95198** (Δ = −0.00049).
+  - Specialist-aug w=0.3 OOF on spec-domain: **0.95142** (Δ = −0.00056).
+  - Hybrid-level comparison (routed-{0,1,2} main + spec override on
+    {6,7,8}, tuned log-bias per variant):
+    ```
+    main_only                    0.97332  (Δ = +0.00000)
+    hybrid_spec_base    (ref)    0.97352  (Δ = +0.00020 vs main)
+    hybrid_spec_aug_w1.0         0.97323  (Δ = -0.00010 vs main, −0.00029 vs hybrid)
+    hybrid_spec_aug_w0.3         0.97326  (Δ = -0.00006 vs main, −0.00026 vs hybrid)
+    ```
+  - Both augmented variants are worse than both pure main AND the
+    non-augmented hybrid. The 982 clean original rows pull the
+    specialist's decision boundary toward the rule, eroding the
+    specialist's flip-recovery edge — which is precisely the signal
+    the hybrid relies on. Downweighting to 0.3 doesn't rescue it.
+  - Read-out: **the specialist's value is that it trains ONLY on
+    flip-rich synthetic data.** Adding rule-correct examples (even
+    at 1.75% of the training pool) is net-negative for the override
+    because the specialist becomes less different from the main XGB
+    on exactly the rows where we want it to disagree. New rule:
+    **don't augment specialist training with clean data if the
+    specialist's purpose is to deviate from a clean predictor.**
+
+- LB delta: n/a (0 LB spend; 3/10 cumulative, 7 remaining).
+- Current best unchanged: hybrid_spec_base (routed-{0,1,2} + spec
+  on {6,7,8}) at OOF **0.97352** / LB 0.97271.
+
 ## Hypothesis board
 
 - **Current best**: routed-{0,1,2} XGBoost-dist + specialist-on-{6,7,8}
@@ -1191,6 +1258,28 @@ README.md      TL;DR + reproduction instructions.
     in weight choice. Related rule: **don't ensemble over linearly
     equivalent models with identical argmax — scale ambiguity ≠
     diversity.**
+  - **Per-cell logistic regression on within-cell continuous
+    features** (`scripts/per_cell_lr.py`, `per_cell_lr_blend_rule.py`).
+    128-cell LR on 7 non-rule continuous features. With
+    `class_weight='balanced'`: standalone 0.73082 (catastrophic 196k
+    false positives). Without: 0.96280 tuned standalone (on par with
+    EB-cell 0.96339), but rule ⊗ LR blend tops at 0.96286 and
+    recovers only 3.86% of rule-wrong rows. Within-cell continuous
+    features **do not carry orthogonal signal at linear capacity** —
+    same lesson as the 128-cell empirical-Bayes null. MLP unlikely
+    to rescue it: same feature set, same per-cell data, bottleneck
+    is information not model capacity.
+  - **Augmenting spec-{6,7,8} training with original-{6,7,8} rows**
+    (`scripts/xgb_specialist_678_aug.py`). 982 rule-clean rows from
+    the 10k original added to the specialist's training pool in two
+    variants. Standalone spec-domain OOF: w=1.0 → 0.95149 (Δ=−0.00049
+    vs baseline 0.95198), w=0.3 → 0.95142. **Hybrid-level**: w=1.0 →
+    0.97323, w=0.3 → 0.97326, both below both non-aug hybrid 0.97352
+    AND pure main 0.97332. Rule: **don't augment specialist training
+    with clean data if the specialist's purpose is to deviate from a
+    clean predictor** — the 982 rule-correct rows pull the decision
+    boundary toward the rule, eroding the flip-recovery edge that
+    is the specialist's only reason to exist.
   - **Gated flip-recovery as a lever** (`scripts/gated_v3.py`). Tried
     meta-LGBM stacking over `[P_main, P_spec, P_flip, rule_oh,
     rule_int]` and hard-gate `argmax(P_spec) if P_flip>τ else rule`.

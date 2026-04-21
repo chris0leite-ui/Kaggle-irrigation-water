@@ -1,0 +1,33 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "spec_scores": [
+    6,
+    7,
+    8
+  ],
+  "orig_weight": 0.3,
+  "train_rows_in_spec_syn": 56122,
+  "orig_rows_in_spec": 982,
+  "test_rows_in_spec": 24324,
+  "spec_prior": [
+    0.0,
+    0.6870211325326966,
+    0.31297886746730336
+  ],
+  "orig_spec_prior": [
+    0.0,
+    0.6782077393075356,
+    0.32179226069246436
+  ],
+  "best_iters_per_fold": [
+    365,
+    416,
+    385,
+    416,
+    388
+  ],
+  "specialist_argmax_raw_acc": 0.9642564413242579,
+  "specialist_argmax_bal_acc": 0.9514216448620241,
+  "specialist_reweight_bal_acc": 0.0
+}
