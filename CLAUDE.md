@@ -2076,6 +2076,70 @@ architecture or feature view adds orthogonal bits at this base.
 - Current best unchanged: `submission_greedy_nonrule_blend.csv`
   OOF 0.97421 / LB 0.97352.
 
+### 2026-04-22 — Tier 1+2 own-pipeline levers exhausted (6 nulls)
+
+- Goal: systematically test the remaining Tier 1 + Tier 2 levers on
+  top of the LB-best greedy+nonrule baseline (OOF 0.97421 / LB 0.97352)
+  after NN/DGP-reversal was closed. User constraint: no public-CSV
+  blending.
+- Changed: `scripts/per_score_log_bias.py`, `scripts/seed_bag_nonrule.py`,
+  `scripts/pseudo_label_v2.py`, `scripts/error_analysis_greedy_nonrule.py`
+  and the corresponding spec-6 / self-distill probes;
+  `kaggle_kernel/kernel_ftt/ft_transformer.py` (4-block × 8-head FT-
+  Transformer, d_token=192, 20 epochs, ~1h50min wall on T4). Blend
+  script `scripts/blend_ft_transformer.py` for the fixed-bias sweep.
+- Results (all vs LB-best OOF 0.97421 at fixed greedy bias):
+  ```
+  per-score log-bias (30 params, nested CV)   NULL  Δ = −0.00031
+  seed-bag XGB-nonrule (5 seeds)              NULL  blend Δ ≈ 0
+  pseudo-label v2 (τ=0.99, Low-only)          NULL  monotone neg
+  spec-6 override (cell-2 targeted)           NULL  monotone neg
+  self-distill XGB (teacher=greedy+nonrule)   NULL  Jaccard 0.93
+  FT-Transformer standalone                   0.96780 (+0.003 vs v5)
+  FT-Transformer blend vs LB-best             NULL  monotone neg
+  ```
+- Notable findings:
+  1. **Per-score bias overfits**: full-fit at 0.97429, nested at 0.97391.
+     Coord-ascent over 30 params × 31-point grid picks dramatic biases
+     on score 4 (High +0.8) and score 5 (Low −1.9) that don't generalize.
+     Lesson: global 3-param log-bias is at the right granularity for
+     this problem; finer-bin decomposition overfits without massive
+     per-bin data.
+  2. **FT-Transformer is the first NN to break the MLP plateau.** OOF
+     tuned 0.96780, +0.003 over v5's 0.9649. Attention-based
+     architecture finds a different attractor than the v5-v9 plain
+     MLPs — fold-1 error Jaccard vs greedy = **0.614** (the lowest
+     NN Jaccard of the competition). But FT-T has 12,634 errors
+     (+42 % over greedy's 8,909) and that magnitude mismatch defeats
+     the blend math at every α > 0.01. Both sweeps (vs greedy, vs
+     LB-best) monotone negative from α=0.02.
+  3. **Self-distillation saturates at argmax**: best_iter=75 (vs
+     ~600 for vanilla XGB), student Jaccard 0.93 with teacher.
+     Classic distillation-for-diversity failure mode: the student
+     quickly learns argmax and doesn't develop orthogonal errors.
+  4. **Error analysis** (run on greedy+nonrule CM): 74 % of errors at
+     score 3 (cell rule=Low→true=Medium, n=5041, driven by high
+     Rainfall_mm, Cohen's d=+0.557) and score 6 (cell rule=Medium
+     pushed-to-High, n=4163, driven by low Soil_Moisture, d=−0.526).
+     Per-score bias and spec-6 both failed to address these cleanly;
+     the errors live in within-cell feature continuous signal that
+     trees + MLP + transformer all encode similarly.
+- LB delta: n/a. 1 LB submission spent today (unchanged since NN
+  session). 9 LB remaining.
+- **Final-candidate assessment**:
+  - Primary: `submission_greedy_nonrule_blend.csv` (LB 0.97352).
+    Confirmed.
+  - Safe fallback: `submission_xgb_hybrid_v3_routed012_spec678.csv`
+    (LB 0.97271).
+  - No candidate from this session outperforms either. **Tier 1 + 2
+    own-pipeline levers are exhausted on this baseline.**
+- Remaining untried own-pipeline bets: CORN / Frank-Hall ordinal
+  decomposition (binary XGB pair on adjacent-class boundaries),
+  rule×non-rule pairwise FE on the greedy base (untested; previously
+  null on hybrid_lgbmxgb_blend). Neither is expected to exceed
+  +0.0005 based on adjacent-experiment deltas; both remain queued as
+  low-priority future work.
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15

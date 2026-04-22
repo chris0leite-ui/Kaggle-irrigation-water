@@ -49,6 +49,51 @@ own-pipeline small levers, retry CatBoost or unseen architectures
 (FT-Transformer with explicit attention over feature groups), OR
 the strategic option (public-CSV blending, user decision).
 
+## 2026-04-22 Tier 1 + Tier 2 session — ALL 6 NULLS
+
+Systematic test of the remaining own-pipeline levers (public-CSV
+blending explicitly off the table per user instruction). Baseline:
+LB-best greedy+nonrule OOF 0.97421 / LB 0.97352 at fixed greedy bias.
+
+| Experiment | Standalone OOF | Blend vs LB-best | Verdict |
+|---|---|---|---|
+| Per-score log-bias (30 params, nested CV) | n/a | Δ = **−0.00031** | NULL (overfits) |
+| Seed-bag XGB-nonrule (5 seeds) | 0.57091 | monotone neg | NULL |
+| Pseudo-label v2 (τ=0.99, Low-only) | 0.57003 | monotone neg | NULL |
+| Spec-6 override (cell-2 targeted) | n/a | monotone neg | NULL |
+| Self-distill XGB (teacher=LB-best) | 0.96717 (Jac 0.93) | monotone neg | NULL |
+| **FT-Transformer** | **0.96780** (Jac 0.614) | monotone neg | NULL |
+
+**Key finding**: FT-Transformer is the **first NN architecture to
+break the MLP plateau** (+0.003 over v5's 0.9649). Attention-based
+backbone finds a different attractor. But 12,634 errors vs greedy's
+8,909 (+42 %) still defeats the blend despite Jaccard 0.614 — the
+lowest NN Jaccard seen this competition.
+
+**Conclusion**: Tier 1 + 2 own-pipeline levers are exhausted on the
+LB-best baseline. **Primary final-selection: `submission_greedy_nonrule_blend.csv`** (LB 0.97352). Safe fallback:
+`submission_xgb_hybrid_v3_routed012_spec678.csv` (LB 0.97271).
+
+## Remaining untried own-pipeline bets (low priority)
+
+These were queued but not executed — expected ≤ +0.0005 each, so
+below the LB-probe threshold:
+
+1. **CORN / Frank-Hall ordinal decomposition.** Two binary XGBs:
+   P(y > Low) and P(y > Medium). Compose to 3-class. Structural
+   match to the "flips always adjacent-class" finding (CM shows
+   Low↔High flips are ~0 rows). ~30 min local.
+2. **Rule × non-rule pairwise FE on the greedy baseline.** Adjacent-
+   experiment null on hybrid_lgbmxgb_blend; greedy is a different
+   anchor. Same 8 engineered pairs. ~15 min local.
+3. **FT-Transformer with pretrain on 10k original.** Idea-2
+   (pretrain-finetune) was null on v5 MLP because v5 plateau was
+   architectural not init-related. FTT already breaks the plateau
+   standalone — pretrain probably doesn't help. Low-probability, 2h
+   GPU.
+
+## Path to +0.010 LB (target LB 0.9835)
+
 ## Path to +0.010 LB (target LB 0.9835)
 
 **Gap math**: +0.00762 to the pack, +0.00867 to the leader. The

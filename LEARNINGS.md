@@ -226,6 +226,45 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   positives on rule-right rows; dropping `balanced` cut that to 358.
   Let log-bias tuning handle class-imbalance at the pipeline level,
   and let each stage estimate true posteriors.
+- **Per-bin log-bias (N×K params) overfits even under nested CV on
+  100k-row bins.** Global 3-param log-bias tuning is robust because
+  each param sees the full 630k rows. Decomposing to per-score-bin
+  bias (10 bins × 3 classes = 30 params), tuned via coord-ascent on
+  4/5 of rows and applied to the held-out 1/5, underperforms the
+  global baseline by −0.00031 on honest nested OOF. The full-fit
+  training-set optimum was +0.00008 over global — i.e. the 30-param
+  decomposition picks up tuning-set-specific biases (one bin got
+  High +0.8, another got Low −1.9) that flip sign on held-out rows.
+  Rule: don't decompose log-bias by a categorical covariate unless
+  each bin has ≥100k rows AND you've done something equivalent to
+  nested CV. If the bins you'd want to decompose (e.g. where errors
+  cluster) have <100k each, decompose only those and keep the rest
+  global.
+- **Attention-based tabular NNs find a different attractor than
+  MLPs on rule-structured data (but blend math still dominated by
+  error-magnitude mismatch).** 10+ plain-MLP variants plateaued at
+  ~0.965 OOF on the 43-feature dist set. FT-Transformer (4 blocks,
+  8 heads, d_token=192, ~1M params) reached 0.96780 — a clean
+  +0.003 lift. Fold-1 error Jaccard vs the tree-ensemble baseline
+  dropped from MLP's ~0.66 to FTT's **0.614**. Despite that, the
+  prob-blend was monotone negative from α=0.02 because FTT still
+  had 12,634 errors vs the baseline's 8,909 (+42 %) — and blending
+  in 2-token weight of a model with +42 % errors pulls the
+  decision boundary toward wrong answers faster than Jaccard 0.61
+  compensates. Rule updated: **blend-lift requires low Jaccard AND
+  per-model error count within 15-20 % of the target baseline.**
+  When the new model has far more errors (even if different errors),
+  use it as a stacker meta-feature or as a standalone base for an
+  entirely separate ensemble, not as a prob-blend leg.
+- **Self-distillation with a gradient-boosted teacher → student
+  saturates at argmax with best_iter≈50-80 and Jaccard ≈0.93-0.95.**
+  Student XGB trained on teacher argmax (with confidence-weighted
+  samples) converges to near-identical predictions very quickly
+  because the teacher's argmax is already axis-aligned-splittable
+  and the student has no reason to explore alternative decision
+  surfaces. Distillation for blend diversity needs a different
+  model class (student-NN from tree-teacher, or teacher-NN from
+  tree-student), not same-family self-distillation.
 
 ## Multi-class imbalance — tactical gotchas
 
