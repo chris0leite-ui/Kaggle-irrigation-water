@@ -1,0 +1,48 @@
+{
+  "tau": 0.99,
+  "allowed_pseudo_classes": [
+    0
+  ],
+  "n_pseudo_labels": 116188,
+  "pl_nonrule_tuned": 0.5700325473330802,
+  "vanilla_nonrule_tuned": 0.5696634997226765,
+  "lbbest_reference_oof": 0.9742149555904441,
+  "sweep": [
+    {
+      "alpha": 0.0,
+      "oof": 0.973746084242468,
+      "delta_vs_lbbest": -0.0004688713479761297
+    },
+    {
+      "alpha": 0.1,
+      "oof": 0.9739629737528276,
+      "delta_vs_lbbest": -0.0002519818376165439
+    },
+    {
+      "alpha": 0.15,
+      "oof": 0.9741194974417317,
+      "delta_vs_lbbest": -9.545814871247948e-05
+    },
+    {
+      "alpha": 0.2,
+      "oof": 0.9741125329153163,
+      "delta_vs_lbbest": -0.00010242267512783343
+    },
+    {
+      "alpha": 0.25,
+      "oof": 0.9740270453207387,
+      "delta_vs_lbbest": -0.000187910269705438
+    },
+    {
+      "alpha": 0.3,
+      "oof": 0.9738595515714105,
+      "delta_vs_lbbest": -0.00035540401903366714
+    }
+  ],
+  "best": {
+    "alpha": 0.0,
+    "oof": 0.9742149555904441,
+    "delta": 0.0
+  },
+  "action": "no_submission"
+}
