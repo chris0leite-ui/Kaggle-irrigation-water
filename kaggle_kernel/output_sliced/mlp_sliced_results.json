@@ -1,0 +1,119 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "v6_nonrule": {
+    "argmax_bal_acc": 0.4344140458729326,
+    "tuned_bal_acc": 0.43338208777853443,
+    "log_bias": [
+      3.3324411632360977,
+      3.3689466919465483,
+      3.400768902044088
+    ],
+    "fold_logs": [
+      {
+        "fold": 1,
+        "val_bal_acc_best": 0.4335391272682409,
+        "seconds": 162.7,
+        "jaccard_vs_greedy": 0.014510027465409131,
+        "jaccard_vs_xgb_nonrule": 0.35385654008438816
+      },
+      {
+        "fold": 2,
+        "val_bal_acc_best": 0.43631535908210567,
+        "seconds": 150.9
+      },
+      {
+        "fold": 3,
+        "val_bal_acc_best": 0.43737830011289436,
+        "seconds": 153.1
+      },
+      {
+        "fold": 4,
+        "val_bal_acc_best": 0.4339047115969787,
+        "seconds": 145.5
+      },
+      {
+        "fold": 5,
+        "val_bal_acc_best": 0.4309323903788201,
+        "seconds": 153.3
+      }
+    ],
+    "hidden": [
+      256,
+      192,
+      128,
+      96
+    ],
+    "num_cols": [
+      "Soil_pH",
+      "Organic_Carbon",
+      "Electrical_Conductivity",
+      "Humidity",
+      "Sunlight_Hours",
+      "Field_Area_hectare",
+      "Previous_Irrigation_mm"
+    ],
+    "cat_cols": [
+      "Soil_Type",
+      "Crop_Type",
+      "Season",
+      "Irrigation_Type",
+      "Water_Source",
+      "Region"
+    ]
+  },
+  "v7_top3": {
+    "argmax_bal_acc": 0.4242534601492915,
+    "tuned_bal_acc": 0.4239299234835994,
+    "log_bias": [
+      3.3324411632360977,
+      3.3689466919465483,
+      3.400768902044088
+    ],
+    "fold_logs": [
+      {
+        "fold": 1,
+        "val_bal_acc_best": 0.42003154803353643,
+        "seconds": 104.5,
+        "jaccard_vs_greedy": 0.014417561789550526,
+        "jaccard_vs_xgb_nonrule": 0.3379108610217935
+      },
+      {
+        "fold": 2,
+        "val_bal_acc_best": 0.42397410485363646,
+        "seconds": 105.7
+      },
+      {
+        "fold": 3,
+        "val_bal_acc_best": 0.4246153217332849,
+        "seconds": 110.3
+      },
+      {
+        "fold": 4,
+        "val_bal_acc_best": 0.42713947126025237,
+        "seconds": 107.7
+      },
+      {
+        "fold": 5,
+        "val_bal_acc_best": 0.4255054378775271,
+        "seconds": 108.5
+      }
+    ],
+    "hidden": [
+      128,
+      96,
+      64
+    ],
+    "num_cols": [
+      "Humidity",
+      "Previous_Irrigation_mm",
+      "Electrical_Conductivity"
+    ],
+    "cat_cols": []
+  }
+}

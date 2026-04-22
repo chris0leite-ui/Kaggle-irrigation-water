@@ -1,0 +1,57 @@
+[{"stream_name":"stdout","time":0.8184829,"data":"[boot] gpu compute_cap = ['6.0']\n"}
+,{"stream_name":"stdout","time":0.818537683,"data":"[boot] sm_60/61 detected — installing torch 2.5.1 cu121\n"}
+,{"stream_name":"stdout","time":12.041701527,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":53.292133649,"data":"[boot] torch reinstall done\n"}
+,{"stream_name":"stdout","time":58.399012676,"data":"[05:40:23] torch 2.5.1+cu121 cuda=True device=cuda\n"}
+,{"stream_name":"stdout","time":58.399988745,"data":"[05:40:23] listing /kaggle/input/\n"}
+,{"stream_name":"stdout","time":58.415679138,"data":"[05:40:23]   /kaggle/input/competitions/playground-series-s6e4/sample_submission.csv\n"}
+,{"stream_name":"stdout","time":58.416027422,"data":"[05:40:23]   /kaggle/input/competitions/playground-series-s6e4/test.csv\n"}
+,{"stream_name":"stdout","time":58.417110168,"data":"[05:40:23]   /kaggle/input/competitions/playground-series-s6e4/train.csv\n"}
+,{"stream_name":"stdout","time":58.4171356,"data":"[05:40:23]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/oof_greedy_blend.npy\n"}
+,{"stream_name":"stdout","time":58.417145014,"data":"[05:40:23]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/oof_xgb_nonrule.npy\n"}
+,{"stream_name":"stdout","time":58.417235572,"data":"[05:40:23]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/test_greedy_blend.npy\n"}
+,{"stream_name":"stdout","time":58.417248354,"data":"[05:40:23]   /kaggle/input/datasets/chrisleitescha/irrigation-greedy-blend-oof/test_xgb_nonrule.npy\n"}
+,{"stream_name":"stdout","time":61.507563223,"data":"[05:40:26] train (630000, 21) test (270000, 20)\n"}
+,{"stream_name":"stdout","time":61.50760449,"data":"[05:40:26] feature engineering\n"}
+,{"stream_name":"stdout","time":61.773872701,"data":"[05:40:27] features: 35 numeric + 8 categorical\n"}
+,{"stream_name":"stdout","time":63.207877397,"data":"[05:40:28] score==(6,7,8) train rows: 56122\n"}
+,{"stream_name":"stdout","time":63.218071898,"data":"[05:40:28] score==(0,1,2) train rows: 271444\n"}
+,{"stream_name":"stdout","time":63.218105702,"data":"[05:40:28] === variant v8_spec_678 | hidden=[384, 256, 192, 128] | dropout=0.4 | epochs=40 ===\n"}
+,{"stream_name":"stdout","time":63.305403276,"data":"[05:40:28]   fold 1/5 | train rows (post-filter): 44919 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":63.443796945,"data":"[05:40:28]   v8_spec_678 params: 333,043\n"}
+,{"stream_name":"stdout","time":88.424589262,"data":"[05:40:53]   fold 1 best val bal_acc (full fold) 0.63645  (25s)\n"}
+,{"stream_name":"stdout","time":88.579518021,"data":"[05:40:53]   fold-1 jaccard vs greedy=0.0092 | vs xgb_nonrule=0.1138\n"}
+,{"stream_name":"stdout","time":88.590647809,"data":"[05:40:54]   fold 2/5 | train rows (post-filter): 44859 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":105.885803708,"data":"[05:41:11]   fold 2 best val bal_acc (full fold) 0.63846  (17s)\n"}
+,{"stream_name":"stdout","time":106.02106071,"data":"[05:41:11]   fold 3/5 | train rows (post-filter): 44880 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":131.726585785,"data":"[05:41:37]   fold 3 best val bal_acc (full fold) 0.63822  (26s)\n"}
+,{"stream_name":"stdout","time":131.851767947,"data":"[05:41:37]   fold 4/5 | train rows (post-filter): 44892 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":158.31307923,"data":"[05:42:03]   fold 4 best val bal_acc (full fold) 0.63650  (26s)\n"}
+,{"stream_name":"stdout","time":158.440240484,"data":"[05:42:03]   fold 5/5 | train rows (post-filter): 44938 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":185.01420245,"data":"[05:42:30]   fold 5 best val bal_acc (full fold) 0.63519  (27s)\n"}
+,{"stream_name":"stdout","time":199.700488682,"data":"[05:42:45] v8_spec_678 OOF (full 630k) argmax=0.63696 tuned=0.63866 bias=[2.0324, 2.2689, 3.4008]\n"}
+,{"stream_name":"stdout","time":199.718255127,"data":"[05:42:45] === variant v9_routed | hidden=[768, 512, 384, 256] | dropout=0.25 | epochs=30 ===\n"}
+,{"stream_name":"stdout","time":199.804135845,"data":"[05:42:45]   fold 1/5 | train rows (post-filter): 286945 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":199.846952989,"data":"[05:42:45]   v9_routed params: 1,009,075\n"}
+,{"stream_name":"stdout","time":276.268338454,"data":"[05:44:01]   fold 1 best val bal_acc (full fold) 0.96441  (76s)\n"}
+,{"stream_name":"stdout","time":276.469374274,"data":"[05:44:01]   fold-1 jaccard vs greedy=0.7050 | vs xgb_nonrule=0.0312\n"}
+,{"stream_name":"stdout","time":276.492361384,"data":"[05:44:01]   fold 2/5 | train rows (post-filter): 286838 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":352.741715389,"data":"[05:45:18]   fold 2 best val bal_acc (full fold) 0.96468  (76s)\n"}
+,{"stream_name":"stdout","time":352.927338553,"data":"[05:45:18]   fold 3/5 | train rows (post-filter): 286702 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":429.381220444,"data":"[05:46:34]   fold 3 best val bal_acc (full fold) 0.96640  (76s)\n"}
+,{"stream_name":"stdout","time":429.57060686,"data":"[05:46:34]   fold 4/5 | train rows (post-filter): 286821 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":508.974692645,"data":"[05:47:54]   fold 4 best val bal_acc (full fold) 0.96420  (79s)\n"}
+,{"stream_name":"stdout","time":509.169775324,"data":"[05:47:54]   fold 5/5 | train rows (post-filter): 286918 / 504000 | val: 126000\n"}
+,{"stream_name":"stdout","time":587.854385842,"data":"[05:49:13]   fold 5 best val bal_acc (full fold) 0.96406  (79s)\n"}
+,{"stream_name":"stdout","time":604.534146106,"data":"[05:49:29] v9_routed OOF (full 630k) argmax=0.96475 tuned=0.96477 bias=[0.9324, 2.4689, 2.5008]\n"}
+,{"stream_name":"stdout","time":604.555818394,"data":"[05:49:29] v9 with inference-time rule routing on score-{0,1,2} rows\n"}
+,{"stream_name":"stdout","time":621.400409148,"data":"[05:49:46] v9_routed_inference OOF: argmax=0.96475 tuned=0.96477  train routed rows=271444  test routed rows=116178\n"}
+,{"stream_name":"stdout","time":621.489749016,"data":"[05:49:46] v9 routed-inference full-OOF jaccard vs greedy=0.6892  vs xgb_nonrule=0.0317\n"}
+,{"stream_name":"stdout","time":621.531936332,"data":"[05:49:46] done\n"}
+,{"stream_name":"stderr","time":625.217256538,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":625.217291306,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":625.457966103,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":625.458005405,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":626.112493429,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":627.394734138,"data":"[NbConvertApp] Writing 384606 bytes to __results__.html\n"}
+]
