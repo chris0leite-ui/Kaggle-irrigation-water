@@ -53,9 +53,12 @@ catboost_info/
 # Training logs
 logs/
 
-# Kaggle kernel outputs: big npy duplicates of scripts/artifacts/ — skip
+# Kaggle kernel outputs + staged dataset contents: big npy duplicates
+# of scripts/artifacts/ — skip
 kaggle_kernel/output_*/oof_*.npy
 kaggle_kernel/output_*/test_*.npy
+kaggle_kernel/ds_*/oof_*.npy
+kaggle_kernel/ds_*/test_*.npy
 
 # Exception: commit these OOF/test artifacts for cross-branch blending.
 # Each file is ~6-15 MB; total ~84 MB. Add more with care — check

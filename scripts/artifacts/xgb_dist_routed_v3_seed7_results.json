@@ -1,0 +1,35 @@
+{
+  "fold_seed": 42,
+  "xgb_seed": 7,
+  "n_folds": 5,
+  "routed_scores": [
+    0,
+    1,
+    2
+  ],
+  "train_rows_routed": 271444,
+  "test_rows_routed": 116178,
+  "rule_raw_acc_on_routed": 0.9986369195856235,
+  "best_iters_per_fold": [
+    606,
+    589,
+    617,
+    552,
+    659
+  ],
+  "n_features": 43,
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    0.03244116323609758,
+    0.568946691946548,
+    3.400768902044088
+  ],
+  "argmax_bal_acc": 0.9640782688165714,
+  "reweight_bal_acc": 0.9728879937753626,
+  "tuned_bal_acc": 0.9734167785129576,
+  "xgb_only_argmax_bal_acc_on_nonrouted": 0.96084841718182
+}
