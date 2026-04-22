@@ -2018,6 +2018,64 @@ architecture or feature view adds orthogonal bits at this base.
   whole model, not just predictions — and still open. Scaffolded
   as Kaggle kernel `kaggle_kernel/kernel_pretrain_ft/` to run on GPU.
 
+### 2026-04-22 — pretrain-finetune MLP (idea 2, null — NN lever stays closed)
+
+- Goal: test whether pretraining on 10k original (rule-perfect) then
+  fine-tuning on 630k synthetic breaks the MLP plateau at 0.965. The
+  hypothesis: v5 MLP plateau was an optimization issue (NN never
+  settled into the rule basin via joint rule+flip training); a
+  rule-aligned initialization from pretrain should let fine-tune
+  refine *toward* the host NN rather than from scratch.
+- Changed: `kaggle_kernel/kernel_pretrain_ft/mlp_pretrain_ft.py`
+  (v5 architecture 1M params + phase-1 pretrain 30 ep on 10k orig,
+  CE + orig Balanced Softmax prior; phase-2 fine-tune 15 ep per
+  fold on synth, LR 1e-4 = 10× lower than pretrain, synth Balanced
+  Softmax). Uploaded 10k original as private dataset
+  `chrisleitescha/irrigation-prediction-original` (l3llff public
+  dataset rejected by kernel push API). Kernel v2 on T4 GPU,
+  ~6 min total (30 s pretrain + ~70 s finetune per fold × 5).
+  `scripts/blend_mlp_pretrain_ft.py` runs fixed-greedy-bias blend
+  sweep against both greedy (0.97375) and greedy+nonrule (LB-best
+  0.97421).
+- Standalone results (OOF bal_acc, 5-fold stratified, seed=42):
+  - Per-fold val bal_acc: 0.9633, 0.9645, 0.9653, 0.9622, 0.9625
+    (σ ≈ 0.0012, tight).
+  - OOF argmax **0.96358** / tuned **0.96361** — essentially same as
+    v5 full-feature MLP (0.9649). Pretrain effect: **null** at the
+    standalone level.
+  - Fold-1 error Jaccard vs greedy = **0.6626** (below 0.85 warn;
+    passed the kill gate). ft errs = 12,524 vs greedy's 8,909.
+- Blend sweep (fixed greedy bias = [0.1324, 0.5689, 3.4008]):
+  - vs greedy (0.97375): monotone negative from α=0.02 (−0.00006)
+    through α=1.0 (−0.047). Peak at α=0.0. **Null.**
+  - vs greedy+nonrule LB-best (0.97421): same pattern, α=0.02
+    (−0.00022), monotone negative. Peak at α=0.0. **Null.**
+- Diagnosis: the MLP plateau at ~0.965 is not a basin-finding or
+  capacity problem — pretrain init did not move the standalone
+  ceiling. The ~3,615 extra MLP errors vs greedy's error set (Jaccard
+  0.65, ft has 41 % more errors) are MLP-wrong on rows greedy got
+  right; any positive α weights those wrong answers into the blend
+  and hurts. Same mechanism as v5's blend-null: **Jaccard 0.66 is
+  orthogonal ENOUGH to look promising but the magnitude of extra
+  MLP errors (41 %) defeats the blend lift.**
+- Meta-read: ideas 1 (NN on orig as features, 3 variants) and 2
+  (pretrain-finetune MLP) both null. Combined with the 2026-04-22
+  NN-lever closure (5 MLP variants v5-v9), this is the 10th MLP-style
+  null on the problem. The pattern is consistent: **MLPs trained on
+  the 43-feature dist set plateau at ~0.965 regardless of
+  initialization, capacity, training-data policy, or pretrain
+  strategy**; and **MLPs trained on 10k rule-perfect original do not
+  reproduce the host NN's flip pattern** whether their predictions
+  are used as probs or tree features. The host-NN-reverse-engineering
+  approach is exhausted via plain MLP architectures on our current
+  feature set. Pivot back to compounding own-pipeline levers or the
+  strategic option (public-CSV blending).
+- LB budget: unchanged, 1/10 used today. No submission from either
+  idea — both fixed-bias sweeps were strictly negative, well below
+  the +0.0005 LB-probe threshold.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15

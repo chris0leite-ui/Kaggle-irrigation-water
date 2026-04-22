@@ -7,63 +7,47 @@ shrunk from greedy's 0.00079, confirming honest architectural
 signal). Pack 0.98114 (+0.00762 above LB-best), leader 0.98219
 (+0.00867). LB budget: **6/10 used today**, 4 remaining.
 
-## Active: NN-on-original as DGP approximator (2026-04-22)
+## Active: NN-on-original as DGP approximator (2026-04-22) — RULED OUT
 
 **Reframing**: the synthetic 630k labels are the host's NN applied
 to synthetic features, where the NN was trained on the 10k original
-(rule-perfect). Axis-aligned rule + "flips" is the wrong mental
-model — the whole label distribution is a smooth NN function of the
-inputs. The flips are just where the NN's smooth boundary disagrees
-with a discrete threshold rule.
+(rule-perfect). Hypothesis: training our own NN on the 10k original
+should partially reproduce the flip pattern because we're fitting
+the same underlying function.
 
-**Consequence**: training OUR OWN NN on the 10k original and
-applying it to synthetic features should partially reproduce the
-host's predictions, INCLUDING the flip pattern, because we're
-fitting the same underlying function. This is structurally
-different from rule-distillation with trees (which learn the
-axis-aligned rule exactly) and from heavy-weight original
-augmentation (which biases the loss toward rule-clean decisions).
+**Outcome (2026-04-22 session)**: both ideas tested, both null.
 
-### Protocol
+- **Idea 1 (NN ensemble on original → features for trees)**: 3
+  variants tested. Full 43-feat dist set → all 5 archs collapsed to
+  rule ceiling 0.96097 (NN parrots `rule_pred`). Continuous-only
+  features → ensemble standalone 0.9448 tuned, Jaccard 0.37 with
+  greedy (good orthogonality) BUT prob-blend monotone negative from
+  α=0.02 because ens errs 2.4× greedy's. As 3 tree features on
+  XGB-dist → 0.97306 vs vanilla 0.97304 (+0.00003, Jaccard 0.95
+  — trees ignore redundant NN probs).
 
-1. **NN-original ensemble → features for trees (idea 1).** Train
-   an ensemble of ~5 diverse NN architectures on the 10k original
-   dataset (classification). Vary depth / width / activation /
-   seed to cover different smooth-boundary hypotheses. Average
-   their predictions on synthetic train + test. Use the 3-class
-   prob vector (+ optionally penultimate-layer embeddings) as
-   additional features for LGBM+DGP / XGB-dist. Fixed-greedy-bias
-   log-blend sweep as the tuning protocol. Expected: +0.0005 to
-   +0.003 if the boundary smoothing transfers; null if our
-   architecture space doesn't cover the host's. ~1–2 h GPU.
+- **Idea 2 (pretrain-on-original → fine-tune-on-synthetic MLP)**:
+  v5 architecture (1M params, 43-feat dist), 30 ep pretrain on 10k
+  orig + 15 ep fine-tune per fold on synth (LR 1e-4, 10× lower).
+  Standalone OOF 0.9636 (same plateau as v5), Jaccard vs greedy
+  0.66. Blend vs greedy: monotone negative from α=0.02. Blend vs
+  greedy+nonrule (LB-best 0.97421): also monotone negative from
+  α=0.02. **Null.**
 
-2. **Pretrain on original, fine-tune on synthetic (idea 2).**
-   Same NN architecture as v5 (43-feature `dist` set). Phase 1:
-   train on 10k original with CE, 30 epochs (rule-aligned
-   initialization). Phase 2: fine-tune on 630k synthetic with
-   Balanced Softmax, 10× lower LR, 15 epochs (refine toward the
-   host's specific NN instance). Evaluate standalone OOF + blend
-   into greedy. Expected: breaks the 0.965 MLP plateau if the
-   rule-basin initialization is what was missing; otherwise
-   same plateau. ~45 min GPU.
+**Collective diagnosis**: MLPs trained on the 10k rule-perfect
+original do not reproduce the host NN's specific flip pattern —
+our architectural envelope doesn't cover the host's function, and
+10k anchor points narrowly determine the NN's smooth extension in
+the wrong direction. The MLP plateau at ~0.965 on synthetic is
+insensitive to initialization (pretrain), capacity (1M params),
+feature selection, or blending. 10 MLP-style nulls in total now
+(v5/v6/v7/v8/v9 + idea 1 × 3 variants + idea 2). NN/DGP-reversal
+track is exhausted via plain MLP architectures on this feature set.
 
-3. **Stretch — fit the DGP NN directly.** If (1) or (2) land,
-   scale up with a larger architecture trained on original +
-   the subset of synthetic that the rule predicts correctly
-   (10k + 619k rule-correct synthetic), then evaluate on the
-   10k flipped-band rows held out. If the loss converges well
-   below axis-aligned rule error, we've reverse-engineered the
-   host's NN. Conditional on earlier probes working.
-
-### Gates
-
-- Fold-1 standalone OOF after (1): ≥ 0.964 continues to full
-  5-fold + blend. < 0.955: architecture mismatch, revisit design.
-- Fold-1 error Jaccard vs `oof_greedy_blend.npy` after (2):
-  ≥ 0.90 kill (NN mimicking trees), < 0.85 commit to full run.
-- Final blend criterion: fixed-bias sweep ≥ +0.0003 OOF before
-  any LB probe (stricter than earlier +0.00036 binhigh case
-  which overfit).
+**Remaining open directions** (see Path to +0.010 below): compound
+own-pipeline small levers, retry CatBoost or unseen architectures
+(FT-Transformer with explicit attention over feature groups), OR
+the strategic option (public-CSV blending, user decision).
 
 ## Path to +0.010 LB (target LB 0.9835)
 
