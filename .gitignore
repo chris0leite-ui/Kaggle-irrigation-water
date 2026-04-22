@@ -92,3 +92,9 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_lb_best_fs7.npy
 !scripts/artifacts/oof_lb_best_fs123.npy
 !scripts/artifacts/test_lb_best_fs123.npy
+# Digit-extraction features (NEW LB BEST 0.97468 via digit-XGB, from
+# claude/ensemble-model-pipelines-cvHRz)
+!scripts/artifacts/oof_xgb_dist_digits.npy
+!scripts/artifacts/test_xgb_dist_digits.npy
+!scripts/artifacts/oof_lgbm_dist_digits.npy
+!scripts/artifacts/test_lgbm_dist_digits.npy
