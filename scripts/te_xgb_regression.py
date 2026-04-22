@@ -40,9 +40,11 @@ from sklearn.model_selection import StratifiedKFold
 SEED = 42
 N_FOLDS = 5
 VARIANT = os.environ.get("TE_VARIANT", "orig").lower()
-if VARIANT not in ("orig", "oof"):
-    raise SystemExit(f"TE_VARIANT must be 'orig' or 'oof', got {VARIANT!r}")
-SUFFIX = "" if VARIANT == "orig" else "_oof"
+if VARIANT not in ("orig", "oof", "subcell"):
+    raise SystemExit(
+        f"TE_VARIANT must be 'orig', 'oof', or 'subcell', got {VARIANT!r}"
+    )
+SUFFIX = {"orig": "", "oof": "_oof", "subcell": "_subcell"}[VARIANT]
 TE_TRAIN_PATH = f"te_targets_train{SUFFIX}.npy"
 TE_TEST_PATH = f"te_targets_test{SUFFIX}.npy"
 OOF_OUT_PATH = f"oof_xgb_te_reg{SUFFIX}.npy"

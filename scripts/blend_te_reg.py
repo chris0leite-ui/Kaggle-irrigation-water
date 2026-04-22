@@ -43,9 +43,11 @@ from sklearn.metrics import balanced_accuracy_score, confusion_matrix
 
 SEED = 42
 VARIANT = os.environ.get("TE_VARIANT", "orig").lower()
-if VARIANT not in ("orig", "oof"):
-    raise SystemExit(f"TE_VARIANT must be 'orig' or 'oof', got {VARIANT!r}")
-SUFFIX = "" if VARIANT == "orig" else "_oof"
+if VARIANT not in ("orig", "oof", "subcell"):
+    raise SystemExit(
+        f"TE_VARIANT must be 'orig', 'oof', or 'subcell', got {VARIANT!r}"
+    )
+SUFFIX = {"orig": "", "oof": "_oof", "subcell": "_subcell"}[VARIANT]
 OOF_NEW_PATH = f"oof_xgb_te_reg{SUFFIX}.npy"
 TEST_NEW_PATH = f"test_xgb_te_reg{SUFFIX}.npy"
 RESULTS_PATH = f"blend_te_reg_results{SUFFIX}.json"

@@ -2701,3 +2701,55 @@ lesson surfaces.
 - LB budget unchanged at 1/10 used today.
 - Current best unchanged: `submission_greedy_nonrule_blend.csv`
   OOF 0.97421 / LB 0.97352.
+
+### 2026-04-22 — TE-regression follow-ups A & B (both null, theorem reinforced)
+
+Closed the two open paths from the argmax-equivalence theorem:
+(A) soft flip-correction composite, (B) sub-cell granularity TE.
+
+- **(A) Soft flip-correction**
+  (`scripts/flip_correction_blend.py`) — P_flip binary XGB + 3-class
+  XGB on flipped rows only, composite prob
+  `P(y) = P_flip * P_dir + (1 - P_flip) * onehot(rule)`.
+  Results: OOF P_flip AUC = 0.9047; composite standalone argmax =
+  0.96146 (essentially rule ceiling, since P_flip is small on 98%
+  of rows); blends vs greedy and LB-best both peak at alpha=0
+  (i.e., no lift — monotone negative from alpha=0.025).
+- **(B) Sub-cell TE target**
+  (`scripts/te_targets_subcell.py`, ran via `TE_VARIANT=subcell`
+  through existing infra) — TE keyed by
+  `(rule_cell × Humidity_bin × Crop_Type)` = 1920 sub-cells, m=15
+  shrinkage to per-rule-cell prior, OOF source. Diagnostic: only
+  **67/1915 sub-cells (3.5%) have majority class different from
+  their parent rule-cell's majority, covering 754 rows (0.12% of
+  train)** — the sub-cell majority deviation available is
+  structurally tiny. Results: standalone argmax 0.95927 (below
+  rule ceiling — XGB makes MORE wrong sub-cell decisions than
+  right ones on the 0.12% available flip substrate); vs greedy
+  peak +0.00001 at alpha=0.10; vs LB-best peak +0.00003 at
+  alpha=0.05. Both well inside fold-std noise.
+- **Combined ladder** (all four TE-regression family variants now
+  closed, OOF delta vs LB-best 0.97421, fixed bias):
+  ```
+  orig TE           monotone negative, peak alpha=0 (+0.00000)
+  oof  TE           peak alpha=0.075 (+0.00006)
+  subcell TE        peak alpha=0.050 (+0.00003)
+  flip-correction   monotone negative, peak alpha=0 (+0.00000)
+  ```
+  All < 0.0005 LB-probe gate; all < fold-std noise (~0.00088).
+- **Theorem reinforced**: argmax-equivalence to the rule is a
+  structural property of this problem that no variant within the
+  "cell-partition + soft-prob target" family escapes. The only
+  thing that matters for breaking above 0.97421 OOF is **a model
+  whose errors are orthogonal to greedy's** (our current-best
+  `xgb_nonrule` is the working example) — not a model that more
+  cleverly reconstructs the rule's decision surface.
+- **Files** (all on branch `claude/target-encode-xgb-residuals-F0z0S`):
+  - `scripts/te_targets_subcell.py`, `scripts/flip_correction_blend.py`
+  - `scripts/te_xgb_regression.py` + `scripts/blend_te_reg.py` now
+    take `TE_VARIANT ∈ {orig, oof, subcell}` env var
+  - artefacts `oof_pflip.npy`, `oof_flip_correction.npy`,
+    `oof_xgb_te_reg_subcell.npy` + test counterparts + JSONs
+- LB budget unchanged at 1/10 used today.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
