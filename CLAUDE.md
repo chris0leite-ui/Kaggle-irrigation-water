@@ -3186,3 +3186,113 @@ Closed the two open paths from the argmax-equivalence theorem:
   entire OOF→LB ladder), then Session C (flip-signal as
   training-time denoiser — the most architecturally novel
   remaining lever).
+
+### 2026-04-22 — Session B: multi-seed fold bagging (FIRST lift in many sessions — OOF 0.97461, awaiting LB probe)
+
+- Goal: answer whether the LB-validated single-seed OOF of 0.97421 is
+  a number we can trust, or partly a lucky `StratifiedKFold(seed=42)`
+  split. Every OOF on disk shares that one split — we've never had
+  an independent variance estimate. Plan: retrain the full
+  greedy+nonrule stack at 2 new fold seeds (7, 123), compute
+  cross-seed spread, bag test probs in log-space, gate the bag on
+  stability (σ < 0.0005) and emit an LB-candidate.
+- Changed: `scripts/session_b_pipeline.py` (full 3-component pipeline
+  parameterised via `FOLD_SEED` env var: trains `xgb_dist_routed_v3`,
+  `xgb_specialist_678`, `xgb_nonrule`, then builds `hybrid_v3`,
+  `greedy`, `lb_best = 0.85*greedy + 0.15*nonrule` log-blends; XGB
+  training `seed=42` held constant across all runs to isolate fold
+  variance from model variance). `scripts/session_b_analyze.py`
+  (loads per-seed OOF/test, reports cross-seed spread, builds
+  log-avg bag + prob-avg bag, tunes log-bias on bag OOF, emits
+  `submission_lb_best_multi_seed_bag.csv` if gate passes). Seed=42
+  uses the historical artefacts (`oof_greedy_blend.npy` +
+  `oof_xgb_nonrule.npy`) as-is — that's the LB-validated submission.
+
+- **Cross-seed OOF table (tuned bal_acc)**:
+  ```
+                          seed=42    seed=7    seed=123   mean      std       spread
+  routed_v3               0.97332    0.97316   0.97341    0.97330   0.00013   0.00025
+  spec_678 (in-domain)    0.95198*   0.65044*  0.65082*   (per-domain metrics)
+  nonrule (alone, tuned)  0.56966    0.57071   0.57016    0.57018   0.00052   0.00104
+  hybrid_v3               0.97352    0.97301   0.97336    0.97330   0.00026   0.00051
+  greedy                  0.97375    0.97333   0.97355    0.97354   0.00021   0.00042
+  LB-best (greedy+nr)     0.97421    0.97388   0.97401    0.97404   0.00018   0.00036
+  ```
+  *spec_678 argmax on spec domain; seed=42 legacy metric is different
+   because it used a different domain restriction. Full-OOF metric
+   on spec rows is the 0.65 number shown for 7/123.
+
+- **Key finding — seed=42 is +0.00018 "lucky" but within normal range**:
+  All 5 per-component spreads are < 0.001 (max 0.00104 for nonrule,
+  which is tuned as argmax-post-bias on a near-useless 13-feature
+  subset — tiny differences dominate percentage-wise). LB-best mean
+  = 0.97404, which is 0.00018 below seed=42's 0.97421. The "true"
+  single-seed LB-best OOF is about 0.974, not 0.97421. **This
+  recalibrates every prior conclusion about what counts as "above
+  noise"**: the fold-seed-variance floor is ~0.0002-0.0003 (not
+  the 0.00088 "fold-std noise within one seed" we'd been using).
+  Any prior OOF lift below 0.0003 should be treated as "could be
+  split luck" from here on.
+
+- **Multi-seed bag result — NEW CURRENT-BEST OOF at 0.97461**:
+  - Log-avg of 3 LB-best OOFs → **tuned 0.97461** (+0.00040 vs
+    historical seed=42 0.97421, +0.00057 vs cross-seed mean).
+  - Prob-avg bag: **tuned 0.97464** (essentially identical —
+    geometric vs arithmetic mean converges on low-variance inputs).
+  - Stability gate PASSED: std 0.00018 < 0.0005 threshold.
+  - Bag confusion matrix:
+    ```
+             Low  Medium   High     per-class recall
+    Low     368330   1581      6    99.572%
+    Medium    5069 229683   4322    96.079%
+    High         0    685  20324    96.739%
+    ```
+    Δ vs seed=42 LB-best: Low recall flat, Medium +0.0003,
+    High +0.0001. Essentially preserved per-class balance with
+    tighter overall errors.
+  - Submission: `submissions/submission_lb_best_multi_seed_bag.csv`.
+
+- **Mechanism read-out**: bagging across fold-splits IS a real
+  architectural lever, not a hyperparameter artefact. The 2026-04-22
+  seed-bag-greedy experiment tested `fold_seed=42 held fixed, XGB_SEED
+  varied (42, 7)` — that was LB-negative (LB 0.97284 vs 0.97296
+  single-seed) because XGB at our HPs is near-deterministic across
+  model seeds. This experiment holds XGB_SEED fixed and varies
+  FOLD_SEED. Different variance source, different behavior —
+  cross-split test-prob averaging produces distinct learned
+  decision surfaces that compound productively. **Prior rule
+  "below-1-fold-std OOF lift from near-deterministic bags =
+  non-signal on LB" applies only to model-seed bagging; fold-seed
+  bagging is a different beast.**
+
+- **Expected LB for the bag**: at our historical OOF→LB gap
+  (0.00069 for LB-best single seed), conservative LB ≈ 0.97392.
+  But bagging removes the largest component of that gap (fold-
+  split variance), so a tighter gap is plausible. Best-case LB ~
+  0.97420. Both estimates exceed current LB-best 0.97352 by
+  +0.00040 to +0.00070. This is the first genuinely lift-
+  candidate submission since the 2026-04-21 greedy+nonrule
+  discovery.
+
+- Artefacts (committed via `!scripts/artifacts/*session_b*` and per-seed
+  OOF/test under `!scripts/artifacts/oof_lb_best_fs*.npy`):
+  ```
+  scripts/artifacts/oof_{routed_v3,spec_678,nonrule,greedy,lb_best}_fs7.npy
+  scripts/artifacts/oof_{routed_v3,spec_678,nonrule,greedy,lb_best}_fs123.npy
+  scripts/artifacts/test_*_fs7.npy, test_*_fs123.npy
+  scripts/artifacts/session_b_fs{7,123}.json
+  scripts/artifacts/session_b_multi_seed_summary.json
+  submissions/submission_lb_best_multi_seed_bag.csv
+  ```
+
+- **LB budget**: unchanged at 1/10 used today. The bag submission
+  is PENDING user approval per the top-of-file submission rule.
+  Candidate is `submissions/submission_lb_best_multi_seed_bag.csv`
+  (OOF 0.97461, expected LB 0.97390-0.97420).
+- Current best (LB-validated) unchanged:
+  `submission_greedy_nonrule_blend.csv` at LB 0.97352.
+
+- Next (if user approves LB probe and it lands above 0.97352):
+  (a) extend bag to 5 seeds; (b) Session C (flip-signal denoiser)
+  on top of multi-seed bag. If LB <= 0.97352: variance reduction
+  gain didn't transfer; revisit gap calibration.

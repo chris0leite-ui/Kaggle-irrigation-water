@@ -86,3 +86,9 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_corn.npy
 !scripts/artifacts/oof_tabpfn.npy
 !scripts/artifacts/test_tabpfn.npy
+# Session B (multi-seed fold bagging): keep per-seed LB-best OOF/test so
+# any branch can reproduce the bag without re-running the 8-min pipeline.
+!scripts/artifacts/oof_lb_best_fs7.npy
+!scripts/artifacts/test_lb_best_fs7.npy
+!scripts/artifacts/oof_lb_best_fs123.npy
+!scripts/artifacts/test_lb_best_fs123.npy
