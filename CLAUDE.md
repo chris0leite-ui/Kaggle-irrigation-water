@@ -3070,3 +3070,119 @@ Closed the two open paths from the argmax-equivalence theorem:
 - LB budget unchanged at 1/10 used today.
 - Current best unchanged: `submission_greedy_nonrule_blend.csv`
   OOF 0.97421 / LB 0.97352.
+
+### 2026-04-22 — Session A: format check + threshold re-fit + monotone OvR (3 nulls, all informative)
+
+- Goal: run the three cheap Session-A checks proposed in the
+  brainstorm — (Step 0) confirm submission format has no silent
+  bug, (Step 1) re-fit the 4 DGP rule thresholds on synthetic
+  (not just on the 10k original), (Step 2) test monotone
+  constraints on XGB-dist via one-vs-rest per-class binary heads.
+- Changed: `scripts/refit_thresholds_synthetic.py` (precomputed
+  feature vectors + int-label fast bal_acc via confusion-matrix
+  diagonal — ~5ms per eval, 1715-config joint grid in ~30 s);
+  `scripts/xgb_dist_monotone.py` (3 binary XGBs per fold with
+  per-class monotone_constraints tuples: Low head has 18
+  decreasing/increasing features, High head has 18 mirror,
+  Medium head fully unconstrained because the class is
+  non-monotonic in score); `scripts/blend_monotone.py`
+  (fixed-bias log-blend sweep onto greedy and onto LB-best
+  greedy+nonrule). Artefacts:
+  `refit_thresholds_synthetic.json`, `oof_xgb_dist_monotone.npy`,
+  `test_xgb_dist_monotone.npy`, `xgb_dist_monotone_results.json`,
+  `blend_monotone_results.json`.
+
+- **Step 0 — submission format sanity (clean, rules out silent bug)**:
+  - `submission_greedy_nonrule_blend.csv` vs `data/sample_submission.csv`:
+    270 000 rows match, `id` ordering identical, column names
+    `[id, Irrigation_Need]` match, label casing `Low/Medium/High`
+    matches. Label distribution on our best sub: 159 814 Low /
+    99 085 Medium / 11 101 High (59.2 / 36.7 / 4.1 %), close to
+    train prior (58.7 / 37.9 / 3.3 %) with the expected log-bias
+    push on High. No silent bug to chase. This was the cheapest
+    and most important sanity check — confirmed before any
+    modeling work.
+
+- **Step 1 — threshold re-fit (confirms rule thresholds are correct)**:
+  - Baseline (25, 300, 30, 10): bal_acc 0.960973, raw 0.983644.
+  - 1D per-feature sweeps:
+      `t_soil`: best 25.00, Δ bal = −0.000003 (baseline optimal)
+      `t_rain`: best 299.0, Δ bal = +0.000000 (baseline optimal)
+      `t_temp`: best 29.9, Δ bal = +0.000338 (small drift)
+      `t_wind`: best 10.0, Δ bal = +0.000051 (baseline optimal)
+  - All 1D winners combined (25, 299, 29.9, 10): bal 0.961360
+    (Δ = +0.000386), raw 0.983187 (Δ = **−0.000457**).
+  - 1715-config joint grid around 1D winners confirms the 1D
+    solution — no multi-axis interaction found.
+  - **Verdict: thresholds are correct, Δ is a log-bias artifact.**
+    If the true generator threshold were 29.9 instead of 30.0,
+    raw accuracy would INCREASE (the rule would classify more
+    rows correctly). Instead raw acc DROPS by 0.000457. The
+    bal_acc gain comes from the small threshold shift
+    redistributing ~200 boundary rows from Medium to High, which
+    the log-bias tune is already doing post-hoc. Rule: **when
+    a threshold drift improves bal_acc but hurts raw accuracy,
+    it's finding a recall trade not a rule correction**. Don't
+    update the DGP rule; keep `Soil<25, Rain<300, Temp>30,
+    Wind>10`.
+  - Δ bal = +0.000386 is below LB-probe gate (+0.0005) and below
+    fold noise σ (~0.00088). No rebuild of downstream models
+    needed.
+
+- **Step 2 — monotone OvR XGB (architectural null + Jaccard insight)**:
+  - 3 binary XGBs per fold, `binary:logistic` with per-class
+    `monotone_constraints` tuples on 43-feature dist set. Same
+    5-fold (seed=42) split. Constrained features: Low head 18
+    (signs consistent with "wetter/cooler/calmer => more Low"),
+    High head 18 (mirror), Medium head fully unconstrained.
+  - Per-class best_iters show monotone constraints reduce
+    effective capacity: Low (517-720) and High (553-689) heads
+    terminate earlier than Medium (694-873) — unconstrained
+    Medium needs more rounds to fit the non-monotonic shape.
+  - Standalone OOF: argmax 0.96346, tuned 0.97323 (vs vanilla
+    XGB-dist 0.97304, Δ = +0.00019 — within fold noise).
+  - Error magnitude: 12 188 monotone errs vs 11 862 greedy errs
+    / 11 830 LB-best errs. Monotone has ~3 % MORE errors.
+  - **Jaccard vs greedy (post log-bias) = 0.8099**, vs LB-best
+    = 0.8057. Decent orthogonality — below 0.85 "warn" threshold
+    and well below the 0.95 "redundant" band.
+  - Blend sweep (fixed baseline bias, log-space):
+    ```
+    vs greedy (0.97375):
+      peak α=0.30  tuned=0.97383  Δ=+0.00009   (α > 0.5 strictly negative)
+    vs LB-best (0.97421):
+      peak α=0.05  tuned=0.97430  Δ=+0.00006   (monotone-neg past α=0.05)
+    ```
+  - **Null at blend level.** Both peaks well below LB-probe gate
+    (+0.0005) and fold noise (~0.00088). Same failure mode as
+    FT-Transformer and TabPFN: decent Jaccard orthogonality but
+    the extra-error magnitude (monotone has 326 more errs than
+    greedy) dominates — any positive blend weight drags errors
+    into the mix faster than it helps correct the orthogonal
+    ones. The +0.00019 standalone lift confirms monotone is a
+    real alternative optimum (different per-tree structure), but
+    it plateaus at the same ceiling as unconstrained trees on
+    this feature set. Fourth "same-ceiling" experiment from the
+    tree-ensemble family (vanilla XGB, routed XGB, spec-678,
+    monotone OvR all land in 0.973–0.974 tuned OOF).
+
+- Meta-read: Session A's three nulls are each valuable confirmations:
+  1. Our LB-best submission format is verifiably correct.
+  2. The DGP rule thresholds we've been using are the true
+     generator thresholds, not a near-miss approximation.
+  3. Monotone constraints, a structurally-different tree
+     parameterization, still hit the 0.974 family ceiling and
+     fail to add blend signal — reinforcing the architectural-
+     ceiling diagnosis from the TabPFN/FT-Transformer nulls.
+  Each of these closes an uncertainty the user's "look again for
+  own-pipeline levers" prompt was chasing.
+
+- LB budget unchanged at 1/10 used today (3 local experiments,
+  no LB spend). No submission warranted from any of steps 0/1/2.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Next (per the Session plan): Session B (multi-seed fold
+  bagging — the variance-estimation check that recalibrates the
+  entire OOF→LB ladder), then Session C (flip-signal as
+  training-time denoiser — the most architecturally novel
+  remaining lever).
