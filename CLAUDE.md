@@ -2205,6 +2205,90 @@ architecture or feature view adds orthogonal bits at this base.
   at OOF 0.97421 / LB 0.97352. CORN artefacts committed for
   cross-branch reuse (`oof_xgb_corn.npy`, `test_xgb_corn.npy`).
 
+### 2026-04-22 — TabPFN v2 as new blend leg (null)
+
+- Goal: test the last unexercised architectural lever — a pretrained
+  tabular foundation model (TabPFN v2.2.1). Hypothesis: TabPFN is
+  pretrained on millions of synthetic tabular DGPs, including the
+  regime the host used to generate the 630k synthetic train set.
+  Every NN we've trained from scratch (v5-v9, FT-Transformer,
+  pretrain-finetune) plateaued in either standalone OOF or blend.
+  A foundation model conditions on a small context each fold
+  instead of gradient-fitting, and may bring genuine orthogonal
+  signal that survives the magnitude-mismatch blend trap.
+- Changed: `scripts/ordinal_tabpfn.py` — TabPFN v2 classifier on
+  the 43-feature dist set, SUBSAMPLE=1500 stratified training rows
+  per fold (CPU compute cap), N_ESTIMATORS=1, same 5-fold
+  StratifiedKFold(seed=42) for OOF alignment. Chunked test
+  prediction (5k-row batches). Fold-1 error-Jaccard gate vs
+  greedy + LB-best (0.90 abort). Wall time: 5 folds × ~30 min
+  on 16-core CPU = ~2h30min. `tabpfn==2.2.1` pre-license version
+  (v7.x requires Prior-Labs API token).
+- Standalone results (OOF bal_acc):
+  - Per-fold argmax: 0.9602 / 0.9615 / 0.9631 / 0.9605 / 0.9452
+    (σ ≈ 0.0065, fold 5 dragged down by subsample draw variance).
+  - **OOF argmax = 0.95811, tuned = 0.96209.** Below XGB-dist
+    (0.9726) and the MLP ceiling (0.9649) — the 1500-row context
+    cap hurts vs TabPFN's 10k sweet spot.
+  - Fold-1 Jaccard gate: vs greedy 0.8486, vs LB-best 0.8445.
+    Passed the 0.90 abort threshold, landed in the 0.85-0.90
+    "warn" band (blend lift ceiling ~+0.00015 per CLAUDE.md rule).
+  - Full-OOF Jaccard: vs greedy 0.8139, vs LB-best 0.8081.
+    **TabPFN errors = 10,376 vs LB-best = 8,891 (+16.7 %)** —
+    better than FT-Transformer's +42 % overshoot but still too
+    many to blend productively.
+- Fixed-bias blend sweeps (same greedy bias, no retune):
+  ```
+  vs greedy (0.97375)
+      alpha=0.000  0.97375  Δ=+0.00000   ← peak (blend degrades the moment TabPFN enters)
+      alpha=0.025  0.97372  Δ=-0.00002
+      alpha=0.050  0.97359  Δ=-0.00015
+      alpha=0.500  0.97000  Δ=-0.00375
+
+  vs greedy+nonrule LB-best (0.97421)
+      alpha=0.000  0.97421  Δ=+0.00000
+      alpha=0.025  0.97424  Δ=+0.00002   ← peak (within fold noise)
+      alpha=0.050  0.97412  Δ=-0.00009
+      alpha=0.500  0.97000  Δ=-0.00422
+  ```
+  vs LB-best: monotonic decrease past α=0.025. The +0.00002
+  "peak" is indistinguishable from noise (fold σ ~0.00088). No
+  submission warranted. vs greedy: best is α=0, TabPFN strictly
+  hurts the blend.
+- Per-class recall (standalone tuned):
+  ```
+                Low    Medium    High
+  recall     0.9957   0.9665   0.9238
+  ```
+  Low and Medium are competitive with LB-best; High recall is
+  substantially worse (0.9238 vs LB-best's 0.9693). The small
+  context size (1500 rows × 3.3 % High = ~50 High examples per
+  fold) is the bottleneck — TabPFN can't see enough High rows
+  to model the rare class well.
+- Read-out: **NN lever remains closed across every architecture
+  family tested on this feature set.** TabPFN trained on millions
+  of pretrained tabular DGPs, with an architecturally-distinct
+  in-context learning mechanism, still plateaus at the same
+  ~0.96 band and can't beat the magnitude-mismatch blend trap.
+  Combined with the 10+ prior NN nulls (MLP v5-v9,
+  FT-Transformer, pretrain-finetune MLP, 3 NN-on-orig variants),
+  this is definitive: **no NN architecture on this feature set
+  produces errors with both the right orthogonality AND the
+  right magnitude to lift a greedy+nonrule blend**. The own-
+  pipeline ceiling at LB ~0.9735 appears structural.
+- Caveat: TabPFN v2 sweet spot is 10k training rows. We used
+  1500 for CPU-compute feasibility. A GPU run at
+  SUBSAMPLE=10000, N_ESTIMATORS=4 could lift standalone to
+  maybe 0.97, but given the Jaccard 0.81 and error-magnitude
+  pattern, the blend outcome is unlikely to change — the
+  underlying decision surface TabPFN finds is different enough
+  from trees to make different errors but not so different that
+  the errors are complementary to the greedy+nonrule stack.
+- LB delta: n/a. Budget unchanged (1 used today, 9 remaining).
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  at OOF 0.97421 / LB 0.97352. TabPFN artefacts committed
+  (`oof_tabpfn.npy`, `test_tabpfn.npy`) for cross-branch reuse.
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15
@@ -2312,6 +2396,23 @@ Opens five follow-up ideas:
     from 0.96135 → 0.97097 (+0.0096). Keep this as the decision rule
     for every subsequent model.
 - **Ruled out**:
+  - **TabPFN v2 as blend leg (2026-04-22)** — tabular foundation
+    model (tabpfn==2.2.1, pre-license), 1500-row stratified
+    subsample per fold, 5-fold OOF. Standalone tuned 0.96209
+    (below XGB-dist 0.9726). Fold-1 Jaccard 0.85 passed abort
+    gate but in "warn" band. Full-OOF Jaccard 0.81, TabPFN has
+    10,376 errors vs LB-best's 8,891 (+16.7 %). Fixed-bias blend
+    sweep vs LB-best peaks at α=0.025, Δ=+0.00002 — within fold
+    noise, strictly monotone-negative past. High-class recall
+    (0.92) was the weakest leg — 1500-row context = ~50 High
+    examples/fold. GPU SUBSAMPLE=10k might lift standalone but
+    the Jaccard/magnitude pattern predicts the blend remains null.
+    Artefacts `oof_tabpfn.npy`, `test_tabpfn.npy` committed.
+    Rule: **in-context foundation models share the same NN-on-
+    tabular blend-null failure mode as from-scratch MLPs and
+    transformers at this feature set** — the error-magnitude
+    mismatch defeats the blend regardless of architecture family
+    or training regime. Closes the NN lever definitively.
   - **Frank-Hall ordinal decomposition (2026-04-22)** — two binary
     XGB heads `P(y>=Medium)` + `P(y>=High)` on 43-feature dist set,
     Frank-Hall recomposition with monotone clip. AUC 0.998/0.999 per
