@@ -9,7 +9,7 @@ signal). Pack 0.98114 (+0.00762 above LB-best), leader 0.98219
 today's session (1 burned on 2026-04-22 seed-bag null).
 
 **Completed this session (2026-04-22)**:
-- `scripts/catboost_optuna.py` — **DONE, null**. Phase 1 + Phase 2
+- `legacy/null/catboost_optuna.py` — **DONE, null**. Phase 1 + Phase 2
   on full 630k: OOF tuned **0.97179** (below LGBM-dist 0.97266,
   below XGB-dist 0.97304). Best HPs: depth=5, lr=0.067, l2=1.08,
   rs=2.74. Jaccard vs LB-best = 0.7376; fixed-bias blend peak

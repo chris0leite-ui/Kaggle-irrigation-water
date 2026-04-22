@@ -21,7 +21,11 @@ docs; broad categories:
 - **Pseudo-label / self-distill** (`pseudo_label_*`, `self_distill_xgb`): boundary-error compounding.
 - **Gated/noise-inversion / GCE / score-experts**: see CLAUDE.md 2026-04-21 entries.
 - **TE-encode variants** (`benchmark_te_oof`, `te_targets*`, `te_xgb_regression`, `blend_te_reg`): all null.
-- **Hyperopt** (`hyperopt_lgbm`, `finalize_lgbm`, `lgbm_competitor_baseline`): plateau at the same OOF.
+- **Hyperopt — LGBM** (`hyperopt_lgbm`, `finalize_lgbm`, `lgbm_competitor_baseline`): plateau at the same OOF.
+- **Hyperopt — XGB Optuna 80-trial** (`hp_common`, `hp_dist_routed`, `hp_nonrule`, `hp_spec_678`, `refit_best_hp`, `blend_tuned_greedy`): inner-val and outer-CV reward shallow + heavily regularized HPs that DON'T transfer to LB. Both production and peak-α candidates regressed −0.00016 / −0.00021 vs baseline LB despite +0.00034–0.00040 OOF gain. New rule: require blend-level lift ≥ +0.001 before LB-probing HP changes.
+- **Ordinal decomposition** (`ordinal_corn`, `ordinal_tabpfn`): CORN trades High recall for Medium (blend monotone-neg). TabPFN +16.7 % errors vs greedy → blend monotone-neg. Both null.
+- **CatBoost Optuna** (`catboost_optuna`, `catboost_jaccard_blend`): OOF 0.97179 < LGBM-dist 0.97266; blend peak α=0.05 → +0.00005 (non-signal).
+- **Binary High head** (`binary_high_head`): selection-overfit on hybrid blend (+0.00036 OOF / −0.00084 LB), monotone-negative on greedy with fixed bias.
 - **DGP-archaeology variants** (`benchmark_dgp_fe2`, `benchmark_oracle`, `dgp_archaeology`, `archaeology_id_mod`, `band_routed_lgbm`, `knn_six_features`, `weighted_lgbm_dgp`): superseded by the canonical 6-feature rule in `scripts/dgp_formula.py`.
 
 ## `legacy/submissions/` — stale candidate CSVs
