@@ -2289,13 +2289,108 @@ architecture or feature view adds orthogonal bits at this base.
   at OOF 0.97421 / LB 0.97352. TabPFN artefacts committed
   (`oof_tabpfn.npy`, `test_tabpfn.npy`) for cross-branch reuse.
 
+### 2026-04-22 — careful XGB HP tuning (all 3 components, 80-trial Optuna): LB null
+
+- Goal: full HP sweep over the three XGB components underpinning
+  the LB-best pipeline — `xgb_dist_routed_v3`, `xgb_specialist_678`,
+  `xgb_nonrule` — to settle whether careful per-component tuning
+  beats their default HPs. The 2026-04-20 LGBM HP Optuna sweep was
+  null but on a different feature set; XGB had never been swept
+  comprehensively on this problem.
+- Changed: `scripts/hp_common.py` (shared FE + HP space + objective),
+  `scripts/hp_{dist_routed,spec_678,nonrule}.py` (per-component
+  Optuna TPE, inner 80/20 split, MedianPruner, 80 trials each),
+  `scripts/refit_best_hp.py` (5-fold outer-CV refit with tuned HPs),
+  `scripts/blend_tuned_greedy.py` (rebuild greedy + nonrule blend,
+  fixed-bias α sweep, nested-CV weight search).
+- HP space: `lr ∈ [0.02, 0.15]`, `max_depth ∈ [4, 10]`,
+  `min_child_weight ∈ [1, 30]`, `subsample/colsample ∈ [0.6, 1.0]`,
+  `reg_alpha/reg_lambda ∈ [1e-8, 10]`, `gamma ∈ [1e-8, 5]`. Objective:
+  prior-reweight bal_acc on inner val (argmax bal_acc for spec_678,
+  since Low is absent from spec domain).
+- Acceptance gate: inner-val lift > 1 fold-std (0.001) for each
+  component. All three passed.
+- Inner-val HP results (per-component Δ on 80/20 inner split):
+  ```
+  spec_678    baseline 0.94954 -> 0.95146   +0.00193  (max_depth=4, lr=0.072, reg_lambda=7e-4)
+  dist_routed baseline 0.96836 -> 0.97055   +0.00218  (max_depth=4, lr=0.028, reg_alpha=2.98)
+  nonrule     baseline 0.55442 -> 0.56461   +0.01019  (max_depth=4, lr=0.026, reg_alpha=5.38)
+  ```
+  Common pattern: **shallow trees (max_depth=4 vs baseline 7), slower
+  learning, much heavier L1 regularization**. Consistent with the
+  LGBM Optuna finding — same "shallow + regularized" alternative
+  optimum regime, but with apparent real lift this time.
+- Outer 5-fold OOF refit (standalone, tuned HPs):
+  ```
+  dist_routed            0.97332 -> 0.97405   +0.00073  (realized 33% of inner predict)
+  spec_678 spec-domain   0.95198 -> 0.95258   +0.00060  (realized 31%)
+  nonrule tuned          0.56966 -> 0.57611   +0.00645  (realized 63%)
+  ```
+  Realized/predicted ratio 30-65% — typical Optuna selection-bias
+  compression. Lifts shrunk but remained positive on all three.
+- Blend rebuild at production weights (0.45 hybrid + 0.40 routed +
+  0.15 spec) with fixed greedy log-bias + fixed-bias α sweep:
+  ```
+  greedy tuned OOF              0.97431   (baseline 0.97375, +0.00056)
+  α=0.15 (production)           0.97455   (baseline 0.97421, +0.00034)
+  α=0.20 (sweep peak)           0.97461   (+0.00040)
+  nested-CV mean (unbiased)     0.97470 ± 0.00091   (+0.00049)
+  ```
+  Alpha sweep a clean unimodal curve peaking at α=0.20. Nested-CV
+  inner folds consistently preferred w_routed 0.45-0.55 (higher
+  than production 0.40) and α=0.20-0.25.
+- LB probe (submitted both candidates at 18:01 UTC):
+  ```
+  prodAlpha015  OOF 0.97455 -> LB 0.97336  gap 0.00119  Δ LB -0.00016 vs best
+  peakAlpha020  OOF 0.97461 -> LB 0.97331  gap 0.00130  Δ LB -0.00021 vs best
+  ```
+  **Both tuned variants REGRESSED on LB** despite honest OOF gains.
+  OOF→LB gap widened **by 50-60 bps** (baseline gap 0.00069 -> tuned
+  gap 0.00119-0.00130).
+- Read-out: HP tuning is a **structural generalization null**, not a
+  selection-bias null. Unlike binhigh (post-hoc log-bias retune =
+  clear selection-bias failure), this experiment used FIXED production
+  blend weights AND FIXED α throughout — no stage-wise OOF selection.
+  The failure mode is that the Optuna-favored HP regime (shallow
+  trees, heavy L1 reg) fits the visible data distribution better but
+  generalizes less well to the hidden LB split than the baseline
+  regime (moderate depth, light reg). The baseline HPs sit in a
+  robustness sweet-spot that inner-val and outer-CV bal_acc don't
+  reward.
+- New rule (added to LEARNINGS.md candidate): **On this problem,
+  inner-val and 5-fold outer-CV reward per-component capacity/
+  regularization tradeoffs that do NOT transfer to LB. Treat any HP
+  search lift below +0.001 at the blend level as a likely LB null
+  even when selection bias is controlled; require blend-level
+  lift ≥ +0.001 before burning an LB slot on HP tuning.**
+- LB budget: **3/10 used today**, 7 remaining. Cumulative this
+  competition: prior count + 2 new = bumped 2.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  at **LB 0.97352 / OOF 0.97421** with baseline HPs.
+- Artefacts retained for reference (gitignored `_tuned.npy` arrays
+  not committed; the submission CSVs and the
+  `blend_tuned_greedy_results.json` are):
+  ```
+  submissions/submission_greedy_nonrule_tunedHP_prodAlpha015.csv
+  submissions/submission_greedy_nonrule_tunedHP_peakAlpha020.csv
+  scripts/artifacts/blend_tuned_greedy_results.json
+  scripts/artifacts/hp_{dist_routed,spec_678,nonrule}_best.json
+  scripts/artifacts/refit_best_hp_results.json
+  ```
+- Next: own-pipeline lever bank is now fully exhausted. Remaining
+  path to improvement is strategic (public-CSV blending) or pivot
+  to within-cell continuous feature modeling — previously ruled out
+  at linear capacity (per-cell LR = 0.96280, EB = 0.96339), but
+  per-cell MLP untested and constrained by per-cell data (largest
+  cell ~100k rows, smallest <300).
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15
   → OOF 0.97421, **LB 0.97352**. Submission on disk:
   `submissions/submission_greedy_nonrule_blend.csv`. Pack 0.98114
   is +0.00762 above; leader 0.98219 is +0.00867 above. LB budget
-  today: 9 remaining (1/10 used for the seed-bag null).
+  today: 7 remaining (3/10 used: 1 seed-bag null + 2 HP-tuning nulls).
 
   Second-best (safe fallback): greedy log-blend
   `hybrid_v3(0.45) + routed_v3(0.40) + spec_678(0.15)` → OOF 0.97375,

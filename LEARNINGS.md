@@ -496,6 +496,24 @@ all of them on the same model.
   all separating the 10k with hinge 0.0000 → 0.2981 give identical
   predictions on 630k synthetic (0.96097 bal_acc, 1.0000 agreement).
   Cells are discrete; wider margin doesn't move any cell.
+- **Careful per-component Optuna HP tuning is a LB null even without
+  selection bias on the blend.** 80-trial TPE on each of the three
+  XGB components (spec, dist_routed, nonrule) produced honest
+  inner-val lifts (+0.00193 / +0.00218 / +0.01019) that transferred
+  to 5-fold outer CV at 30-65% of the inner-predicted magnitude
+  (standalone deltas +0.00060 / +0.00073 / +0.00645). At the blend
+  level with FIXED production weights (0.45/0.40/0.15) and FIXED
+  α=0.15, OOF lifted +0.00034 (nested-CV mean +0.00049). Both
+  LB-probed and **LB regressed** (-0.00016 and -0.00021), with the
+  OOF→LB gap widening from 0.00069 to 0.00119-0.00130. Mechanism:
+  Optuna consistently picked shallow trees (max_depth=4 vs baseline
+  7) + heavy L1 reg, which fits the visible data distribution
+  better but generalizes less well to the hidden LB split. Rule:
+  **require blend-level OOF lift ≥ +0.001 before burning an LB
+  slot on HP tuning — per-component inner-val HP lifts are not a
+  reliable LB-lift signal**, even when downstream selection bias
+  is controlled. Baseline HPs can sit in a robustness sweet-spot
+  that CV bal_acc doesn't reward.
 
 ## Ensembling / blend methodology
 

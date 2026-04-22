@@ -46,6 +46,7 @@ scratch.py
 scripts/artifacts/*.npy
 scripts/artifacts/*.log
 scripts/artifacts/*.db
+scripts/artifacts/*.pkl
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
