@@ -1,0 +1,71 @@
+{
+  "key_cols": [
+    "rule_cell",
+    "humidity_bin",
+    "Crop_Type"
+  ],
+  "n_humidity_bins": 5,
+  "humidity_edges": [
+    24.999999,
+    42.0,
+    55.02,
+    69.17,
+    81.77,
+    94.99000099999999
+  ],
+  "shrinkage_m": 15.0,
+  "source": "synthetic train, leave-one-fold-out (5-fold seed=42)",
+  "sub_cell_majority_differs_from_rule_cell": {
+    "count": 67,
+    "total_sub_cells": 1915,
+    "rows_in_differing_sub_cells": 754,
+    "frac_of_train": 0.0011968253968253969
+  },
+  "fold_diag": [
+    {
+      "fold": 1,
+      "n_cells_in_lookup": 1913,
+      "this_hits": 125996,
+      "this_rc_fallbacks": 4,
+      "test_hits": 269990,
+      "test_rc_fallbacks": 10,
+      "wall_s": 1.2481129169464111
+    },
+    {
+      "fold": 2,
+      "n_cells_in_lookup": 1908,
+      "this_hits": 125989,
+      "this_rc_fallbacks": 11,
+      "test_hits": 269981,
+      "test_rc_fallbacks": 19,
+      "wall_s": 1.2312185764312744
+    },
+    {
+      "fold": 3,
+      "n_cells_in_lookup": 1910,
+      "this_hits": 125992,
+      "this_rc_fallbacks": 8,
+      "test_hits": 269984,
+      "test_rc_fallbacks": 16,
+      "wall_s": 1.3419508934020996
+    },
+    {
+      "fold": 4,
+      "n_cells_in_lookup": 1910,
+      "this_hits": 125991,
+      "this_rc_fallbacks": 9,
+      "test_hits": 269989,
+      "test_rc_fallbacks": 11,
+      "wall_s": 1.2813620567321777
+    },
+    {
+      "fold": 5,
+      "n_cells_in_lookup": 1904,
+      "this_hits": 125983,
+      "this_rc_fallbacks": 17,
+      "test_hits": 269971,
+      "test_rc_fallbacks": 29,
+      "wall_s": 1.3790102005004883
+    }
+  ]
+}

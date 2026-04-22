@@ -2827,3 +2827,203 @@ The reusable Kaggle playbook lives at
 `claude/kaggle-playbook`). Kickoff steps, workflow norms, and
 methodology are maintained there — update that repo when a transferable
 lesson surfaces.
+
+### 2026-04-22 — TE-continuous-regression (null, definitive)
+
+- Goal: test the user-proposed reframing — avoid discrete residual
+  zero-inflation by regressing onto continuous per-class TE target
+  values from the 10k rule-perfect original. 3 independent XGB
+  `reg:squarederror` boosters on 43-col dist features, TE target
+  keyed by (Crop_Type, Soil_Type, Season, Region,
+  Crop_Growth_Stage, dgp_score) with Bayesian shrinkage m=30 toward
+  per-score prior. 5-fold stratified (seed=42) to align with all
+  other OOFs. Fixed-bias log-blend sweep into (a) greedy alone
+  (OOF 0.97375) and (b) greedy + xgb_nonrule@0.15 LB-best
+  (OOF 0.97421).
+- Changed: `scripts/te_targets.py` (TE matrix build, 5522 unique
+  cells in original, median 1 row/cell, 27 % fallback-to-score-
+  prior on synthetic train and test), `scripts/te_xgb_regression.py`
+  (3 boosters/fold, ~13s/fold total wall 69s), `scripts/blend_te_reg.py`
+  (11-point grid over both baselines). Artefacts:
+  `oof_xgb_te_reg.npy`, `test_xgb_te_reg.npy`,
+  `te_xgb_regression_results.json`, `blend_te_reg_results.json`.
+- Results (OOF tuned bal_acc, fixed greedy bias):
+  ```
+  TE-reg standalone argmax                   0.96097  (== rule ceiling)
+
+  vs greedy (base 0.97375):
+    alpha=0.000   0.97375   peak
+    alpha=0.025   0.97357  -0.00017
+    alpha=0.050   0.97325  -0.00050
+    alpha=0.400   0.96219  -0.01155   monotone negative
+
+  vs LB-best greedy+nonrule@0.15 (base 0.97421):
+    alpha=0.000   0.97421   peak
+    alpha=0.025   0.97410  -0.00012
+    alpha=0.050   0.97392  -0.00030
+    alpha=0.400   0.96169  -0.01253   monotone negative
+  ```
+- **Diagnostic** (the decisive bit):
+  ```
+  TE-reg argmax errors = 10,304  (EXACTLY = rule's 10,304 flipped rows)
+  greedy  argmax errors =  8,909
+  argmax agreement rate (TE-reg vs greedy) = 99.70 %
+  rows where they disagree                 =  1,863
+    TE-reg right, greedy wrong             =    234
+    greedy right, TE-reg wrong             =  1,629
+    both wrong (different answers)         =      0
+  net TE-reg wins - losses in disagreement = -1,395
+  ```
+- **Mechanism** (generalisable): the 10k original is rule-perfect
+  by construction. Any predictor trained to reproduce original-
+  dataset per-class distributions — TE lookup, XGB regression on
+  TE targets, empirical Bayes, per-cell LR — converges to a rule-
+  equivalent predictor (10,304 errors on the identical rows,
+  cell-level). No key granularity or shrinkage tweak changes this:
+  the rule IS the optimal predictor of the original dataset's
+  labels, and TE-from-original inherits that ceiling exactly.
+- **Implication** — **three rule-related levers are now provably
+  redundant**: (i) TE-from-original features inside a tree (already
+  null in `benchmark_te_orig`, +0.00004), (ii) per-cell empirical
+  Bayes on rule cells (already null in `empirical_bayes_cell`), and
+  (iii) this continuous regression reformulation. They all produce
+  predictors at argmax-equivalence to the rule, which greedy (with
+  tuned log-bias) has already transcended by pushing boundary rows
+  in the direction that improves macro-recall. Any positive blend
+  weight drags the decision back toward the rule's operating point,
+  hurting OOF monotonically.
+- **New LEARNINGS rule**: "The 10k rule-perfect original is a
+  saturation source — any predictor that consumes original labels
+  as ground truth (TE, EB, distillation of original, NN-on-original)
+  is bounded by the rule's argmax-equivalence class. Use the
+  original only for **features that describe marginal
+  distributions** (e.g., `Crop_Type × Region` frequencies as an
+  auxiliary XGB input), never as **labels**."
+- No LB submission (both sweeps strictly negative; deep below the
+  +0.0005 LB-probe threshold). LB budget unchanged at 1/10 used
+  today.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+
+### 2026-04-22 — TE-continuous-regression OOF variant (null + theorem)
+
+- Goal: the user-proposed follow-up to the original-source TE null —
+  swap the TE source from the 10k rule-perfect original to synthetic
+  train labels (which carry the host's NN flip signal), with
+  leave-one-fold-out leak prevention. Same 5 cats × dgp_score key,
+  m=30 shrinkage, same 5-fold split (seed=42).
+- Changed: `scripts/te_targets_oof.py` (new, OOF TE matrix from
+  synthetic, ~16s); `scripts/te_xgb_regression.py` and
+  `scripts/blend_te_reg.py` parameterized via `TE_VARIANT={orig,oof}`
+  env var (suffix-based filenames; orig artefacts untouched).
+  Run: `TE_VARIANT=oof python3 scripts/te_xgb_regression.py` (~5 min,
+  4× longer than orig because synthetic TE is a less-smooth target),
+  then `TE_VARIANT=oof python3 scripts/blend_te_reg.py` (~10s).
+- Density (orig vs oof source):
+  ```
+                        cells   median rows/cell   synth hit-rate
+  orig (10k)             5522   1                 73 %  (27 % score-fallback)
+  oof  (5×504k LOFO)   ~10870   ~50               99.8 % (0.2 % score-fallback)
+  ```
+- Results (OOF tuned bal_acc, fixed greedy bias):
+  ```
+  orig-TE standalone argmax       0.96097
+  oof-TE  standalone argmax       0.96097   (identical)
+
+  vs greedy (base 0.97375):
+    orig peak  alpha=0.000  +0.00000   monotone negative onward
+    oof  peak  alpha=0.025  +0.00000   then negative
+
+  vs LB-best greedy+nonrule@0.15 (base 0.97421):
+    orig peak  alpha=0.000  +0.00000   monotone negative onward
+    oof  peak  alpha=0.075  +0.00006   (~8× below 0.0005 LB-probe gate)
+  ```
+- **Cross-variant diagnostic** (orig vs oof TE-regression OOF):
+  ```
+  argmax agreement                                 1.00000
+  per-row error count                              10,304 (both, identical rows)
+  per-class probability L1 delta (oof - orig)      Low 0.010, Med 0.016, High 0.005
+  argmax disagreement w/ greedy (oof)              1,863 rows  (== orig)
+    oof right, greedy wrong                        234        (== orig)
+    greedy right, oof wrong                        1,629      (== orig)
+    net oof win                                    -1,395     (== orig)
+  ```
+- **The argmax-equivalence theorem**: regardless of TE source
+  (rule-perfect 10k OR NN-flipped 630k synthetic), the resulting
+  per-class probability target has the same per-(cat-tuple x score)
+  cell-majority class — because the synthetic NN flips are
+  *within-cell minority* events (already established 2026-04-21:
+  only 1/64 cells has a synthetic majority different from the rule,
+  covering 308 rows / 0.05 %). XGB regressed onto either target
+  reproduces the cell-majority at argmax, which IS the rule. The
+  flip signal is structurally invisible to a multinomial soft-prob
+  target keyed by features that determine the cell.
+- **Implication / new LEARNINGS rule**: "TE-as-regression-target
+  predictors converge to a rule-equivalent argmax even when sourced
+  from flip-rich synthetic data, because the flips are within-cell
+  minority and the soft-prob target preserves cell-majority. To
+  escape this ceiling, the target must be either (a) the per-row
+  flip indicator (binary, not per-class soft-prob) so the model
+  learns to OVERRIDE cell-majority, or (b) computed at a
+  granularity finer than the cells the rule itself splits on
+  (e.g. continuous-bin × cat-tuple subdivisions of each rule
+  cell)."
+- The +0.00006 lift on LB-best is calibration drift on 1-2 % of
+  cell probs where synthetic LOFO has dense data and the original
+  has 1-2 rows. Far below LB-probe threshold (+0.0005) and ~15×
+  below fold-std noise (~0.00088). No submission warranted.
+- LB budget unchanged at 1/10 used today.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+
+### 2026-04-22 — TE-regression follow-ups A & B (both null, theorem reinforced)
+
+Closed the two open paths from the argmax-equivalence theorem:
+(A) soft flip-correction composite, (B) sub-cell granularity TE.
+
+- **(A) Soft flip-correction**
+  (`scripts/flip_correction_blend.py`) — P_flip binary XGB + 3-class
+  XGB on flipped rows only, composite prob
+  `P(y) = P_flip * P_dir + (1 - P_flip) * onehot(rule)`.
+  Results: OOF P_flip AUC = 0.9047; composite standalone argmax =
+  0.96146 (essentially rule ceiling, since P_flip is small on 98%
+  of rows); blends vs greedy and LB-best both peak at alpha=0
+  (i.e., no lift — monotone negative from alpha=0.025).
+- **(B) Sub-cell TE target**
+  (`scripts/te_targets_subcell.py`, ran via `TE_VARIANT=subcell`
+  through existing infra) — TE keyed by
+  `(rule_cell × Humidity_bin × Crop_Type)` = 1920 sub-cells, m=15
+  shrinkage to per-rule-cell prior, OOF source. Diagnostic: only
+  **67/1915 sub-cells (3.5%) have majority class different from
+  their parent rule-cell's majority, covering 754 rows (0.12% of
+  train)** — the sub-cell majority deviation available is
+  structurally tiny. Results: standalone argmax 0.95927 (below
+  rule ceiling — XGB makes MORE wrong sub-cell decisions than
+  right ones on the 0.12% available flip substrate); vs greedy
+  peak +0.00001 at alpha=0.10; vs LB-best peak +0.00003 at
+  alpha=0.05. Both well inside fold-std noise.
+- **Combined ladder** (all four TE-regression family variants now
+  closed, OOF delta vs LB-best 0.97421, fixed bias):
+  ```
+  orig TE           monotone negative, peak alpha=0 (+0.00000)
+  oof  TE           peak alpha=0.075 (+0.00006)
+  subcell TE        peak alpha=0.050 (+0.00003)
+  flip-correction   monotone negative, peak alpha=0 (+0.00000)
+  ```
+  All < 0.0005 LB-probe gate; all < fold-std noise (~0.00088).
+- **Theorem reinforced**: argmax-equivalence to the rule is a
+  structural property of this problem that no variant within the
+  "cell-partition + soft-prob target" family escapes. The only
+  thing that matters for breaking above 0.97421 OOF is **a model
+  whose errors are orthogonal to greedy's** (our current-best
+  `xgb_nonrule` is the working example) — not a model that more
+  cleverly reconstructs the rule's decision surface.
+- **Files** (all on branch `claude/target-encode-xgb-residuals-F0z0S`):
+  - `scripts/te_targets_subcell.py`, `scripts/flip_correction_blend.py`
+  - `scripts/te_xgb_regression.py` + `scripts/blend_te_reg.py` now
+    take `TE_VARIANT ∈ {orig, oof, subcell}` env var
+  - artefacts `oof_pflip.npy`, `oof_flip_correction.npy`,
+    `oof_xgb_te_reg_subcell.npy` + test counterparts + JSONs
+- LB budget unchanged at 1/10 used today.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
