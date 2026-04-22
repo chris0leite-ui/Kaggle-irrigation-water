@@ -3296,3 +3296,78 @@ Closed the two open paths from the argmax-equivalence theorem:
   (a) extend bag to 5 seeds; (b) Session C (flip-signal denoiser)
   on top of multi-seed bag. If LB <= 0.97352: variance reduction
   gain didn't transfer; revisit gap calibration.
+
+### 2026-04-22 — Session B LB result: bag LB 0.97297 = −0.00055 REGRESSION (OOF-log-bias overfit via bagging)
+
+- Submitted at 21:16 with user approval. OOF 0.97461 → **LB 0.97297**.
+  OOF→LB gap = **0.00164**, much wider than the seed=42 baseline's
+  0.00069. **LB −0.00055 vs prior LB-best (0.97352)**.
+- Read-out: the bag's OOF lift was NOT new signal — it was
+  log-bias coord-ascent exploiting the reduced cross-seed variance
+  to pick a sharper decision-rule operating point that doesn't
+  transfer to the hidden LB split. Same failure mode as the
+  2026-04-22 HP-tuning null: "any OOF lift that comes from better
+  decision-rule fit, not better model predictions, risks blowing
+  up the OOF→LB gap."
+- Paradox reconciled: per-seed LB-best OOFs were 0.97421 / 0.97388 /
+  0.97401 (mean 0.97404). The bag OOF of 0.97461 is +0.00057 ABOVE
+  the mean. That's the red flag in hindsight — the bag "ensembled"
+  three components that were already tuned on the SAME 630k rows.
+  Classic stacking-on-OOF overfit mechanism.
+- **Important new rule**: **fold-seed bagging creates OOF lift but
+  not necessarily LB lift.** Every seed's OOF and bag's OOF are
+  measured on the same 630k rows with different train/val
+  partitions; averaging their holdout predictions smooths OOF error
+  distribution, which lets log-bias find a sharper operating point.
+  The LB test set is a different distribution. Test-prob averaging
+  across fold-seed bags would only help LB if the model actually
+  captured new signal per-seed, which near-deterministic XGB does
+  not.
+- Budget: 2/10 used today, 8 remaining.
+- Current LB best unchanged ... EXCEPT — check next entry.
+
+### 2026-04-22 — OTHER BRANCH: digit-extraction discovered, NEW LB BEST 0.97468 (not our work)
+
+- While Session B was running, `claude/ensemble-model-pipelines-cvHRz`
+  discovered **digit-extraction features** as a novel own-pipeline
+  lever. Result: `submission_xgb_dist_digits_tuned.csv` at LB
+  **0.97468**, +0.00116 over our prior 0.97352.
+- Mechanism: for each numeric column, extract digits at decimal
+  positions −3..+3 via `floor(v * 10^(-d)) % 10`. 11 numerics × 7
+  digits = 77 cols, 31 dropped as constant, 46 surviving. Added to
+  the 43-feature dist set → 89 features total.
+- Hypothesis: the host's label-generator NN produces synthetic
+  numeric values with non-uniform digit distributions (quantization
+  / latent-variable footprints) that axis-aligned float splits
+  cannot see. Per-digit features expose the pattern directly.
+- XGB on digit-enriched features: tuned OOF 0.97449, LB 0.97468,
+  gap **−0.00019** (first negative gap in competition log — LB
+  BETTER than OOF). Error count 8,846 vs our LB-best's 12,372
+  (28 % fewer). Jaccard vs LB-best: 0.57, lowest orthogonality
+  seen — first time a new model has BOTH lower Jaccard AND lower
+  error count than the baseline.
+- Their branch also ruled out LGBM-digits (Jaccard 0.96 with
+  XGB-digits, no diversity) and preemptively killed CatBoost.
+  Tree-family diversity is exhausted on digit-enriched features.
+- Implication for our work: the Session A + B + earlier negative
+  diagnoses are still correct — within the original feature set,
+  the tree ensemble ceiling IS ~0.974 and no NN / bagging / HP /
+  monotone lever rescues it. But digit-extraction is a
+  fundamentally DIFFERENT feature representation that bypasses
+  the ceiling. The lever we missed wasn't an architecture — it was
+  a feature engineering reframe.
+- Current LB best: **0.97468** via
+  `submission_xgb_dist_digits_tuned.csv`. Gap to pack (0.98114):
+  still +0.00646.
+- Branch state: the digits scripts and artefacts live on
+  `origin/claude/ensemble-model-pipelines-cvHRz` and are not yet
+  on our branch. Their next-bet list (per their CLAUDE.md):
+  (a) seed-bag digit-XGB (cheap variance reduction), (b) lower-α
+  blend digit-XGB × greedy at α ≤ 0.15, (c) OTE / ordered target
+  encoding — the notebook claims "digit + OTE" is the recipe for
+  the 0.98 ceiling.
+- **Decision point for user**: do we (a) adopt their digit-XGB as
+  our new baseline and continue Session C (flip-signal denoiser)
+  on top of it, (b) redo digit-extraction on our branch
+  independently for implementation validation, or (c) pivot
+  entirely to OTE which is the claimed 0.98 lever?
