@@ -47,6 +47,7 @@ scripts/artifacts/*.npy
 scripts/artifacts/*.log
 scripts/artifacts/*.db
 scripts/artifacts/*.pkl
+scripts/artifacts/fold_seed_logs/
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
