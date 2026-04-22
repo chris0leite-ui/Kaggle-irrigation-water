@@ -1,11 +1,11 @@
 {
-  "snapshot_at": "2026-04-22 07:25:01",
+  "snapshot_at": "2026-04-22 07:27:59",
   "log_path": "logs/catboost_optuna.log",
   "started_at": "06:56:11",
-  "last_event_at": "07:24:52",
+  "last_event_at": "07:27:32",
   "phase": "phase1",
-  "n_trials_started": 9,
-  "n_trials_completed": 8,
+  "n_trials_started": 10,
+  "n_trials_completed": 9,
   "trials": [
     {
       "number": 0,
@@ -211,7 +211,31 @@
         "one_hot_max_size": 16,
         "leaf_estimation_iterations": 3
       },
-      "started_at": "07:24:52"
+      "started_at": "07:24:52",
+      "tuned_bal": 0.96817,
+      "best_iters": [
+        225,
+        200,
+        309,
+        275,
+        296
+      ],
+      "fold_std": 0.00465,
+      "ended_at": "07:26:36"
+    },
+    {
+      "number": 9,
+      "params": {
+        "depth": 5,
+        "learning_rate": 0.09454922355484109,
+        "l2_leaf_reg": 5.764810670114668,
+        "random_strength": 1.727703872951539,
+        "bagging_temperature": 1.1564507699318414,
+        "border_count": 158,
+        "one_hot_max_size": 2,
+        "leaf_estimation_iterations": 1
+      },
+      "started_at": "07:26:36"
     }
   ],
   "best_trial_so_far": 4,

@@ -5,7 +5,17 @@
 greedy bias) → OOF **0.97421** / **LB 0.97352** (gap 0.00069 —
 shrunk from greedy's 0.00079, confirming honest architectural
 signal). Pack 0.98114 (+0.00762 above LB-best), leader 0.98219
-(+0.00867). LB budget: **6/10 used today**, 4 remaining.
+(+0.00867). LB budget: **7/10 used cumulative**, 3 remaining for
+today's session (1 burned on 2026-04-22 seed-bag null).
+
+**In flight** (2026-04-22 session):
+- `scripts/catboost_optuna.py` — Optuna TPE on 200k subsample,
+  15 trials, 8 done at snapshot time; best trial 4 @ 0.96922.
+  Phase 2 refit on full 630k pending.
+- `scripts/lgbm_competitor_baseline.py` — queued behind CatBoost,
+  reproduces yunsuxiaozi's digit-FE + multiclass-TE LGBM recipe
+  (claimed CV 0.97943, protocol unverified). Pinned to our
+  5-fold seed=42 split for OOF alignment.
 
 ## Path to +0.010 LB (target LB 0.9835)
 
@@ -16,23 +26,39 @@ requires at least one swing-sized win, not ten small ones.**
 
 ### A. Swing bets — one of these has to hit
 
-1. **Large-capacity tabular NN on full feature set.** DGP is a
-   host NN (`brief.md:74` + 2026-04-21 residuals EDA). Prior 50 k-
-   param MLP plateaued at 0.966 — capacity-bound, not structurally
-   wrong. Try FT-Transformer (1–3M params) or NumEmb + wide MLP
-   (~500 k, per-feature learnable embeddings + 3×512 hidden). Pre-
-   check after fold 1: error-Jaccard with greedy; ≥0.90 kill,
-   <0.85 commit to full run. **Expected: +0.001 to +0.003 LB
-   standalone, or 0 if it plateaus like before.** ~2 h on GPU.
-2. **Public-notebook CSV ensemble** (the pack's actual recipe).
-   The 0.98114 pack pulls other competitors' submission CSVs as
-   Kaggle Dataset inputs and prob-averages them (confirmed 2026-
-   04-21 rival-analysis). Blending 3–5 top public CSVs IS the
-   pack's lever. **Expected: closes most of the +0.008 gap**
-   because we'd be applying the documented method, not trying to
-   beat it. Ethical question — confirm with user before pulling
-   external CSVs. ~30 min.
-3. **DGP NN reversal.** Fit an MLP or transformer directly to
+1. **Competitor LGBM reproduction (digit FE + multiclass TE).**
+   yunsuxiaozi's "Lightgbm baseline and advanced" notebook claims
+   **CV 0.97943** on this competition — if real, that's ~LB 0.9786
+   single-model, above our 0.97352 LB best by +0.0051 and close
+   enough to the 0.98114 pack that seed-bagging explains the rest.
+   Novel orthogonal levers: (a) digit extraction
+   `(c // 10**k) % 10` for k ∈ [-4, 4) as int8 cols — directly
+   attacks host-NN input precision, something neither
+   distance-to-threshold nor native TS captures; (b) multi-class
+   TargetEncoder on 8 cats + 88 digit cols (1-in, 3-out per col →
+   ~288 TE cols); (c) inverse-freq sample weights at fit time +
+   our log-bias at inference may compound. Script ready at
+   `scripts/lgbm_competitor_baseline.py`, queued behind the
+   running CatBoost Optuna sweep. **Expected: +0.002 to +0.005 LB
+   if it reproduces (would revise our whole strategic picture).**
+   If it plateaus at ~0.974 like everything else, the 0.97943
+   claim was leaky CV. ~40 min CPU.
+2. **Serious CatBoost with native Ordered TS** (in flight, Phase 1
+   in progress). 15-trial Optuna sweep on 200k subsample + refit
+   on full 630k, 8 cats passed via `cat_features=` for native
+   target encoding. Best-so-far trial 4 @ 0.96922 on 200k. If
+   full-630k tuned > 0.973 and error-Jaccard with greedy+nonrule
+   < 0.80, it's a 4th blend leg. **Expected: +0.0005 to +0.002 LB
+   as a blend contribution.**
+3. **Public-notebook CSV ensemble** (the pack's actual recipe,
+   IF competitor reproduction plateaus). The 0.98114 pack pulls
+   other competitors' submission CSVs as Kaggle Dataset inputs
+   and prob-averages them (confirmed 2026-04-21 rival-analysis).
+   Blending 3–5 top public CSVs IS the pack's lever.
+   **Expected: closes most of the +0.008 gap** because we'd be
+   applying the documented method. Ethical question — confirm
+   with user before pulling external CSVs. ~30 min.
+4. **DGP NN reversal.** Fit an MLP or transformer directly to
    mimic the label-generation function on the 10 k original + the
    synthetic flip patterns, then predict test directly (bypassing
    any ensemble). **Expected: +0.005 to +0.020 if it clicks, 0 if
@@ -69,16 +95,21 @@ requires at least one swing-sized win, not ten small ones.**
 
 ### Recommended order
 
-1. **Dispatch #1 (large tabular NN) in background** — 2 h, orthogonal
-   to everything tried, real upside.
-2. **Foreground: #5 (error analysis)** on the current best to
-   surface hidden levers. ~30 min.
-3. If #1 doesn't produce +0.003: combine **#4 + #6 + #7 + #8** for
-   compounding +0.001–0.002.
-4. If still stuck at ~0.975 after that: escalate to **#2 (public-
-   CSV blend)** as the deliberate last resort that's documented to
-   work. Requires user OK.
-5. If #2 is off-limits: try **#3 (DGP reversal)** as a high-
+1. **Let CatBoost Optuna finish (#A2)** — Phase 1 in progress,
+   Phase 2 refit on 630k + fixed-bias blend sweep ~30-60 min more.
+2. **Kick off #A1 (competitor reproduction)** the moment CatBoost
+   finishes — don't run concurrently (CPU thrash). ~40 min.
+3. If #A1 reproduces ≥0.975 OOF: submit one LB probe to validate
+   the claim; expect +0.003 LB. If it plateaus at ~0.974, logged
+   as a disproof of the "single-model 0.979" claim.
+4. Foreground while waiting: **B.5 (error analysis)** on
+   greedy+nonrule to surface new error clusters. ~30 min.
+5. If both #A1 and #A2 plateau: combine **B.4 + B.6 + B.7 + B.8**
+   for compounding +0.001–0.002.
+6. If still stuck at ~0.975 after all of the above: escalate to
+   **#A3 (public-CSV blend)** as the deliberate last resort.
+   Requires user OK.
+7. If #A3 is off-limits: try **#A4 (DGP reversal)** as a high-
    variance swing.
 
 Methodology: every non-swing follow-up uses the **fixed-greedy-bias
@@ -130,10 +161,22 @@ Full reasoning in `CLAUDE.md` session log. Short list:
 - **Balanced-ensemble wrappers (BRF, EasyEnsemble, RUSBoost)** — same
   operating point as post-hoc log-bias via a different mechanism.
 - **50k-param MLP (CE / BalSoft / LDAM)** — plateaus at 0.966.
+- **Large-capacity tabular NN (5 MLP variants, 2026-04-22)** —
+  v5 full 1M / v6 nonrule 150k / v7 top-3 numerics 15k / v8
+  specialist {6,7,8} 200k / v9 training-data-routed 1M all null
+  standalone + blend-null vs greedy and greedy+nonrule. NN lever
+  closed as a capacity-or-optimizer problem; if anything remains
+  it's tree-distilled features (leaf embeddings), not more NN
+  capacity.
 - **Pseudo-labeling τ=0.95 on weaker hybrid base** — compounded
   boundary errors.
 - **LGBM HP refresh (Optuna 47 trials)** — +0.001 on 200k proxy,
   plateau on full 630k.
+- **Seed-bag greedy (2 seeds, 2026-04-22)** — OOF +0.00010, LB
+  −0.00012. Below-1-fold-std lifts from near-deterministic bags
+  are non-signal.
+- **Spec-{3} (2026-04-22)** — 95/5/0 class mix below the 20–80%
+  specialist threshold; hybrid override null.
 
 ## Final-submission candidates (pick 2 at competition close)
 

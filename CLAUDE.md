@@ -1961,6 +1961,45 @@ architecture or feature view adds orthogonal bits at this base.
   which is a strategic choice, not a modeling one. If we stay on
   own-pipeline, 0.97352 is very likely our final LB floor.
 
+### 2026-04-22 — CatBoost proper retry + competitor LGBM reproduction queued
+
+- Goal: two concrete bets to close the +0.00762 gap to the 0.98114
+  pack after the NN lever collapsed. (a) A serious CatBoost attempt
+  — prior `benchmark_catboost_dist.py` landed 0.97128 with 43
+  engineered features and untuned HPs; retry at ~26 feat (raw 19 +
+  minimal DGP) with 8 cats via `cat_features=` for native Ordered
+  Target Statistics and proper Optuna HP search. (b) Reproduce
+  yunsuxiaozi's "Lightgbm baseline and advanced" notebook (claimed
+  **CV 0.97943**) which introduces two levers we haven't tried:
+  digit-extraction FE `(c // 10**k) % 10` for k ∈ [-4, 4) as int8
+  cols (targets host-NN input precision), and multi-class
+  TargetEncoder applied to 8 cats + 88 digit cols = ~288 encoded
+  numeric features (feeds LGBM what CatBoost computes internally,
+  but across many more cat cols).
+- Strategic re-frame: the 2026-04-21 "0.98114 pack is public-CSV
+  blending" conclusion should be revisited if the competitor's
+  single-model CV 0.97943 claim reproduces — that's close enough
+  to 0.98114 that a 5-seed bag explains the pack, meaning the
+  pack's recipe IS this digit-FE + TE approach, not CSV ensembling.
+- Changed: `scripts/catboost_optuna.py` (Optuna TPE over depth /
+  lr / l2 / random_strength / bagging_temperature / border_count /
+  one_hot_max_size / leaf_estimation_iterations, 15 trials on
+  200k subsample, then refit best HPs on full 630k with log-bias
+  tuning). `scripts/lgbm_competitor_baseline.py` (reproduction
+  pinned to our 5-fold seed=42 split for OOF alignment: digit FE
+  + numeric rounding + low-freq cat collapse + sklearn
+  `TargetEncoder(target_type='multiclass', cv=5)` +
+  inverse-freq sample weights + LGBM baseline HPs).
+  `scripts/snapshot_optuna_log.py` (parses log into committed
+  JSON checkpoint — recovery insurance against container recycles
+  or process kills mid-sweep).
+- Status at last snapshot: CatBoost Optuna Phase 1 at 9/15 trials,
+  best trial 4 @ 0.96922 on 200k (depth=8, lr=0.037, l2=1.96,
+  rs=1.16, bt=0.68, border=213). Phase 2 full-630k refit pending.
+  Competitor reproduction queued behind (serialized to avoid
+  CPU thrash on shared cores).
+- LB delta: none (no submissions from this session yet).
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15
