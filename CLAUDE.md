@@ -2133,12 +2133,77 @@ architecture or feature view adds orthogonal bits at this base.
     (LB 0.97271).
   - No candidate from this session outperforms either. **Tier 1 + 2
     own-pipeline levers are exhausted on this baseline.**
-- Remaining untried own-pipeline bets: CORN / Frank-Hall ordinal
-  decomposition (binary XGB pair on adjacent-class boundaries),
-  rule×non-rule pairwise FE on the greedy base (untested; previously
-  null on hybrid_lgbmxgb_blend). Neither is expected to exceed
-  +0.0005 based on adjacent-experiment deltas; both remain queued as
-  low-priority future work.
+- Remaining untried own-pipeline bet: rule×non-rule pairwise FE on
+  the greedy base (untested; previously null on hybrid_lgbmxgb_blend).
+  Not expected to exceed +0.0005 based on adjacent-experiment deltas.
+  CORN / Frank-Hall ordinal decomposition was the other candidate;
+  executed 2026-04-22 and closed as null (see entry below).
+
+### 2026-04-22 — Frank-Hall ordinal decomposition (null vs LB-best)
+
+- Goal: test the one remaining unexecuted Tier-2 lever — two binary
+  XGB heads for ordinal y (Low<Medium<High), recomposed Frank-Hall
+  style with post-hoc monotone clip. Hypothesis: Bernoulli loss on
+  each ordinal cut focuses capacity on ONE boundary at a time
+  (Low↔Medium, Medium↔High), which should produce a different
+  decision surface than multi:softprob. Motivated by error analysis
+  showing 74 % of greedy+nonrule errors land on score=3 (Low↔Medium)
+  and score=6 (Medium↔High) cells.
+- Changed: `scripts/ordinal_corn.py` — head A `P(y>=Medium)` +
+  head B `P(y>=High)`, both on the 43-feature dist set, 5-fold
+  stratified (seed=42) for OOF alignment. Monotone clip enforces
+  `P(y>=High) <= P(y>=Medium)`. Artefacts
+  `oof_xgb_corn{,_head_a,_head_b}.npy`, `test_xgb_corn*.npy`,
+  `ordinal_corn_results.json`. Wall time ~2 min.
+- Head diagnostics (5-fold OOF AUC): head A 0.99788 ± 0.00013,
+  head B 0.99865 ± 0.00011. Both near-perfect binary separators;
+  the ordinal cut is well-learned. Monotone clip kicked in on
+  0.14 % of OOF rows and 0.06 % of test rows — a trivial
+  correction.
+- Standalone (OOF bal_acc): argmax **0.96396**, tuned
+  **0.97354**. In the same band as xgb_hybrid_v3 (0.97352) and
+  xgb_dist_routed_v3 (0.97332). Different error trade vs LB-best
+  (greedy+nonrule): Medium recall +0.0050 (96.283 vs 95.785), High
+  recall -0.0072 (96.207 vs 96.925). CORN trades High for Medium —
+  the wrong direction under macro-recall because High has 3× the
+  leverage.
+- Fixed-bias blend sweeps:
+  ```
+  vs greedy (0.97375, LB 0.97296)
+      alpha=0.25  0.97397  Δ=+0.00022
+      alpha=0.30  0.97399  Δ=+0.00024
+      alpha=0.40  0.97400  Δ=+0.00025   ← peak
+      alpha=0.50  0.97396  Δ=+0.00021
+
+  vs greedy+nonrule (0.97421, LB 0.97352)   ← LB-best
+      alpha=0.15  0.97429  Δ=+0.00008
+      alpha=0.20  0.97428  Δ=+0.00007
+      alpha=0.25  0.97429  Δ=+0.00008
+      alpha=0.30  0.97430  Δ=+0.00008
+      alpha=0.40  0.97430  Δ=+0.00009   ← peak
+      alpha=0.50  0.97418  Δ=-0.00003
+  ```
+- Read-out: **null vs LB-best.** The +0.00009 peak is inside the
+  fold-std noise band (~0.00088) and below the +0.0002 threshold
+  for an LB probe. Expected LB if submitted ≈ 0.97352 + ~0.00008 =
+  ~0.9736, indistinguishable from current LB-best at the noise
+  floor. The +0.00025 lift over the greedy baseline is cleaner but
+  still translates to expected LB ~0.97321, **below** LB-best.
+  **No submission warranted.**
+- Why the null: the Frank-Hall decomposition IS architecturally
+  orthogonal to multi:softprob — the two models make materially
+  different error trades (Medium↔High vs High↔Medium). But the
+  greedy+nonrule blend already occupies the macro-recall-optimal
+  point for this feature set; CORN's trade moves error mass in the
+  direction of Medium at the expense of High, which hurts balanced
+  accuracy even if standalone tuned is on par with the best
+  xgb_hybrid variants. Third consistent signal this week that the
+  ~0.974 OOF / ~0.9735 LB ceiling is architecturally invariant
+  across tree-based families on this feature set.
+- LB delta: n/a. Budget unchanged (1 used today, 9 remaining).
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  at OOF 0.97421 / LB 0.97352. CORN artefacts committed for
+  cross-branch reuse (`oof_xgb_corn.npy`, `test_xgb_corn.npy`).
 
 ## Hypothesis board
 
@@ -2247,6 +2312,19 @@ Opens five follow-up ideas:
     from 0.96135 → 0.97097 (+0.0096). Keep this as the decision rule
     for every subsequent model.
 - **Ruled out**:
+  - **Frank-Hall ordinal decomposition (2026-04-22)** — two binary
+    XGB heads `P(y>=Medium)` + `P(y>=High)` on 43-feature dist set,
+    Frank-Hall recomposition with monotone clip. AUC 0.998/0.999 per
+    head. Standalone tuned 0.97354 (ties xgb_hybrid_v3). Blend vs
+    LB-best greedy+nonrule peaks at **α=0.4, Δ=+0.00009** — inside
+    fold noise and below the +0.0002 LB-probe threshold. The
+    decomposition makes different error trades (Medium recall +0.005,
+    High recall −0.007) but the direction is wrong under macro-recall
+    because High has 3× leverage. Artefacts `oof_xgb_corn.npy`,
+    `test_xgb_corn.npy` committed for cross-branch reuse. Rule:
+    **ordinal-binary decompositions on the DGP-enriched feature set
+    plateau at the same OOF band as multi:softprob** — the
+    information ceiling is set by the feature set, not the objective.
   - **Equal-weight z-score fusion of water-balance axes** (H2) is
     worse than the single-feature Soil_Moisture rule (H1). Any future
     hand-weighted score needs per-axis weights proportional to
