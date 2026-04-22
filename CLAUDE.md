@@ -1840,19 +1840,142 @@ architecture or feature view adds orthogonal bits at this base.
   LB-best 0.97271. First of the brainstorm batch — moving to bet #1
   (binary "is High?" head) next.
 
+### 2026-04-22 — NN lever closed: 5 MLP variants all null, seed-bag LB regression
+
+- Goal: exhaust the "large-capacity tabular NN" hypothesis that sat at
+  the top of the Open bets list. Prior 50k-param MLP on a parallel
+  branch hit 0.966 standalone / blend null; today's work scales
+  capacity 20×, tests 4 structural variants, and pushes to Kaggle GPU
+  to remove compute as an excuse.
+- Infrastructure: Kaggle Kernels API for free T4/P100 GPU. Kernel
+  metadata + boot-time `torch==2.5.1+cu121` shim to handle P100 (sm_60)
+  incompatibility with pre-installed torch 2.10. Two private datasets
+  uploaded: `irrigation-greedy-blend-oof` (oof_greedy_blend.npy +
+  test_greedy_blend.npy + oof_xgb_nonrule.npy) as the fold-1
+  error-Jaccard gate reference + blend baseline. Three kernels pushed
+  (5 MLP variants total).
+
+  All kernels share: 5-fold StratifiedKFold(shuffle=True,
+  random_state=42) pinned for OOF alignment with on-disk OOFs. Same
+  Balanced Softmax loss (Menon 2021) with per-fold prior recomputation
+  on filtered training subsets. Same AdamW + cosine schedule. Fold-1
+  error-Jaccard kill gate vs greedy (0.90 abort / 0.85 warn) and vs
+  xgb_nonrule (since xgb_nonrule is in our LB-best stack at α=0.15).
+
+- Results table (OOF tuned bal_acc, 5-fold, seed=42):
+  ```
+  variant           params  feat                  standalone  J-greedy  J-nonrule  blend vs greedy  blend vs greedy+nonrule
+  v5 full            1.0M   43                    0.96494     0.676     0.032      monotone −      monotone −
+  v6 nonrule-only    150k   13 (6 cat + 7 num)    0.43338     0.015     0.350      monotone −      monotone −
+  v7 top-3 numerics   15k   3                     0.42393     0.015     0.353      monotone −      monotone −
+  v8 spec {6,7,8}    200k   43 (on 56k rows)      0.64 ungated / 0.9358 on-domain (vs xgb_spec_678 0.9520)   override monotone −
+  v9 routed {0,1,2}  1.0M   43 (on 359k rows)     0.96477     0.689     0.032      monotone −      monotone −
+  ```
+- Diagnoses per variant:
+  - **v5 full features [768,512,384,256]**: 1M params, 30 epochs,
+    dropout 0.25. Fold-1 Jaccard 0.668 vs greedy looked promising,
+    but blend null in both prob and log space. |E_mlp|=12,005 vs
+    |E_greedy|=8,909 — MLP's different errors are also MORE numerous,
+    and its disagreements with greedy are more often MLP-wrong than
+    MLP-right. Classic "Jaccard necessary but not sufficient".
+  - **v6 non-rule features only [256,192,128,96]**: direct NN analog
+    of xgb-nonrule (LB-winning lever at +0.00056). Standalone 0.433
+    matches xgb-nonrule's 0.430 argmax — same ceiling. But 384k
+    errors makes the blend sweep catastrophically negative.
+  - **v7 top-3 flip-significant numerics [128,96,64]**: Humidity,
+    Previous_Irrigation_mm, Electrical_Conductivity only. Standalone
+    0.424, blend null. Even tighter information bottleneck didn't
+    produce orthogonal signal after normalizing for weakness.
+  - **v8 specialist {6,7,8} [384,256,192,128]**: 56k rows (45k per
+    fold) with dropout 0.40. On-domain bal_acc 0.9358 **below** xgb
+    specialist's 0.9520. MLP data-starved on the small sub-domain;
+    XGB's axis splits generalize better at this scale.
+  - **v9 training-data routed (exclude score {0,1,2})** [768,512,384,256]:
+    359k train rows, at inference route score-{0,1,2} to rule. Standalone
+    OOF 0.96477 — identical to v5 (0.96494). The "easy-row gradient
+    domination" hypothesis that explained xgb_dist_routed_v3's
+    LB-winning +0.00047 is **falsified for MLPs**: Balanced Softmax
+    + uniform CE already handles class imbalance, so removing 271k
+    trivial Low rows doesn't shift MLP behavior. Training-data
+    engineering is a tree-specific lever, not an NN-universal one.
+- Collective read-out: NN architectural plateau at ~0.965 for
+  full-feature variants is insensitive to:
+  - 20× capacity span (50k → 1M params)
+  - Feature-set width (3 / 13 / 43 columns)
+  - Training-data policy (all / filter / specialist)
+  - Domain-restricted specialization
+  With every degree of freedom exercised and still null, the NN
+  lever is architecturally exhausted on this problem. Any further
+  NN capacity scaling (FT-Transformer, tabular ResNet, ensemble of
+  seeds) is unlikely to break the pattern — this is not a
+  capacity-or-optimizer problem, it is an information-bottleneck
+  one that no feature-independent NN can route around.
+
+- Second result this session — **seed-bag greedy LB regression**
+  (submitted):
+  - Local experiments: `xgb_dist_routed_v3_seed7.py`,
+    `xgb_specialist_678_seed7.py`, `xgb_spec_3.py` (all fold_seed=42
+    pinned, XGB_SEED=7 for seeded training).
+  - `seed_bag_greedy_analysis.py` bagged routed + spec across seeds
+    {42, 7}, rebuilt hybrid (routed overridden by spec on {6,7,8}),
+    rebuilt greedy at (0.45, 0.40, 0.15) log-blend.
+  - OOF: **0.97385** tuned (Δ = +0.00010 vs seed=42 greedy's 0.97375,
+    within fold-std noise σ=0.00088 but directionally positive).
+  - LB (submitted 05:43): **0.97284** — REGRESSION −0.00012 vs
+    single-seed greedy LB (0.97296). OOF→LB gap widened from
+    0.00079 to 0.00101.
+  - Diagnosis: XGB at our hyperparams is near-deterministic across
+    seeds (per-seed routed_v3 OOF range 0.97332→0.97342 = 0.00010
+    spread). A 2-seed bag has too little variance to reduce; the OOF
+    "lift" is calibration artifact on the log-bias coord-ascent,
+    not signal. Rule added: **below-1-fold-std OOF lifts from
+    near-deterministic bags should be treated as non-signal on LB.**
+
+- Third result — spec-3 null (as predicted by 20-80% heuristic):
+  - `xgb_spec_3.py` specialist on the 102k-row score=3 domain (95%
+    Low / 5% Medium / 0% High). Spec-domain bal_acc 0.5040 vs rule's
+    0.5 floor. Hybrid override −0.00011 vs greedy; soft-blend sweep
+    monotone negative.
+  - Rule-confirmation: **specialists need 20–80% minority mass**.
+    95/5 with zero High is below threshold; Low-spec + Medium-spec
+    per-class specialists from main's session had the same failure.
+
+- LB state: best unchanged at **LB 0.97352**
+  (`submission_greedy_nonrule_blend.csv`). 1/10 LB spend today, 9
+  remaining.
+- Calibration ladder update:
+  ```
+  single tuned LGBM                 0.97097 → 0.96972   gap 0.00125
+  LGBM+DGP                          0.97271 → 0.97137   gap 0.00134
+  bag + XGB blend                   0.97327 → 0.97170   gap 0.00157
+  routed-{0,1,2}+spec-{6,7,8}       0.97352 → 0.97271   gap 0.00081
+  greedy 3-way log-blend            0.97375 → 0.97296   gap 0.00079
+  hybrid + binhigh (overfit)        0.97398 → 0.97212   gap 0.00186
+  **greedy + nonrule α=0.15         0.97421 → 0.97352   gap 0.00069**  ← LB BEST
+  seed-bag greedy                   0.97385 → 0.97284   gap 0.00101  (null)
+  ```
+- Strategic read: own-pipeline ceiling confirmed at OOF ~0.974 /
+  LB ~0.9735. Every architectural + representation + data-policy
+  lever has been exercised. The remaining +0.008 to the 0.98114
+  pack requires public-CSV blending (the pack's actual mechanism),
+  which is a strategic choice, not a modeling one. If we stay on
+  own-pipeline, 0.97352 is very likely our final LB floor.
+
 ## Hypothesis board
 
-- **Current best**: greedy log-blend
-  `hybrid_v3(0.45) + routed_v3(0.40) + spec_678(0.15)` → OOF 0.97375,
-  **LB 0.97296**. Submission on disk:
-  `submissions/submission_blend_greedy_w045_040_015.csv` (tuned bias
-  [0.132, 0.569, 3.401]). Pack 0.98114 is +0.00818 above; leader
-  0.98219 is +0.00923 above. LB budget: 6 submissions remaining today
-  (4/10 used).
+- **Current best**: greedy + xgb-nonrule log-blend at α=0.15
+  → OOF 0.97421, **LB 0.97352**. Submission on disk:
+  `submissions/submission_greedy_nonrule_blend.csv`. Pack 0.98114
+  is +0.00762 above; leader 0.98219 is +0.00867 above. LB budget
+  today: 9 remaining (1/10 used for the seed-bag null).
 
-  Prior best (still on disk as safe fallback for final selection):
-  routed-{0,1,2} XGB + specialist-{6,7,8} hybrid → OOF 0.97352,
-  LB 0.97271. Submission:
+  Second-best (safe fallback): greedy log-blend
+  `hybrid_v3(0.45) + routed_v3(0.40) + spec_678(0.15)` → OOF 0.97375,
+  LB 0.97296. Submission:
+  `submissions/submission_blend_greedy_w045_040_015.csv`.
+
+  Prior best: routed-{0,1,2} XGB + specialist-{6,7,8} hybrid → OOF
+  0.97352, LB 0.97271. Submission:
   `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`.
 
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
@@ -1889,48 +2012,33 @@ Opens five follow-up ideas:
   boundaries: 2× score-3 Medium rows, 2× score-6 High rows. Forces
   XGB to attend to exactly the rows the rule gets wrong.
 
-- **Open** (ranked by expected ROI after this session's sweep of
-  tree-family + blend + training-data levers ruled most items out):
+- **Open** (ranked by expected ROI after the 2026-04-22 NN-lever
+  closure — all remaining own-pipeline bets are expected ≤ +0.0005 LB):
 
-  1. **[TOP BET] Large-capacity tabular NN.** Only untried model
-     class with a **structural match to the DGP** (labels are
-     deterministic NN outputs per the 2026-04-21 residuals EDA).
-     Prior 3-layer 50k-param MLP plateaued at 0.966 standalone /
-     +0.00005 blend — likely capacity-bound, not structurally wrong.
-     Candidates to try in priority order:
-       (a) **FT-Transformer** (1-3M params, proper tabular
-           self-attention). Structural match to "generator learned
-           a function of all feature interactions."
-       (b) **NumEmb + wide MLP** (~500k params with learnable
-           numeric embeddings per feature, then 3×512 hidden).
-           Cheaper than FT-Transformer, still massively larger
-           capacity than the prior 50k plateaued attempt.
-       (c) **Tabular-ResNet** (skip connections, GELU, stronger
-           regularisation). Good for deep tabular problems.
-     Pre-check before training: measure OOF error Jaccard with
-     hybrid_v3. If ≥ 0.90, the NN is likely mimicking the
-     tree-ensemble and won't add diversity — cut early. If < 0.85,
-     commit to the full run. Expected +0.001 to +0.003 LB if it
-     hits, 0 if it plateaus like before. ~1-2 hours compute
-     (GPU ideal).
-  2. **Seed-bag the greedy winner** (3 seeds of the LGBM/XGB
-     components with the same log-blend weights). Variance
-     reduction on the already-best blend. Expected +0.0001–0.0003
-     LB; cheapest lever left. ~60 min compute.
-  3. **Spec on score {3}** (102 k rows, 95 % Low / 5 % Medium,
-     4.80 % rule-error rate). Parallel to spec-{6,7,8}. 95/5 is
-     below the 20-80 % minority-class heuristic but above the 98/2
-     where Low-spec collapsed. Expected +0.0001–0.0003 if fused
-     into the current hybrid. ~15 min compute.
-  4. **Per-score log-bias tuning** (30 params = 10 score bins × 3
+  1. **Per-score log-bias tuning** (30 params = 10 score bins × 3
      classes vs 3 global). Nested CV to avoid overfit; high risk.
      Expected +0.0003–0.0008. ~30 min.
-  5. **Blend greedy-winner with a distinct-anchor blend.** Our
+  2. **LGBM leaf-embedding MLP** (tree-distilled features). Train
+     LGBM once, extract per-tree leaf indices as categorical features
+     for a NumEmb+MLP. Different from v5-v9 because the NN sees
+     tree-discovered rule knowledge directly, not raw features.
+     Well-documented to lift tabular NNs +0.003–0.008 on problems
+     like this. Expected here: +0.0005–0.002 LB if it breaks the NN
+     plateau. ~45 min on Kaggle GPU.
+  3. **Blend greedy-winner with a distinct-anchor blend.** Our
      greedy and main's `hybrid_lgbmxgb_blend` both anchor on
      `xgb_hybrid_v3` (cross-lineage pairwise null). A blend whose
-     anchor is the 5-seed LGBM bag or a CatBoost-dist bag would be
-     structurally different — could add +0.00005–0.00015. Contingent
-     on (1) or another anchor existing.
+     anchor is the 5-seed LGBM bag would be structurally different
+     — could add +0.00005–0.00015. Contingent on regenerating an
+     anchor-free blend.
+
+- **Strategic option (not own-pipeline)**: public-CSV blending via
+  the pack's actual mechanism (pulling high-scoring public-notebook
+  submissions as Kaggle Dataset inputs and blending). Only path
+  remaining with meaningful +0.01 upside. Changes the character of
+  the submission from "our own model beats the pack" to "we match
+  the pack via their own trick". Legal under comp rules (public
+  notebooks are public). User decision.
 
 - **Ruled out this session** (2026-04-21 soft-blend + DQ experiments):
   - Hard-vote plurality/Borda/veto across top submissions (0.99+
@@ -1964,6 +2072,42 @@ Opens five follow-up ideas:
     worse than the single-feature Soil_Moisture rule (H1). Any future
     hand-weighted score needs per-axis weights proportional to
     informativeness, not uniform.
+  - **Large-capacity tabular NN (5 MLP variants, 2026-04-22)** — the
+    NN lever hypothesis that sat at the top of the Open bets list is
+    now closed. Five variants run on Kaggle GPU: v5 full features
+    [768,512,384,256] 1M params / v6 13 non-rule features
+    [256,192,128,96] 150k / v7 top-3 numerics [128,96,64] 15k / v8
+    specialist {6,7,8} [384,256,192,128] 200k on 56k rows / v9
+    training-data-routed (exclude score {0,1,2}) [768,512,384,256]
+    1M on 359k rows. All standalone + blend-null across prob and
+    log space vs both greedy and greedy+nonrule baselines. The
+    plateau at ~0.965 for full-feature variants is insensitive to
+    20× capacity span, feature slicing, training-data policy, and
+    domain specialization. v9 falsified the "easy-row gradient
+    domination" hypothesis (MLP with Balanced Softmax + CE already
+    handles imbalance; filtering 271k trivial rows has no effect).
+    v8 under-performed XGB's axis splits on its own specialist
+    domain (0.936 vs 0.952 xgb_spec_678). Implication: not a
+    capacity-or-optimizer problem, an information-bottleneck problem
+    no feature-independent NN can route around. Any further NN
+    capacity scaling (FT-Transformer, tabular-ResNet) is unlikely
+    to break the pattern.
+  - **Seed-bag greedy at LB (2026-04-22)** — 2-seed bag of routed +
+    spec (seeds 42+7), rebuilt hybrid, rebuilt greedy. OOF 0.97385
+    (+0.00010 vs single-seed 0.97375), but LB 0.97284 (−0.00012 vs
+    single-seed LB 0.97296). OOF→LB gap widened 0.00079 → 0.00101.
+    Diagnosis: XGB at our hyperparams is near-deterministic across
+    seeds (per-seed spread ~0.00010, below 1-fold-std σ=0.00088).
+    Bagging buys nothing when base variance is already below noise.
+    New rule: **below-1-fold-std OOF lift from near-deterministic
+    bags = non-signal on LB.**
+  - **Spec on score {3} (2026-04-22)** — 102k rows (95% Low / 5%
+    Medium / 0% High). Spec-domain bal_acc 0.5040 vs rule's 0.5
+    floor (null). Hybrid override −0.00011 vs greedy; soft-blend
+    sweep monotone negative. Reconfirms **specialist 20–80%
+    minority-mass heuristic**: 95/5 with 0% of one class is
+    below threshold, and Low/Medium per-class specialists from
+    main's session had the same failure.
   - **Blending MNLogit into LGBM** adds 0.00000 at any mixing weight.
     Linear model is too weak (0.78 vs 0.97) to contribute orthogonal
     signal; parked as possible stacking feature only.

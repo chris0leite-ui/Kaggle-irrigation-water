@@ -660,3 +660,70 @@ force a different interpretation.
 - LGBM+DGP's 0.97271 is a strong tree baseline but not the ceiling.
   The remaining 0.01 gap to the pack is recoverable signal, not
   irreducible noise.
+
+## 9. NN lever closed — 5 MLP variants all blend-null (2026-04-22)
+
+Follow-up on §8's "MLP promoted to top open bet" prediction. Ran 5
+structurally distinct MLP variants on Kaggle GPU (P100 / torch 2.5.1
+compat shim), covering every angle that could plausibly have broken
+the prior 50k-param MLP plateau. All 5 null on both standalone AND
+blend. Consolidated results:
+
+| variant | params | features | standalone OOF | blend |
+|---|---|---|---|---|
+| v5 full features | 1.0M | 43 dist | 0.96494 | monotone negative |
+| v6 non-rule only | 150k | 13 (6 cat + 7 num) | 0.43338 | monotone negative |
+| v7 top-3 flip-sig | 15k | 3 numerics | 0.42393 | monotone negative |
+| v8 spec {6,7,8} | 200k | 43 on 56k rows | 0.64 ungated / 0.9358 on-domain | override hurts |
+| v9 routed training | 1.0M | 43 on 359k rows | 0.96477 | monotone negative |
+
+**Key findings**:
+- v5 vs v9 bit-identical OOF (0.96494 / 0.96477). Routing 271k easy
+  score-{0,1,2} rows out of training has zero effect on MLP behavior.
+  The "easy-row gradient domination" hypothesis that explained
+  xgb_dist_routed_v3's LB-winning +0.00047 is **tree-specific**:
+  Balanced Softmax + uniform CE already handles class imbalance.
+- v8 (200k-param MLP specialist on 56k rows) under-performed XGB
+  on the same domain (0.9358 vs 0.9520). 45k train rows per fold is
+  too little for a wide MLP even with dropout 0.40; XGB's axis splits
+  generalize better at small data.
+- v6/v7 matched xgb-nonrule's ~0.43 argmax standalone, but their
+  ~380k OOF errors swamped any orthogonality benefit (Jaccard vs
+  xgb-nonrule was 0.35, real diversity, but magnitude of MLP errors
+  dragged every blend sweep into the ground).
+- Capacity span 50k → 1M (20×) moved full-feature standalone by
+  ±0.0010 — plateau-like signature, not a capacity-bound one.
+
+**Diagnosis**: the MLP plateau on a rule-structured tabular DGP is
+an **information-bottleneck ceiling**, not a capacity one. Scaling
+capacity, feature-slicing, specialization, and training-data
+engineering all fail to move it. This closes the NN lever on this
+problem. Any further NN capacity scaling (FT-Transformer,
+tabular-ResNet) is unlikely to break the pattern because the
+bottleneck is not in the model's representational power but in
+the information available in feature-independent NN architectures
+on rule-structured data.
+
+**Implications for current best** (LB 0.97352 via
+`greedy + 0.15 * xgb-nonrule`):
+- Own-pipeline ceiling confirmed at OOF ~0.974 / LB ~0.9735.
+- Remaining +0.008 to the 0.98114 pack requires public-CSV
+  blending (the pack's actual mechanism) — strategic choice, not
+  modeling choice.
+- Next best own-pipeline bets: per-score log-bias tuning (+0.0003-0.0008
+  expected) or LGBM leaf-embedding MLP (tree-distilled features
+  injected into a NN — different bottleneck than features-alone
+  MLPs).
+
+**Seed-bag greedy LB regression** (same session): 2-seed bag
+(seeds 42 + 7) of routed + spec components. OOF 0.97385 (+0.00010
+vs single-seed), LB **0.97284** (−0.00012 vs single-seed LB
+0.97296). Gap widened 0.00079 → 0.00101. Diagnosis: XGB at our
+HPs is near-deterministic (per-seed spread 0.00010 < fold-std
+σ=0.00088). Bagging buys nothing below 1 fold-std of per-seed
+variation. Rule added to LEARNINGS.md.
+
+**Spec-3 null** (same session): specialist on score=3 rows
+(102k, 95/5 Low/Med, 0% High) hit 0.5040 on domain vs rule's 0.5
+floor. Reconfirms 20-80% minority-class heuristic for specialist
+sub-domains.
