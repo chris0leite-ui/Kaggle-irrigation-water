@@ -15,6 +15,25 @@ submitting. This rule applies even when a blend's OOF beats the
 current best — the LB is an adversarial split and OOF-to-LB
 calibration can drift.
 
+## ⚠️ NEVER SUGGEST PUBLIC-CSV / OTHER-PEOPLE'S-SUBMISSIONS BLENDING
+
+**Do not propose, scaffold, or recommend blending other people's
+submission CSVs** (pulling high-scoring public-notebook submissions
+as Kaggle Dataset inputs and ensembling them, hard-vote / weighted
+blend over rival CSVs, pseudo-labeling from someone else's
+submission, etc.) as a path to a higher LB. **Do not frame it as
+"the pack's mechanism" or "the only realistic path to 0.98+".**
+People have reached 0.98+ without blending others' results; our
+job is to find the own-pipeline lever they found, not to mirror
+the public-notebook blend trick. If the user explicitly asks for
+public-CSV blending, point them back to this rule and ask for
+confirmation before proceeding.
+
+Any session notes, reports, or hypothesis-board entries that
+previously listed public-CSV blending as a "strategic option"
+should be treated as stale guidance and ignored — the updated
+rule is no-suggest.
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
@@ -2475,13 +2494,10 @@ Opens five follow-up ideas:
      — could add +0.00005–0.00015. Contingent on regenerating an
      anchor-free blend.
 
-- **Strategic option (not own-pipeline)**: public-CSV blending via
-  the pack's actual mechanism (pulling high-scoring public-notebook
-  submissions as Kaggle Dataset inputs and blending). Only path
-  remaining with meaningful +0.01 upside. Changes the character of
-  the submission from "our own model beats the pack" to "we match
-  the pack via their own trick". Legal under comp rules (public
-  notebooks are public). User decision.
+- **Do not propose public-CSV / other-people's-submission blending.**
+  See the top-of-file rule. People have reached 0.98+ without
+  blending others' results; the open question is which own-pipeline
+  lever they used, not whether to mirror the public-notebook blend.
 
 - **Ruled out this session** (2026-04-21 soft-blend + DQ experiments):
   - Hard-vote plurality/Borda/veto across top submissions (0.99+
