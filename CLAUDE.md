@@ -2423,6 +2423,74 @@ architecture or feature view adds orthogonal bits at this base.
   per-cell MLP untested and constrained by per-cell data (largest
   cell ~100k rows, smallest <300).
 
+### 2026-04-22 — OTE scaffolded on top of digit-XGB (LB best 0.97468), seed-bag deferred
+
+- Goal: pull the digit-extraction breakthrough onto this branch and
+  scaffold the OTE (Ordered Target Encoding) follow-up — the second
+  half of the public-notebook "digit + OTE" recipe.
+- Branch state: digit-extraction commits (32e6b42, 46ef32a, fb9d5b7)
+  already merged into `claude/plan-next-steps-I32rC` via main. Digit
+  scripts (`xgb_dist_digits.py`, `digit_features.py`,
+  `lgbm_dist_digits.py`, `blend_digits.py`) and artefacts
+  (`oof_xgb_dist_digits.npy`, `test_xgb_dist_digits.npy`,
+  `xgb_dist_digits_results.json`) all present locally. No port needed.
+- Seed-bag survey across all branches — **5 prior experiments, 4
+  null/regressed**:
+  1. `seed_bag_dist` (LGBM-dist 5-seed model bag) — OOF +0.00023.
+     Small lift, never LB-tested standalone.
+  2. `seed_bag_dist_fe` (LGBM-dist+FE 5-seed model bag) — null.
+  3. `seed_bag_nonrule` (xgb_nonrule 5-seed model bag) — null
+     (model variance below noise).
+  4. `seed_bag_greedy` (2-seed model bag of routed + spec) —
+     OOF +0.00010, **LB −0.00012** (regression).
+  5. `session_b_*` (3-FOLD-seed bag of full greedy+nonrule stack) —
+     OOF +0.00040, **LB −0.00055** (worst regression).
+  Diagnosis (from CLAUDE.md): XGB at our HPs is near-deterministic
+  across model seeds, and fold-seed bagging produces OOF lift via
+  log-bias coord-ascent overfit, not signal. Two confirmed rules:
+  - "below-1-fold-std OOF lift from near-deterministic bags =
+    non-signal on LB" (model-seed bagging)
+  - "fold-seed bagging creates OOF lift but not necessarily LB lift"
+    (Session B, OOF→LB gap blew up from 0.00069 to 0.00164)
+  **Implication**: digit-XGB seed-bagging — initially framed as
+  "cheap insurance" in the prior session's hypothesis board — is
+  RISKY, not safe. Skipping in favour of OTE.
+- OTE scaffold (3 new files):
+  - `scripts/ote_features.py`: `OTE` class doing per-row
+    K-shuffled cumulative target stats. Per-shuffle inner loop is
+    vectorised: factorise key, then for each shuffle compute exclusive
+    cumsum per key on the shuffled-onehot, scatter back to original
+    row order, average across K. Test transform uses full-train
+    per-key lookup (unseen → prior). Smoke-tested on 12-row toy
+    (3 cats × 3 classes), correctly produces per-row noisy estimates
+    that average to the per-cat full-train mean. Benchmarked at 22 s
+    for one 300-key pair × 8 shuffles × 504 k rows.
+  - `scripts/xgb_dist_digits_ote.py`: same XGB pipeline as
+    `xgb_dist_digits.py` (43 dist + 46 digits) plus 16 OTE keys
+    × 3 classes = 48 OTE columns. 5-fold StratifiedKFold(seed=42)
+    aligned with every other OOF. Per-fold OTE: fit on tr_idx, apply
+    to va_idx (no leak). Test OTE: fit on full train (one-shot
+    outside the fold loop). Wall budget estimate ~25-30 min.
+  - `scripts/blend_digits_ote.py`: fixed-bias α-sweep over THREE
+    baselines — greedy (0.97375), greedy+nonrule (0.97421), and
+    digit-XGB (0.97468 LB-best). Same 11-point grid, same Δ ≥
+    +5e-4 LB-probe gate. Auto-emits submission CSVs only when
+    α > 0 AND Δ > 1e-5; flags BORDERLINE for 1e-5 ≤ Δ < 5e-4.
+- OTE design rationale vs prior nulls:
+  - `benchmark_te_orig` (10k original source) and `benchmark_te_oof`
+    (synthetic 5-fold source) were both null because they used
+    fold-level averaging — every val-fold row got the same TE per
+    category. OTE produces a DIFFERENT per-row value via the K-shuffle
+    cumulative noise, exposing finer category-row structure.
+  - The `nonrule` lever already proved non-rule cats carry the
+    NN-flip signal (LB +0.00056). OTE is the per-row analog:
+    encode each cat's class-conditional probabilities directly as
+    numeric features, exposing them to digit-XGB's tree splits
+    without requiring the model to discover them via cat one-hots.
+- Status: scaffold ready, NOT yet executed. Next step is to run
+  `python scripts/xgb_dist_digits_ote.py` (~25-30 min) then
+  `python scripts/blend_digits_ote.py` (~10 s).
+
 ## Hypothesis board
 
 - **Current best (LB)**: XGB-dist + digits standalone, tuned log-bias
