@@ -2425,20 +2425,21 @@ architecture or feature view adds orthogonal bits at this base.
 
 ## Hypothesis board
 
-- **Current best**: greedy + xgb-nonrule log-blend at α=0.15
-  → OOF 0.97421, **LB 0.97352**. Submission on disk:
-  `submissions/submission_greedy_nonrule_blend.csv`. Pack 0.98114
-  is +0.00762 above; leader 0.98219 is +0.00867 above. LB budget
-  today: 7 remaining (3/10 used: 1 seed-bag null + 2 HP-tuning nulls).
+- **Current best (LB)**: XGB-dist + digits standalone, tuned log-bias
+  → OOF 0.97449, **LB 0.97468** (+0.00116 over prior best; unusual
+  negative OOF→LB gap of −0.00019). Submission on disk:
+  `submissions/submission_xgb_dist_digits_tuned.csv`. Pack 0.98114 is
+  +0.00646 above; leader 0.98219 is +0.00751 above. LB budget today:
+  5 remaining (5/10 used: 1 seed-bag null + 2 HP-tuning nulls + 2
+  digit-extraction probes).
 
-  Second-best (safe fallback): greedy log-blend
-  `hybrid_v3(0.45) + routed_v3(0.40) + spec_678(0.15)` → OOF 0.97375,
-  LB 0.97296. Submission:
+  Second-best (safe fallback): greedy + xgb-nonrule log-blend at α=0.15
+  → OOF 0.97421, LB 0.97352. Submission:
+  `submissions/submission_greedy_nonrule_blend.csv`.
+
+  Third-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
+  spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
-
-  Prior best: routed-{0,1,2} XGB + specialist-{6,7,8} hybrid → OOF
-  0.97352, LB 0.97271. Submission:
-  `submissions/submission_xgb_hybrid_v3_routed012_spec678.csv`.
 
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
@@ -3070,3 +3071,128 @@ Closed the two open paths from the argmax-equivalence theorem:
 - LB budget unchanged at 1/10 used today.
 - Current best unchanged: `submission_greedy_nonrule_blend.csv`
   OOF 0.97421 / LB 0.97352.
+
+### 2026-04-22 — digit-extraction: NEW LB BEST 0.97468 + tree-family diversity exhausted
+
+- Goal: implement digit-extraction FE from the public-notebook pipeline
+  description (digits −3..+3 on numeric features). Hypothesis: synthetic
+  features may carry NN-generator quantisation artefacts that
+  axis-aligned float splits can't see; per-digit features expose them
+  directly. Branch: `claude/ensemble-model-pipelines-cvHRz`.
+- Changed: `scripts/digit_features.py` — pure-function digit extractor,
+  floor(v × 10^(-d)) % 10 with ε to defend against float rounding
+  (e.g. 0.3*10=2.999...), plus zero-variance filter.
+  `scripts/xgb_dist_digits.py` — XGB on the 43-feature dist set + 46
+  surviving digit cols (11 numerics × 7 digits = 77, 31 dropped as
+  constant-zero). Same XGB HPs as xgb_nonrule / xgb_dist. Wall ~4 min.
+  `scripts/blend_digits.py` — fixed-bias α sweep vs greedy (0.97375)
+  and greedy+nonrule (0.97421, prior LB-best).
+- Standalone results (OOF bal_acc, 5-fold, seed=42):
+  - Prior single-model best (xgb_hybrid_v3): 0.97352
+  - XGB-dist + digits **argmax 0.96485, tuned 0.97449**
+    → +0.00097 above the best prior STANDALONE model and +0.00028
+    above the LB-best BLEND (greedy+nonrule 0.97421).
+- Error diagnostics vs LB-best greedy+nonrule:
+  - digit-XGB errors: 8,846; LB-best errors: 12,372 (28 % FEWER)
+  - Error Jaccard = 0.57 (lowest orthogonality seen; nonrule was 0.80;
+    NN/FT-T/TabPFN all 0.62-0.85 but with +16-42 % more errors)
+  - **First orthogonal-model attempt where the new model has FEWER
+    errors than the baseline** — every prior NN-family failure was
+    "Jaccard looks OK but error-magnitude mismatch defeats blend".
+- Fixed-bias log-blend sweep (greedy's fitted log-bias reused as-is):
+  ```
+  target                          peak α    OOF       Δ vs baseline
+  vs greedy (0.97375)              0.65     0.97462   +0.00087
+  vs greedy+nonrule (0.97421)      0.50     0.97491   +0.00070
+  ```
+  Both curves unimodal and clean; α=0.50 vs LB-best is a plateau
+  from 0.4-0.5, less selection risk than prior OOF-tuned experiments.
+
+- **LB results** (both submissions at 20:49 UTC, user-approved):
+  ```
+  prior LB best (greedy+nonrule)  OOF 0.97421  LB 0.97352  gap +0.00069
+  digit-XGB standalone            OOF 0.97449  LB 0.97468  gap -0.00019
+  digit-XGB × LB-best @α=0.50     OOF 0.97491  LB 0.97433  gap +0.00058
+  ```
+- **NEW LB BEST: 0.97468** via `submission_xgb_dist_digits_tuned.csv`
+  (standalone, tuned log-bias). +0.00116 LB over prior best.
+- Two surprises:
+  1. **Standalone beat the blend on LB despite lower OOF**. α=0.50 was
+     too much weight on the model that transfers best; blend averaged
+     in components that generalize worse. Opposite of the usual
+     selection-overfit pattern.
+  2. **Negative OOF→LB gap (−0.00019) on the standalone** — LB is
+     BETTER than CV. First time in the competition log. Suggests
+     the digit features help the model generalize across the
+     train/test split beyond what 5-fold CV measures. Possibly test-
+     set digit distributions are less adversarial than a fold split.
+- Gap to the pack: 0.98114 − 0.97468 = **+0.00646** (from +0.00762).
+  Leader 0.98219 − 0.97468 = +0.00751.
+
+- **LGBM-digits follow-up** (null, tree-family diversity exhausted):
+  - `scripts/lgbm_dist_digits.py` — same 89-feature set, LGBM HPs
+    mirrored from `benchmark_dist.py` (num_leaves=127,
+    min_data_in_leaf=200, lr=0.05, feature/bagging_fraction=0.9).
+    ~8 min on 5 folds.
+  - Standalone tuned OOF **0.97350** (−0.00099 vs XGB-digits 0.97449).
+  - **Jaccard(LGBM-dig, XGB-dig) = 0.9591** with near-identical error
+    counts (8,874 vs 8,846). Effectively the same predictor.
+  - Blend vs XGB-digits: monotone-negative from w_lgbm=0 (peak at 0).
+  - Blend vs prior greedy+nonrule LB-best: peak w=0.15 OOF 0.97457
+    (+0.00036). But strictly below the new LB-best (0.97468 LB), so
+    this lever only helps the OLD path, not the CURRENT one. Dead.
+  - Read-out: **trees leaf-wise (LGBM) vs level-wise (XGB) converge
+    to near-identical predictions when features are highly
+    informative** — the digit + distance features leave no room for
+    architectural differences to surface. Same lesson as the
+    Jaccard-too-high blend-null pattern: tree-family diversity on
+    this feature set is structurally exhausted. CatBoost (next in
+    queue) was killed before fold-1 completed based on the LGBM
+    result, saving ~2.5h CPU. `scripts/cat_dist_digits.py` retained
+    with a fold-1 Jaccard≥0.90 abort gate for a future GPU slot.
+- LB budget: **5/10 used today**, 5 remaining.
+
+- Candidate status:
+  - **Primary (new LB best)**:
+    `submissions/submission_xgb_dist_digits_tuned.csv` → LB 0.97468
+  - Safe fallback (prior LB best):
+    `submissions/submission_greedy_nonrule_blend.csv` → LB 0.97352
+
+- Next bets (ROI order):
+  1. **Seed-bag digit-XGB** (3-5 seeds, ~30 min) — variance reduction
+     on new LB-best. Expected +0.0001-0.0003 LB. Cheap insurance.
+  2. **Lower-α blend** digit-XGB × greedy at α ∈ {0.05,...,0.15} —
+     α=0.50 lost 0.00035 LB; smaller α might preserve standalone's
+     negative gap.
+  3. **OTE (ordered target encoding w/ 4× shuffle)** — structurally
+     different feature representation (cumulative LOO stats), not
+     another model on the same features. 1-2h implementation. The
+     notebook's "digit + OTE" two-pipeline stacker is the mechanism
+     claimed to drive the 0.98 ceiling.
+
+- **Lessons** (candidate adds to LEARNINGS.md):
+  1. **Per-digit extraction is a fundamentally different signal path
+     from raw floats** on synthetic-data problems. 46 digit cols
+     lifted XGB-dist tuned OOF from 0.97304 to 0.97449 (+0.00145) —
+     larger than any single FE lever tested before. Motivation:
+     synthetic/NN generators often produce values with non-uniform
+     digit distributions; axis-aligned splits on the float can't see
+     this, per-digit features expose it directly. Worth trying on
+     every synthetic tabular comp.
+  2. **Negative OOF→LB gap is a signal to trust, not a measurement
+     error**. 5-fold CV produces adversarial splits that can
+     under-estimate OOD generalization on test sets drawn from a
+     similar but distinct distribution. When it happens, don't
+     chase OOF further — standalone is likely your final answer.
+  3. **Blend α≥0.5 is suspicious when new model has sharply better
+     standalone**. Blend LB (0.97433) < standalone LB (0.97468)
+     confirms that averaging in weaker components pulls
+     generalization down. If standalone LB > blend LB, revisit α
+     much lower or skip the blend.
+  4. **Tree-family diversity dies when features are highly
+     informative**. Jaccard 0.96 between LGBM and XGB on the same
+     digit-enriched feature set means architectural differences
+     don't matter. For orthogonal blend signal: different feature
+     representation (OTE, cell-partition specialists), or a model
+     family that uses features differently (cumulative TE,
+     attention tokens), not another tree variant.
