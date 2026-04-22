@@ -1,5 +1,11 @@
 """Step 2/3: XGB regression onto continuous TE targets.
 
+Variant switch via env var TE_VARIANT in {orig (default), oof}:
+  orig -> reads te_targets_{train,test}.npy        writes oof_xgb_te_reg.npy
+  oof  -> reads te_targets_{train,test}_oof.npy    writes oof_xgb_te_reg_oof.npy
+The oof variant uses TE built leave-one-fold-out from synthetic
+train labels (te_targets_oof.py) instead of the rule-perfect 10k.
+
 Trains three independent reg:squarederror XGB boosters (one per
 class) on the 43-col dist feature set, with the TE matrix from
 te_targets.py as the regression target. 5-fold stratified on y
@@ -20,6 +26,7 @@ Outputs:
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -32,6 +39,15 @@ from sklearn.model_selection import StratifiedKFold
 
 SEED = 42
 N_FOLDS = 5
+VARIANT = os.environ.get("TE_VARIANT", "orig").lower()
+if VARIANT not in ("orig", "oof"):
+    raise SystemExit(f"TE_VARIANT must be 'orig' or 'oof', got {VARIANT!r}")
+SUFFIX = "" if VARIANT == "orig" else "_oof"
+TE_TRAIN_PATH = f"te_targets_train{SUFFIX}.npy"
+TE_TEST_PATH = f"te_targets_test{SUFFIX}.npy"
+OOF_OUT_PATH = f"oof_xgb_te_reg{SUFFIX}.npy"
+TEST_OUT_PATH = f"test_xgb_te_reg{SUFFIX}.npy"
+RESULTS_OUT_PATH = f"te_xgb_regression_results{SUFFIX}.json"
 TARGET = "Irrigation_Need"
 ID = "id"
 CLASSES = ["Low", "Medium", "High"]
@@ -116,11 +132,12 @@ def normalise_probs(p: np.ndarray, eps: float = 1e-4) -> np.ndarray:
 
 def main() -> None:
     t_all = time.time()
+    log(f"variant={VARIANT}  reading {TE_TRAIN_PATH} / {TE_TEST_PATH}")
     log("loading data + TE targets")
     tr = pd.read_csv("data/train.csv")
     te = pd.read_csv("data/test.csv")
-    tt_train = np.load(ART / "te_targets_train.npy")
-    tt_test = np.load(ART / "te_targets_test.npy")  # noqa: F841 (used implicitly via XGB on X_test)
+    tt_train = np.load(ART / TE_TRAIN_PATH)
+    tt_test = np.load(ART / TE_TEST_PATH)  # noqa: F841 (used implicitly via XGB on X_test)
     log(f"  train={len(tr)}  test={len(te)}  te_train shape={tt_train.shape}")
 
     log("building dist features (train, test)")
@@ -187,14 +204,14 @@ def main() -> None:
     oof_p = normalise_probs(oof)
     test_p = normalise_probs(test_pred)
 
-    np.save(ART / "oof_xgb_te_reg.npy", oof_p)
-    np.save(ART / "test_xgb_te_reg.npy", test_p)
-    log(f"saved oof_xgb_te_reg.npy {oof_p.shape}, test_xgb_te_reg.npy {test_p.shape}")
+    np.save(ART / OOF_OUT_PATH, oof_p)
+    np.save(ART / TEST_OUT_PATH, test_p)
+    log(f"saved {OOF_OUT_PATH} {oof_p.shape}, {TEST_OUT_PATH} {test_p.shape}")
 
     raw_argmax = balanced_accuracy_score(y, oof_p.argmax(axis=1))
     log(f"standalone argmax bal_acc = {raw_argmax:.5f}")
 
-    with open(ART / "te_xgb_regression_results.json", "w") as f:
+    with open(ART / RESULTS_OUT_PATH, "w") as f:
         json.dump({
             "seed": SEED,
             "n_folds": N_FOLDS,

@@ -1,4 +1,9 @@
-"""Step 3/3: blend the TE-regression OOF/test into the LB-best stacks
+"""Step 3/3: blend the TE-regression OOF/test into the LB-best stacks.
+
+Variant switch via env var TE_VARIANT in {orig (default), oof}:
+  orig -> reads oof_xgb_te_reg.npy        / test_xgb_te_reg.npy
+  oof  -> reads oof_xgb_te_reg_oof.npy    / test_xgb_te_reg_oof.npy
+Output filenames suffix accordingly.
 with FIXED greedy bias (no per-alpha bias retune to avoid the
 binhigh-style overfit).
 
@@ -27,6 +32,7 @@ Outputs:
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -36,6 +42,15 @@ from sklearn.metrics import balanced_accuracy_score, confusion_matrix
 
 
 SEED = 42
+VARIANT = os.environ.get("TE_VARIANT", "orig").lower()
+if VARIANT not in ("orig", "oof"):
+    raise SystemExit(f"TE_VARIANT must be 'orig' or 'oof', got {VARIANT!r}")
+SUFFIX = "" if VARIANT == "orig" else "_oof"
+OOF_NEW_PATH = f"oof_xgb_te_reg{SUFFIX}.npy"
+TEST_NEW_PATH = f"test_xgb_te_reg{SUFFIX}.npy"
+RESULTS_PATH = f"blend_te_reg_results{SUFFIX}.json"
+SUB_VS_GREEDY = f"submission_blend_te_reg{SUFFIX}_vs_greedy.csv"
+SUB_VS_LBBEST = f"submission_blend_te_reg{SUFFIX}_vs_lbbest.csv"
 TARGET = "Irrigation_Need"
 ID = "id"
 CLASSES = ["Low", "Medium", "High"]
@@ -81,9 +96,10 @@ def sweep(p_new: np.ndarray, p_base: np.ndarray, y: np.ndarray,
 
 def main() -> None:
     t0 = time.time()
+    log(f"variant={VARIANT}  reading {OOF_NEW_PATH} / {TEST_NEW_PATH}")
     log("loading components")
-    oof_new = np.load(ART / "oof_xgb_te_reg.npy")
-    test_new = np.load(ART / "test_xgb_te_reg.npy")
+    oof_new = np.load(ART / OOF_NEW_PATH)
+    test_new = np.load(ART / TEST_NEW_PATH)
     oof_greedy = np.load(ART / "oof_greedy_blend.npy")
     test_greedy = np.load(ART / "test_greedy_blend.npy")
     oof_nr = np.load(ART / "oof_xgb_nonrule.npy")
@@ -132,10 +148,8 @@ def main() -> None:
     # Submission decisions.
     out["submissions"] = []
     for s, base_p_test, fname, base_label, base_oof in [
-        (s1, test_greedy, "submission_blend_te_reg_vs_greedy.csv",
-         "greedy", greedy_oof),
-        (s2, test_lbbest, "submission_blend_te_reg_vs_lbbest.csv",
-         "lbbest", lbbest_oof),
+        (s1, test_greedy, SUB_VS_GREEDY, "greedy", greedy_oof),
+        (s2, test_lbbest, SUB_VS_LBBEST, "lbbest", lbbest_oof),
     ]:
         best = s["best"]
         d = best["delta_vs_base"]
@@ -170,9 +184,9 @@ def main() -> None:
             "borderline_threshold_met": d >= 5e-4,
         })
 
-    with open(ART / "blend_te_reg_results.json", "w") as f:
+    with open(ART / RESULTS_PATH, "w") as f:
         json.dump(out, f, indent=2)
-    log(f"wrote {ART}/blend_te_reg_results.json   ({time.time()-t0:.1f}s)")
+    log(f"wrote {ART}/{RESULTS_PATH}   ({time.time()-t0:.1f}s)")
 
 
 if __name__ == "__main__":
