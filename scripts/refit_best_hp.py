@@ -219,8 +219,15 @@ def refit_spec_678(tr: pd.DataFrame, te: pd.DataFrame, hp: dict) -> dict:
     }
 
 
-def refit_nonrule(tr: pd.DataFrame, te: pd.DataFrame, hp: dict) -> dict:
-    """Mirror of nonrule_features_only.py but with configurable HPs."""
+def refit_nonrule(tr: pd.DataFrame, te: pd.DataFrame, hp: dict,
+                  num_boost_round: int = 8000) -> dict:
+    """Mirror of nonrule_features_only.py but with configurable HPs.
+
+    Uses num_boost_round=8000 by default (vs 4000 for the other two)
+    because the tuned nonrule HP config (lr=0.026, depth=4, heavy reg)
+    hit the 4000-round cap during the HP search — the model was still
+    improving when cut off.
+    """
     log("[nonrule] building non-rule feature set")
     nonrule_cols = [c for c in tr.columns if c not in DROP_COLS and c not in RULE_COLS]
 
@@ -247,7 +254,7 @@ def refit_nonrule(tr: pd.DataFrame, te: pd.DataFrame, hp: dict) -> dict:
         t0 = time.time()
         dtr = xgb.DMatrix(X.iloc[tr_idx], label=y[tr_idx], enable_categorical=True)
         dva = xgb.DMatrix(X.iloc[va_idx], label=y[va_idx], enable_categorical=True)
-        booster = xgb.train(params, dtr, num_boost_round=4000,
+        booster = xgb.train(params, dtr, num_boost_round=num_boost_round,
                             evals=[(dva, "val")],
                             early_stopping_rounds=100, verbose_eval=0)
         bi = booster.best_iteration
