@@ -10,7 +10,7 @@
   "enable_internet": true,
   "dataset_sources": [
     "chrisleitescha/irrigation-greedy-blend-oof",
-    "l3llff/irrigation-water"
+    "chrisleitescha/irrigation-prediction-original"
   ],
   "competition_sources": [
     "playground-series-s6e4"
