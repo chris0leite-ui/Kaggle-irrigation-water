@@ -2553,3 +2553,80 @@ The reusable Kaggle playbook lives at
 `claude/kaggle-playbook`). Kickoff steps, workflow norms, and
 methodology are maintained there — update that repo when a transferable
 lesson surfaces.
+
+### 2026-04-22 — TE-continuous-regression (null, definitive)
+
+- Goal: test the user-proposed reframing — avoid discrete residual
+  zero-inflation by regressing onto continuous per-class TE target
+  values from the 10k rule-perfect original. 3 independent XGB
+  `reg:squarederror` boosters on 43-col dist features, TE target
+  keyed by (Crop_Type, Soil_Type, Season, Region,
+  Crop_Growth_Stage, dgp_score) with Bayesian shrinkage m=30 toward
+  per-score prior. 5-fold stratified (seed=42) to align with all
+  other OOFs. Fixed-bias log-blend sweep into (a) greedy alone
+  (OOF 0.97375) and (b) greedy + xgb_nonrule@0.15 LB-best
+  (OOF 0.97421).
+- Changed: `scripts/te_targets.py` (TE matrix build, 5522 unique
+  cells in original, median 1 row/cell, 27 % fallback-to-score-
+  prior on synthetic train and test), `scripts/te_xgb_regression.py`
+  (3 boosters/fold, ~13s/fold total wall 69s), `scripts/blend_te_reg.py`
+  (11-point grid over both baselines). Artefacts:
+  `oof_xgb_te_reg.npy`, `test_xgb_te_reg.npy`,
+  `te_xgb_regression_results.json`, `blend_te_reg_results.json`.
+- Results (OOF tuned bal_acc, fixed greedy bias):
+  ```
+  TE-reg standalone argmax                   0.96097  (== rule ceiling)
+
+  vs greedy (base 0.97375):
+    alpha=0.000   0.97375   peak
+    alpha=0.025   0.97357  -0.00017
+    alpha=0.050   0.97325  -0.00050
+    alpha=0.400   0.96219  -0.01155   monotone negative
+
+  vs LB-best greedy+nonrule@0.15 (base 0.97421):
+    alpha=0.000   0.97421   peak
+    alpha=0.025   0.97410  -0.00012
+    alpha=0.050   0.97392  -0.00030
+    alpha=0.400   0.96169  -0.01253   monotone negative
+  ```
+- **Diagnostic** (the decisive bit):
+  ```
+  TE-reg argmax errors = 10,304  (EXACTLY = rule's 10,304 flipped rows)
+  greedy  argmax errors =  8,909
+  argmax agreement rate (TE-reg vs greedy) = 99.70 %
+  rows where they disagree                 =  1,863
+    TE-reg right, greedy wrong             =    234
+    greedy right, TE-reg wrong             =  1,629
+    both wrong (different answers)         =      0
+  net TE-reg wins - losses in disagreement = -1,395
+  ```
+- **Mechanism** (generalisable): the 10k original is rule-perfect
+  by construction. Any predictor trained to reproduce original-
+  dataset per-class distributions — TE lookup, XGB regression on
+  TE targets, empirical Bayes, per-cell LR — converges to a rule-
+  equivalent predictor (10,304 errors on the identical rows,
+  cell-level). No key granularity or shrinkage tweak changes this:
+  the rule IS the optimal predictor of the original dataset's
+  labels, and TE-from-original inherits that ceiling exactly.
+- **Implication** — **three rule-related levers are now provably
+  redundant**: (i) TE-from-original features inside a tree (already
+  null in `benchmark_te_orig`, +0.00004), (ii) per-cell empirical
+  Bayes on rule cells (already null in `empirical_bayes_cell`), and
+  (iii) this continuous regression reformulation. They all produce
+  predictors at argmax-equivalence to the rule, which greedy (with
+  tuned log-bias) has already transcended by pushing boundary rows
+  in the direction that improves macro-recall. Any positive blend
+  weight drags the decision back toward the rule's operating point,
+  hurting OOF monotonically.
+- **New LEARNINGS rule**: "The 10k rule-perfect original is a
+  saturation source — any predictor that consumes original labels
+  as ground truth (TE, EB, distillation of original, NN-on-original)
+  is bounded by the rule's argmax-equivalence class. Use the
+  original only for **features that describe marginal
+  distributions** (e.g., `Crop_Type × Region` frequencies as an
+  auxiliary XGB input), never as **labels**."
+- No LB submission (both sweeps strictly negative; deep below the
+  +0.0005 LB-probe threshold). LB budget unchanged at 1/10 used
+  today.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
