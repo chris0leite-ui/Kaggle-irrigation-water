@@ -86,3 +86,5 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_corn.npy
 !scripts/artifacts/oof_tabpfn.npy
 !scripts/artifacts/test_tabpfn.npy
+!scripts/artifacts/oof_xgb_dist_digits.npy
+!scripts/artifacts/test_xgb_dist_digits.npy
