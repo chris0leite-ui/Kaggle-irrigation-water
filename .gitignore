@@ -83,3 +83,5 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_nonrule.npy
 !scripts/artifacts/oof_catboost_optuna.npy
 !scripts/artifacts/test_catboost_optuna.npy
+!scripts/artifacts/oof_lgbm_competitor.npy
+!scripts/artifacts/test_lgbm_competitor.npy

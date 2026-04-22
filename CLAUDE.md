@@ -2026,6 +2026,59 @@ architecture or feature view adds orthogonal bits at this base.
 - Next: kick off `scripts/lgbm_competitor_baseline.py` to test the
   yunsuxiaozi 0.97943 CV claim.
 
+### 2026-04-22 — competitor LGBM reproduction (null, 0.97943 claim not reproducible)
+
+- Goal: test yunsuxiaozi's "Lightgbm baseline and advanced" notebook
+  (claimed CV 0.97943) under our honest 5-fold StratifiedKFold
+  (shuffle=True, seed=42) protocol, to validate or falsify the
+  claim and determine whether the 0.98114 pack's recipe is this
+  approach + seed-bag.
+- Setup: `scripts/lgbm_competitor_baseline.py` reproduces their
+  recipe: digit extraction `(c // 10**k) % 10` for k ∈ [-4, 4) on
+  11 numerics = 88 int8 cols; numeric rounding by magnitude; low-
+  freq cat collapse (<5 → default); sklearn
+  `TargetEncoder(target_type='multiclass', cv=5)` fit per-fold on
+  train, transformed onto val and test (leak-free); inverse-freq
+  sample weights at fit time; LGBM baseline HPs (num_leaves=127,
+  lr=0.05, ES=100 on multi_logloss). Final fed to LGBM: 299 cols
+  (8 cats + 88 digits → 288 TE + 11 rounded nums). ~9 min total.
+- Results (OOF, 5-fold, seed=42):
+  - 5-fold argmax: 0.96891 (per-fold [0.96866, 0.96876, 0.96962,
+    0.96864, 0.96887], std 0.00037 — remarkably tight).
+  - **Tuned log-bias: 0.97195.**
+  - Δ vs competitor's claim: **−0.00748** (claim not reproducible).
+  - Δ vs LGBM-dist: −0.00071.
+  - Δ vs our LB-best (greedy+nonrule 0.97421): **−0.00226**.
+  - bias: [+2.232, +2.069, +3.201] — MUCH larger Low/Medium bias
+    than our pipeline's usual [+0.13, +0.57, +3.40]. The sample-
+    weight inverse-freq training pushed the training probs to
+    near-uniform prior, requiring massive log-bias correction.
+- Blend analysis vs LB-best (reconstructed OOF 0.97423):
+  - Jaccard 0.6622 (genuinely diverse — competitor's errors live
+    in different rows than LB-best's).
+  - Fixed-bias log-blend peak: α=0.05 → **0.97439** (**+0.00016**
+    vs LB-best). Below fold-std (0.00037) and below our
+    +0.0003 LB-probe threshold.
+  - α=0.10 → +0.00011, α≥0.15 monotone negative. Non-signal.
+- Root cause of competitor's claim (most probable): **leaky CV
+  protocol.** If they fit the multiclass TE once on the full train
+  set before the CV loop (vs per-fold as we did), the val-fold
+  labels leak into that fold's own encoding, inflating CV by the
+  exact magnitude we saw (~0.008). Other candidates: undisclosed
+  LGBM HPs, unshuffled CV, weighted balanced-accuracy scoring,
+  different seed with favorable split. Our protocol rules those out.
+- Read-out: the 0.97943 CV claim is **not reproducible at honest
+  CV**. The digit FE + multiclass TE recipe lands at 0.97195 —
+  similar to CatBoost (0.97179), both below LGBM/XGB-dist and the
+  LB-best. The 2026-04-21 "0.98114 pack = public-CSV blending"
+  conclusion stands; it is NOT this recipe + seed-bag.
+- Current best unchanged: `submission_greedy_nonrule_blend.csv` at
+  LB 0.97352. Own-pipeline ceiling confirmed at OOF ~0.9742 / LB
+  ~0.9735 after every plausible orthogonal lever has been tested.
+  The only remaining swing bet with +0.01 potential is A3 (public-
+  CSV blending), which requires user authorization.
+- LB delta: none (no submission — fixed-bias blend below threshold).
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15

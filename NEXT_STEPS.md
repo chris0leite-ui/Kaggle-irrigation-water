@@ -15,11 +15,17 @@ today's session (1 burned on 2026-04-22 seed-bag null).
   rs=2.74. Jaccard vs LB-best = 0.7376; fixed-bias blend peak
   α=0.05 → +0.00005 (non-signal). CatBoost lever closed.
 
-**Queued next**:
-- `scripts/lgbm_competitor_baseline.py` — reproduces yunsuxiaozi's
-  digit-FE + multiclass-TE LGBM recipe (claimed CV 0.97943,
-  protocol unverified). Pinned to our 5-fold seed=42 split.
-  Only remaining swing bet with plausible upside.
+**Completed this session (2026-04-22) — both swings closed**:
+- `scripts/lgbm_competitor_baseline.py` — **DONE, null**. OOF
+  tuned **0.97195** vs claim 0.97943 (**−0.00748**, not
+  reproducible). Argmax per fold is real (~0.969, +0.008 over
+  our LGBM-dist), but digit FE + multiclass TE + inverse-freq
+  sample_weight probs are near-uniform, so log-bias tuning only
+  adds +0.003 vs our usual +0.009. Most probable cause of the
+  0.97943 claim: leaky CV (TE fit on full train before CV loop,
+  val-fold labels leak into its own encoding). Fixed-bias blend
+  peak α=0.05 → +0.00016 (non-signal, below fold-std 0.00037).
+  Lever closed.
 
 ## Path to +0.010 LB (target LB 0.9835)
 
@@ -30,23 +36,15 @@ requires at least one swing-sized win, not ten small ones.**
 
 ### A. Swing bets — one of these has to hit
 
-1. **Competitor LGBM reproduction (digit FE + multiclass TE).**
-   yunsuxiaozi's "Lightgbm baseline and advanced" notebook claims
-   **CV 0.97943** on this competition — if real, that's ~LB 0.9786
-   single-model, above our 0.97352 LB best by +0.0051 and close
-   enough to the 0.98114 pack that seed-bagging explains the rest.
-   Novel orthogonal levers: (a) digit extraction
-   `(c // 10**k) % 10` for k ∈ [-4, 4) as int8 cols — directly
-   attacks host-NN input precision, something neither
-   distance-to-threshold nor native TS captures; (b) multi-class
-   TargetEncoder on 8 cats + 88 digit cols (1-in, 3-out per col →
-   ~288 TE cols); (c) inverse-freq sample weights at fit time +
-   our log-bias at inference may compound. Script ready at
-   `scripts/lgbm_competitor_baseline.py`, queued behind the
-   running CatBoost Optuna sweep. **Expected: +0.002 to +0.005 LB
-   if it reproduces (would revise our whole strategic picture).**
-   If it plateaus at ~0.974 like everything else, the 0.97943
-   claim was leaky CV. ~40 min CPU.
+1. ~~**Competitor LGBM reproduction (digit FE + multiclass TE)**~~
+   **(DONE, null 2026-04-22)**. OOF tuned 0.97195 vs claim 0.97943
+   (−0.00748, not reproducible under our honest 5-fold shuffle=True
+   seed=42 protocol). Most probable cause of the claim: leaky CV
+   (fit TE once on full train, then CV on encoded features → val-
+   fold labels leak into their own encoding). Fixed-bias blend
+   peak α=0.05 → +0.00016 (non-signal). Moved to ruled-out. The
+   2026-04-21 "0.98114 pack = public-CSV blending" conclusion
+   stands — it is NOT this recipe + seed-bag.
 2. ~~**Serious CatBoost with native Ordered TS**~~ **(DONE, null
    2026-04-22)**. Phase 2 full-630k OOF tuned 0.97179 (below
    LGBM-dist 0.97266 by 0.00087). Best HPs: depth=5, lr=0.067,
@@ -96,24 +94,26 @@ requires at least one swing-sized win, not ten small ones.**
    +0.00005–0.0002 LB. Default fallback if nothing else is
    running.
 
-### Recommended order
+### Recommended order (post-2026-04-22 null sweep)
 
-1. **Let CatBoost Optuna finish (#A2)** — Phase 1 in progress,
-   Phase 2 refit on 630k + fixed-bias blend sweep ~30-60 min more.
-2. **Kick off #A1 (competitor reproduction)** the moment CatBoost
-   finishes — don't run concurrently (CPU thrash). ~40 min.
-3. If #A1 reproduces ≥0.975 OOF: submit one LB probe to validate
-   the claim; expect +0.003 LB. If it plateaus at ~0.974, logged
-   as a disproof of the "single-model 0.979" claim.
-4. Foreground while waiting: **B.5 (error analysis)** on
-   greedy+nonrule to surface new error clusters. ~30 min.
-5. If both #A1 and #A2 plateau: combine **B.4 + B.6 + B.7 + B.8**
-   for compounding +0.001–0.002.
-6. If still stuck at ~0.975 after all of the above: escalate to
-   **#A3 (public-CSV blend)** as the deliberate last resort.
-   Requires user OK.
-7. If #A3 is off-limits: try **#A4 (DGP reversal)** as a high-
-   variance swing.
+Both own-pipeline swings closed this session. #A1 (competitor
+reproduction) null, #A2 (CatBoost proper) null. Remaining options
+in descending expected value:
+
+1. **#A3 (public-CSV blend)** — the only remaining path to +0.008
+   LB. The pack's documented mechanism. Requires user authorization
+   to pull public-notebook submission CSVs. ~30 min.
+2. **Compounding bets (B.4, B.6, B.7, B.8)** — pseudo-label v2,
+   self-distillation, rule × non-rule FE retry, ordinal loss.
+   Each is ≤ +0.0005 LB standalone; combined +0.001-0.002 if
+   several land. Fall-back if #A3 is off-limits. ~3 h total.
+3. **#A4 (DGP NN reversal)** — fit MLP/transformer directly to
+   label-gen function on 10k original + synthetic flips. High
+   variance. ~4 h on GPU. Only if #A3 is off-limits and all
+   compounding bets plateau.
+
+Methodology: fixed-greedy-bias sweep first; LB-probe only if
+fixed-bias OOF lifts ≥ +0.0003.
 
 Methodology: every non-swing follow-up uses the **fixed-greedy-bias
 sweep first**; only LB-probe if fixed-bias OOF lifts ≥ +0.0003.
@@ -162,6 +162,16 @@ Full reasoning in `CLAUDE.md` session log. Short list:
   HP sweep + raw 8 cats via `cat_features=` + minimal DGP feat set.
   Still below LGBM-dist/XGB-dist. Jaccard 0.7376 with LB-best but
   blend peak α=0.05 → +0.00005 (non-signal). Lever exhausted.
+- **Competitor LGBM (digit FE + multiclass TE, 2026-04-22)** — OOF
+  tuned 0.97195, Δ vs claim 0.97943 = −0.00748 (not reproducible
+  at honest CV). Sample-weight training + 288 TE cols produced
+  near-uniform probs, required bias [+2.23, +2.07, +3.20] vs our
+  usual [+0.13, +0.57, +3.40]. Jaccard 0.6622 with LB-best
+  (genuinely diverse) but blend peak α=0.05 → +0.00016 — below
+  fold-std 0.00037 and LB-probe threshold 0.0003. Lever exhausted.
+  Sharpest possible reframe: if even digit FE + multiclass TE +
+  sample-weight training doesn't clear our pipeline, no own-model
+  recipe will. The +0.008 gap to the pack is CSV-blend shaped.
 - **Per-cell logistic** — rule-cell information saturated at 0.963.
 - **Hinge-loss / max-margin tie-breaker over 743 integer rules** —
   all produce identical synthetic predictions.
