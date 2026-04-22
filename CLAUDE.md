@@ -1961,6 +1961,63 @@ architecture or feature view adds orthogonal bits at this base.
   which is a strategic choice, not a modeling one. If we stay on
   own-pipeline, 0.97352 is very likely our final LB floor.
 
+### 2026-04-22 — NN-on-original as features (idea 1, null in two modes)
+
+- Goal: execute the user-reframed idea — train our own NN on the 10k
+  rule-perfect original and apply to synthetic features. Under the
+  right framing (host's synthetic labels = host's NN on synthetic,
+  where that NN was trained on the original), our own NN-on-original
+  should partially reproduce the flip pattern through its smooth
+  decision boundary.
+- Changed: `scripts/nn_orig_features.py` (5-arch MLP ensemble trained
+  on 10k original, predicts on 630k train + 270k test);
+  `scripts/blend_nn_orig_greedy.py` (fixed-bias log-blend sweep vs
+  greedy); `scripts/xgb_dist_with_nn_feats.py` (adds 3 NN prob cols
+  to the 43-feature dist set, retrains XGB, blends).
+- Protocol iteration #1 (full 43-feature dist set incl. `rule_pred`
+  and `dgp_score`): every arch collapsed EXACTLY to the rule ceiling
+  (orig train acc 1.0, synth bal_acc 0.96097 to 5 decimals for all
+  5 archs). NNs trivially parrot `rule_pred` when it's in the input.
+  Killed — fundamental flaw, features had to be restricted.
+- Protocol iteration #2 (continuous features only: 11 raw numerics +
+  4 signed dist + 4 abs dist + min_axis_abs + 2 pairwise products +
+  8 categoricals, total 22 num + 8 cat). NN must now re-discover the
+  rule from smooth signals only.
+  - Ensemble 5-arch (7k–73k params each, 150 epochs, ~2 min total CPU):
+    orig train bal 0.999+, synth tuned **0.9448**, error Jaccard vs
+    greedy **0.3716** (very low, ens errs 21,097 vs greedy 8,909).
+  - **Blend sweep (fixed greedy bias)**: peak at α=0 (no blend);
+    monotone negative from α=0.02 (−0.0002) through α=0.50 (−0.0118).
+    **Null**.
+  - Why: Jaccard 0.37 = error orthogonality, but ens has 2.4× more
+    errors than greedy; weighting in any NN prob drags the blend
+    toward the NN's wrong answers faster than it helps.
+- Protocol iteration #3 (NN probs as 3 new tree features on top of
+  XGB-dist): XGB retrained on 46-feature set (43 dist + 3 NN probs).
+  Standalone tuned **0.97306** vs vanilla XGB-dist 0.97304 (Δ =
+  +0.00003). Error Jaccard vs greedy = **0.9537** (basically no
+  diversity). Blend sweep peak α=0.40 at 0.97376 (+0.00001 vs
+  greedy, null).
+  - Why: XGB at max_depth=7 already splits optimally on signed dist
+    + dgp_score; the NN's 3-dim prob is a re-encoding of that signal
+    with additional noise from the NN's smoothing errors. Trees
+    correctly learn to ignore it.
+- **Idea 1 is ruled out in both framings** (prob blend, tree feature).
+  Lesson: our 5-arch small-MLP ensemble trained on 10k rule-perfect
+  rows does NOT reproduce the host NN's specific flip pattern. The
+  "smooth approximation" character of a NN is narrowly determined by
+  its architecture × the 10k anchor points, and our architectural
+  envelope doesn't cover the host's specific function. Without
+  matching the host's architecture + training recipe, the
+  NN-on-original is just a noisier restatement of the rule.
+- LB budget: 1/10 used today (unchanged — no LB probe justified, all
+  fixed-bias sweeps were < +0.0005 threshold).
+- Current best unchanged: `submission_greedy_nonrule_blend.csv`
+  OOF 0.97421 / LB 0.97352.
+- Idea 2 (pretrain-finetune MLP) is architecturally distinct —
+  whole model, not just predictions — and still open. Scaffolded
+  as Kaggle kernel `kaggle_kernel/kernel_pretrain_ft/` to run on GPU.
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15

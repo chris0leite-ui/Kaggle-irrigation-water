@@ -1,0 +1,19 @@
+{
+  "id": "chrisleitescha/irrigation-mlp-pretrain-ft",
+  "title": "irrigation-mlp-pretrain-ft",
+  "code_file": "mlp_pretrain_ft.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-greedy-blend-oof",
+    "l3llff/irrigation-water"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
