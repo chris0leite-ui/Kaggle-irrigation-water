@@ -98,16 +98,16 @@ depending on script:
 
 | File | OOF tuned | Script |
 |---|---|---|
-| `oof_catboost_dist.npy` | 0.97128 | `benchmark_catboost_dist.py` |
-| `oof_xgb_dist_routed_v6.npy` | 0.97320 | `xgb_dist_routed_v6.py` |
-| `oof_xgb_dist_routed_v7.npy` | 0.97288 | `xgb_dist_routed_v7.py` |
-| `oof_lgbm_te_oof.npy` | 0.97271 | `benchmark_te_oof.py` |
-| `oof_lgbm_rule_distill.npy` | 0.97219 | `rule_distillation.py` |
-| `oof_pseudo_hybrid_tau95.npy` | 0.97332 | `pseudo_label_hybrid.py` |
-| `oof_xgb_spec_3.npy` | — (null) | `xgb_specialist_3.py` |
-| `oof_xgb_spec_46.npy` | — (null) | `xgb_specialist_46.py` |
-| `oof_xgb_spec_678_aug_{w10,w03}.npy` | — (null) | `xgb_specialist_678_aug.py` |
-| `oof_per_cell_lr.npy` | 0.96280 | `per_cell_lr.py` |
+| `oof_catboost_dist.npy` | 0.97128 | `legacy/null/benchmark_catboost_dist.py` |
+| `oof_xgb_dist_routed_v6.npy` | 0.97320 | `legacy/null/xgb_dist_routed_v6.py` |
+| `oof_xgb_dist_routed_v7.npy` | 0.97288 | `scripts/xgb_dist_routed_v7.py` |
+| `oof_lgbm_te_oof.npy` | 0.97271 | `legacy/null/benchmark_te_oof.py` |
+| `oof_lgbm_rule_distill.npy` | 0.97219 | `legacy/null/rule_distillation.py` |
+| `oof_pseudo_hybrid_tau95.npy` | 0.97332 | `legacy/null/pseudo_label_hybrid.py` |
+| `oof_xgb_spec_3.npy` | — (null) | `legacy/null/xgb_specialist_3.py` |
+| `oof_xgb_spec_46.npy` | — (null) | `legacy/null/xgb_specialist_46.py` |
+| `oof_xgb_spec_678_aug_{w10,w03}.npy` | — (null) | `legacy/null/xgb_specialist_678_aug.py` |
+| `oof_per_cell_lr.npy` | 0.96280 | `legacy/null/per_cell_lr.py` |
 
 ## Regenerating committed artifacts
 

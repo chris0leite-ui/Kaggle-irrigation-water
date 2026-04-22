@@ -16,7 +16,7 @@ today's session (1 burned on 2026-04-22 seed-bag null).
   α=0.05 → +0.00005 (non-signal). CatBoost lever closed.
 
 **Completed this session (2026-04-22) — both swings closed**:
-- `scripts/lgbm_competitor_baseline.py` — **DONE, null**. OOF
+- `legacy/null/lgbm_competitor_baseline.py` — **DONE, null**. OOF
   tuned **0.97195** vs claim 0.97943 (**−0.00748**, not
   reproducible). Argmax per fold is real (~0.969, +0.008 over
   our LGBM-dist), but digit FE + multiclass TE + inverse-freq
