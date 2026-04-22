@@ -1,0 +1,88 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "batch_size": 4096,
+  "max_epochs": 40,
+  "patience": 5,
+  "lr": 0.002,
+  "weight_decay": 1e-05,
+  "dropout": 0.15,
+  "hidden": [
+    256,
+    128,
+    64
+  ],
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    1.3324411632360973,
+    1.568946691946548,
+    3.400768902044088
+  ],
+  "num_cols": [
+    "Soil_pH",
+    "Soil_Moisture",
+    "Organic_Carbon",
+    "Electrical_Conductivity",
+    "Temperature_C",
+    "Humidity",
+    "Rainfall_mm",
+    "Sunlight_Hours",
+    "Wind_Speed_kmh",
+    "Field_Area_hectare",
+    "Previous_Irrigation_mm",
+    "dgp_dry",
+    "dgp_norain",
+    "dgp_hot",
+    "dgp_windy",
+    "dgp_nomulch",
+    "dgp_kc",
+    "dgp_score",
+    "dgp_dist_moist",
+    "dgp_dist_rain",
+    "dgp_dist_temp",
+    "dgp_dist_wind",
+    "dgp_abs_moist",
+    "dgp_abs_rain",
+    "dgp_abs_temp",
+    "dgp_abs_wind"
+  ],
+  "cat_cols": [
+    "Soil_Type",
+    "Crop_Type",
+    "Crop_Growth_Stage",
+    "Season",
+    "Irrigation_Type",
+    "Water_Source",
+    "Mulching_Used",
+    "Region"
+  ],
+  "cat_cardinalities": {
+    "Soil_Type": 4,
+    "Crop_Type": 6,
+    "Crop_Growth_Stage": 4,
+    "Season": 3,
+    "Irrigation_Type": 4,
+    "Water_Source": 4,
+    "Mulching_Used": 2,
+    "Region": 5
+  },
+  "results": [
+    {
+      "name": "MLP+DGP argmax",
+      "bal_acc": 0.9618411196994193
+    },
+    {
+      "name": "MLP+DGP prior-reweight argmax",
+      "bal_acc": 0.9642133760116974
+    },
+    {
+      "name": "MLP+DGP tuned log-bias",
+      "bal_acc": 0.9643679709337526
+    }
+  ],
+  "best_rule": "MLP+DGP tuned log-bias"
+}
