@@ -8,14 +8,18 @@ signal). Pack 0.98114 (+0.00762 above LB-best), leader 0.98219
 (+0.00867). LB budget: **7/10 used cumulative**, 3 remaining for
 today's session (1 burned on 2026-04-22 seed-bag null).
 
-**In flight** (2026-04-22 session):
-- `scripts/catboost_optuna.py` — Optuna TPE on 200k subsample,
-  15 trials, 8 done at snapshot time; best trial 4 @ 0.96922.
-  Phase 2 refit on full 630k pending.
-- `scripts/lgbm_competitor_baseline.py` — queued behind CatBoost,
-  reproduces yunsuxiaozi's digit-FE + multiclass-TE LGBM recipe
-  (claimed CV 0.97943, protocol unverified). Pinned to our
-  5-fold seed=42 split for OOF alignment.
+**Completed this session (2026-04-22)**:
+- `scripts/catboost_optuna.py` — **DONE, null**. Phase 1 + Phase 2
+  on full 630k: OOF tuned **0.97179** (below LGBM-dist 0.97266,
+  below XGB-dist 0.97304). Best HPs: depth=5, lr=0.067, l2=1.08,
+  rs=2.74. Jaccard vs LB-best = 0.7376; fixed-bias blend peak
+  α=0.05 → +0.00005 (non-signal). CatBoost lever closed.
+
+**Queued next**:
+- `scripts/lgbm_competitor_baseline.py` — reproduces yunsuxiaozi's
+  digit-FE + multiclass-TE LGBM recipe (claimed CV 0.97943,
+  protocol unverified). Pinned to our 5-fold seed=42 split.
+  Only remaining swing bet with plausible upside.
 
 ## Path to +0.010 LB (target LB 0.9835)
 
@@ -43,13 +47,12 @@ requires at least one swing-sized win, not ten small ones.**
    if it reproduces (would revise our whole strategic picture).**
    If it plateaus at ~0.974 like everything else, the 0.97943
    claim was leaky CV. ~40 min CPU.
-2. **Serious CatBoost with native Ordered TS** (in flight, Phase 1
-   in progress). 15-trial Optuna sweep on 200k subsample + refit
-   on full 630k, 8 cats passed via `cat_features=` for native
-   target encoding. Best-so-far trial 4 @ 0.96922 on 200k. If
-   full-630k tuned > 0.973 and error-Jaccard with greedy+nonrule
-   < 0.80, it's a 4th blend leg. **Expected: +0.0005 to +0.002 LB
-   as a blend contribution.**
+2. ~~**Serious CatBoost with native Ordered TS**~~ **(DONE, null
+   2026-04-22)**. Phase 2 full-630k OOF tuned 0.97179 (below
+   LGBM-dist 0.97266 by 0.00087). Best HPs: depth=5, lr=0.067,
+   l2=1.08, rs=2.74 — plateau not ridge (top 5 trials 0.968–0.969).
+   Jaccard with LB-best 0.7376 (diverse), but fixed-bias blend peak
+   α=0.05 → +0.00005 (non-signal). Moved to ruled-out.
 3. **Public-notebook CSV ensemble** (the pack's actual recipe,
    IF competitor reproduction plateaus). The 0.98114 pack pulls
    other competitors' submission CSVs as Kaggle Dataset inputs
@@ -155,6 +158,10 @@ Full reasoning in `CLAUDE.md` session log. Short list:
 - **Pairwise FE on hybrid_lgbmxgb_blend** — optimal blend weight
   collapsed from α=0.45 to α=0.05 (retry on greedy still open).
 - **CatBoost-dist** — 0.97128 standalone, 3-way blend hurt −0.00007.
+- **CatBoost-optuna (2026-04-22)** — OOF 0.97179 after proper Optuna
+  HP sweep + raw 8 cats via `cat_features=` + minimal DGP feat set.
+  Still below LGBM-dist/XGB-dist. Jaccard 0.7376 with LB-best but
+  blend peak α=0.05 → +0.00005 (non-signal). Lever exhausted.
 - **Per-cell logistic** — rule-cell information saturated at 0.963.
 - **Hinge-loss / max-margin tie-breaker over 743 integer rules** —
   all produce identical synthetic predictions.

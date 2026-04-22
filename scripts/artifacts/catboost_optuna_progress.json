@@ -1,9 +1,9 @@
 {
-  "snapshot_at": "2026-04-22 07:45:05",
+  "snapshot_at": "2026-04-22 08:01:43",
   "log_path": "logs/catboost_optuna.log",
   "started_at": "06:56:11",
-  "last_event_at": "07:44:50",
-  "phase": "phase2",
+  "last_event_at": "07:57:48",
+  "phase": "complete",
   "n_trials_started": 15,
   "n_trials_completed": 15,
   "trials": [

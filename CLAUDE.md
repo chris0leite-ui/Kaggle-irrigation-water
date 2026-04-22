@@ -1993,12 +1993,38 @@ architecture or feature view adds orthogonal bits at this base.
   `scripts/snapshot_optuna_log.py` (parses log into committed
   JSON checkpoint — recovery insurance against container recycles
   or process kills mid-sweep).
-- Status at last snapshot: CatBoost Optuna Phase 1 at 9/15 trials,
-  best trial 4 @ 0.96922 on 200k (depth=8, lr=0.037, l2=1.96,
-  rs=1.16, bt=0.68, border=213). Phase 2 full-630k refit pending.
-  Competitor reproduction queued behind (serialized to avoid
-  CPU thrash on shared cores).
-- LB delta: none (no submissions from this session yet).
+- Phase 1 results: 15/15 trials in 48.6 min, best trial 4 @ 0.96922
+  on 200k subsample. Best HPs: depth=5, lr=0.067, l2=1.08,
+  rs=2.74, bt=0.39, border=190, one_hot_max=16, leaf_est_iter=1
+  (shallow + low-l2 + strong random_strength — different regime
+  from baseline LGBM's num_leaves=127 or our prior CatBoost's
+  depth=7). Most of the top half of trials plateaued 0.968–0.969,
+  trial distribution is flat — this is a plateau, not a ridge.
+- Phase 2 results (full 630k, OOF tuned): **0.97179** (fold std
+  0.00063, per-class recall Low=0.9958 Medium=0.9550 High=0.9646).
+  Δ vs prior CatBoost-dist +0.00051 (real — proper HP sweep +
+  feature-set cleanup helped). **Δ vs LGBM-dist −0.00087**,
+  **Δ vs XGB-dist −0.00125** — still below both. All 5 folds hit
+  near the 3000-iter cap (best_iter 2632–2995), so uncapped might
+  buy +0.0005–0.001 more, but even a generous extrapolation doesn't
+  clear XGB-dist.
+- Blend analysis vs LB-best (greedy+nonrule, OOF 0.97423): Jaccard
+  0.7376 (below 0.80 → error diversity present), but fixed-bias
+  log-blend sweep peaks at α=0.05 → 0.97428 (**Δ = +0.00005**, far
+  below fold-std 0.00063). CatBoost-optuna brings no meaningful
+  blend signal — same story as the 2026-04-21 CatBoost-dist 3-way
+  null. **Lever closed.**
+- Read-out: CatBoost native OTS is not the missing piece on this
+  problem. Even with (a) proper Optuna HP search, (b) raw 8 cats
+  through `cat_features=`, and (c) minimal DGP features instead of
+  the over-engineered 43-feat dist set, CatBoost plateaus below
+  LGBM+DGP. Strategic implication: the remaining +0.008 gap to the
+  0.98114 pack cannot come from model-class diversity — it has to
+  come from a genuinely new feature view. The competitor
+  reproduction (digit FE + multiclass TE) is now the only open
+  bet with plausible swing upside.
+- Next: kick off `scripts/lgbm_competitor_baseline.py` to test the
+  yunsuxiaozi 0.97943 CV claim.
 
 ## Hypothesis board
 
