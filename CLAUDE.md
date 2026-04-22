@@ -2423,6 +2423,95 @@ architecture or feature view adds orthogonal bits at this base.
   per-cell MLP untested and constrained by per-cell data (largest
   cell ~100k rows, smallest <300).
 
+### 2026-04-22 — fold-split-seed bag: small OOF lift (+0.00019, LB probe not yet run)
+
+- Goal: test the last untried own-pipeline lever — varying the
+  `StratifiedKFold(random_state=...)` SEED itself (not the training
+  seed) across 5 runs of the full greedy+nonrule pipeline, averaging
+  the per-seed OOF/test probs, tuning log-bias once on the bag. Earlier
+  seed-bag (2026-04-22) held fold-split fixed at 42 and varied only
+  training seed — that was null because XGB at our HPs is
+  near-deterministic across training seeds. Different fold splits give
+  every row a different fold neighbour set, so the OOFs are
+  sample-diverse rather than model-stochastic — untested lever.
+- Changed: `scripts/fold_seed_bag_pipeline.py` (runs routed_v3 +
+  spec_678 + nonrule under a single `FOLD_SEED` env var, saves per-seed
+  `_fs{seed}` artefacts); `scripts/fold_seed_bag_driver.sh` (sequential
+  driver across seed list); `scripts/fold_seed_bag_blend.py` (averages
+  per-seed OOFs in prob space, rebuilds hybrid/greedy/greedy+nonrule,
+  tunes log-bias on BAGGED GREEDY only, applies that bias FIXED to
+  greedy+nonrule so the evaluation is LB-methodology-consistent with
+  the single-seed reference 0.97421). Fold seeds `[42, 7, 123, 2024, 9999]`.
+  Smoke test: `FOLD_SEED=42` produced bit-identical OOF/test arrays
+  to the on-disk references (`max|Δ| = 0`), confirming pipeline
+  correctness.
+- Results (5-fold stratified OOF bal_acc, XGB_SEED=42 everywhere,
+  fold seeds varied):
+  ```
+  per-seed greedy+nonrule (tuned per seed):
+    seed 42   0.97423   (matches single-seed baseline 0.97421 ± numerical)
+    seed 7    0.97387
+    seed 123  0.97400
+    seed 2024 0.97406
+    seed 9999 0.97414
+    spread    0.00036,  mean 0.97406
+
+  BAGGED greedy (5-seed avg) tuned OOF        0.97398
+  BAGGED greedy+nonrule (FIXED greedy bias)   0.97440   <- LB-comparable
+  BAGGED greedy+nonrule (retune bias)         0.97459   (selection-bias suspect)
+
+  Δ bagged(fixed bias) vs single-seed         +0.00019
+  ```
+- **Per-class confusion trade** (bagged vs single-seed, fixed bias):
+  ```
+            Low       Medium     High
+  single  99.58%     96.08%     96.54%
+  bagged  99.53%     95.53%     97.26%
+  Δ       −0.05      −0.55      +0.72
+  ```
+  Bag trades Medium for High — right direction under balanced
+  accuracy where High has 3× leverage (+0.72 on a 3.3% prior is
+  ~+152 rows correct; −0.55 on a 37.9% prior is ~−1310 rows wrong).
+  Macro-recall net +0.0004, fully consistent with the +0.00019
+  tuned-bal_acc delta.
+- Per-seed variance was larger than predicted (0.00036 spread vs
+  estimated 0.00020), making fold-seed bagging a genuinely different
+  lever than the earlier training-seed bag null (where XGB
+  determinism capped per-seed spread at 0.00010).
+- Mapping to expected LB: single-seed OOF→LB gap = 0.00069. If the
+  bagged version preserves that gap, expected LB ≈ 0.97440 − 0.00069
+  = **~0.9737** vs current LB-best 0.97352, a modest +0.00019 LB
+  lift. Within fold-std noise but direction-clean.
+- Submission on disk but **not uploaded** (waiting on explicit user
+  go-ahead per CLAUDE.md LB-rule):
+  `submissions/submission_bagged_greedy_nonrule.csv` (fixed bias).
+- Calibration ladder (unchanged LB row since no submission yet):
+  ```
+  greedy+nonrule (single-seed, LB-best)      0.97421 → 0.97352   gap 0.00069
+  **bagged greedy+nonrule (5 fold-seeds)     0.97440 → expected 0.9737**
+  ```
+- LB budget: 3/10 used today, 7 remaining.
+- Artefacts: `scripts/artifacts/oof_bagged_greedy_nonrule.npy` (+
+  `test_bagged_greedy_nonrule.npy`) committed as cross-branch
+  exceptions. Per-seed `_fs{seed}` OOF/test `.npy` arrays are
+  gitignored by default (bulky; each ~15MB × 6 files × 5 seeds =
+  ~450MB). Summary JSONs `fold_seed_bag_pipeline_fs*.json` and
+  `fold_seed_bag_blend_results.json` committed.
+- Read-out: the fold-split-seed lever works, but the payoff is at
+  the bottom of the +0.0001–0.0005 band. Variance-reduction ceiling
+  is ~+0.0002 OOF on this pipeline (limited by the small per-seed
+  spread of 0.00036 at n=5 seeds; going to n=10 seeds gives at
+  most +0.0003 total per sqrt(n/5) scaling — diminishing returns).
+  Combined with the 3 components (routed/spec/nonrule) being
+  correlated across seeds, fold-seed bagging is **cheap insurance,
+  not a breakthrough**.
+- Next bets (ranked): (a) LB-probe the bagged submission to confirm
+  OOF→LB gap holds; (b) extend the bag to 10 seeds if LB-probe is
+  positive (~+0.0003 total); (c) shift compute to the genuinely
+  untried architectural angle — per-cell MLP on the 128 rule cells,
+  which targets the within-cell continuous-feature lever that all
+  the tree-ensemble and fold-seed-bag work structurally cannot reach.
+
 ## Hypothesis board
 
 - **Current best**: greedy + xgb-nonrule log-blend at α=0.15
