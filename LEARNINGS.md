@@ -101,6 +101,23 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   blend, ≥ 0.80 skip". Safe default: always sweep a small blend if
   the candidate lands within ±0.002 of current best; Jaccard only
   decides whether to fully reject at > 0.90.
+- **Error-count magnitude trumps Jaccard novelty for weak
+  candidates.** 2026-04-23 `recipe_no_ote` on recipe features
+  produced the lowest Jaccard (0.60) ever seen vs recipe_full_te
+  — genuinely novel error geometry, much lower than LGBM (0.84),
+  CatBoost CPU (0.81), CatBoost GPU (0.79). But no_ote had **+16%
+  more total errors** (11,760 vs recipe's 10,114) because
+  dropping OTE cost it 0.005 standalone OOF. Fixed-bias blend
+  sweep peaked at α=0.025 with Δ=+0.00000 — the +16% error-
+  magnitude drag cancelled the Jaccard novelty. Greedy forward-
+  selection over 14 candidates also rejected no_ote at every α.
+  **Rule refinement**: for a weak candidate (≥0.003 below anchor
+  standalone), Jaccard < 0.80 alone isn't enough. Need Jaccard <
+  0.80 AND error count ≤ anchor's. Compare `recipe_pseudolabel`
+  on main: Jaccard 0.78 (novel) AND 10,039 errs (FEWER than
+  recipe's 10,114) → blend lift Δ=+0.00046 LB. The "error count"
+  is the stricter gate; check it BEFORE committing compute to
+  a candidate whose standalone lands below anchor.
 - **Seed-bagging is noise below 1 fold-std.** A 2-seed bag of a
   near-deterministic model (XGB-dist, per-seed spread 0.00010 well
   below fold-std σ=0.00088) hit OOF +0.00010 and LB **−0.00012**

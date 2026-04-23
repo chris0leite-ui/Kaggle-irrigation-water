@@ -3531,6 +3531,74 @@ architecture or feature view adds orthogonal bits at this base.
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
 
+### 2026-04-23 — N1 recipe_no_ote: genuinely novel errors (Jaccard 0.60) but blend null — magnitude trap
+
+- Goal: execute N1 from the "Next steps" menu below. First variant:
+  `recipe_no_ote` — drop OrderedTE entirely, train XGB on the 92
+  numeric features only (nums + tres + logits + freq + orig_stats).
+  Hypothesis: OTE is the dominant signal source in full recipe; a
+  tree that never sees OTE is a structurally different decision
+  surface, unlike LGBM/CatBoost/XGB-dart which all share the 351
+  OTE features.
+- Changed: `scripts/recipe_subset_{fe,cv,xgb}.py` — short modular
+  split per the CLAUDE.md rule. Env var `RECIPE_SUBSET ∈ {no_ote,
+  no_digits, no_combos, no_orig}` selects which feature block to
+  drop. Reuses recipe_full_te's FE pipeline and XGB HPs so the
+  comparison is apples-to-apples. `scripts/analyze_vs_recipe.py`
+  for quick Jaccard + fixed-bias blend-sweep diagnostics.
+- Results (5-fold, seed=42, 630k):
+  - Per-fold argmax: 0.97030 / 0.97102 / 0.97191 / 0.97005 / 0.97010
+  - **Overall argmax 0.97067 ± 0.00083**
+  - **Tuned OOF 0.97465** (bias [1.53, 1.47, 3.40]) — **−0.00502 vs
+    recipe's 0.97967**. Weakest "on-recipe" tree so far.
+  - Error count: **11,760** (+16% vs recipe's 10,114)
+  - **Jaccard(err) vs recipe = 0.6040** — the lowest error overlap
+    of any tree on the recipe features. LGBM was 0.835, CatBoost
+    CPU 0.806, CatBoost GPU 0.788. The "novel" tag triggers per
+    the < 0.80 heuristic.
+- Fixed-bias log-blend sweep vs recipe:
+  ```
+  α=0.000  OOF=0.97967  Δ=+0.00000   (anchor)
+  α=0.025  OOF=0.97967  Δ=+0.00000   ← peak (flat)
+  α=0.050  OOF=0.97964  Δ=-0.00002
+  α=0.100  OOF=0.97958  Δ=-0.00008
+  α=0.500  OOF=0.97867  Δ=-0.00099
+  ```
+  Greedy forward-selection over all 14 saved OOFs (including
+  no_ote): picked `recipe_full_te (0.925) + digit_xgb (0.075)`
+  → OOF 0.97978 (+0.00012). **no_ote rejected at every α.**
+- **Lesson — refinement of the Jaccard heuristic**: Jaccard 0.60
+  is genuinely novel error geometry (lower than any prior tree
+  null), but the +16% error-magnitude dominates. Even at α=0.025,
+  the extra ~5k wrong answers from no_ote cancel the ~3.4k
+  complementary right answers it contributes. Compare to
+  pseudolabel on main (Jaccard 0.78, **FEWER** errors 10,039,
+  blend Δ=+0.00046): low Jaccard PLUS ≤-anchor error count is
+  what moves the blend.
+  New rule to LEARNINGS.md: **"Jaccard < 0.80 is necessary but
+  not sufficient for blend lift. A candidate must also have
+  error count ≤ the anchor's — otherwise the magnitude drag on
+  unique-wrong rows cancels the novelty on unique-right rows."**
+- Implication: **N1 variants no_digits / no_combos / no_orig will
+  hit the same trap.** Each is strictly weaker than full recipe
+  (less information), so their error counts will be comparable to
+  or worse than no_ote's 11,760. Skipping the remaining 3 variants.
+- Next bet (reframed): the only known component satisfying BOTH
+  Jaccard < 0.80 AND errors ≤ recipe is `recipe_pseudolabel`
+  (main's 0.97998 LB-best component). OOF is gitignored on main,
+  so we'd need to run `scripts/recipe_pseudolabel.py` locally
+  (~48 min) to experiment with 3-way blends adding no_ote/digit_xgb.
+  Alternatively pursue the untried 171-pair OTE (main's stated
+  next bet) which creates a fundamentally new feature surface.
+- LB delta: n/a (no LB probe warranted; OOF Δ +0.00012 via greedy
+  is below the +0.0002 LB-transfer threshold).
+- Artefacts:
+  - `scripts/artifacts/oof_recipe_no_ote.npy` + `test_recipe_no_ote.npy`
+  - `scripts/artifacts/recipe_no_ote_results.json`
+  - `submissions/submission_recipe_no_ote.csv` (diagnostic, not LB-worthy)
+- Current LB-best unchanged: `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at LB **0.97998** (from main).
+
 ### Next steps: feature-set diversity on top of the recipe anchor (2026-04-23)
 
 Confirmed after 4 tree-family nulls on recipe (XGB, LGBM, CatBoost CPU,
