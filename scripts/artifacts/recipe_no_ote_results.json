@@ -1,0 +1,26 @@
+{
+  "seed": 42,
+  "n_folds": 2,
+  "variant": "no_ote",
+  "fold_scores_argmax": [
+    0.9603453261716045,
+    0.9642321043364085
+  ],
+  "best_iters": [
+    279,
+    285
+  ],
+  "overall_argmax_bal_acc": 0.9622895146483949,
+  "tuned_log_bias_bal_acc": 0.9657318255849132,
+  "log_bias": [
+    2.4309433006850925,
+    2.0710109440743887,
+    3.403700511880274
+  ],
+  "n_features": 92,
+  "recipe_oof_tuned": 0.9796650350078755,
+  "delta_vs_recipe": -0.013933209422962278,
+  "error_count_subset": null,
+  "error_count_recipe": null,
+  "jaccard_vs_recipe": null
+}
