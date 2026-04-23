@@ -3717,6 +3717,106 @@ architecture or feature view adds orthogonal bits at this base.
      state to diagnose**. `ps aux | grep python` returning empty
      alongside the log stopping mid-fold is the OOM signature. No
      need to hunt for a missing error line.
+### 2026-04-23 — asymmetric 3-way with allpairs: LB null confirms stacking-inflation ceiling is structural
+
+- Goal: after parallel session's `recipe_no_ote` reconfirmed the refined
+  blend heuristic ("Jaccard < 0.80 AND err_count ≤ anchor" are BOTH
+  needed), re-examine `recipe_allpairs` which satisfies both (Jaccard
+  0.8111, errors 9,938 < recipe's 10,114) and has NOT been OOF-overfit
+  like stage-2. Manually grid-search a 3-way blend with stage-1 (the
+  LB-verified pseudo-label component) + allpairs added.
+- Changed: no new scripts — manual grid-search on saved OOFs. Finds
+  full-grid optimum at (w_recipe=0.50, w_stage1=0.30, w_allpairs=0.20)
+  with fixed-bias OOF = **0.98033** (Δ=+0.00020 vs LB-best 2-way's
+  0.98012). Rationale: asymmetric weights let allpairs enter without
+  diluting recipe's proven LB-transfer calibration.
+- Per-class recall at asymmetric blend: Low 99.51% / Medium 96.86% /
+  **High 97.73%** (competitive with stage-2 4-way's 97.82%, above
+  LB-best 2-way's ~97.68%). Error count 9,805 — LOWEST we've seen
+  on any blend or standalone.
+- Hypothesis: if stage-2's LB null was due to OOF-overfit (labeler
+  trained on same folds), replacing stage-2 with stage-1 (LB-proven)
+  + allpairs (fresh, not folds-contaminated) in the 3-way might
+  transfer better. Best-case: LB 0.98019 at stage-1's +0.00014 gap.
+  Worst-case: LB 0.97997 at 4-way's +0.00036 gap.
+- **LB probe** (submitted 17:58 UTC):
+  `submission_asym_3way_recipe050_stage1030_allpairs020.csv` →
+  **LB = 0.97995**. Δ vs LB-best = **−0.00003** (effectively tied,
+  null). OOF→LB gap = **+0.00038** — matches the stage-2 4-way's
+  +0.00036 EXACTLY. Allpairs didn't change the gap math.
+- **Stacking-inflation ceiling is structural, not component-specific.**
+  Three separate 3+ component blends have all hit OOF 0.98033 and
+  all landed LB 0.97995-0.97997:
+  ```
+  OOF    LB      gap      composition
+  0.98033 0.97997 +0.00036  4-way w/ stage-2 (earlier)
+  0.98033 0.97995 +0.00038  asymmetric 3-way w/ allpairs (this)
+  0.98027 0.97989 +0.00038  2-way recipe × stage-2 (null)
+  0.98012 0.97998 +0.00014  2-way recipe × stage-1 (LB BEST) ← structural sweet spot
+  ```
+  **Rule:** on this feature set, OOF→LB gap grows ~+0.0001 per
+  +0.0001 OOF above 0.98012. LB stays pinned at ~0.97995-0.97998 for
+  any blend that reaches OOF 0.9802-0.9805. The 2-way LB-best is the
+  operating-point sweet spot; further stacking produces cosmetic OOF
+  lift with zero LB transfer.
+- **Implication:** breaking above LB 0.97998 requires a genuinely
+  different mechanism, not another blend variant. Ceiling-breaking
+  candidates:
+  1. **Quantile-binned num×num OTE** (fixes the literal 171-pair
+     attempt that OOM'd on raw-float pairs). Makes num×num
+     factorization tractable by binning nums first. New feature
+     surface, not another stacking variant.
+  2. **Soft-target distillation from LB-best blend.** Train XGB on
+     recipe features targeting the blend's full 3-class soft probs
+     (not argmax pseudo-labels). Uses the blend's full posterior
+     distribution; different signal-extraction path than hard pseudo.
+  3. **Heavy original-weight training.** Multiply the 10k rule-perfect
+     orig rows by 10x sample_weight during XGB training. Shifts
+     decision boundary toward the rule-clean space; may particularly
+     help rare-class (High) recall where the flip signal lives.
+- LB budget: **8/10 used today, 2 remaining.** Save the 2 for tomorrow's
+  potential ceiling-breaker probes. No further submissions today.
+
+### 2026-04-23 — full 12-component greedy confirms +0.0002 LB-transfer ceiling is structural
+
+- Goal: with ALL parallel-session OOFs synced locally (recipe,
+  pseudolabel, pseudo_stage2, lgbm, catboost, allpairs, N1 subsets
+  {no_digits, no_combos, no_orig, no_ote}, OTE-strength variants
+  {a01, a10}), run comprehensive greedy over the full 12-component
+  OOF bank to check whether any combination main hadn't tested
+  produces a blend with per-step Δ ≥ +0.0002 (the documented LB-
+  transfer threshold).
+- Changed: ad-hoc script in `logs/greedy_full_recipe_bank.log` (no
+  retraining — OOF-space only).
+- **Results — greedy from recipe anchor (6-way, identical to main's
+  4-way ceiling + 2 extras)**:
+  ```
+  + pseudo_stage2 α=0.500  OOF 0.98026  Δ=+0.00059  ≥+0.0002 ✓
+  + catboost      α=0.175  OOF 0.98031  Δ=+0.00005  ✗
+  + no_digits     α=0.050  OOF 0.98034  Δ=+0.00004  ✗
+  + allpairs      α=0.075  OOF 0.98036  Δ=+0.00002  ✗
+  + a10           α=0.025  OOF 0.98039  Δ=+0.00002  ✗
+  final OOF 0.98039  (Δ +0.00072 vs recipe)
+  ```
+- **Greedy from LB-best anchor (pseudolabel 50/50, OOF 0.98012)**:
+  ```
+  + allpairs α=0.250  OOF 0.98026  Δ=+0.00014  ✗
+  + no_ote   α=0.075  OOF 0.98031  Δ=+0.00005  ✗
+  ```
+- **Verdict**: every per-step addition after the first (pseudo_stage2)
+  is below the +0.0002 LB-transfer threshold. Main already verified
+  this with the 4-way `recipe+stage2+cat+stage1` (OOF 0.98033 → LB
+  0.97997 null). Expected LB of the new 6-way ≈ 0.97997 — same
+  structural ceiling.
+- **The +0.00072 OOF lift over recipe is spread across 5 components,
+  each below +0.0002. No single addition produces a real LB move.**
+- **Own-pipeline LB ceiling at 0.97998 is robust** across all 12-
+  component combinations (recipe, pseudo, pseudo_stage2, lgbm,
+  catboost, allpairs, 4 N1 subsets, 2 OTE-alpha variants). The
+  structural rule holds. Pack 0.98114 remains +0.00116 above,
+  reachable only via public-CSV blending (banned).
+- No LB probe warranted. LB-best stays `submission_recipe_greedy_recipe_pseudolabel.csv`
+  → **LB 0.97998**.
 
 ## Hypothesis board
 
@@ -3727,9 +3827,13 @@ architecture or feature view adds orthogonal bits at this base.
   test probs at τ=0.98 (226k/270k test rows kept, pseudo class dist
   matches real-train, +41% boost to rare-High pool). Pack 0.98114 is
   +0.00116 above; leader 0.98219 is +0.00221 above.
-  LB budget today: 3 remaining (7/10 used: 2 digits-OTE variants +
+  LB budget today: 2 remaining (8/10 used: 2 digits-OTE variants +
   1 greedy_full_bank + 1 recipe_full_te + 1 recipe×pseudolabel 2-way
-  + 1 4-way blend probe + 1 recipe×pseudo_stage2 2-way).
+  + 1 4-way blend probe + 1 recipe×pseudo_stage2 2-way
+  + 1 asymmetric 3-way with allpairs).
+  Stacking-inflation ceiling CONFIRMED: 3 submissions at OOF 0.9802-0.9804
+  all landed LB 0.97995-0.97997 (gap +0.00036 to +0.00038). Breaking above
+  LB 0.97998 requires a genuinely different mechanism, not another blend.
 
   Second-best: `submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_pseudolabel.csv`
   → **LB 0.97997 / OOF tuned 0.98033** (gap +0.00036, null follow-up).
@@ -3834,6 +3938,57 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_recipe_no_ote.csv` (diagnostic, not LB-worthy)
 - Current LB-best unchanged: `submission_recipe_greedy_recipe_pseudolabel.csv`
   at LB **0.97998** (from main).
+
+### 2026-04-23 — N1 remaining 3 variants (no_digits, no_combos, no_orig) all LB-null — magnitude-trap rule confirmed
+
+- Goal: despite the main-branch session saying "skipping remaining 3
+  variants" after no_ote's blend-null magnitude trap, a parallel
+  feature branch ran them anyway to verify the rule. All 3 ran on
+  the same 5-fold seed=42 with same XGB HPs as recipe_full_te.
+- Results (5-fold OOF, tuned log-bias):
+  ```
+                Tuned OOF   Δ vs recipe   Errors   Jaccard vs recipe
+  recipe         0.97967        —         10,114   1.00
+  no_digits      0.97956    −0.00011      10,393   0.7866   (+2.8% errs)
+  no_combos      0.97951    −0.00016      10,742   0.8361   (+6.2% errs)
+  no_ote         0.97465    −0.00502      11,730   0.6066   (+16% errs)
+  no_orig        0.97961    −0.00006      10,618   0.8555   (+5.0% errs)
+  ```
+- **Magnitude-trap rule holds for all 4 variants.** Each has MORE
+  errors than recipe (the rule predicts blend-null), despite some
+  having lower Jaccards. no_orig is the closest-to-tied standalone
+  but has highest Jaccard (0.8555 — errors overlap too much with
+  recipe). no_ote has lowest Jaccard but +16% error magnitude.
+- **5-way blend ceiling: OOF 0.97982 (Δ=+0.00015 vs recipe)**.
+  Greedy forward from recipe anchor at fixed bias:
+  ```
+  + no_digits α=0.300  OOF 0.97978 (+0.00012)
+  + no_orig   α=0.025  OOF 0.97982 (+0.00003)
+  no further additions (no_combos, no_ote below threshold)
+  ```
+  5-way grid gives same ceiling 0.97982 at (recipe 0.60,
+  no_digits 0.20, no_combos 0.15, no_ote 0.03, no_orig 0.00).
+  Coord-ascent on the 3-way weights converged at iter 0 — already
+  optimal.
+- **+0.00015 OOF is well below the +0.0002 LB-transfer threshold**
+  established by main's 4-way stage-2 blend null. Given recipe's
+  +0.00028 OOF→LB gap, expected LB ≈ 0.97926 (below current LB-best
+  0.97998). **No LB probe warranted.**
+- Verdict: N1 is **fully closed** — all 4 variants individually
+  confirm the magnitude-trap rule; blend ceiling +0.00015 OOF, below
+  LB-transfer threshold. Artifacts preserved for cross-branch greedy
+  use but unlikely to contribute to future blends.
+- **What N1 proved beyond its immediate null**: the 5-way-blend
+  ceiling of +0.00015 on recipe-subsets is a clean upper bound on
+  "feature-removal diversity" as a lever. To break through, we need
+  feature-ADDITION (171-pair OTE, external data source, etc.) or
+  a new training objective, not subtraction.
+- Artefacts:
+  - `scripts/artifacts/oof_recipe_no_digits.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_combos.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_orig.npy` (+ test + JSON)
+  - `scripts/artifacts/recipe_5way_blend_results.json`
+  - 4 diagnostic submissions (LB-inferior, not for probe)
 
 ### Next steps: feature-set diversity on top of the recipe anchor (2026-04-23)
 
