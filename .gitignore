@@ -108,3 +108,8 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_extratrees_dist_digits.npy
 !scripts/artifacts/oof_extratrees_dist_digits_v2.npy
 !scripts/artifacts/test_extratrees_dist_digits_v2.npy
+# Full public-notebook recipe: cat-pair combos + digits + num-as-cat +
+# FREQ + ORIG mean/std + LR-formula logits + OrderedTE on ~140 cats,
+# heavy-reg XGB. OOF 0.97967 / LB pending. New top candidate.
+!scripts/artifacts/oof_recipe_full_te.npy
+!scripts/artifacts/test_recipe_full_te.npy
