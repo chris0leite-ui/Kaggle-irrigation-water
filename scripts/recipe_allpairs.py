@@ -77,15 +77,34 @@ def log(msg: str) -> None:
 
 def add_all_pair_combos(train: pd.DataFrame, test: pd.DataFrame,
                         orig: pd.DataFrame,
-                        all_cols: list[str]) -> list[str]:
-    """Pair every combination(all_cols, 2) as string-concat + factorize.
+                        cats: list[str], nums: list[str],
+                        scope: str = "cat_num") -> list[str]:
+    """Pair columns as string-concat + factorize, scoped by `scope`.
 
-    171 pairs for all_cols = 19 original columns (8 cats + 11 nums).
+    scope = "cat_cat"  → C(cats, 2)  = 28 pairs (baseline recipe_full_te)
+    scope = "cat_num"  → cat×cat + cat×num = 28 + 88 = 116 pairs (default,
+                                                                  Ali Afzal recipe
+                                                                  minus num×num)
+    scope = "all"      → C(cats+nums, 2) = 171 pairs (literal Ali Afzal,
+                                                     memory-heavy)
+
     Each resulting col is an integer factorization shared across
-    train+test+orig.
+    train+test+orig. num×num pairs are the lowest-signal subset (two raw
+    floats rarely repeat so factorized keys are near-unique per row) and
+    also the biggest memory bite during XGB histogram allocation.
     """
+    from itertools import product
+    if scope == "cat_cat":
+        pair_iter = combinations(cats, 2)
+    elif scope == "cat_num":
+        pair_iter = list(combinations(cats, 2)) + list(product(cats, nums))
+    elif scope == "all":
+        pair_iter = combinations(cats + nums, 2)
+    else:
+        raise ValueError(f"unknown scope={scope!r}")
+
     new_cols: list[str] = []
-    for c1, c2 in combinations(all_cols, 2):
+    for c1, c2 in pair_iter:
         col = f"COMBO_{c1}_{c2}"
         for df in (train, test, orig):
             df[col] = df[c1].astype(str) + "_" + df[c2].astype(str)
@@ -128,10 +147,12 @@ def load_and_engineer_allpairs():
     for df in (train, test, orig):
         logits = add_lr_formula_logits(df)
 
-    # EXPANDED: all C(19, 2) pair combos instead of C(8, 2).
-    all_19 = cats + nums
-    log(f"adding ALL-pair combos: C({len(all_19)},2)={len(list(combinations(all_19, 2)))} pairs")
-    combos = add_all_pair_combos(train, test, orig, all_19)
+    # EXPANDED: cat×cat + cat×num pairs (116 total, vs recipe_full_te's 28).
+    # Set PAIR_SCOPE=all to get C(19,2)=171 but risk OOM during XGB init.
+    scope = os.environ.get("PAIR_SCOPE", "cat_num")
+    log(f"adding pair combos (scope={scope!r})")
+    combos = add_all_pair_combos(train, test, orig, cats, nums, scope=scope)
+    log(f"  built {len(combos)} pair combos")
 
     log("adding digit features")
     digits = add_digit_features(train, test, orig, nums)
