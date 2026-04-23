@@ -39,9 +39,19 @@ import pandas as pd
 
 
 def _key_strings(df: pd.DataFrame, key_cols: Sequence[str]) -> pd.Series:
+    """Return a 1-D string series used for factorisation lookups.
+
+    For single-col keys: direct cast. For multi-col keys: numpy-vectorised
+    string concat via np.char.add, avoiding pandas' slow agg(axis=1).
+    """
     if len(key_cols) == 1:
         return df[key_cols[0]].astype(str)
-    return df[list(key_cols)].astype(str).agg("\x1f".join, axis=1)
+    sep = "\x1f"
+    arrs = [df[c].astype(str).values for c in key_cols]
+    out = arrs[0].astype(object)
+    for arr in arrs[1:]:
+        out = np.char.add(np.char.add(out.astype(str), sep), arr.astype(str))
+    return pd.Series(out, index=df.index)
 
 
 @dataclass
