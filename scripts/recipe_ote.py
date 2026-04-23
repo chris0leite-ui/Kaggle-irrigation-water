@@ -36,21 +36,24 @@ class OrderedTE:
         self.prior_ = counts / counts.sum()
         self.cols_ = list(cat_cols)
 
-        df = df.copy()
+        # Collect TE columns in a dict and concat once — avoids the pandas
+        # fragmentation warning and matching 2-3x slowdown on 500+ inserts.
+        te_cols_out: dict[str, np.ndarray] = {}
         for c in self.cols_:
             stats_list = []
+            key = df[c].to_numpy()
             for k, cls in enumerate(self.classes_):
                 y_bin = (df[target] == cls).astype(np.int32).to_numpy()
-                grp = pd.DataFrame({c: df[c].to_numpy(), "y": y_bin})
-                cum_cnt = grp.groupby(c, observed=True, sort=False)["y"].cumcount().to_numpy()
-                cum_sum_incl = grp.groupby(c, observed=True, sort=False)["y"].cumsum().to_numpy()
+                grp = pd.DataFrame({c: key, "y": y_bin})
+                grouped = grp.groupby(c, observed=True, sort=False)["y"]
+                cum_cnt = grouped.cumcount().to_numpy()
+                cum_sum_incl = grouped.cumsum().to_numpy()
                 cum_sum_excl = cum_sum_incl - y_bin
                 prior = self.prior_[k]
                 te = (cum_sum_excl + self.a * prior) / (cum_cnt + self.a)
-                df[f"{c}_TE_cls{cls}"] = te.astype(np.float32)
+                te_cols_out[f"{c}_TE_cls{cls}"] = te.astype(np.float32)
 
-                agg = grp.groupby(c, observed=True, sort=False)["y"].agg(
-                    ["count", "sum"]).reset_index()
+                agg = grouped.agg(["count", "sum"]).reset_index()
                 agg.columns = [c, f"{c}_n_{cls}", f"{c}_s_{cls}"]
                 stats_list.append(agg)
 
@@ -58,10 +61,11 @@ class OrderedTE:
                 lambda a_df, b_df: a_df.merge(b_df, on=c, how="outer"),
                 stats_list,
             )
-        return df
+        te_df = pd.DataFrame(te_cols_out, index=df.index)
+        return pd.concat([df, te_df], axis=1)
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = df.copy()
+        te_cols_out: dict[str, np.ndarray] = {}
         for c in self.cols_:
             stats = self.stats_[c]
             merged = df[[c]].merge(stats, on=c, how="left")
@@ -77,8 +81,9 @@ class OrderedTE:
                         (s + self.a * prior) / (n + self.a),
                         prior,
                     )
-                df[f"{c}_TE_cls{cls}"] = te.astype(np.float32)
-        return df
+                te_cols_out[f"{c}_TE_cls{cls}"] = te.astype(np.float32)
+        te_df = pd.DataFrame(te_cols_out, index=df.index)
+        return pd.concat([df, te_df], axis=1)
 
     def te_col_names(self) -> list[str]:
         return [f"{c}_TE_cls{cls}" for c in self.cols_ for cls in self.classes_]
