@@ -36,6 +36,13 @@ CLS2IDX = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS2IDX.items()}
 
 VARIANT_SUFFIXES = ["_a01", "_a10", "_dart"]
+# Additional OOFs from main's N1 ablation (drop one feature block each).
+# These use a different naming pattern (oof_recipe_<variant>.npy, not
+# oof_recipe_full_te_<suffix>.npy) so they need an explicit list.
+EXTRA_VARIANTS = [
+    "recipe_no_digits", "recipe_no_combos", "recipe_no_orig",
+    "recipe_full_te_lgbm", "recipe_full_te_catboost",
+]
 ALPHAS = np.array([0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.20, 0.25,
                    0.30, 0.35, 0.40, 0.45, 0.50])
 
@@ -115,8 +122,10 @@ def main() -> None:
 
     # --- per-variant diagnostics + pairwise sweeps -----------------------
     loaded = {}
-    for suffix in VARIANT_SUFFIXES:
-        name = f"recipe_full_te{suffix}"
+    names_to_try = (
+        [f"recipe_full_te{s}" for s in VARIANT_SUFFIXES] + list(EXTRA_VARIANTS)
+    )
+    for name in names_to_try:
         oof_p = ART / f"oof_{name}.npy"
         test_p = ART / f"test_{name}.npy"
         if not (oof_p.exists() and test_p.exists()):
