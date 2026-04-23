@@ -121,3 +121,9 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_full_te_catboost.npy
 !scripts/artifacts/oof_catboost_recipe_gpu.npy
 !scripts/artifacts/test_catboost_recipe_gpu.npy
+# LGBM on recipe feature set: 4th tree-family null (tuned 0.97926).
+# Error count 10,082 (FEWER than recipe's 10,114) + Jaccard 0.835 but
+# blend still null - disagreement space too small. Kept for
+# cross-branch diagnostic reuse.
+!scripts/artifacts/oof_recipe_full_te_lgbm.npy
+!scripts/artifacts/test_recipe_full_te_lgbm.npy

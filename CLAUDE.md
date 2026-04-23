@@ -3173,6 +3173,62 @@ architecture or feature view adds orthogonal bits at this base.
   2. **Safe fallback**: `submission_recipe_full_te_catboost.csv`
      → **LB 0.97935** (different model family, tight calibration)
 
+### 2026-04-23 — LGBM on recipe feature set: 4th tree-family null, pattern confirmed
+
+- Goal: LGBM has different splits than XGB/CatBoost — still a tree,
+  but leaf-wise growth vs level-wise. Hypothesis: the recipe's 500-col
+  feature set (esp. the 351 OTE cols + 38 ORIG stats) might give LGBM
+  structurally new signal to exploit.
+- Changed: `scripts/recipe_full_te_lgbm.py` — mirrors `recipe_full_te.py`
+  but swaps XGBClassifier → LGBMClassifier. HPs match recipe philosophy:
+  `num_leaves=16` (≈ max_depth=4), `min_data_in_leaf=20`, `lr=0.1`,
+  `feature/bagging_fraction=0.8`, `bagging_freq=5`, `lambda_l1=5`,
+  `lambda_l2=5`, `n_estimators=3000`, `early_stopping=200`. Same
+  5-fold seed=42, same per-fold OrderedTE, same class-balanced sample
+  weights. 13 min wall on CPU.
+- Standalone results:
+  - Per-fold argmax: 0.97527 / 0.97592 / 0.97619 / 0.97437 / 0.97539
+  - Mean fold argmax 0.97543 (recipe XGB 0.97589, CPU CatBoost 0.97806)
+  - **Tuned OOF 0.97926** (recipe: 0.97967, **−0.00041** below)
+  - **Error count 10,082** (recipe: 10,114) — first novel model with
+    FEWER errors than recipe
+  - best_iter range 722-983 (capped at 3000, early stopping triggered)
+- Blend results (fixed recipe bias):
+  ```
+  2-way LGBM × recipe:   peak α_lgbm=0.15 → 0.97971  Δ=+0.00004
+  3-way + CPU CatBoost:  (recipe 0.75, lgbm 0.20, cat 0.05) → 0.97971  Δ=+0.00005
+  ```
+  Both below +1e-4 emit gate. **Null.**
+- Jaccard vs recipe = **0.8350** — orthogonal but the blend still
+  doesn't lift.
+- **Diagnosis — redundancy math**: LGBM errors 10,082, recipe errors
+  10,114, Jaccard 0.835. From |A∩B|/|A∪B| = 0.835 ⇒ they share
+  ~9,189 error rows and disagree on only ~1,818. For a log-blend to
+  lift, the disagreement rows need to be dominated by one model being
+  right and the other wrong. With only 1,818 rows to work with (0.29%
+  of total), even perfect selection among them gives at most ~0.001
+  OOF lift — and real blends only get a fraction of that.
+- **Pattern confirmed across 4 tree-family models on recipe features**:
+  ```
+  Model                Tuned OOF    Errors    Jaccard   Blend Δ vs recipe
+  Recipe XGB           0.97967      10,114    1.00      — (baseline)
+  LGBM on recipe       0.97926      10,082    0.835     +0.00004 (null)
+  CatBoost CPU         0.97936      10,447    0.806     +0.00001 (null)
+  CatBoost GPU         0.97894      10,902    0.788     +0.00000 (null)
+  ```
+  All 4 converge to nearly the same prediction surface. **Tree-family
+  architectural diversity is structurally exhausted on this recipe
+  feature set.**
+- **Redundancy rule (added to LEARNINGS.md candidate)**: "When 4+
+  gradient-boosted-tree model families all produce Jaccard ≥ 0.78 AND
+  similar error counts on the same feature set, further tree-family
+  additions are null. To break the pattern: change the feature set,
+  not the model."
+- No LB probe. LB-best unchanged at 0.97939. Artifacts committed:
+  `oof_recipe_full_te_lgbm.npy`, `test_recipe_full_te_lgbm.npy`,
+  `recipe_full_te_lgbm_results.json`,
+  `submissions/submission_recipe_full_te_lgbm.csv` (diagnostic).
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_full_te.csv` →
