@@ -1,0 +1,31 @@
+{
+  "variant": "digits_light",
+  "seed": 42,
+  "n_folds": 5,
+  "n_features_total": 227,
+  "n_base_features": 89,
+  "n_ote_cols": 138,
+  "n_ote_keys": 46,
+  "ote_n_shuffles": 2,
+  "ote_alpha": 1.0,
+  "class_priors": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ],
+  "log_bias": [
+    -0.06755883676390251,
+    0.7689466919465482,
+    3.400768902044088
+  ],
+  "argmax_bal_acc": 0.9648574870706619,
+  "reweight_bal_acc": 0.9731009674732806,
+  "tuned_bal_acc": 0.9737133353981765,
+  "best_iters": [
+    454,
+    411,
+    436,
+    446,
+    509
+  ]
+}
