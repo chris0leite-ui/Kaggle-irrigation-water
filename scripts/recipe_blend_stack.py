@@ -103,35 +103,48 @@ def main():
     elif jacc < 0.65:
         log("  Jaccard < 0.65: decent orthogonality; check error magnitude")
 
-    # ---------- (1) log-blend α sweep
+    # ---------- (1) log-blend α sweep (fixed-bias AND tuned-bias diagnostic)
     alpha_grid = np.array(
         [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65,
          0.70, 0.75, 0.80, 0.85, 0.90]
     )  # α = weight on XGB (anchor)
     log("\n--- log-blend sweep (α = weight on XGB) ---")
+    log("  fixed-bias == XGB's bias; tuned = coord-ascent on blend (DIAGNOSTIC ONLY)")
     log_sweep = []
     for a in alpha_grid:
         b = log_blend(xgb_oof, cat_oof, a)
-        ba = fixed_bias_ba(b, y, bias)
-        log_sweep.append((float(a), ba))
-        log(f"  α={a:.2f}  OOF={ba:.5f}  Δ={ba - xgb_ba:+.5f}")
+        ba_fixed = fixed_bias_ba(b, y, bias)
+        _, ba_tuned = tune_log_bias(b, y.astype(np.int32), prior)
+        log_sweep.append((float(a), ba_fixed, ba_tuned))
+        log(f"  α={a:.2f}  fixed={ba_fixed:.5f}  tuned={ba_tuned:.5f}  "
+            f"Δf={ba_fixed - xgb_ba:+.5f}  Δt={ba_tuned - xgb_ba:+.5f}")
     best_log_idx = int(np.argmax([s[1] for s in log_sweep]))
-    best_log_alpha, best_log_ba = log_sweep[best_log_idx]
-    log(f"log-blend peak: α={best_log_alpha:.2f}  OOF={best_log_ba:.5f}  "
+    best_log_alpha, best_log_ba, best_log_tuned = log_sweep[best_log_idx]
+    best_log_tuned_alpha = log_sweep[int(np.argmax([s[2] for s in log_sweep]))][0]
+    best_log_tuned_ba = max(s[2] for s in log_sweep)
+    log(f"log-blend fixed-bias peak: α={best_log_alpha:.2f}  OOF={best_log_ba:.5f}  "
         f"Δ={best_log_ba - xgb_ba:+.5f}")
+    log(f"log-blend tuned-bias peak (DIAG): α={best_log_tuned_alpha:.2f}  "
+        f"OOF={best_log_tuned_ba:.5f}  Δ={best_log_tuned_ba - xgb_ba:+.5f}")
 
     # ---------- (2) prob-blend α sweep
     log("\n--- prob-blend sweep (arithmetic) ---")
     prob_sweep = []
     for a in alpha_grid:
         b = prob_blend(xgb_oof, cat_oof, a)
-        ba = fixed_bias_ba(b, y, bias)
-        prob_sweep.append((float(a), ba))
-        log(f"  α={a:.2f}  OOF={ba:.5f}  Δ={ba - xgb_ba:+.5f}")
+        ba_fixed = fixed_bias_ba(b, y, bias)
+        _, ba_tuned = tune_log_bias(b, y.astype(np.int32), prior)
+        prob_sweep.append((float(a), ba_fixed, ba_tuned))
+        log(f"  α={a:.2f}  fixed={ba_fixed:.5f}  tuned={ba_tuned:.5f}  "
+            f"Δf={ba_fixed - xgb_ba:+.5f}  Δt={ba_tuned - xgb_ba:+.5f}")
     best_prob_idx = int(np.argmax([s[1] for s in prob_sweep]))
-    best_prob_alpha, best_prob_ba = prob_sweep[best_prob_idx]
-    log(f"prob-blend peak: α={best_prob_alpha:.2f}  OOF={best_prob_ba:.5f}  "
+    best_prob_alpha, best_prob_ba, best_prob_tuned = prob_sweep[best_prob_idx]
+    best_prob_tuned_alpha = prob_sweep[int(np.argmax([s[2] for s in prob_sweep]))][0]
+    best_prob_tuned_ba = max(s[2] for s in prob_sweep)
+    log(f"prob-blend fixed-bias peak: α={best_prob_alpha:.2f}  OOF={best_prob_ba:.5f}  "
         f"Δ={best_prob_ba - xgb_ba:+.5f}")
+    log(f"prob-blend tuned-bias peak (DIAG): α={best_prob_tuned_alpha:.2f}  "
+        f"OOF={best_prob_tuned_ba:.5f}  Δ={best_prob_tuned_ba - xgb_ba:+.5f}")
 
     # ---------- (3) LR meta-stacker (honest inner 5-fold stacking)
     log("\n--- LR meta-stacker (inner 5-fold stacked features) ---")
@@ -157,7 +170,7 @@ def main():
     for i, (tr_i, va_i) in enumerate(inner.split(X_meta, y), 1):
         lr = LogisticRegression(
             C=1.0, solver="lbfgs", max_iter=1000, class_weight="balanced",
-            multi_class="multinomial", random_state=SEED,
+            random_state=SEED,
         )
         lr.fit(X_meta[tr_i], y[tr_i])
         meta_oof[va_i] = lr.predict_proba(X_meta[va_i]).astype(np.float32)
