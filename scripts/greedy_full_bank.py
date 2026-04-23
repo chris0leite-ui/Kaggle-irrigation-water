@@ -58,6 +58,8 @@ CANDIDATES = [
     ("cat_ote",          "oof_xgb_dist_digits_ote.npy",          "test_xgb_dist_digits_ote.npy"),
     ("cat_ote_light",    "oof_xgb_dist_digits_ote_light.npy",    "test_xgb_dist_digits_ote_light.npy"),
     ("lgbm_digit",       "oof_lgbm_dist_digits.npy",             "test_lgbm_dist_digits.npy"),
+    ("lgbm_digit_ote",   "oof_lgbm_dist_digits_ote.npy",         "test_lgbm_dist_digits_ote.npy"),
+    ("extratrees",       "oof_extratrees_dist_digits.npy",       "test_extratrees_dist_digits.npy"),
     ("xgb_nonrule",      "oof_xgb_nonrule.npy",                  "test_xgb_nonrule.npy"),
     ("xgb_vanilla_dist", "oof_xgb_vanilla_dist.npy",             "test_xgb_vanilla_dist.npy"),
     ("xgb_routed_v3",    "oof_xgb_dist_routed_v3.npy",           "test_xgb_dist_routed_v3.npy"),
