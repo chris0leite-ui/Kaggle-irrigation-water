@@ -109,7 +109,7 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray):
 
 
 def _all_key_specs() -> list[list[str]]:
-    return [list(k) for k in SINGLE_CATS] + [list(p) for p in PAIR_CATS] + [list(k) for k in RULE_KEYS]
+    return [[c] for c in SINGLE_CATS] + [list(p) for p in PAIR_CATS] + [list(k) for k in RULE_KEYS]
 
 
 def main() -> None:
