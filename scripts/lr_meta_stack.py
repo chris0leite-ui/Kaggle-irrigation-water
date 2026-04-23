@@ -130,7 +130,6 @@ def main() -> None:
     for fold, (tr_idx, va_idx) in enumerate(skf.split(np.zeros(n_train), y)):
         t0 = time.time()
         lr = LogisticRegression(
-            multi_class="multinomial",
             class_weight="balanced",
             C=1.0,
             solver="lbfgs",
