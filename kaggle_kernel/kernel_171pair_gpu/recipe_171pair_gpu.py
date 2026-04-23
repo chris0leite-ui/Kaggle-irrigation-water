@@ -82,7 +82,7 @@ KAGGLE_INPUT = Path("/kaggle/input")
 OUT_DIR = Path("/kaggle/working")
 OUT_DIR.mkdir(exist_ok=True, parents=True)
 
-SMOKE = os.environ.get("SMOKE") == "1"
+SMOKE = os.environ.get("SMOKE", "1") == "1"  # hardcoded True for v1 smoke
 if SMOKE:
     N_FOLDS = 2
 
