@@ -1,0 +1,110 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "lowmed": {
+    "domain_scores": [
+      2,
+      3,
+      4
+    ],
+    "pos_class": "Low",
+    "neg_class": "Medium",
+    "in_domain_auc": 0.9929871454577689,
+    "folds": [
+      {
+        "fold": 0,
+        "best_iter": 537,
+        "in_domain_auc": 0.9933540300288336,
+        "n_train": 274012,
+        "n_val_in_dom": 68189
+      },
+      {
+        "fold": 1,
+        "best_iter": 465,
+        "in_domain_auc": 0.9926893770655298,
+        "n_train": 273760,
+        "n_val_in_dom": 68441
+      },
+      {
+        "fold": 2,
+        "best_iter": 462,
+        "in_domain_auc": 0.992422589263367,
+        "n_train": 273651,
+        "n_val_in_dom": 68550
+      },
+      {
+        "fold": 3,
+        "best_iter": 398,
+        "in_domain_auc": 0.9932091013790731,
+        "n_train": 273424,
+        "n_val_in_dom": 68777
+      },
+      {
+        "fold": 4,
+        "best_iter": 494,
+        "in_domain_auc": 0.9932958841809311,
+        "n_train": 273957,
+        "n_val_in_dom": 68244
+      }
+    ]
+  },
+  "medhigh": {
+    "domain_scores": [
+      5,
+      6,
+      7
+    ],
+    "pos_class": "Medium",
+    "neg_class": "High",
+    "in_domain_auc": 0.9922543999934031,
+    "folds": [
+      {
+        "fold": 0,
+        "best_iter": 405,
+        "in_domain_auc": 0.9903708113251306,
+        "n_train": 105998,
+        "n_val_in_dom": 26569
+      },
+      {
+        "fold": 1,
+        "best_iter": 477,
+        "in_domain_auc": 0.9925183087718685,
+        "n_train": 106140,
+        "n_val_in_dom": 26427
+      },
+      {
+        "fold": 2,
+        "best_iter": 430,
+        "in_domain_auc": 0.992359964715217,
+        "n_train": 106134,
+        "n_val_in_dom": 26433
+      },
+      {
+        "fold": 3,
+        "best_iter": 493,
+        "in_domain_auc": 0.993064700618358,
+        "n_train": 106161,
+        "n_val_in_dom": 26406
+      },
+      {
+        "fold": 4,
+        "best_iter": 456,
+        "in_domain_auc": 0.9930218387297552,
+        "n_train": 105835,
+        "n_val_in_dom": 26732
+      }
+    ]
+  },
+  "dgp_score_distribution": {
+    "0": 33767,
+    "1": 115457,
+    "2": 122220,
+    "3": 102157,
+    "4": 117837,
+    "5": 79203,
+    "6": 38416,
+    "7": 15026,
+    "8": 2680,
+    "9": 3237
+  }
+}
