@@ -2641,6 +2641,38 @@ architecture or feature view adds orthogonal bits at this base.
   `test_xgb_dist_digits_ote_{light,digits}.npy`, three result JSONs,
   all 6 submissions (standalones + blends) on `claude/plan-next-steps-I32rC`.
 
+### 2026-04-23 — digits_light variant (compound light + digits): null
+
+- Goal: compound the two "winning" OTE ingredients (alpha=1/shuffles=2
+  calibration lift from `light`; digit-column keys from `digits`) into
+  a single variant. Hypothesis: if the two wins are independent, the
+  combined variant should beat digits alone.
+- Changed: added `digits_light` branch in `OTE_VARIANT` env var
+  handling. 46 single-key OTEs on digit cols with alpha=1, shuffles=2.
+- Results (OOF 5-fold, seed=42):
+  - Standalone: argmax 0.96486 (digits 0.96520, light 0.96433),
+    tuned **0.97371** — **worst of all digit-key variants**.
+  - Blend vs digit-XGB (LB-best 0.97449): peak α=0.40 → 0.97469
+    (Δ = +0.00020). Strictly below digits variant's +0.00028 at
+    same α.
+- Diagnosis: alpha=1 on 10-card keys overweights raw observations,
+  making per-row encodings noisier than useful. Digit keys need
+  alpha=10 smoothing to produce stable per-digit-value class probs;
+  alpha=1 converts the OTE from "smoothed per-digit class
+  distribution" to "near-unsmoothed per-row neighbor voting",
+  which has too much variance. Alpha=1 only helped the CAT-key
+  variant because its higher-cardinality keys (50-300 unique values)
+  needed less smoothing.
+- Rule (generalisable): **OTE alpha should scale with key
+  cardinality**. Rough rule of thumb: alpha ≈ n_unique_keys / 10.
+  For 10-card digit keys, alpha=1 is too low; for 80-card cat pairs,
+  alpha=8 is about right. Our default alpha=10 happens to be
+  near-optimal for both cat-pair and digit-key cardinalities in
+  this problem.
+- No LB probe warranted (null on top of LB-best).
+- Next: digits_pairs variant (46 digit singles + 46 (digit ×
+  Crop_Type) pairs) — running in background.
+
 ## Hypothesis board
 
 - **Current best (LB)**: digits-OTE × digit-XGB log-blend at α=0.40
