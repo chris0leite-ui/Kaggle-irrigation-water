@@ -1,0 +1,49 @@
+{
+  "anchor_bias": [
+    -0.2675588367639027,
+    0.4689466919465479,
+    3.400768902044088
+  ],
+  "standalone_at_fixed_bias": {
+    "digit_xgb": 0.9744913502771055,
+    "digits_ote": 0.9741547156641492,
+    "digits_pairs": 0.9737460506196074,
+    "digits_light_ote": 0.9736230054040442,
+    "cat_ote": 0.9735507496942942,
+    "cat_ote_light": 0.9738147218505276,
+    "lgbm_digit": 0.9734751785078347,
+    "xgb_nonrule": 0.5461265416846647,
+    "xgb_vanilla_dist": 0.973005841028875,
+    "xgb_routed_v3": 0.9731557732976407,
+    "hybrid_lgbmxgb": 0.9735002056094891,
+    "xgb_corn": 0.9732983649447217,
+    "lgbm_te_orig": 0.9725135976903844,
+    "tabpfn": 0.9559542804945389,
+    "greedy_blend": 0.9734862597927368
+  },
+  "lb_best_2way_oof": 0.9747689882346862,
+  "greedy": {
+    "components": [
+      "digit_xgb",
+      "xgb_nonrule",
+      "digits_ote",
+      "xgb_corn",
+      "digits_pairs",
+      "digits_light_ote"
+    ],
+    "weights_log_space": [
+      0.44289,
+      0.1107225,
+      0.23726250000000002,
+      0.08787500000000001,
+      0.07125,
+      0.05
+    ],
+    "oof_fixed_bias": 0.9755753808388875,
+    "oof_tuned_bias_diagnostic": 0.9755753808388875,
+    "delta_vs_lb_best": 0.0008063926042013447,
+    "error_count": 11773,
+    "jaccard_vs_lb_best": 0.9251407750910897
+  },
+  "action": "submission_ready"
+}
