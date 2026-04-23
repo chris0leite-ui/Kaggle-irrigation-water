@@ -1,0 +1,15 @@
+{
+  "bias": [
+    1.4324411632360974,
+    1.468946691946548,
+    3.400768902044088
+  ],
+  "source": "recipe_full_te \u00d7 recipe_pseudolabel 50/50 log-blend",
+  "weights": {
+    "recipe_full_te": 0.5,
+    "recipe_pseudolabel": 0.5
+  },
+  "oof_tuned_bal_acc": 0.9801231679332877,
+  "lb_score": 0.97998,
+  "oof_to_lb_gap": -0.00014316793328772448
+}

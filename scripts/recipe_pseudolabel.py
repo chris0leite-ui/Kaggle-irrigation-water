@@ -64,6 +64,20 @@ TAU = float(os.environ.get("PSEUDO_TAU", "0.98"))
 # against any residual labeler error.
 PSEUDO_WEIGHT = float(os.environ.get("PSEUDO_WEIGHT", "1.0"))
 
+# Labeler source: default is recipe_full_te's test predictions + tuned bias.
+# For self-refinement (stage-2 pseudo-label), point at a stronger labeler's
+# saved test probs (e.g. the 50/50 recipe × stage-1 blend at LB 0.97998).
+LABELER_TEST_PATH = os.environ.get(
+    "LABELER_TEST_PATH", "scripts/artifacts/test_recipe_full_te.npy"
+)
+LABELER_BIAS_JSON = os.environ.get(
+    "LABELER_BIAS_JSON", "scripts/artifacts/recipe_full_te_results.json"
+)
+# Suffix appended to output filenames. Leave empty for default
+# (stage-1 overwrites). Set e.g. "stage2" to avoid clobbering stage-1 outputs.
+PSEUDO_SUFFIX = os.environ.get("PSEUDO_SUFFIX", "")
+SUFFIX = f"_{PSEUDO_SUFFIX}" if PSEUDO_SUFFIX else ""
+
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
 ART.mkdir(exist_ok=True, parents=True)
@@ -189,16 +203,26 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
 
 def main():
-    # Step 1: load recipe_full_te's test probs + bias.
-    recipe_res = json.loads((ART / "recipe_full_te_results.json").read_text())
-    recipe_bias = np.array(recipe_res["log_bias"])
-    recipe_test_probs = np.load(ART / "test_recipe_full_te.npy")
-    log(f"recipe tuned OOF = {recipe_res['tuned_log_bias_bal_acc']:.5f}  "
-        f"bias={recipe_bias.round(4).tolist()}")
+    # Step 1: load labeler's test probs + bias.
+    labeler_res = json.loads(Path(LABELER_BIAS_JSON).read_text())
+    # Support both recipe_full_te results format ("log_bias") and plain
+    # {"bias": [...]} for the blend labeler.
+    labeler_bias = np.array(labeler_res.get("log_bias") or labeler_res["bias"])
+    labeler_test_probs = np.load(LABELER_TEST_PATH)
+    labeler_oof_metric = (
+        labeler_res.get("tuned_log_bias_bal_acc")
+        or labeler_res.get("oof_tuned_bal_acc")
+        or "n/a"
+    )
+    log(f"labeler source = {LABELER_TEST_PATH}")
+    log(f"labeler OOF metric = {labeler_oof_metric}  "
+        f"bias={labeler_bias.round(4).tolist()}")
+    log(f"output suffix = '{SUFFIX}'")
 
-    # Step 2: gate test rows by confidence.
+    # Step 2: gate test rows by confidence of the LABELER (not recipe —
+    # important for stage-2 where labeler is the stage-1 blend).
     keep_mask, pseudo_labels, maxprobs = build_pseudo_subset(
-        recipe_test_probs, recipe_bias, TAU
+        labeler_test_probs, labeler_bias, TAU
     )
     log(f"τ={TAU}  keep_rate={keep_mask.mean():.4f}  "
         f"({keep_mask.sum()}/{len(keep_mask)} rows)")
@@ -236,18 +260,22 @@ def main():
     bias, tuned = tune_log_bias(result["oof"], y.astype(np.int32), prior)
     log(f"tuned log-bias bal_acc = {tuned:.5f}  bias={bias.round(4).tolist()}")
 
-    oof_path = ART / "oof_recipe_pseudolabel.npy"
-    test_path = ART / "test_recipe_pseudolabel.npy"
+    oof_path = ART / f"oof_recipe_pseudolabel{SUFFIX}.npy"
+    test_path = ART / f"test_recipe_pseudolabel{SUFFIX}.npy"
     np.save(oof_path, result["oof"])
     np.save(test_path, result["test"])
     log(f"wrote {oof_path} + {test_path}")
 
-    # Sanity: compare with recipe_full_te's tuned OOF.
-    baseline_tuned = recipe_res["tuned_log_bias_bal_acc"]
+    # Sanity: compare with recipe_full_te's tuned OOF (the LB-calibrated
+    # anchor of our hypothesis-board ladder, regardless of which labeler
+    # this run used).
+    recipe_res_for_baseline = json.loads(
+        (ART / "recipe_full_te_results.json").read_text()
+    )
+    baseline_tuned = recipe_res_for_baseline["tuned_log_bias_bal_acc"]
     log(f"Δ tuned OOF vs recipe_full_te = {tuned - baseline_tuned:+.5f}")
 
-    # Build submission only if the tuned OOF actually beats recipe's.
-    # (we'll still save artefacts regardless for downstream blending)
+    # Build submission; always save (downstream blending consumes it).
     eps = 1e-9
     test_log = np.log(np.clip(result["test"], eps, 1.0))
     test_pred_idx = (test_log + bias).argmax(1)
@@ -255,7 +283,7 @@ def main():
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in test_pred_idx],
     })
-    sub_path = SUB / "submission_recipe_pseudolabel.csv"
+    sub_path = SUB / f"submission_recipe_pseudolabel{SUFFIX}.csv"
     sub.to_csv(sub_path, index=False)
     log(f"wrote {sub_path}  shape={sub.shape}")
 
@@ -272,9 +300,14 @@ def main():
         baseline_tuned=baseline_tuned,
         delta_vs_baseline=tuned - baseline_tuned,
     )
-    with open(ART / "recipe_pseudolabel_results.json", "w") as f:
+    summary["labeler_test_path"] = LABELER_TEST_PATH
+    summary["labeler_bias_json"] = LABELER_BIAS_JSON
+    summary["labeler_bias"] = labeler_bias.tolist()
+    summary["suffix"] = PSEUDO_SUFFIX
+    results_path = ART / f"recipe_pseudolabel{SUFFIX}_results.json"
+    with open(results_path, "w") as f:
         json.dump(summary, f, indent=2)
-    log("wrote scripts/artifacts/recipe_pseudolabel_results.json")
+    log(f"wrote {results_path}")
 
 
 if __name__ == "__main__":
