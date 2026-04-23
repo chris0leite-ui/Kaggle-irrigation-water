@@ -127,6 +127,15 @@ kaggle_kernel/ds_*/test_*.npy
 # cross-branch diagnostic reuse.
 !scripts/artifacts/oof_recipe_full_te_lgbm.npy
 !scripts/artifacts/test_recipe_full_te_lgbm.npy
+# Recipe variant OOFs (OTE multi-strength + DART booster) for blend
+# analysis and cross-branch reuse. See recipe_full_te.py env vars
+# OTE_ALPHA and XGB_BOOSTER.
+!scripts/artifacts/oof_recipe_full_te_a01.npy
+!scripts/artifacts/test_recipe_full_te_a01.npy
+!scripts/artifacts/oof_recipe_full_te_a10.npy
+!scripts/artifacts/test_recipe_full_te_a10.npy
+!scripts/artifacts/oof_recipe_full_te_dart.npy
+!scripts/artifacts/test_recipe_full_te_dart.npy
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
