@@ -11,6 +11,11 @@
       "tuned": 0.9796650350078755,
       "errors": 10114
     },
+    "recipe_allpairs": {
+      "fixed": 0.9796826502637597,
+      "tuned": 0.9797562124812916,
+      "errors": 9938
+    },
     "recipe_lgbm": {
       "fixed": 0.9793930069283489,
       "tuned": 0.9795164883162518,
@@ -33,6 +38,11 @@
     }
   },
   "pairwise": {
+    "recipe_allpairs": {
+      "alpha": 0.44999999999999996,
+      "oof": 0.9799236588811597,
+      "delta": 0.0002586238732842361
+    },
     "recipe_lgbm": {
       "alpha": 0.44999999999999996,
       "oof": 0.9796738552111631,
@@ -59,17 +69,17 @@
       "recipe_full_te",
       "recipe_pseudolabel_stage2",
       "recipe_catboost",
-      "recipe_pseudolabel"
+      "recipe_allpairs"
     ],
     "weights": [
-      0.371875,
-      0.371875,
-      0.13125,
-      0.125
+      0.34,
+      0.34,
+      0.12,
+      0.2
     ],
-    "oof_fixed_bias": 0.9803259087295593,
-    "delta_vs_anchor": 0.0006608737216837746
+    "oof_fixed_bias": 0.9803332106447531,
+    "delta_vs_anchor": 0.0006681756368775993
   },
   "action": "submission_ready",
-  "submission": "submissions/submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_pseudolabel.csv"
+  "submission": "submissions/submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_allpairs.csv"
 }

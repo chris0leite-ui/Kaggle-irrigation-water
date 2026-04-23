@@ -136,6 +136,21 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_full_te_a10.npy
 !scripts/artifacts/oof_recipe_full_te_dart.npy
 !scripts/artifacts/test_recipe_full_te_dart.npy
+# N1 recipe-subset XGB variants (drop one feature block each).
+# All 4 null vs 2-way pseudolabel blend (+0.00015 5-way OOF ceiling, below
+# +0.0002 LB-transfer threshold). Kept for cross-branch greedy selection.
+!scripts/artifacts/oof_recipe_no_digits.npy
+!scripts/artifacts/test_recipe_no_digits.npy
+!scripts/artifacts/oof_recipe_no_combos.npy
+!scripts/artifacts/test_recipe_no_combos.npy
+!scripts/artifacts/oof_recipe_no_orig.npy
+!scripts/artifacts/test_recipe_no_orig.npy
+# 171-pair OTE recipe (Ali Afzal lever): bins 11 numerics to 16-bin
+# quantile cats, builds all C(19,2)=171 pair combos vs the V10 recipe's
+# 28 cat x cat pairs. Architecturally distinct from every prior tree
+# blend leg (different feature surface, not just a different model).
+!scripts/artifacts/oof_recipe_171pair.npy
+!scripts/artifacts/test_recipe_171pair.npy
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
