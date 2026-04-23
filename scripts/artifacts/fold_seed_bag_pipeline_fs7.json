@@ -1,0 +1,29 @@
+{
+  "fold_seed": 7,
+  "xgb_seed": 42,
+  "n_folds": 5,
+  "routed_best_iters": [
+    613,
+    565,
+    632,
+    584,
+    559
+  ],
+  "spec_best_iters": [
+    373,
+    449,
+    387,
+    451,
+    342
+  ],
+  "nonrule_best_iters": [
+    1209,
+    1062,
+    1166,
+    1190,
+    1133
+  ],
+  "routed_argmax_bal": 0.9640698671081128,
+  "nonrule_argmax_bal": 0.4300549015329147,
+  "elapsed_sec": 685.1088154315948
+}
