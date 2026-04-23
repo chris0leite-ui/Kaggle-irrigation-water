@@ -521,6 +521,61 @@ all of them on the same model.
   design — hard or soft — should have an explicit rare-class
   accounting step; blends that demote the rare class need to
   justify each demotion on OOF before burning an LB probe.
+- **Research the community's published kernels BEFORE declaring a
+  ceiling.** 15 minutes of `kaggle kernels list --competition SLUG
+  --sort-by voteCount --page-size 20` + `kaggle kernels pull`
+  surfaces the recipes top finishers are running. On this competition
+  a mid-session pivot away from "we've hit the architectural ceiling"
+  happened only after pulling the top-10 public kernels and reading
+  them — it turned out the leader's recipe was fully within our
+  engineering capability, we just hadn't run it. Spending weeks on
+  novel architectures (MLPs, FT-T, TabPFN, diffusion generators)
+  when the published recipe was public the whole time was a
+  misallocation. **Rule of thumb: every 2-3 days of null experiments,
+  spend 15 min re-reading the top kernels**; new kernels appear and
+  your familiarity with the existing ones deepens. WebFetch cannot
+  render Kaggle's JS (notebooks and discussions load client-side),
+  so the tool is `kaggle kernels pull user/slug` or the static
+  kernel outputs page, not `WebFetch`.
+- **OTE is a family, not a single lever.** Our early digit-OTE bet
+  (LB +0.00014) captured only the digit axis; the full published
+  recipe OTEs (a) raw cats, (b) all C(n_cat, 2) cat-pair combos,
+  (c) every digit column, (d) every numeric-as-string, (e) threshold
+  flags — ~140 categoricals × 3 classes ≈ 420 OTE features plus
+  ORIG mean/std + FREQ + LR-formula logits ≈ 500 total. Each OTE
+  sub-lever is small individually but they stack. When you first try
+  a target-encoding approach and it helps, the next move is "OTE
+  every reasonable categorical projection of the data", not "tune
+  OTE α / shuffle count on the one set that worked."
+- **Heavy regularization + wide feature space is a distinct operating
+  point from shallow-feature / moderate-reg.** The community recipe
+  for this comp uses `max_depth=4, reg_alpha=5, reg_lambda=5,
+  max_leaves=30, max_bin=10000, ~500 features, lr=0.1`. Our prior
+  XGBs sat at `max_depth=7, no reg, max_bin=256, 43 features,
+  lr=0.05`. Both regimes reach a plateau, but on different feature
+  sets the plateaus are at different heights. Conclusion "HP search
+  on our feature set plateaued" does NOT generalise to "HP search on
+  any feature set plateaus". Always reconsider HPs when the feature
+  set fundamentally changes (10× more columns, different cardinality
+  distribution, different proportion of categoricals).
+- **Author scripts in modules ≤200 lines** to avoid the harness
+  closing the write stream mid-file. Three files of 150 lines each
+  ship reliably; one 450-line file can silently truncate. Bonus:
+  smaller modules read faster and compose better.
+- **Monitor + `tail -n +1 -f` replays ALL prior log content** when
+  the file already existed at arm time. Old notifications will
+  appear interleaved with new ones, with misleading timestamps.
+  Before arming a monitor on a new run, either `rm` the old log or
+  `tail -f` (no `-n +1`) to start at EOF. Cross-check any suspicious
+  event against the actual file on disk.
+- **Smoke-test via an env-var toggle (`SMOKE=1`)** that subsamples
+  data, reduces folds to 2, and drops model capacity. Aim for 60–90 s
+  total wall at smoke budget — that's the sweet spot where you catch
+  shape/dtype/import bugs but don't waste compute. For a 60-min
+  production run, the 70-s smoke is a ~70x safety multiplier on
+  iteration speed. The toggle also makes the script self-testing
+  (same code path for smoke and real), so regressions in the main
+  pipeline fail the smoke first.
 
 ## Rejected ideas
 
