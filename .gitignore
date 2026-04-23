@@ -61,49 +61,12 @@ kaggle_kernel/output_*/test_*.npy
 kaggle_kernel/ds_*/oof_*.npy
 kaggle_kernel/ds_*/test_*.npy
 
-# Exception: commit these OOF/test artifacts for cross-branch blending.
-# Each file is ~6-15 MB; total ~84 MB. Add more with care — check
-# OOFS.md for what's tracked and what's not.
-!scripts/artifacts/oof_hybrid_lgbmxgb_blend.npy
-!scripts/artifacts/test_hybrid_lgbmxgb_blend.npy
-!scripts/artifacts/oof_xgb_dist_routed_v3.npy
-!scripts/artifacts/test_xgb_dist_routed_v3.npy
-!scripts/artifacts/oof_xgb_spec_678.npy
-!scripts/artifacts/test_xgb_spec_678.npy
-!scripts/artifacts/oof_xgb_vanilla_dist.npy
-!scripts/artifacts/test_xgb_vanilla_dist.npy
-!scripts/artifacts/oof_lgbm_te_orig.npy
-!scripts/artifacts/test_lgbm_te_orig.npy
-!scripts/artifacts/oof_xgb_bin_high.npy
-!scripts/artifacts/test_xgb_bin_high.npy
-!scripts/artifacts/oof_hybrid_binhigh.npy
-!scripts/artifacts/test_hybrid_binhigh.npy
-!scripts/artifacts/oof_greedy_blend.npy
-!scripts/artifacts/test_greedy_blend.npy
-!scripts/artifacts/oof_xgb_nonrule.npy
-!scripts/artifacts/test_xgb_nonrule.npy
-!scripts/artifacts/oof_xgb_corn.npy
-!scripts/artifacts/test_xgb_corn.npy
-!scripts/artifacts/oof_tabpfn.npy
-!scripts/artifacts/test_tabpfn.npy
-# Session B (multi-seed fold bagging): keep per-seed LB-best OOF/test so
-# any branch can reproduce the bag without re-running the 8-min pipeline.
-!scripts/artifacts/oof_lb_best_fs7.npy
-!scripts/artifacts/test_lb_best_fs7.npy
-!scripts/artifacts/oof_lb_best_fs123.npy
-!scripts/artifacts/test_lb_best_fs123.npy
-# Digit-extraction features (NEW LB BEST 0.97468 via digit-XGB, from
-# claude/ensemble-model-pipelines-cvHRz)
-!scripts/artifacts/oof_xgb_dist_digits.npy
-!scripts/artifacts/test_xgb_dist_digits.npy
-!scripts/artifacts/oof_lgbm_dist_digits.npy
-!scripts/artifacts/test_lgbm_dist_digits.npy
-# OTE (ordered target encoding) on digit-enriched feature set — null on
-# top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_xgb_dist_digits_ote.npy
-!scripts/artifacts/test_xgb_dist_digits_ote.npy
-# Full public-notebook recipe: cat-pair combos + digits + num-as-cat +
-# FREQ + ORIG mean/std + LR-formula logits + OrderedTE on ~140 cats,
-# heavy-reg XGB. OOF 0.97967 / LB pending. New top candidate.
-!scripts/artifacts/oof_recipe_full_te.npy
-!scripts/artifacts/test_recipe_full_te.npy
+# Exception: commit every OOF + test prob array so any branch/session
+# can load them for blending, diagnostics, meta-stacking without
+# re-running the training pipeline. Previously a manual allowlist;
+# switched to wildcards 2026-04-23 after the allowlist drifted out
+# of sync with actual production artefacts across parallel sessions.
+# Total size ~368 MB across ~38 files; largest single file ~15 MB
+# (within GitHub's 100 MB per-file limit).
+!scripts/artifacts/oof_*.npy
+!scripts/artifacts/test_*.npy
