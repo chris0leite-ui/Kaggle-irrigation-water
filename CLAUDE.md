@@ -3044,6 +3044,87 @@ architecture or feature view adds orthogonal bits at this base.
   feature set (novel model family, ~1h). Everything else (seed-bag,
   HP tuning, pseudo-labeling) is ruled out by prior LB regressions.
 
+### 2026-04-23 — CatBoost on recipe feature set: blend null, LB-best unchanged
+
+- Goal: test the one remaining untried own-pipeline lever — a novel
+  model family (CatBoost) on the full recipe feature set (~440 cols).
+  Target: Jaccard < 0.9 with recipe + competitive standalone OOF
+  would unlock a lift; otherwise recipe is saturated.
+- Changed: `scripts/recipe_full_te_catboost.py` — mirrors
+  `recipe_full_te.py` but with CatBoostClassifier
+  (`depth=4, l2_leaf_reg=10, iterations=2000, lr=0.1, Bernoulli
+  bootstrap, od_wait=200`). Same 5-fold seed=42 split, same
+  per-fold OrderedTE, same features, same class-balanced sample
+  weights. 17 min total wall on CPU (16 min train + 1 min OTE).
+- Standalone results (5-fold OOF, seed=42):
+  - Per-fold argmax: 0.97740 / 0.97800 / 0.97919 / 0.97786 / 0.97784
+  - Mean argmax **0.97806 ± 0.00060** (vs recipe 0.97589 mean,
+    **+0.00217 higher per-fold**)
+  - **Tuned log-bias OOF 0.97936** (vs recipe 0.97967, **−0.00031**
+    below). Note the paradox: CatBoost is +0.00217 stronger at argmax
+    but −0.00031 weaker after bias tuning. Means CatBoost's prob scale
+    is closer to prior-balanced (argmax already near macro-recall
+    optimum) while XGB needs large bias shifts to reach the same point.
+  - Best-iter = 1999-2000 on every fold → CatBoost HIT the iteration
+    cap without early stopping. Would benefit from more iterations
+    but time-boxed.
+  - Error count at its own bias = 10,447; at recipe's bias = 13,975
+    (recipe's bias is calibrated for XGB prob scale, not CatBoost).
+  - **Jaccard vs recipe_full_te at recipe's bias = 0.8060**. First
+    time we've seen Jaccard < 0.85 at this competitive OOF level!
+    Orthogonality looks promising on paper.
+- Blend sweep (fixed recipe bias, α_cat × CatBoost + (1−α_cat) × recipe):
+  ```
+  α_cat=0.05  OOF 0.97958  Δ=−0.00008
+  α_cat=0.10  0.97950  Δ=−0.00017
+  α_cat=0.15  0.97947  Δ=−0.00020
+  α_cat=0.20  0.97952  Δ=−0.00014
+  α_cat=0.25  0.97961  Δ=−0.00005
+  α_cat=0.30  0.97967  Δ=+0.00001 ← peak (noise)
+  α_cat=0.40  0.97961  Δ=−0.00006
+  α_cat=0.50  0.97939  Δ=−0.00028
+  α_cat=0.60  0.97902  Δ=−0.00065
+  ```
+  **Essentially null under fixed bias.** The peak +0.00001 at α=0.30
+  is noise-level; blend has 10,705 errors (recipe 10,114, +591 more).
+- Blend sweep WITH per-α retuned bias (diagnostic only):
+  - α=0.05 tuned 0.97974, α=0.35 tuned 0.97975 — +0.00007 to +0.00008
+    lift with bias retuning, but this is log-bias coord-ascent overfit
+    territory (binhigh-lesson rule).
+- 3-way blend (recipe + catboost + greedy_6way) grid: peak at
+  (recipe 0.76, catboost 0.14, 6way 0.10) → OOF 0.97978, **Δ=+0.00012**.
+  Same lift as the greedy-from-recipe result earlier (digit_xgb alone
+  added +0.00012). Adding CatBoost doesn't improve on digit_xgb's
+  contribution — blend-null confirmed.
+- Diagnosis: the **calibration gap** between CatBoost and XGB on this
+  feature set is the problem. They want biases an order of magnitude
+  apart on the High class (recipe's bias +3.40, CatBoost's +2.80).
+  In a log-blend with a single fixed bias, whichever model's probs
+  get preferential treatment dominates. Per-α bias retuning recovers
+  tiny lifts but risks LB overfit. **Tree-family architectural
+  diversity (XGB ⊗ CatBoost) doesn't help when the recipe feature
+  set dominates the decision surface** — both trees converge to
+  nearly identical error patterns on the rows that matter for
+  macro-recall.
+- **No LB probe warranted.** Current LB-best unchanged at
+  `submission_recipe_full_te.csv` → **LB 0.97939**. LB budget
+  unchanged at 7/10 used today, 3 remaining.
+- **Final-selection diversification candidate**:
+  `submission_recipe_full_te_catboost.csv` has OOF 0.97936 tuned
+  (−0.00031 below recipe but close). If we lock 2 final submissions,
+  one recipe + one CatBoost would give model-family variance
+  protection on private LB even though LB-public is slightly lower.
+  Not recommended given recipe's proven LB, but available.
+- **Own-pipeline lever bank now fully exhausted** for this competition.
+  Remaining paths to move LB:
+  1. More iterations for CatBoost (it hit the cap) — could push
+     standalone to 0.9795+. Expected LB lift < +0.00010. ~2-3h
+     additional wall.
+  2. Strategic: public-CSV blending (explicitly banned per CLAUDE.md
+     top-of-file rule).
+  Otherwise: lock 0.97939 as final. Pack 0.98114 stays +0.00175 above,
+  leader 0.98219 stays +0.00280 above.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_full_te.csv` →
