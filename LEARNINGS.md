@@ -372,6 +372,63 @@ all of them on the same model.
   something raw cats cannot encode (flip-rate, class-specific
   log-odds), or (c) the downstream model is weaker than high-leaf
   LGBM (linear/shallow NN).
+- **The full FE recipe that actually wins tabular synthetic comps**
+  (from pulling top-voted kernels on this competition — specifically
+  yunsuxiaozi's CV-0.9798 and include4eto's V10 recipe, reaching LB
+  0.978–0.980 own-pipeline). One template; every block is cheap and
+  composable:
+  1. `CATS + CAT×CAT combos`: 8 raw cats + all C(8,2)=28
+     string-concat combos, factorized consistently on `train ∪
+     test ∪ orig`.
+  2. `NUMS as digit columns`: for each numeric, emit `(v // 10**k) %
+     10` for `k ∈ {-4,...,+3}`; drop positions that are constant
+     on test. ≈70 cols here. Catches generator quantisation that
+     axis-aligned float splits miss.
+  3. `NUMS as string-cast categoricals`: every numeric also OTE'd as
+     a categorical, letting the per-class TE see per-exact-value
+     class posteriors. Unique-value count is huge but TE shrinkage
+     handles it.
+  4. `Threshold flag CATS`: binary indicators for each known DGP
+     threshold (e.g. `Soil_Moisture < 25`). Also OTE'd.
+  5. `FREQ_{cat}`: per-cat relative frequency on the combined
+     `train ∪ test ∪ orig`. Cheap, leak-free, surfaces rare-value
+     effects.
+  6. `ORIG_{col}_mean / _std`: groupby each col on the auxiliary
+     clean dataset; emit mean+std of the integer target. Two numeric
+     features per col; unseen values filled with (0.5, 0). Leak-free
+     because the source is external.
+  7. `LR-formula logits`: if a simple linear model on rule features
+     hits near-perfect on the clean dataset, hard-code its
+     coefficients as 3 numeric cols (`logit(P(y=Low/Medium/High))`).
+     Cheap prior for the tree.
+  8. `OrderedTE` (per-class cumulative, shrinkage a=1) applied to
+     EVERY categorical from blocks 1–4 → 3 columns each. ~140
+     categoricals × 3 = ~420 OTE features.
+  Total: ~500 features, all numeric. Heavy-reg XGB
+  (max_depth=4, reg_alpha=5, reg_lambda=5, max_leaves=30,
+  max_bin=10000, lr=0.1, n_estimators=50000 with early_stop=500,
+  sample_weight='balanced') + post-hoc per-class log-bias tuning
+  closes the loop. On this competition: OOF 0.97967 tuned,
+  LB 0.97939 (gap +0.00028 — best calibration of the competition).
+- **`OrderedTE` ≠ sklearn `TargetEncoder`.** The custom encoder
+  used in the winning notebooks (yunsuxiaozi) does per-row
+  cumulative-sum encoding on the training set in a single pass:
+  each train row gets TE computed from ALL prior rows in the
+  (optionally shuffled) order, exclusive of itself. Test rows use
+  the full-train per-key mean. sklearn `TargetEncoder` does
+  k-fold-internal mean TE — different row-level dependencies,
+  different shrinkage structure. On this competition the ordered
+  variant composes better with heavy-reg XGB; the sklearn version
+  was the null we hit earlier.
+- **Heavy-reg wide-feature XGB is a distinct optimum.** When the
+  feature space is large (400–600 cols), the winning HPs shift:
+  `max_depth=4` (not 6–8), `reg_alpha=5, reg_lambda=5` (not 0–0.1),
+  `max_leaves=30, min_child_weight=2, lr=0.1, max_bin=10000,
+  n_estimators=50000 + early_stop=500`. Equivalent to "many weak
+  trees with strong regularisation", not "few deep trees with
+  little reg". A sweep on the richer feature set would find this
+  regime; a sweep on a narrow feature set plateaus in a different
+  place and its conclusions don't transfer.
 
 ## DGP / archaeology
 
