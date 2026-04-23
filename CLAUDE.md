@@ -2721,25 +2721,128 @@ architecture or feature view adds orthogonal bits at this base.
   `submission_digit_ote_digits_blend.csv` (digits-OTE α=0.40 blend).
   LB budget: 6/10 used today, 4 remaining.
 
+### 2026-04-23 — NEW LB BEST 0.97581: greedy forward-selection over full OOF bank
+
+- Goal: after exhausting within-OTE levers, pivot to a fundamentally
+  different lever — ensemble the saved OOFs. Ran three parallel
+  experiments: greedy forward-selection, ExtraTrees, and LGBM+OTE.
+- **Winner: greedy 6-way log-blend → LB 0.97581 (+0.00099 over prior
+  LB best 0.97482)**. Gap to pack 0.98114 now +0.00533, leader 0.98219
+  +0.00638.
+- Changed: `scripts/greedy_full_bank.py` — forward-selection log-blend
+  over 15-17 saved OOF/test pairs. Uses digit-XGB's tuned bias as a
+  fixed anchor (no retune per candidate) to avoid binhigh-style
+  selection overfit. Emit gate: Δ ≥ +1e-4 (looser than +5e-4 since
+  selection risk on pre-computed OOFs is low).
+- Greedy result (fixed digit-XGB bias):
+  ```
+  start:    digit_xgb            OOF 0.97449  (anchor)
+  + step 1: xgb_nonrule α=0.20   OOF 0.97506  Δ=+0.00057
+  + step 2: digits_ote α=0.30    OOF 0.97534  Δ=+0.00028
+  + step 3: xgb_corn α=0.10      OOF 0.97544  Δ=+0.00010
+  + step 4: digits_pairs α=0.075 OOF 0.97552  Δ=+0.00008
+  + step 5: digits_light_ote α=0.05 OOF 0.97558  Δ=+0.00006
+  stop:     no candidate improves by ≥ 1e-5
+  ```
+  Final weights (log-space, sum to 1):
+  ```
+  0.4429  digit_xgb        (anchor, 44% of log-prob mass)
+  0.2373  digits_ote       (24%)
+  0.1107  xgb_nonrule      (11%, non-rule-feature signal)
+  0.0879  xgb_corn         (9%, Frank-Hall ordinal decomposition)
+  0.0712  digits_pairs     (7%)
+  0.0500  digits_light_ote (5%)
+  ```
+- **Key discovery — xgb_nonrule as first greedy add was the biggest
+  single-step lift (+0.00057).** The non-rule-feature lever (earlier
+  LB +0.00056 as part of greedy+nonrule) transferred cleanly onto the
+  digit-XGB anchor at a different weight. This suggests the non-rule
+  signal is ORTHOGONAL to digit-family features, which makes sense:
+  digit-XGB captures quantization artefacts in rule features but has
+  no way to exploit the NN-generator's flip signal that depends on
+  non-rule cats like Humidity and Previous_Irrigation. Non-rule-XGB
+  fills that gap.
+- **xgb_corn as 3rd add (+0.00010) also surprising**: previously ruled
+  out as a standalone blend leg (null on greedy+nonrule). CORN's Frank-
+  Hall ordinal decomposition trades Medium for High recall, which
+  ALONE hurts macro-recall — but as a blend component at 9% weight on
+  top of a stronger base, it provides complementary high-recall
+  evidence without dominating.
+- LB result (submitted 06:31 UTC, user-approved):
+  - `submission_greedy_full_bank.csv` → **LB 0.97581**
+  - OOF 0.97558 → LB 0.97581 = **gap −0.00023** (LB BETTER than OOF).
+    Even more negative than digit-XGB's −0.00019 and digits-OTE
+    blend's −0.00005. Digit-family pipelines produce progressively
+    more negative gaps as components add.
+- Updated calibration ladder:
+  ```
+  single tuned LGBM             0.97097 → 0.96972   gap 0.00125
+  greedy 3-way log-blend        0.97375 → 0.97296   gap 0.00079
+  greedy + nonrule α=0.15       0.97421 → 0.97352   gap 0.00069
+  digit-XGB standalone          0.97449 → 0.97468   gap -0.00019
+  digits-OTE × digit-XGB α=0.40 0.97477 → 0.97482   gap -0.00005
+  **greedy full-bank 6-way      0.97558 → 0.97581   gap -0.00023**  ← NEW LB BEST
+  ```
+- **ExtraTrees on dist+digits: null**. Standalone argmax 0.96510,
+  tuned 0.96676. 500 trees × `class_weight='balanced'` produces
+  flattened prob scale (tuning lifts only 0.002 vs XGB family's 0.01).
+  At fixed digit-XGB bias, OOF drops to 0.93023 — off-calibration.
+  Greedy rejected it at every α (blending in ET's weaker answers
+  hurts the composite). Rule: **orthogonal-model candidates need
+  probability scales compatible with the anchor's bias before they
+  can contribute to a log-blend**.
+- **LGBM on dist+digits+OTE: null**. Tuned OOF 0.97330 — below both
+  digit-XGB (0.97449) and LGBM-digits alone (0.97348). Best_iter
+  hovered around 150-170 across folds (XGB-digits+OTE was 500+),
+  meaning LGBM exhausts signal quickly on the OTE-enriched set. OTE
+  features carry structural information LGBM's leaf-wise splits
+  can't exploit as effectively as XGB's level-wise splits. Tested on
+  top of the 6-way blend at α ∈ [0.025, 0.20]: strictly monotone
+  negative. Confirmed null.
+- **Path dependence warning**: rerunning greedy with `lgbm_digit_ote`
+  in the candidate pool found a DIFFERENT local optimum (3-way:
+  digit_xgb + xgb_nonrule + lgbm_digit_ote → OOF 0.97541) that's
+  WORSE than the 6-way without it (0.97558). The greedy heuristic
+  picked lgbm_digit_ote over digits_ote early because of slightly
+  better fixed-bias standalone OOF, then couldn't find further
+  additions. Lesson: **greedy local optima depend on candidate pool;
+  run without weak candidates first, then test adding them on top of
+  the strong blend**.
+- LB budget: **7/10 used today**, 3 remaining.
+- Artefacts committed (on feature branch + main):
+  - `oof_greedy_full_bank_6way.npy`, `test_greedy_full_bank_6way.npy`
+  - `oof_extratrees_dist_digits.npy`, `test_extratrees_dist_digits.npy`
+  - `oof_lgbm_dist_digits_ote.npy`, `test_lgbm_dist_digits_ote.npy`
+  - `greedy_full_bank_results.json`, `extratrees_dist_digits_results.json`,
+    `lgbm_dist_digits_ote_results.json`
+  - `submission_greedy_full_bank.csv` (LB 0.97581, new best)
+
 ## Hypothesis board
 
-- **Current best (LB)**: digits-OTE × digit-XGB log-blend at α=0.40
-  → OOF 0.97477, **LB 0.97482** (+0.00014 over prior, −0.00005
-  OOF→LB gap). Submission on disk:
-  `submissions/submission_digit_ote_digits_blend.csv`. Pack 0.98114
-  is +0.00632 above; leader 0.98219 is +0.00737 above. LB budget
-  today: 4 remaining (6/10 used: 1 seed-bag null + 2 HP-tuning
-  nulls + 2 digit-extraction probes + 1 digits-OTE blend probe).
+- **Current best (LB)**: greedy full-bank 6-way log-blend
+  (digit_xgb 0.44 + digits_ote 0.24 + xgb_nonrule 0.11 + xgb_corn
+  0.09 + digits_pairs 0.07 + digits_light_ote 0.05) → OOF 0.97558,
+  **LB 0.97581** (+0.00099 over prior, **−0.00023 OOF→LB gap** —
+  most negative gap in competition log). Submission on disk:
+  `submissions/submission_greedy_full_bank.csv`. Pack 0.98114 is
+  +0.00533 above; leader 0.98219 is +0.00638 above. LB budget
+  today: **3 remaining** (7/10 used: 1 seed-bag null + 2 HP-tuning
+  nulls + 2 digit-extraction probes + 1 digits-OTE blend probe +
+  1 greedy 6-way probe).
 
-  Second-best: XGB-dist + digits standalone, tuned log-bias →
+  Second-best: digits-OTE × digit-XGB log-blend at α=0.40
+  → OOF 0.97477, LB 0.97482. Submission:
+  `submissions/submission_digit_ote_digits_blend.csv`.
+
+  Third-best: XGB-dist + digits standalone, tuned log-bias →
   OOF 0.97449, LB 0.97468. Submission:
   `submissions/submission_xgb_dist_digits_tuned.csv`.
 
-  Third-best: greedy + xgb-nonrule log-blend at α=0.15
+  Fourth-best: greedy + xgb-nonrule log-blend at α=0.15
   → OOF 0.97421, LB 0.97352. Submission:
   `submissions/submission_greedy_nonrule_blend.csv`.
 
-  Fourth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
+  Fifth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
 
