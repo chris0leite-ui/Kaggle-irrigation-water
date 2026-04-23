@@ -524,6 +524,50 @@ all of them on the same model.
   experiment (the actual decisive test). Only applies when the fold
   distribution is tight; for noisier metrics or smaller validation
   folds, finish the run.
+- **Capacity-plan a memory budget alongside the wall-time budget
+  for every pipeline that builds >500 features on >100k rows.**
+  2026-04-23 171-pair OTE recipe crashed silently (OOM SIGKILL) on
+  fold 2 of a 5-fold production run after fold 1 completed cleanly;
+  smoke at 20k × 2 folds had passed without issue. Root cause was
+  simultaneous live-frame count, not computation — fold 2 held full
+  `train+test+orig` (>2GB post-FE), fold 1's un-GC'd X_tr/X_va/X_te,
+  and the 271-key OrderedTE fit materialising 813 per-row arrays
+  (cum_cnt, cum_sum, y_bin) × 403k rows during its groupby loop, then
+  pd.concat stacking them onto a 1.4GB frame. Peak ≈ 18-22GB against
+  a 21GB cap with no swap. Diagnostic lessons:
+  1. **Smoke-testing validates correctness, NOT memory scaling.** A
+     smoke at rows/25 cannot surface an OOM at full scale because peak
+     memory is dominated by concurrent live-frame count, not loop
+     iteration progression. Memory scales ~linearly with rows but the
+     number of live frames is constant — so smoke peak ≈ full peak /
+     25, too low to detect ceiling-approach.
+  2. **60-second peak-RAM estimate before launch**: peak ≈
+     `rows × (2 × feature_cols + OTE_intermediate_cols) × 4 bytes ×
+     frames_live`. For 403k × (900 + 813) × 4 × 3 ≈ 8.3GB just for
+     the OTE-fit peak frame set, plus train/test/orig (~3GB) + XGB
+     booster (~2GB). Plan for > 2× headroom; if peak estimate exceeds
+     60% of available RAM, engineer isolation BEFORE smoking.
+  3. **Fragmented pandas frames outlive their scope.** `pd.concat`
+     on 800+ cols retains block-manager refs that Python GC doesn't
+     free aggressively between folds. `gc.collect()` at fold end is
+     not sufficient under fragmentation — the parent-block references
+     persist until the enclosing function returns.
+  4. **Silent SIGKILL has no traceback.** Inspect `ps aux | grep
+     python` returning empty alongside the log stopping mid-fold =
+     OOM. Don't hunt for a missing error line; check the OS state.
+     No swap = no warning band, the cap is a cliff.
+  5. **Robust fix: subprocess isolation per fold.** `subprocess.run(
+     [sys.executable, ...], env={...,"FOLD":str(i)})` runs each fold
+     in its own Python process, and the OS reclaims all memory on
+     exit regardless of what pandas / numpy / XGBoost held. +10 min
+     plumbing, ~10s/fold overhead, eliminates the failure mode
+     entirely. Make this the default pattern for any pipeline that
+     builds >500 features on >100k rows.
+  6. **Skip-ahead trap**: when a smoke passes and fold 1 of production
+     completes without trouble, it's tempting to assume the pipeline
+     is safe. It isn't — fold 2 inherits fold 1's residual allocations
+     plus its own new ones. The first fold-boundary is the critical
+     point; architect for it explicitly.
 - **Select NN checkpoints on the metric you'll deploy with, not raw
   argmax.** An MLP trained with plain CE has a raw-argmax val_bal
   that plateaus quickly and bounces within ~0.003; the *probability

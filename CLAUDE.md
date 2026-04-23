@@ -3482,6 +3482,104 @@ architecture or feature view adds orthogonal bits at this base.
   combos; the untested 143 pairs (cat×num, num×num) are a fundamentally
   different feature space, not a restack.
 
+### 2026-04-23 — 171-pair OTE production run: OOM-killed on fold 2 (compute planning miss)
+
+- Goal: execute the `Next bet` from the prior entry — extend the V10
+  recipe to all C(19,2)=171 feature pairs by binning the 11 numerics
+  to 16-bin quantile categoricals, concatenating every (c1,c2) pair
+  into a single factorized combo col, then running the same OrderedTE
+  + heavy-reg XGB pipeline. 5-fold, seed=42, aligned OOF split.
+- Changed:
+  - `scripts/recipe_pair_features.py` — `add_quantile_bins()` (16-bin
+    quantile binning with `duplicates="drop"`, fit on train, applied
+    to test/orig) and `add_all_pair_combos()` (C(n,2) over cats+bins,
+    factorized across combined splits).
+  - `scripts/recipe_full_te_171pair.py` — orchestrator mirroring
+    `recipe_full_te.py` with bins treated as cat-like for OTE.
+    Feature groups: cats=8, bins=11, combos=171, digits=66,
+    num_as_cat=11, tres=4, logits=3, freq=179 (FREQ on cats+combos),
+    orig_stats=38. **te_cols=271 → 813 OTE cols** (271 × 3 classes).
+  - `scripts/blend_171pair.py` — fixed-bias sweep vs recipe (anchor A)
+    and optionally vs LB-best (anchor B) per the `no_ote` Jaccard +
+    error-count rule.
+- Smoke pass (SMOKE=1, 20k train, 2 folds): PASSED in ~70 s, tuned
+  OOF 0.96455. All FE blocks built, OTE fit + transform clean, no
+  errors. Smoke config uses the same code path; the only difference
+  is data size and XGB iterations.
+- Production run (504k train, 5 folds, 813-OTE XGB) **CRASHED
+  silently on fold 2 OTE-fit**:
+  ```
+  [16:48:54] === fold 1/5 ===
+  [16:49:52]   OTE done in 50.4s (813 OTE cols)
+  [17:13:51]   fold 1 argmax_bal_acc = 0.97453  best_iter=1215
+  [17:13:51] === fold 2/5 ===
+  <SIGKILL — no further output, no traceback>
+  ```
+  Fold 1 completed 25 min wall. Fold 2 died in <1 min, before any
+  visible OTE-fit progress. Classic OOM-kill signature: no Python
+  exception, process disappears from `ps aux`, 21 GB RAM immediately
+  free again.
+- Root cause (memory stack-up, **unplanned**):
+  - Smoke at 20k × 2 folds peaked ~1.5 GB. Production scales ~25×
+    in row count and ~1.2× in feature count, but memory doesn't
+    scale linearly — it scales with **simultaneously-live frame count**.
+  - At fold 2 entry, the process held:
+    * `train` (504k × 900+ cols, post-FE)
+    * `test` (270k × 900+ cols)
+    * `orig` (10k × 900+ cols)
+    * fold 1's leftover `X_tr` / `X_va` / `X_te` DataFrames if Python
+      GC hadn't released them (pandas pd.concat fragments retain
+      parent-block refs longer than expected)
+    * fold 1's XGB Booster + its internal histogram buffers
+    * `compute_sample_weight` array
+  - Fold 2 then allocates: `X_tr.iloc[tr_idx].copy()` (403k rows ×
+    900+ cols ≈ 1.4 GB), shuffled copy for OrderedTE, OTE `.fit()`
+    builds 271 × 3 = 813 intermediate arrays (cum_cnt, cum_sum, etc.)
+    each of length 403k during the groupby loop, then pd.concat of
+    813 new float32 cols onto the 1.4 GB frame = another 1.6 GB peak.
+  - Peak simultaneous allocation on fold 2 OTE-fit is plausibly
+    ~18-22 GB against a 21 GB cap, no swap. SIGKILL at the peak.
+- One-fold signal before the crash: **fold 1 argmax 0.97453 vs recipe
+  fold 1's 0.97544** — directionally negative (−0.00091, inside the
+  fold-σ band of ~0.00088 but on the wrong side). Not enough folds
+  to judge OOF, but inconsistent with a "drop-in lift" expectation.
+  Error orthogonality vs recipe couldn't be computed (single fold,
+  and fold 1 OOF covers a different val set than recipe's fold 1 if
+  the split differs — which it doesn't here, seed=42 aligned, so the
+  Jaccard-on-fold-1 analysis is feasible once we recover it).
+- **Decision**: do NOT re-run naively. Two concrete fixes before
+  relaunching:
+  1. **Per-fold subprocess isolation**: spawn each fold as a separate
+     Python process via `subprocess.run()`, OS returns all memory on
+     process exit. Zero cross-fold contamination. ~15 min plumbing,
+     adds ~10 s/fold overhead from module re-imports.
+  2. **Intra-fold `gc.collect()` + explicit `del`** at end of each
+     OrderedTE.fit() loop iteration, plus `del` of fold-scoped frames
+     at fold end. Cheaper (~2 min) but doesn't guarantee recovery
+     under pandas pd.concat fragmentation.
+  Recommendation: do (1). Robust, portable, and the plumbing is
+  reusable for any future large-FE experiment.
+- LB delta: n/a. No OOF output. Fold 1 intermediate not saved.
+- Lessons logged to LEARNINGS.md §Process (new "Capacity-plan large
+  FE runs" entry):
+  1. **Smoke-testing validates correctness, NOT memory scaling.**
+     Smoke at N=20k × 2 folds cannot reveal an OOM at N=504k × 5
+     folds because peak memory is dominated by simultaneous live-frame
+     count, not computation progression. Need a **memory budget**
+     alongside the wall-time budget.
+  2. **Heavy-FE pipelines must estimate peak RAM before launch.**
+     Cheap 60-second calculation: rows × live_feature_cols × bytes ×
+     simultaneous_frames. If >60% of available RAM, plan isolation
+     (subprocess per fold, or dask/out-of-core) BEFORE the smoke.
+  3. **Fragmented pandas frames outlive their scope.** `pd.concat`
+     on 800+ cols per frame retains block-manager refs that Python
+     GC doesn't free aggressively. `gc.collect()` at loop end is not
+     sufficient — subprocess isolation is the only reliable fix.
+  4. **Silent SIGKILL has no traceback; inspect process table + RAM
+     state to diagnose**. `ps aux | grep python` returning empty
+     alongside the log stopping mid-fold is the OOM signature. No
+     need to hunt for a missing error line.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
