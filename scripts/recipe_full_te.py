@@ -57,6 +57,22 @@ SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
 
+# Variant knobs (default preserves the LB-best pipeline):
+#   OTE_ALPHA    — shrinkage toward prior in OrderedTE (default 1.0)
+#   XGB_BOOSTER  — "gbtree" (default) or "dart" (tree dropout)
+# When either differs from default, output paths get a suffix like
+# "_a01", "_a10", "_dart", "_a10_dart" so the LB-best artefacts stay untouched.
+OTE_ALPHA = float(os.environ.get("OTE_ALPHA", "1.0"))
+XGB_BOOSTER = os.environ.get("XGB_BOOSTER", "gbtree")
+assert XGB_BOOSTER in ("gbtree", "dart"), f"XGB_BOOSTER must be gbtree|dart, got {XGB_BOOSTER}"
+
+_parts = []
+if OTE_ALPHA != 1.0:
+    _parts.append("a" + f"{OTE_ALPHA:g}".replace(".", ""))
+if XGB_BOOSTER != "gbtree":
+    _parts.append(XGB_BOOSTER)
+VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
+
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
 ART.mkdir(exist_ok=True, parents=True)
@@ -169,7 +185,19 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         eval_metric="mlogloss",
         enable_categorical=False, n_jobs=-1, random_state=SEED,
         early_stopping_rounds=50 if SMOKE else 200, verbosity=0,
+        booster=XGB_BOOSTER,
     )
+    if XGB_BOOSTER == "dart":
+        # DART knobs tuned for cost/benefit: rate_drop=0.1 gives moderate
+        # variance from gbtree, skip_drop=0.5 halves expected wall-time by
+        # skipping dropout on 50% of rounds. Cap tree budget vs gbtree
+        # since DART's per-tree cost grows linearly with round index.
+        xgb_params.update(
+            rate_drop=0.1, skip_drop=0.5,
+            sample_type="uniform", normalize_type="tree",
+            n_estimators=200 if SMOKE else 800,
+            early_stopping_rounds=50 if SMOKE else 150,
+        )
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
@@ -217,16 +245,18 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
 
 def main():
+    log(f"config: OTE_ALPHA={OTE_ALPHA}  XGB_BOOSTER={XGB_BOOSTER}  "
+        f"suffix={VARIANT_SUFFIX!r}  smoke={SMOKE}")
     train, test, info, test_ids = load_and_engineer()
-    result = run_cv(train, test, info)
+    result = run_cv(train, test, info, a_ote=OTE_ALPHA)
 
     y = train[TARGET].to_numpy()
     prior = np.bincount(y, minlength=3) / len(y)
     bias, tuned = tune_log_bias(result["oof"], y, prior)
     log(f"tuned log-bias bal_acc = {tuned:.5f}  bias={bias.round(4).tolist()}")
 
-    oof_path = ART / "oof_recipe_full_te.npy"
-    test_path = ART / "test_recipe_full_te.npy"
+    oof_path = ART / f"oof_recipe_full_te{VARIANT_SUFFIX}.npy"
+    test_path = ART / f"test_recipe_full_te{VARIANT_SUFFIX}.npy"
     np.save(oof_path, result["oof"])
     np.save(test_path, result["test"])
     log(f"wrote {oof_path} + {test_path}")
@@ -239,13 +269,15 @@ def main():
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in test_pred_idx],
     })
-    sub_path = SUB / "submission_recipe_full_te.csv"
+    sub_path = SUB / f"submission_recipe_full_te{VARIANT_SUFFIX}.csv"
     sub.to_csv(sub_path, index=False)
     log(f"wrote {sub_path}  shape={sub.shape}")
     log(f"  pred dist: {dict(sub[TARGET].value_counts())}")
 
     summary = dict(
         seed=SEED, n_folds=N_FOLDS,
+        variant_suffix=VARIANT_SUFFIX,
+        ote_alpha=OTE_ALPHA, xgb_booster=XGB_BOOSTER,
         fold_scores_argmax=[float(s) for s in result["fold_scores"]],
         overall_argmax_bal_acc=result["overall_argmax"],
         tuned_log_bias_bal_acc=tuned,
@@ -255,9 +287,10 @@ def main():
                              for k, v in info.items() if k != "te_cols"},
         te_col_count=len(info["te_cols"]),
     )
-    with open(ART / "recipe_full_te_results.json", "w") as f:
+    res_path = ART / f"recipe_full_te{VARIANT_SUFFIX}_results.json"
+    with open(res_path, "w") as f:
         json.dump(summary, f, indent=2)
-    log("wrote scripts/artifacts/recipe_full_te_results.json")
+    log(f"wrote {res_path}")
 
 
 if __name__ == "__main__":
