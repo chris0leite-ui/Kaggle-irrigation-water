@@ -223,6 +223,15 @@ kaggle_kernel/ds_*/test_*.npy
 # at recipe's tuned bias (= the test probs of LB-0.97998 submission).
 # Used as labeler for stage-2 pseudo-label.
 !scripts/artifacts/test_recipe_blend_stage1.npy
+# Soft-target distillation student — XGB on recipe features trained with
+# custom soft cross-entropy against 50/50 log-blend teacher (= LB-best).
+# Standalone OOF tuned 0.98096 (+0.00084 over LB-best teacher). First
+# own-pipeline lever to break the 0.97998 stacking-inflation ceiling.
+# Errors 9,520 vs teacher's 9,851. Jaccard 0.7924 vs recipe, 0.8155 vs
+# LB-best. Distillation regularizes + effectively ensembles teacher's
+# 2 components into a smoother decision surface.
+!scripts/artifacts/oof_soft_distill.npy
+!scripts/artifacts/test_soft_distill.npy
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
