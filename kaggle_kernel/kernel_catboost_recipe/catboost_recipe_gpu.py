@@ -421,7 +421,7 @@ def run_cv(train, test, info, a_ote=1.0):
         od_wait=100 if SMOKE else 500,
         bootstrap_type="Bayesian",  # GPU default (Bernoulli is CPU-only)
         task_type="GPU",
-        devices="0:1",
+        devices="0",
         verbose=False,
     )
     log(f"cb_params: iterations={cb_params['iterations']}, "
