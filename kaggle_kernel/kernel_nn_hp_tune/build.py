@@ -16,8 +16,11 @@ from pathlib import Path
 HERE = Path(__file__).parent
 DIST = HERE / "dist"
 
-# Order matters: dependencies first, then the orchestrator.
-MODULES = ["features.py", "model.py", "train.py", "data.py", "search.py"]
+# Order matters: the shim must run BEFORE any torch import, so
+# `_bootstrap.py` comes first. Dependency modules follow, orchestrator
+# last.
+MODULES = ["_bootstrap.py", "features.py", "model.py", "train.py",
+           "data.py", "search.py"]
 ENTRY = "nn_digit_hp_tune.py"
 
 # Strip sibling imports (single-line and parenthesized multi-line),
@@ -32,7 +35,7 @@ SIBLING_FROM_MULTI = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 SIBLING_IMPORT_BARE = re.compile(
-    r"^\s*import\s+(features|model|train|data|search)\s*$",
+    r"^\s*import\s+(features|model|train|data|search|_bootstrap)(\s+#.*)?\s*$",
     re.MULTILINE,
 )
 SYSPATH_INSERT_RE = re.compile(

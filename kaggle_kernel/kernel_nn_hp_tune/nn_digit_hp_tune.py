@@ -10,28 +10,13 @@ Pipeline:
 Sibling modules (same dir): features.py, model.py, train.py, data.py, search.py.
 """
 from __future__ import annotations
-import json, os, subprocess, sys, time
+import json, os, sys, time
 from pathlib import Path
 
-# P100 (sm_60) shim — install torch 2.5.1 cu121 if needed.
-def _gpu_arch():
-    try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
-            text=True, timeout=10).strip().splitlines()
-        return [x.strip() for x in out if x.strip()]
-    except Exception as e:
-        return [f"err:{e}"]
-
-if any(a in ("6.0", "6.1") for a in _gpu_arch()):
-    print("[boot] sm_60/61 detected — reinstalling torch 2.5.1 cu121", flush=True)
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install", "--quiet", "--upgrade",
-        "--force-reinstall", "--no-deps",
-        "torch==2.5.1", "--index-url", "https://download.pytorch.org/whl/cu121",
-    ])
-
+# GPU shim lives in _bootstrap.py (runs before any torch import at build time).
+# For local dev, importing it here is harmless.
 sys.path.insert(0, str(Path(__file__).parent))
+import _bootstrap  # noqa: F401
 
 import numpy as np
 import pandas as pd
