@@ -23,6 +23,7 @@ is the strongest LB candidate.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -40,6 +41,9 @@ IDX2CLS = {i: c for c, i in CLS2IDX.items()}
 ART = Path("scripts/artifacts")
 OUT = Path("submissions")
 OUT.mkdir(exist_ok=True)
+
+VARIANT = os.environ.get("OTE_VARIANT", "default")
+SUFFIX = "" if VARIANT == "default" else f"_{VARIANT}"
 
 
 def log(msg: str) -> None:
@@ -100,9 +104,10 @@ def emit_submission(test_blend, bias, te_df, sub_path: Path,
 
 
 def main() -> None:
+    log(f"blend variant: {VARIANT}")
     log("loading OOFs")
-    oof_new = np.load(ART / "oof_xgb_dist_digits_ote.npy")
-    test_new = np.load(ART / "test_xgb_dist_digits_ote.npy")
+    oof_new = np.load(ART / f"oof_xgb_dist_digits_ote{SUFFIX}.npy")
+    test_new = np.load(ART / f"test_xgb_dist_digits_ote{SUFFIX}.npy")
 
     # --- baseline A: greedy
     oof_greedy = np.load(ART / "oof_greedy_blend.npy")
@@ -206,7 +211,7 @@ def main() -> None:
     if r_b["best"]["alpha"] > 0 and r_b["best"]["delta_vs_baseline"] > 1e-5:
         flag = emit_submission(
             r_b["test_blend_at_best_alpha"], bias_greedy, te,
-            OUT / "submission_greedy_nonrule_ote_blend.csv",
+            OUT / f"submission_greedy_nonrule_ote{SUFFIX}_blend.csv",
             f"vs LB-best α={r_b['best']['alpha']}",
             r_b["best"]["delta_vs_baseline"],
         )
@@ -217,7 +222,7 @@ def main() -> None:
     if r_c["best"]["alpha"] > 0 and r_c["best"]["delta_vs_baseline"] > 1e-5:
         flag = emit_submission(
             r_c["test_blend_at_best_alpha"], bias_digit, te,
-            OUT / "submission_digit_ote_blend.csv",
+            OUT / f"submission_digit_ote{SUFFIX}_blend.csv",
             f"vs digit α={r_c['best']['alpha']}",
             r_c["best"]["delta_vs_baseline"],
         )
@@ -230,9 +235,10 @@ def main() -> None:
 
     summary["actions"] = actions
 
-    with open(ART / "blend_digits_ote_results.json", "w") as f:
+    out_json = ART / f"blend_digits_ote{SUFFIX}_results.json"
+    with open(out_json, "w") as f:
         json.dump(summary, f, indent=2)
-    log(f"wrote {ART}/blend_digits_ote_results.json")
+    log(f"wrote {out_json}")
 
 
 if __name__ == "__main__":

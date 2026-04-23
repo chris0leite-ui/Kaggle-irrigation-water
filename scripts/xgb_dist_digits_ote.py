@@ -21,6 +21,7 @@ Pipeline mirrors `xgb_dist_digits.py`:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -52,6 +53,12 @@ RAW_NUMERIC = [
 ]
 DIGITS = (-3, -2, -1, 0, 1, 2, 3)
 
+# Variants controlled via env vars so all three runs share one code path:
+#   OTE_VARIANT=default  ->  8 cats + 6 pairs + 2 rule keys, alpha=10, shuffles=8
+#   OTE_VARIANT=light    ->  same keys, alpha=1, shuffles=2 (less regularisation)
+#   OTE_VARIANT=digits   ->  keys = 46 surviving digit columns, alpha=10, shuffles=8
+VARIANT = os.environ.get("OTE_VARIANT", "default")
+
 # OTE keys: 8 single cats + 6 pairs + 2 rule-cell (mirror benchmark_te_oof + dgp_score / cell).
 SINGLE_CATS = [
     "Soil_Type", "Crop_Type", "Crop_Growth_Stage", "Season",
@@ -70,8 +77,15 @@ RULE_KEYS = [
     ("dgp_score",),
     ("rule_pred", "Crop_Type"),
 ]
-N_SHUFFLES = 8
-OTE_ALPHA = 10.0
+
+if VARIANT == "light":
+    N_SHUFFLES = 2
+    OTE_ALPHA = 1.0
+else:
+    N_SHUFFLES = 8
+    OTE_ALPHA = 10.0
+
+ART_SUFFIX = "" if VARIANT == "default" else f"_{VARIANT}"
 
 ART = Path("scripts/artifacts")
 OUT = Path("submissions")
@@ -108,8 +122,18 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray):
     return bias, float(best)
 
 
-def _all_key_specs() -> list[list[str]]:
-    return [[c] for c in SINGLE_CATS] + [list(p) for p in PAIR_CATS] + [list(k) for k in RULE_KEYS]
+def _all_key_specs(digit_cols: list[str] | None = None) -> list[list[str]]:
+    """Return list of OTE key specs. For the 'digits' variant, override
+    with per-digit-column single-key OTEs."""
+    if VARIANT == "digits":
+        if not digit_cols:
+            raise ValueError("digits variant needs digit_cols passed in")
+        return [[c] for c in digit_cols]
+    return (
+        [[c] for c in SINGLE_CATS]
+        + [list(p) for p in PAIR_CATS]
+        + [list(k) for k in RULE_KEYS]
+    )
 
 
 def main() -> None:
@@ -154,8 +178,8 @@ def main() -> None:
     prior = np.bincount(y) / len(y)
     log(f"class priors: {dict(zip(CLASSES, prior.round(4)))}")
 
-    key_specs = _all_key_specs()
-    log(f"OTE key specs: {len(key_specs)} keys × 3 classes = {3 * len(key_specs)} OTE cols")
+    key_specs = _all_key_specs(digit_cols=alive_digits)
+    log(f"OTE variant={VARIANT}  keys={len(key_specs)} × 3 classes = {3 * len(key_specs)} OTE cols")
     log(f"  shuffles={N_SHUFFLES}  alpha={OTE_ALPHA}  seed={SEED}")
 
     xgb_params = dict(
@@ -249,11 +273,17 @@ def main() -> None:
     print(f"  prior-reweight  : {reweight_bal:.5f}")
     print(f"  tuned log-bias  : {tuned_bal:.5f}")
 
-    np.save(ART / "oof_xgb_dist_digits_ote.npy", oof)
-    np.save(ART / "test_xgb_dist_digits_ote.npy", test_pred)
-    with open(ART / "xgb_dist_digits_ote_results.json", "w") as f:
+    oof_path = ART / f"oof_xgb_dist_digits_ote{ART_SUFFIX}.npy"
+    test_path = ART / f"test_xgb_dist_digits_ote{ART_SUFFIX}.npy"
+    json_path = ART / f"xgb_dist_digits_ote{ART_SUFFIX}_results.json"
+    sub_path = OUT / f"submission_xgb_dist_digits_ote{ART_SUFFIX}_tuned.csv"
+
+    np.save(oof_path, oof)
+    np.save(test_path, test_pred)
+    with open(json_path, "w") as f:
         json.dump(
             {
+                "variant": VARIANT,
                 "seed": SEED,
                 "n_folds": N_FOLDS,
                 "n_features_total": len(feat_cols_no_ote) + test_ote_block.shape[1],
@@ -275,9 +305,9 @@ def main() -> None:
 
     tuned_test_idx = (np.log(np.clip(test_pred, 1e-9, 1.0)) + bias).argmax(axis=1)
     pd.DataFrame({ID: te[ID], TARGET: [IDX2CLS[i] for i in tuned_test_idx]}).to_csv(
-        OUT / "submission_xgb_dist_digits_ote_tuned.csv", index=False
+        sub_path, index=False
     )
-    log(f"artefacts written to {ART}/ and {OUT}/")
+    log(f"artefacts written: {oof_path}, {test_path}, {json_path}, {sub_path}")
 
 
 if __name__ == "__main__":
