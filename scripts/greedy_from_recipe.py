@@ -67,6 +67,10 @@ CANDIDATES = [
     ("recipe_no_digits", "oof_recipe_no_digits.npy",             "test_recipe_no_digits.npy"),
     ("recipe_no_combos", "oof_recipe_no_combos.npy",             "test_recipe_no_combos.npy"),
     ("recipe_no_orig",   "oof_recipe_no_orig.npy",               "test_recipe_no_orig.npy"),
+    # Recipe LGBM + CatBoost (merged from main; tree-family nulls but
+    # keep for greedy selection — may complement in multi-component).
+    ("recipe_lgbm",      "oof_recipe_full_te_lgbm.npy",          "test_recipe_full_te_lgbm.npy"),
+    ("recipe_catboost",  "oof_recipe_full_te_catboost.npy",      "test_recipe_full_te_catboost.npy"),
 ]
 
 
