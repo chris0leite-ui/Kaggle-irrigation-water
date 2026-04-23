@@ -44,6 +44,7 @@ IDX2CLS = {i: c for c, i in CLS2IDX.items()}
 
 CANDIDATES = [
     ("recipe_full_te",            "oof_recipe_full_te.npy",              "test_recipe_full_te.npy"),
+    ("recipe_allpairs",           "oof_recipe_allpairs.npy",             "test_recipe_allpairs.npy"),
     ("recipe_lgbm",               "oof_recipe_lgbm.npy",                 "test_recipe_lgbm.npy"),
     ("recipe_pseudolabel",        "oof_recipe_pseudolabel.npy",          "test_recipe_pseudolabel.npy"),
     ("recipe_pseudolabel_stage2", "oof_recipe_pseudolabel_stage2.npy",   "test_recipe_pseudolabel_stage2.npy"),
