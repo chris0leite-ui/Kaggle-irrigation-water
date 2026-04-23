@@ -2673,6 +2673,54 @@ architecture or feature view adds orthogonal bits at this base.
 - Next: digits_pairs variant (46 digit singles + 46 (digit ×
   Crop_Type) pairs) — running in background.
 
+### 2026-04-23 — digits_pairs variant + 3-way blend: null
+
+- Goal: extend digit-OTE key set with (digit × Crop_Type) pairs.
+  Hypothesis: per-category per-digit-value class distributions should
+  expose finer flip patterns than per-digit-value alone.
+- Changed: `scripts/ote_features.py` — `_key_strings` rewritten to use
+  numpy `np.char.add` vectorised string concat instead of pandas
+  `DataFrame.agg(axis=1)` Python row-iterator. **6× speedup**: 92-key
+  OTE pipeline dropped from "hung indefinitely" (15+ min on test-OTE
+  build) to 47 min end-to-end wall.
+- Results (OOF 5-fold, seed=42):
+  - Standalone: argmax 0.96486 (digits 0.96520, digit-XGB 0.96485),
+    tuned **0.97375** — ties default cat-OTE, below digits variant.
+  - Blend vs digit-XGB (LB-best 0.97449): **peak α=0.40 → 0.97477
+    (Δ = +0.00027)** — essentially identical to digits variant's
+    +0.00028. Fractional 1-in-100k gap, within fold noise.
+- 3-way blend (digits + digits_pairs + digit-XGB): grid search over
+  weights on OOF → best at (w_digits=0.25, w_pairs=0.30, w_digit=0.45)
+  → **OOF 0.97483 (Δ = +0.00006 vs digits-only blend)**. Tiny lift,
+  well below LB-probe threshold (+0.0005). No submission warranted.
+- Diagnosis: the pair encodings carry the SAME signal as single digit
+  encodings; XGB's tree splits on raw digit cols + digits-OTE already
+  recover per-category per-digit relationships internally. Adding
+  explicit pair-OTE columns adds noise (276 OTE cols vs 138) without
+  new information.
+- **Fold-seed bag on digits variant: SKIPPED (recommended null)**.
+  Three reasons: (1) Session B precedent (fold-seed bag of
+  greedy+nonrule regressed LB −0.00055); (2) current LB-best has
+  NEGATIVE OOF→LB gap (LB > OOF by 0.00005), so coord-ascent is
+  already overshooting OOF pessimism — bagging tightens OOF and
+  removes the pessimism cushion, likely regressing LB; (3)
+  digits_pairs failed to add blend signal, so the architectural
+  lever is exhausted on this pipeline — variance reduction can't
+  recover missing signal.
+- **Final OTE variant table**:
+  ```
+  variant         keys                    α   K   tuned OOF   peak α   Δ vs digit   LB
+  default         8 cats + 6 pairs + 2    10  8   0.97375     0.00     +0.00000      -
+  light           same                    1   2   0.97390     0.025    +0.00005      -
+  **digits**      46 digit cols           10  8   0.97415     0.40     +0.00028      **0.97482**
+  digits_light    46 digit cols           1   2   0.97371     0.40     +0.00020      -
+  digits_pairs    92 (digit + pair)       10  8   0.97375     0.40     +0.00027      -
+  3-way blend     digits + pairs + digit  -   -   0.97483     -        +0.00006      -
+  ```
+- **Current LB best unchanged: 0.97482** via
+  `submission_digit_ote_digits_blend.csv` (digits-OTE α=0.40 blend).
+  LB budget: 6/10 used today, 4 remaining.
+
 ## Hypothesis board
 
 - **Current best (LB)**: digits-OTE × digit-XGB log-blend at α=0.40
