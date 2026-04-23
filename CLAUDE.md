@@ -2491,6 +2491,82 @@ architecture or feature view adds orthogonal bits at this base.
   `python scripts/xgb_dist_digits_ote.py` (~25-30 min) then
   `python scripts/blend_digits_ote.py` (~10 s).
 
+### 2026-04-23 — OTE-XGB executed: NULL on top of LB-best digit-XGB
+
+- Goal: run the OTE scaffold from the 2026-04-22 entry to test whether
+  per-row K-shuffled target encoding lifts digit-XGB (LB 0.97468).
+- Changed: `scripts/xgb_dist_digits_ote.py` runs the full pipeline; one
+  pre-commit bug fix (`_all_key_specs()` was iterating `SINGLE_CATS`
+  strings as characters instead of wrapping each name in a list).
+  Training wall: test-OTE 208 s one-shot + 5 folds × (OTE build ~40 s
+  + XGB train ~190 s) ≈ 21 min total. 48 OTE cols from 16 keys × 3
+  classes, 8 shuffles, alpha=10.
+- Standalone OOF (5-fold, seed=42):
+  - argmax **0.96465** (digit-XGB 0.96485, −0.00020)
+  - prior-reweight not reported but at the same ~0.974 level
+  - **tuned log-bias 0.97375** (digit-XGB 0.97449, **−0.00074**)
+  - Error count 8,888 (digit-XGB 8,846 — near-identical magnitude)
+- Blend sweeps (fixed-bias, α ∈ {0, 0.025, …, 0.5}):
+  ```
+                                     baseline OOF   peak α   OOF at peak   Δ
+  vs greedy                          0.97375        0.50     0.97443       +0.00069
+  vs greedy+nonrule (prior LB best)  0.97421        0.50     0.97463       +0.00041
+  vs digit-XGB (CURRENT LB BEST)     0.97449        0.00     0.97449        0.00000   ← peak is α=0
+  ```
+  **Null on top of digit-XGB.** Every α > 0 strictly hurts; sweep is
+  monotone-negative (α=0.025: −0.00002, α=0.50: −0.00019). The lifts
+  vs greedy / greedy+nonrule are against weaker baselines than the
+  current LB best, so they don't translate.
+- Jaccard-vs-error-count diagnostic:
+  ```
+                 errors   Jaccard vs digit-XGB
+  OTE-XGB        8,888    0.59
+  digit-XGB      8,846    —
+  greedy         11,862   0.60
+  greedy+nonrule 12,372   0.57
+  ```
+  OTE-XGB is the SIXTH model to hit the "decent orthogonality
+  (0.57-0.65) but similar-or-higher error count" blend-null pattern.
+  Same mechanism as MLP-v5 (12,005 errs vs greedy 8,909),
+  FT-Transformer (12,634 errs), TabPFN (10,376 errs), pretrain-
+  finetune MLP (12,524 errs), and LGBM-digits (8,874 errs,
+  Jaccard-0.96). Digit-XGB is the anchor; nothing blends usefully
+  on top of it without a fundamentally better error footprint.
+- Interpretation: the public-notebook "digit + OTE" recipe does
+  NOT work for us as scaffolded. Three possible failure modes:
+  1. **Our OTE consumed by digit-XGB's category splits**: XGB's
+     `enable_categorical=True` on raw cat cols + the 46 digit cols
+     already lets the tree discover per-category per-class
+     probabilities without explicit encoding. OTE columns become
+     redundant re-statements of what splits already express.
+  2. **Wrong key set**: we encoded the 8 standard cats + 6 pairs +
+     2 rule cells. The notebook may encode digit columns themselves
+     (10-card each) or cell × digit interactions. Untested.
+  3. **Wrong smoothing**: alpha=10 + 8 shuffles may over-regularise
+     toward the prior. Lower alpha (1, 3) would expose more
+     per-category signal; fewer shuffles (1-2) would keep more
+     per-row noise.
+- LB budget: unchanged at 5/10 used today (no LB submission; OOF
+  delta vs LB-best is 0.00000, no probe warranted).
+- Current LB best unchanged: `submission_xgb_dist_digits_tuned.csv`
+  at LB 0.97468.
+- Artefacts committed for cross-branch reuse:
+  - `scripts/artifacts/oof_xgb_dist_digits_ote.npy`
+  - `scripts/artifacts/test_xgb_dist_digits_ote.npy`
+  - `scripts/artifacts/xgb_dist_digits_ote_results.json`
+  - `scripts/artifacts/blend_digits_ote_results.json`
+  - `submissions/submission_xgb_dist_digits_ote_tuned.csv`
+    (standalone tuned; strictly worse LB than digit-XGB)
+  - `submissions/submission_greedy_nonrule_ote_blend.csv`
+    (borderline +0.00041 vs prior LB best, auto-flagged; LB
+    inferior to digit-XGB, not for submission)
+- Next bet (smallest delta from current scaffold): re-run OTE with
+  alpha=1 and/or n_shuffles=2 to test if over-smoothing is masking
+  signal. Cheap — same ~20 min wall. Alternative: OTE on digit cols
+  themselves (treat each of 46 digit positions as a 10-card
+  categorical). Structurally different target — may expose patterns
+  the standard-cat OTE can't.
+
 ## Hypothesis board
 
 - **Current best (LB)**: XGB-dist + digits standalone, tuned log-bias

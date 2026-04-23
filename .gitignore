@@ -98,3 +98,7 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_dist_digits.npy
 !scripts/artifacts/oof_lgbm_dist_digits.npy
 !scripts/artifacts/test_lgbm_dist_digits.npy
+# OTE (ordered target encoding) on digit-enriched feature set — null on
+# top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_xgb_dist_digits_ote.npy
+!scripts/artifacts/test_xgb_dist_digits_ote.npy
