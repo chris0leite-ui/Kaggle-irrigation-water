@@ -3263,6 +3263,73 @@ architecture or feature view adds orthogonal bits at this base.
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
 
+### Next steps: feature-set diversity on top of the recipe anchor (2026-04-23)
+
+Confirmed after 4 tree-family nulls on recipe (XGB, LGBM, CatBoost CPU,
+CatBoost GPU all Jaccard 0.78-0.84 + similar error counts): **further
+tree-family additions on the same features are null. To break the
+pattern, change the feature set, not the model.** Candidate levers,
+all untried as of this entry, ranked by expected ROI:
+
+  **N1. Recipe-subset XGBs for blend diversity** (top pick, ~40 min each).
+  Recipe has 9 distinct feature blocks: `nums / cats / combos / digits
+  / num_as_cat / tres / logits / freq / orig_stats`. Train recipe XGB
+  on subsets:
+    - recipe-no-digits: drop 66 digit cols + their ~198 derived OTE
+      features → ~300 features. Forces model onto OTE+ORIG+FREQ only.
+    - recipe-no-combos: drop 28 pair combos + their ~84 OTE → ~390
+      features. Leans on single-cat OTE + digits.
+    - recipe-no-OTE: just the 85 numeric feats (raw nums + tres +
+      logits + freq + orig_stats). Pure-numeric XGB, very different
+      decision surface. Expected weaker standalone but orthogonal
+      errors to the OTE-dominated full recipe.
+    - recipe-no-ORIG: drop 38 ORIG stats + their OTE contributions.
+  Each creates an XGB that captures different aspects of the signal.
+  Blend them with the full recipe — if the feature-block drop produces
+  Jaccard < 0.75 with full recipe AND error count within +10%, the
+  blend-null heuristic predicts a lift. All reuse the existing recipe
+  pipeline with a one-line feature-slice change.
+
+  **N2. Multi-strength OTE on recipe features** (~45 min). Recipe
+  uses `a=1.0` for OTE shrinkage. Train parallel recipes at `a=0.1`
+  (less smoothing) and `a=10` (more smoothing). Different shrinkage
+  changes how low-count categories are encoded, producing different
+  XGB splits on the same raw features. Blend all three.
+
+  **N3. Pseudo-labeling with recipe as labeler** (~90 min). Prior
+  attempts were null with weaker labelers (greedy+nonrule level).
+  Recipe at LB 0.97939 is a much stronger labeler. High-confidence
+  test predictions added as training labels could reshape the
+  decision surface on boundary rows. Gate: confidence ≥ 0.98 AND
+  rule_pred == argmax (double confirmation).
+
+  **N4. XGB-dart on recipe** (~1h). Same gradient-boosted family
+  but `booster='dart'` applies tree dropout during training. The
+  4-way tree null pattern is within `gbtree`; dart is structurally
+  different-enough that it may break the pattern. Lower expected
+  ROI than N1/N2 given the pattern, but cheap.
+
+  **N5. Greedy forward-selection over expanded OOF bank**. Re-run
+  `greedy_from_recipe.py` after any of N1/N2/N3/N4 land — the new
+  components enter the candidate pool. Previously greedy-from-recipe
+  found only digit_xgb at +0.00012 (borderline). New orthogonal
+  components may unlock a real lift.
+
+  **Skipping on principled grounds:**
+  - Further OTE key expansion (triples, etc.) — OTE family saturated
+    across 5 variants already.
+  - SVM / k-NN / Naive Bayes — earlier benchmarks (heuristic 0.60,
+    NB 0.75, LR 0.83) show them too weak to contribute.
+  - Seed bagging — LB-regressed twice (2026-04-22 Session B,
+    2026-04-23 digit seed-bag). Below fold-std threshold rule.
+  - General HP tuning — LB-regressed twice earlier. Any +OOF is
+    likely bias-overfit.
+
+  **Execution order**: N1 (recipe-no-OTE is the cheapest and most
+  structurally different — best first shot) → N1 variants (no-digits,
+  no-combos, no-ORIG) in parallel on separate runs → N5 greedy over
+  the expanded bank. Budget: ~2-4h for the N1 family, 15 min for N5.
+
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
 The v6 {0,1,2,5} null (−0.00012) revealed that single-class-pure rows
