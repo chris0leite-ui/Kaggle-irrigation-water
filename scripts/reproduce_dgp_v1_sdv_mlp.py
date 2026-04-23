@@ -23,10 +23,12 @@ CLI
 
   --n-gen N            number of rows to synthesise (default 50_000;
                        bump to 630_000 for full-scale reproduction)
-  --tvae-epochs N      SDV TVAE epochs (default 200)
-  --mlp-epochs N       MLP labeler epochs (default 80)
-  --mlp-stop-acc F     early-stop val_acc on MLP (default 0.992 — keeps
+  --tvae-epochs N      SDV TVAE epochs (default 500)
+  --tvae-emb N         TVAE embedding + compress dim (default 256)
+  --mlp-epochs N       MLP labeler max epochs (default 250)
+  --mlp-stop-acc F     early-stop val_acc on MLP (default 0.985 — keeps
                        the boundary smooth; 1.0 would memorise the rule)
+  --mlp-hidden CSV     comma-sep hidden sizes (default 256,192,128)
   --seed S             RNG seed (default 42)
   --skip-tvae          reuse cached TVAE artefact + sample fresh rows
   --no-validate        skip the rule-accuracy / KS / chi-sq report
@@ -92,13 +94,13 @@ def log(msg: str) -> None:
 
 
 # ============================================================ Stage A: TVAE
-def fit_tvae(orig_features: pd.DataFrame, epochs: int, seed: int):
+def fit_tvae(orig_features: pd.DataFrame, epochs: int, emb_dim: int, seed: int):
     """Fit SDV TVAE on the original features (label already dropped)."""
     from sdv.metadata import Metadata
     from sdv.single_table import TVAESynthesizer
 
     log(f"Stage A: fitting TVAE on {len(orig_features)} original rows × "
-        f"{orig_features.shape[1]} features  (epochs={epochs})")
+        f"{orig_features.shape[1]} features  (epochs={epochs}, emb={emb_dim})")
 
     metadata = Metadata.detect_from_dataframe(orig_features, table_name="irr")
 
@@ -107,10 +109,10 @@ def fit_tvae(orig_features: pd.DataFrame, epochs: int, seed: int):
         enforce_min_max_values=True,
         enforce_rounding=False,
         epochs=epochs,
-        batch_size=500,
-        embedding_dim=128,
-        compress_dims=(128, 128),
-        decompress_dims=(128, 128),
+        batch_size=250,
+        embedding_dim=emb_dim,
+        compress_dims=(emb_dim, emb_dim),
+        decompress_dims=(emb_dim, emb_dim),
         verbose=False,
         cuda=torch.cuda.is_available(),
     )
@@ -133,18 +135,24 @@ def sample_tvae(syn, n: int, seed: int) -> pd.DataFrame:
 
 # ============================================================ Stage B: MLP
 class TabularMLP(nn.Module):
-    """Small embedding+MLP for tabular 3-class classification.
+    """Per-feature embedding (numeric and categorical) + MLP for 3-class.
 
-    Per-cat embedding tables + numeric standardisation handled outside.
-    Hidden layers chosen to be small enough to keep the boundary smooth
-    when stopped early at val_acc ~0.99.
+    Numerics get a Linear(1, num_emb) lift before concat — gives the
+    network a learnable basis per feature, which materially helps
+    learn axis-aligned thresholds on small training sets (the rule
+    we are trying to approximate sits on 4 such thresholds).
     """
 
-    def __init__(self, n_num: int, cat_cards: list[int], hidden=(128, 64),
-                 emb_dim: int = 8, dropout: float = 0.10):
+    def __init__(self, n_num: int, cat_cards: list[int],
+                 hidden=(256, 192, 128),
+                 num_emb: int = 8, cat_emb: int = 16,
+                 dropout: float = 0.05):
         super().__init__()
-        self.embs = nn.ModuleList([nn.Embedding(c, emb_dim) for c in cat_cards])
-        in_dim = n_num + len(cat_cards) * emb_dim
+        self.num_lifts = nn.ModuleList(
+            [nn.Linear(1, num_emb) for _ in range(n_num)])
+        self.cat_embs = nn.ModuleList(
+            [nn.Embedding(c, cat_emb) for c in cat_cards])
+        in_dim = n_num * num_emb + len(cat_cards) * cat_emb
         layers: list[nn.Module] = []
         prev = in_dim
         for h in hidden:
@@ -154,8 +162,10 @@ class TabularMLP(nn.Module):
         self.net = nn.Sequential(*layers)
 
     def forward(self, x_num: torch.Tensor, x_cat: torch.Tensor) -> torch.Tensor:
-        embs = [e(x_cat[:, i]) for i, e in enumerate(self.embs)]
-        x = torch.cat([x_num] + embs, dim=1)
+        num_pieces = [
+            lift(x_num[:, i:i + 1]) for i, lift in enumerate(self.num_lifts)]
+        cat_pieces = [e(x_cat[:, i]) for i, e in enumerate(self.cat_embs)]
+        x = torch.cat(num_pieces + cat_pieces, dim=1)
         return self.net(x)
 
 
@@ -189,6 +199,7 @@ def fit_mlp_labeler(
     cat_cols: list[str],
     epochs: int,
     stop_val_acc: float,
+    hidden: tuple[int, ...],
     seed: int,
 ):
     """Train MLP on rule-perfect original labels. Stop early at stop_val_acc."""
@@ -213,8 +224,11 @@ def fit_mlp_labeler(
     y_va = orig.iloc[va_idx][TARGET].map(CLS2IDX).to_numpy().astype(np.int64)
 
     cards = [len(vocab[c]) for c in cat_cols]
-    model = TabularMLP(n_num=len(num_cols), cat_cards=cards).to(DEVICE)
-    opt = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    model = TabularMLP(
+        n_num=len(num_cols), cat_cards=cards, hidden=tuple(hidden),
+    ).to(DEVICE)
+    opt = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
 
     def to_t(x_n, x_c, y=None):
         a = torch.from_numpy(x_n).to(DEVICE)
@@ -239,6 +253,7 @@ def fit_mlp_labeler(
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
+        sched.step()
 
         model.eval()
         with torch.no_grad():
@@ -357,14 +372,18 @@ def validate_against_real(repr_df: pd.DataFrame, real_train: pd.DataFrame,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-gen", type=int, default=50_000)
-    ap.add_argument("--tvae-epochs", type=int, default=200)
-    ap.add_argument("--mlp-epochs", type=int, default=80)
-    ap.add_argument("--mlp-stop-acc", type=float, default=0.992)
+    ap.add_argument("--tvae-epochs", type=int, default=500)
+    ap.add_argument("--tvae-emb", type=int, default=256)
+    ap.add_argument("--mlp-epochs", type=int, default=250)
+    ap.add_argument("--mlp-stop-acc", type=float, default=0.985)
+    ap.add_argument("--mlp-hidden", type=str, default="256,192,128",
+                    help="comma-sep hidden layer sizes for the MLP labeler")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--skip-tvae", action="store_true",
                     help="reuse cached TVAE; only re-sample features")
     ap.add_argument("--no-validate", action="store_true")
     args = ap.parse_args()
+    mlp_hidden = tuple(int(x) for x in args.mlp_hidden.split(","))
 
     log(f"=== Option 1: SDV TVAE + MLP labeler  (n_gen={args.n_gen})")
     log(f"device={DEVICE}  seed={args.seed}")
@@ -386,7 +405,8 @@ def main():
         log(f"loading cached TVAE from {tvae_path}")
         syn = TVAESynthesizer.load(tvae_path)
     else:
-        syn = fit_tvae(feats_only, epochs=args.tvae_epochs, seed=args.seed)
+        syn = fit_tvae(feats_only, epochs=args.tvae_epochs,
+                       emb_dim=args.tvae_emb, seed=args.seed)
         syn.save(tvae_path)
         log(f"  cached TVAE → {tvae_path}")
 
@@ -395,7 +415,8 @@ def main():
     # ----- Stage B: MLP labeler ---------------------------------------------
     mlp, scaler, vocab, mlp_meta = fit_mlp_labeler(
         orig, num_cols, cat_cols,
-        epochs=args.mlp_epochs, stop_val_acc=args.mlp_stop_acc, seed=args.seed)
+        epochs=args.mlp_epochs, stop_val_acc=args.mlp_stop_acc,
+        hidden=mlp_hidden, seed=args.seed)
 
     labels, probs = label_with_mlp(mlp, feats_gen, num_cols, cat_cols, scaler, vocab)
     repr_df = feats_gen.copy()
