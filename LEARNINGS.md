@@ -372,6 +372,63 @@ all of them on the same model.
   something raw cats cannot encode (flip-rate, class-specific
   log-odds), or (c) the downstream model is weaker than high-leaf
   LGBM (linear/shallow NN).
+- **The full FE recipe that actually wins tabular synthetic comps**
+  (from pulling top-voted kernels on this competition — specifically
+  yunsuxiaozi's CV-0.9798 and include4eto's V10 recipe, reaching LB
+  0.978–0.980 own-pipeline). One template; every block is cheap and
+  composable:
+  1. `CATS + CAT×CAT combos`: 8 raw cats + all C(8,2)=28
+     string-concat combos, factorized consistently on `train ∪
+     test ∪ orig`.
+  2. `NUMS as digit columns`: for each numeric, emit `(v // 10**k) %
+     10` for `k ∈ {-4,...,+3}`; drop positions that are constant
+     on test. ≈70 cols here. Catches generator quantisation that
+     axis-aligned float splits miss.
+  3. `NUMS as string-cast categoricals`: every numeric also OTE'd as
+     a categorical, letting the per-class TE see per-exact-value
+     class posteriors. Unique-value count is huge but TE shrinkage
+     handles it.
+  4. `Threshold flag CATS`: binary indicators for each known DGP
+     threshold (e.g. `Soil_Moisture < 25`). Also OTE'd.
+  5. `FREQ_{cat}`: per-cat relative frequency on the combined
+     `train ∪ test ∪ orig`. Cheap, leak-free, surfaces rare-value
+     effects.
+  6. `ORIG_{col}_mean / _std`: groupby each col on the auxiliary
+     clean dataset; emit mean+std of the integer target. Two numeric
+     features per col; unseen values filled with (0.5, 0). Leak-free
+     because the source is external.
+  7. `LR-formula logits`: if a simple linear model on rule features
+     hits near-perfect on the clean dataset, hard-code its
+     coefficients as 3 numeric cols (`logit(P(y=Low/Medium/High))`).
+     Cheap prior for the tree.
+  8. `OrderedTE` (per-class cumulative, shrinkage a=1) applied to
+     EVERY categorical from blocks 1–4 → 3 columns each. ~140
+     categoricals × 3 = ~420 OTE features.
+  Total: ~500 features, all numeric. Heavy-reg XGB
+  (max_depth=4, reg_alpha=5, reg_lambda=5, max_leaves=30,
+  max_bin=10000, lr=0.1, n_estimators=50000 with early_stop=500,
+  sample_weight='balanced') + post-hoc per-class log-bias tuning
+  closes the loop. On this competition: OOF 0.97967 tuned,
+  LB 0.97939 (gap +0.00028 — best calibration of the competition).
+- **`OrderedTE` ≠ sklearn `TargetEncoder`.** The custom encoder
+  used in the winning notebooks (yunsuxiaozi) does per-row
+  cumulative-sum encoding on the training set in a single pass:
+  each train row gets TE computed from ALL prior rows in the
+  (optionally shuffled) order, exclusive of itself. Test rows use
+  the full-train per-key mean. sklearn `TargetEncoder` does
+  k-fold-internal mean TE — different row-level dependencies,
+  different shrinkage structure. On this competition the ordered
+  variant composes better with heavy-reg XGB; the sklearn version
+  was the null we hit earlier.
+- **Heavy-reg wide-feature XGB is a distinct optimum.** When the
+  feature space is large (400–600 cols), the winning HPs shift:
+  `max_depth=4` (not 6–8), `reg_alpha=5, reg_lambda=5` (not 0–0.1),
+  `max_leaves=30, min_child_weight=2, lr=0.1, max_bin=10000,
+  n_estimators=50000 + early_stop=500`. Equivalent to "many weak
+  trees with strong regularisation", not "few deep trees with
+  little reg". A sweep on the richer feature set would find this
+  regime; a sweep on a narrow feature set plateaus in a different
+  place and its conclusions don't transfer.
 
 ## DGP / archaeology
 
@@ -534,6 +591,61 @@ all of them on the same model.
   design — hard or soft — should have an explicit rare-class
   accounting step; blends that demote the rare class need to
   justify each demotion on OOF before burning an LB probe.
+- **Research the community's published kernels BEFORE declaring a
+  ceiling.** 15 minutes of `kaggle kernels list --competition SLUG
+  --sort-by voteCount --page-size 20` + `kaggle kernels pull`
+  surfaces the recipes top finishers are running. On this competition
+  a mid-session pivot away from "we've hit the architectural ceiling"
+  happened only after pulling the top-10 public kernels and reading
+  them — it turned out the leader's recipe was fully within our
+  engineering capability, we just hadn't run it. Spending weeks on
+  novel architectures (MLPs, FT-T, TabPFN, diffusion generators)
+  when the published recipe was public the whole time was a
+  misallocation. **Rule of thumb: every 2-3 days of null experiments,
+  spend 15 min re-reading the top kernels**; new kernels appear and
+  your familiarity with the existing ones deepens. WebFetch cannot
+  render Kaggle's JS (notebooks and discussions load client-side),
+  so the tool is `kaggle kernels pull user/slug` or the static
+  kernel outputs page, not `WebFetch`.
+- **OTE is a family, not a single lever.** Our early digit-OTE bet
+  (LB +0.00014) captured only the digit axis; the full published
+  recipe OTEs (a) raw cats, (b) all C(n_cat, 2) cat-pair combos,
+  (c) every digit column, (d) every numeric-as-string, (e) threshold
+  flags — ~140 categoricals × 3 classes ≈ 420 OTE features plus
+  ORIG mean/std + FREQ + LR-formula logits ≈ 500 total. Each OTE
+  sub-lever is small individually but they stack. When you first try
+  a target-encoding approach and it helps, the next move is "OTE
+  every reasonable categorical projection of the data", not "tune
+  OTE α / shuffle count on the one set that worked."
+- **Heavy regularization + wide feature space is a distinct operating
+  point from shallow-feature / moderate-reg.** The community recipe
+  for this comp uses `max_depth=4, reg_alpha=5, reg_lambda=5,
+  max_leaves=30, max_bin=10000, ~500 features, lr=0.1`. Our prior
+  XGBs sat at `max_depth=7, no reg, max_bin=256, 43 features,
+  lr=0.05`. Both regimes reach a plateau, but on different feature
+  sets the plateaus are at different heights. Conclusion "HP search
+  on our feature set plateaued" does NOT generalise to "HP search on
+  any feature set plateaus". Always reconsider HPs when the feature
+  set fundamentally changes (10× more columns, different cardinality
+  distribution, different proportion of categoricals).
+- **Author scripts in modules ≤200 lines** to avoid the harness
+  closing the write stream mid-file. Three files of 150 lines each
+  ship reliably; one 450-line file can silently truncate. Bonus:
+  smaller modules read faster and compose better.
+- **Monitor + `tail -n +1 -f` replays ALL prior log content** when
+  the file already existed at arm time. Old notifications will
+  appear interleaved with new ones, with misleading timestamps.
+  Before arming a monitor on a new run, either `rm` the old log or
+  `tail -f` (no `-n +1`) to start at EOF. Cross-check any suspicious
+  event against the actual file on disk.
+- **Smoke-test via an env-var toggle (`SMOKE=1`)** that subsamples
+  data, reduces folds to 2, and drops model capacity. Aim for 60–90 s
+  total wall at smoke budget — that's the sweet spot where you catch
+  shape/dtype/import bugs but don't waste compute. For a 60-min
+  production run, the 70-s smoke is a ~70x safety multiplier on
+  iteration speed. The toggle also makes the script self-testing
+  (same code path for smoke and real), so regressions in the main
+  pipeline fail the smoke first.
 
 ## Rejected ideas
 

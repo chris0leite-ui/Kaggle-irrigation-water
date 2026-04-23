@@ -1,0 +1,42 @@
+{
+  "anchor_bias": [
+    1.4324411632360974,
+    1.468946691946548,
+    3.400768902044088
+  ],
+  "standalone_at_recipe_bias": {
+    "recipe_full_te": 0.9796650350078755,
+    "greedy_full_bank": 0.9723686200572991,
+    "digit_xgb": 0.9722525082106236,
+    "digits_ote": 0.9715683943811877,
+    "digits_pairs": 0.9713143566054958,
+    "digits_light_ote": 0.9714009304375387,
+    "cat_ote": 0.9717652253602863,
+    "cat_ote_light": 0.9714327171686521,
+    "lgbm_digit": 0.9713128540436219,
+    "lgbm_digit_ote": 0.9707575082466064,
+    "xgb_nonrule": 0.5359874320105488,
+    "xgb_vanilla_dist": 0.9715173707625638,
+    "xgb_routed_v3": 0.9714628759663904,
+    "hybrid_lgbmxgb": 0.9712468536316806,
+    "xgb_corn": 0.9721078411578482,
+    "lgbm_te_orig": 0.9703646396974593,
+    "extratrees_v2": 0.9652120944615076
+  },
+  "recipe_standalone_oof": 0.9796650350078755,
+  "final_blend": {
+    "components": [
+      "recipe_full_te",
+      "digit_xgb"
+    ],
+    "weights_log_space": [
+      0.925,
+      0.075
+    ],
+    "oof_fixed_bias": 0.9797804853186468,
+    "delta_vs_recipe_standalone": 0.00011545031077131451,
+    "error_count": 9857,
+    "jaccard_vs_recipe_standalone": 0.9543008122125453
+  },
+  "action": "submission_borderline"
+}
