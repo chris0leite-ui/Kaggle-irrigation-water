@@ -134,5 +134,37 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/oof_recipe_171pair.npy
 !scripts/artifacts/test_recipe_171pair.npy
 
+# V10 pseudo-label pipeline (stage-1 = the component of LB-best 0.97998).
+# At tau=0.98 keeps 226k/270k test rows, pseudo-labels from recipe_full_te
+# argmax. Retrained XGB on real+pseudo. Essential for downstream blending
+# since the current LB-best submission is 50/50 log-blend with recipe.
+!scripts/artifacts/oof_recipe_pseudolabel.npy
+!scripts/artifacts/test_recipe_pseudolabel.npy
+# Stage-2 pseudo-label (labeler = LB-best blend). OOF-overfit on the
+# training folds, LB null despite OOF lift. Kept for cross-session
+# confirmation that self-refinement saturates at this labeler strength.
+!scripts/artifacts/oof_recipe_pseudolabel_stage2.npy
+!scripts/artifacts/test_recipe_pseudolabel_stage2.npy
+# recipe_allpairs (cat x cat + cat x num = 116 pairs, 795 features).
+# Errors 9,938 (LOWEST of any variant) + Jaccard 0.81 vs recipe —
+# satisfies both "Jaccard < 0.80 AND err <= anchor" blend heuristics
+# without OOF-overfit. Contributes +0.00020 in 3-way blends.
+!scripts/artifacts/oof_recipe_allpairs.npy
+!scripts/artifacts/test_recipe_allpairs.npy
+# recipe_lgbm (LGBM mirror of recipe_full_te). Null blend leg (Jaccard
+# 0.86 with XGB-recipe, near-identical error set). Kept for diagnostic.
+!scripts/artifacts/oof_recipe_lgbm.npy
+!scripts/artifacts/test_recipe_lgbm.npy
+# recipe_catboost (CatBoost mirror of recipe_full_te, CPU depth=4,
+# l2=5, 3000 iter). Tuned OOF 0.97897, blend null under recipe bias
+# (High-class calibration mismatch), but gets weight in 4-way greedy
+# blends. Kept for blend-stack experiments.
+!scripts/artifacts/oof_recipe_catboost.npy
+!scripts/artifacts/test_recipe_catboost.npy
+# Stage-1 blend labeler = 50/50 log-blend of recipe + pseudo stage-1
+# at recipe's tuned bias (= the test probs of LB-0.97998 submission).
+# Used as labeler for stage-2 pseudo-label.
+!scripts/artifacts/test_recipe_blend_stage1.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
