@@ -74,14 +74,17 @@ TARGET = "Irrigation_Need"
 CLS_MAP = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS_MAP.items()}
 
-# Kaggle kernel paths:
-#   /kaggle/input/playground-series-s6e4/   (competition data)
-#   /kaggle/input/irrigation-prediction-original/   (archive.zip wrapped)
-#   /kaggle/working/                         (outputs)
-COMP_DIR = Path("/kaggle/input/playground-series-s6e4")
-ORIG_DIR = Path("/kaggle/input/irrigation-prediction-original")
+# Kaggle kernel paths are discovered via rglob (mount paths differ by
+# competition/dataset slug and sometimes change silently across kernels).
+KAGGLE_INPUT = Path("/kaggle/input")
 OUT_DIR = Path("/kaggle/working")
 OUT_DIR.mkdir(exist_ok=True, parents=True)
+
+
+def _find_one(pattern: str) -> Path:
+    for p in KAGGLE_INPUT.rglob(pattern):
+        return p
+    raise FileNotFoundError(f"no match for {pattern} under {KAGGLE_INPUT}")
 
 SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
@@ -310,16 +313,35 @@ def tune_log_bias(oof, y, prior):
 
 # ========================= data loading =========================
 def load_and_engineer():
-    log("loading train / test / orig")
-    train = pd.read_csv(COMP_DIR / "train.csv")
-    test = pd.read_csv(COMP_DIR / "test.csv")
-    # Upload irrigation-prediction-original dataset with a `Irrigation Prediction.csv`
-    # file (from the l3llff Kaggle dataset, extracted from archive.zip).
-    orig_candidates = list(ORIG_DIR.glob("*.csv"))
-    if not orig_candidates:
-        raise FileNotFoundError(f"No CSV found under {ORIG_DIR}")
-    orig = pd.read_csv(orig_candidates[0])
-    log(f"  orig source: {orig_candidates[0].name}  ({len(orig)} rows)")
+    log("listing /kaggle/input/")
+    for p in sorted(KAGGLE_INPUT.rglob("*.csv")):
+        log(f"  {p}")
+    log("loading train / test / orig via rglob")
+    train_path = _find_one("train.csv")
+    test_path = _find_one("test.csv")
+    # Orig dataset CSV — try common names.
+    orig_path = None
+    for pattern in ("irrigation_prediction.csv", "Irrigation_Prediction.csv",
+                    "irrigation-prediction.csv"):
+        try:
+            orig_path = _find_one(pattern)
+            break
+        except FileNotFoundError:
+            continue
+    if orig_path is None:
+        # Fall back to any non-train/test csv.
+        for p in KAGGLE_INPUT.rglob("*.csv"):
+            if p.name not in ("train.csv", "test.csv", "sample_submission.csv"):
+                orig_path = p
+                break
+    if orig_path is None:
+        raise FileNotFoundError("no original-dataset CSV found")
+    log(f"  train: {train_path}")
+    log(f"  test:  {test_path}")
+    log(f"  orig:  {orig_path}")
+    train = pd.read_csv(train_path)
+    test = pd.read_csv(test_path)
+    orig = pd.read_csv(orig_path)
 
     train[TARGET] = train[TARGET].map(CLS_MAP)
     orig[TARGET] = orig[TARGET].map(CLS_MAP)

@@ -1,0 +1,35 @@
+[{"stream_name":"stdout","time":5.308206549,"data":"[boot] catboost 1.2.10\n"}
+,{"stream_name":"stdout","time":5.330282902,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":5.330451702,"data":"[11:26:16] loading train / test / orig\n"}
+,{"stream_name":"stderr","time":5.337779298,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":5.338346803,"data":"  File \"/kaggle/src/script.py\", line 499, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":5.338352452,"data":"    main()\n"}
+,{"stream_name":"stderr","time":5.338354972,"data":"  File \"/kaggle/src/script.py\", line 459, in main\n"}
+,{"stream_name":"stderr","time":5.33850683,"data":"    train, test, info, test_ids = load_and_engineer()\n"}
+,{"stream_name":"stderr","time":5.338621657,"data":"                                  ^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.338637377,"data":"  File \"/kaggle/src/script.py\", line 314, in load_and_engineer\n"}
+,{"stream_name":"stderr","time":5.33887867,"data":"    train = pd.read_csv(COMP_DIR / \"train.csv\")\n"}
+,{"stream_name":"stderr","time":5.338951803,"data":"            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.3389743450000005,"data":"  File \"/usr/local/lib/python3.12/dist-packages/pandas/io/parsers/readers.py\", line 1026, in read_csv\n"}
+,{"stream_name":"stderr","time":5.340270292,"data":"    return _read(filepath_or_buffer, kwds)\n"}
+,{"stream_name":"stderr","time":5.3403352,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.340413146,"data":"  File \"/usr/local/lib/python3.12/dist-packages/pandas/io/parsers/readers.py\", line 620, in _read\n"}
+,{"stream_name":"stderr","time":5.340654286,"data":"    parser = TextFileReader(filepath_or_buffer, **kwds)\n"}
+,{"stream_name":"stderr","time":5.340769268,"data":"             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.340813109,"data":"  File \"/usr/local/lib/python3.12/dist-packages/pandas/io/parsers/readers.py\", line 1620, in __init__\n"}
+,{"stream_name":"stderr","time":5.34120231,"data":"    self._engine = self._make_engine(f, self.engine)\n"}
+,{"stream_name":"stderr","time":5.341280263,"data":"                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.341349411,"data":"  File \"/usr/local/lib/python3.12/dist-packages/pandas/io/parsers/readers.py\", line 1880, in _make_engine\n"}
+,{"stream_name":"stderr","time":5.341733986,"data":"    self.handles = get_handle(\n"}
+,{"stream_name":"stderr","time":5.3417558419999995,"data":"                   ^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":5.341802781,"data":"  File \"/usr/local/lib/python3.12/dist-packages/pandas/io/common.py\", line 873, in get_handle\n"}
+,{"stream_name":"stderr","time":5.343007438,"data":"    handle = open(\n"}
+,{"stream_name":"stderr","time":5.343021465,"data":"             ^^^^^\n"}
+,{"stream_name":"stderr","time":5.343025657,"data":"FileNotFoundError: [Errno 2] No such file or directory: '/kaggle/input/playground-series-s6e4/train.csv'\n"}
+,{"stream_name":"stderr","time":7.597862405,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":7.59789466,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":7.80854655,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":7.808571025,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":9.007119774,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":9.866851154,"data":"[NbConvertApp] Writing 385167 bytes to __results__.html\n"}
+]
