@@ -2567,21 +2567,99 @@ architecture or feature view adds orthogonal bits at this base.
   categorical). Structurally different target — may expose patterns
   the standard-cat OTE can't.
 
+### 2026-04-23 — OTE variants follow-up: digits-OTE → NEW LB BEST 0.97482
+
+- Goal: test two follow-ups to the default-OTE null from earlier today:
+  (1) "light" — alpha=1, shuffles=2 to check if default's alpha=10 +
+  shuffles=8 over-smoothed away signal; (2) "digits" — OTE keys = 46
+  surviving digit columns (10-card each) instead of 8 standard cats +
+  pairs + rule keys, testing a structurally different target aligned
+  with the digit-extraction LB-best lever.
+- Changed: `scripts/xgb_dist_digits_ote.py` parameterised via
+  `OTE_VARIANT` env var; `scripts/blend_digits_ote.py` likewise. Shared
+  code path, suffix-based artifact names (`_light`, `_digits`).
+- Light variant results (alpha=1, shuffles=2):
+  - Standalone: argmax 0.96433, tuned 0.97390 (default tuned 0.97375,
+    +0.00015). Lighter regularisation trades argmax for tuned.
+  - Blend peaks: vs greedy α=0.40 → 0.97416 (+0.00042); vs
+    greedy+nonrule α=0.40 → 0.97485 (+0.00064); **vs digit-XGB
+    α=0.025 → 0.97454 (+0.00005 BORDERLINE)**.
+  - Verdict: small improvement over default but vs-digit peak moved
+    from α=0 to α=0.025 with only +0.00005 lift — within fold noise.
+- **Digits variant results (46 digit cols as keys, alpha=10, shuffles=8)**:
+  - Standalone: argmax **0.96520** (best of all 3 OTE variants),
+    tuned 0.97415. Error count 8,840 — **FIRST OTE variant with fewer
+    errors than digit-XGB** (8,879).
+  - Jaccard vs digit-XGB: 0.59 (same orthogonality range as other OTE
+    variants, but combined with lower error count).
+  - Blend sweep vs digit-XGB: **clean unimodal curve with broad
+    plateau α=0.30-0.50** at Δ = +0.00019 to +0.00028. Peak at α=0.40
+    (OOF 0.97477, Δ=+0.00028). Not a single-point fluke.
+- **LB PROBE (user-approved, submitted 05:11 UTC)**:
+  - `submission_digit_ote_digits_blend.csv` (0.4 × digits-OTE + 0.6 ×
+    digit-XGB log-blend, digit-XGB's bias).
+  - **LB public = 0.97482** (new best), gap OOF → LB = **−0.00005**
+    (LB slightly above OOF — excellent calibration).
+  - Δ vs prior LB-best (digit-XGB 0.97468): **+0.00014**.
+  - Gap to pack 0.98114: +0.00632 (was +0.00646).
+  - Gap to leader 0.98219: +0.00737 (was +0.00751).
+- Updated calibration ladder:
+  ```
+  single tuned LGBM                 0.97097 → 0.96972   gap 0.00125
+  greedy 3-way log-blend            0.97375 → 0.97296   gap 0.00079
+  greedy + nonrule α=0.15           0.97421 → 0.97352   gap 0.00069
+  digit-XGB standalone              0.97449 → 0.97468   gap -0.00019
+  **digits-OTE × digit-XGB α=0.40   0.97477 → 0.97482   gap -0.00005**  ← NEW LB BEST
+  ```
+- LB budget: **6/10 used today**, 4 remaining.
+- Read-out: the **"encode digit columns directly with per-class target
+  stats" approach adds orthogonal signal** on top of the raw digit
+  features. Mechanism: each digit position has 10 unique values, and
+  their per-class probability (e.g. "rows where humidity tens-digit =
+  7 are 8% High" — higher than the 3.3% prior) carries signal the
+  tree can't express by axis-aligned digit-value splits because each
+  split only sees ONE class side at a time. OTE on digit cols gives
+  the tree a 3-dim probability per row per digit position, enabling
+  single-split decisions on the full per-class distribution.
+- Critical heuristic confirmed: **fewer errors AND Jaccard < 0.65 is
+  the right pattern for a blend lift.** Every prior OTE variant had
+  the right Jaccard but more errors; every prior NN/tree had similar
+  Jaccard but 16-42% MORE errors. Digits-OTE is the first to satisfy
+  both, and it delivered +0.00014 LB.
+- Next bets (in priority order):
+  1. **Extend digit-OTE key set**: pair digit cols with cats
+     (`dig_Humidity_-1 × Crop_Type`) — high-card keys may unlock more
+     per-category per-digit flip signal. Low-risk; same pipeline.
+  2. **Seed-bag digits-OTE**: variance-reduction on new LB-best.
+     HISTORICALLY RISKY per seed-bag survey but the digit-OTE lever
+     is structurally different — worth testing if 1 session budget
+     allows.
+  3. **Retry default-OTE or light with "digits" keys AND alpha=1**: the
+     two wins (alpha=1 calibration lift + digit-key structural signal)
+     may compound.
+- Artefacts committed: `oof_xgb_dist_digits_ote_{light,digits}.npy`,
+  `test_xgb_dist_digits_ote_{light,digits}.npy`, three result JSONs,
+  all 6 submissions (standalones + blends) on `claude/plan-next-steps-I32rC`.
+
 ## Hypothesis board
 
-- **Current best (LB)**: XGB-dist + digits standalone, tuned log-bias
-  → OOF 0.97449, **LB 0.97468** (+0.00116 over prior best; unusual
-  negative OOF→LB gap of −0.00019). Submission on disk:
-  `submissions/submission_xgb_dist_digits_tuned.csv`. Pack 0.98114 is
-  +0.00646 above; leader 0.98219 is +0.00751 above. LB budget today:
-  5 remaining (5/10 used: 1 seed-bag null + 2 HP-tuning nulls + 2
-  digit-extraction probes).
+- **Current best (LB)**: digits-OTE × digit-XGB log-blend at α=0.40
+  → OOF 0.97477, **LB 0.97482** (+0.00014 over prior, −0.00005
+  OOF→LB gap). Submission on disk:
+  `submissions/submission_digit_ote_digits_blend.csv`. Pack 0.98114
+  is +0.00632 above; leader 0.98219 is +0.00737 above. LB budget
+  today: 4 remaining (6/10 used: 1 seed-bag null + 2 HP-tuning
+  nulls + 2 digit-extraction probes + 1 digits-OTE blend probe).
 
-  Second-best (safe fallback): greedy + xgb-nonrule log-blend at α=0.15
+  Second-best: XGB-dist + digits standalone, tuned log-bias →
+  OOF 0.97449, LB 0.97468. Submission:
+  `submissions/submission_xgb_dist_digits_tuned.csv`.
+
+  Third-best: greedy + xgb-nonrule log-blend at α=0.15
   → OOF 0.97421, LB 0.97352. Submission:
   `submissions/submission_greedy_nonrule_blend.csv`.
 
-  Third-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
+  Fourth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
 
