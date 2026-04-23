@@ -102,3 +102,8 @@ kaggle_kernel/ds_*/test_*.npy
 # top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
 !scripts/artifacts/oof_xgb_dist_digits_ote.npy
 !scripts/artifacts/test_xgb_dist_digits_ote.npy
+# Full public-notebook recipe: cat-pair combos + digits + num-as-cat +
+# FREQ + ORIG mean/std + LR-formula logits + OrderedTE on ~140 cats,
+# heavy-reg XGB. OOF 0.97967 / LB pending. New top candidate.
+!scripts/artifacts/oof_recipe_full_te.npy
+!scripts/artifacts/test_recipe_full_te.npy
