@@ -471,6 +471,20 @@ all of them on the same model.
 
 - (e.g. what stop-conditions worked, how to budget LB submissions,
   signs that CV–LB divergence is diagnostic)
+- **Before killing a hung Kaggle kernel, download its logs first.**
+  `kaggle kernels output <owner>/<name> -p <path> -o` pulls the
+  `.log` file (stdout/stderr to the moment) even while the kernel
+  is in RUNNING state or stuck. `kaggle kernels delete` is
+  destructive — it removes the kernel AND all its logs/versions
+  permanently. 2026-04-23 deleted the NN kernel to free the GPU
+  while it was hung in the refit phase (last log 2h15m earlier at
+  Optuna trial 19 end, no refit log ever emitted). Lost the exact
+  failure trace — was it a hung DataLoader worker? An OOM between
+  Optuna exit and refit entry? Silent CUDA error? Can't diagnose
+  without the log. **Rule**: before `delete`, always try
+  `kaggle kernels output -o` first; if it returns any `.log` file,
+  read it end-to-end for clues; only delete once you've extracted
+  everything diagnosable.
 - **Smoke-test any pipeline with >10 min wall time on a 1-fold /
   1-trial config first.** Before launching a full Optuna sweep,
   seed bag, or multi-fold Kaggle kernel, push a tiny version

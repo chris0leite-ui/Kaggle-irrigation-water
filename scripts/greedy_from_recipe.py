@@ -62,6 +62,11 @@ CANDIDATES = [
     ("xgb_corn",         "oof_xgb_corn.npy",                     "test_xgb_corn.npy"),
     ("lgbm_te_orig",     "oof_lgbm_te_orig.npy",                 "test_lgbm_te_orig.npy"),
     ("extratrees_v2",    "oof_extratrees_dist_digits_v2.npy",    "test_extratrees_dist_digits_v2.npy"),
+    # Recipe-subset XGB variants (N1 from main's next-steps menu).
+    ("recipe_no_ote",    "oof_recipe_no_ote.npy",                "test_recipe_no_ote.npy"),
+    ("recipe_no_digits", "oof_recipe_no_digits.npy",             "test_recipe_no_digits.npy"),
+    ("recipe_no_combos", "oof_recipe_no_combos.npy",             "test_recipe_no_combos.npy"),
+    ("recipe_no_orig",   "oof_recipe_no_orig.npy",               "test_recipe_no_orig.npy"),
 ]
 
 
