@@ -113,3 +113,11 @@ kaggle_kernel/ds_*/test_*.npy
 # heavy-reg XGB. OOF 0.97967 / LB pending. New top candidate.
 !scripts/artifacts/oof_recipe_full_te.npy
 !scripts/artifacts/test_recipe_full_te.npy
+# CatBoost on recipe feature set: CPU (Bernoulli bootstrap, 2000 iter,
+# OOF 0.97936 / LB 0.97935) and GPU (Bayesian bootstrap, 16000 iter,
+# converged at ~8600 avg, OOF 0.97894 — worse). GPU is null but kept
+# for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_recipe_full_te_catboost.npy
+!scripts/artifacts/test_recipe_full_te_catboost.npy
+!scripts/artifacts/oof_catboost_recipe_gpu.npy
+!scripts/artifacts/test_catboost_recipe_gpu.npy

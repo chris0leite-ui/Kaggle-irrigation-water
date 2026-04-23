@@ -3125,6 +3125,54 @@ architecture or feature view adds orthogonal bits at this base.
   Otherwise: lock 0.97939 as final. Pack 0.98114 stays +0.00175 above,
   leader 0.98219 stays +0.00280 above.
 
+### 2026-04-23 — CatBoost CPU LB + GPU retry: both null, two-submission diversification unlocked
+
+- **CatBoost CPU LB probe** (`submission_recipe_full_te_catboost.csv`,
+  submitted 11:18 UTC after user approval): **LB 0.97935**, −0.00004
+  below recipe_full_te's 0.97939 but essentially **tied**. OOF→LB gap
+  **+0.00001** — near-perfect calibration (recipe's was +0.00028).
+  Implication: CatBoost calibrates tighter than XGB on this problem.
+  Also gives us a **final-selection diversification candidate**:
+  Primary `submission_recipe_full_te.csv` (XGB family, LB 0.97939) +
+  Safe fallback `submission_recipe_full_te_catboost.csv` (CatBoost
+  family, LB 0.97935) covers both model families on private LB.
+
+- **CatBoost GPU on Kaggle kernel** (16000-iter cap + proper early
+  stopping): scaffolded `kaggle_kernel/kernel_catboost_recipe/` with
+  inlined recipe_features + OrderedTE + log-bias tuner. Two failed
+  kernel versions before success (v1: hard-coded COMP_DIR path, v2:
+  `devices="0:1"` required 2 GPUs but only P100 present). v3 ran to
+  completion on P100 in ~28 min.
+- GPU results (5-fold, seed=42):
+  - Per-fold argmax 0.97634 / 0.97704 / 0.97723 / 0.97556 / 0.97647
+  - Overall OOF argmax **0.97653** (vs CPU 0.97806 — **−0.00153 worse**)
+  - Tuned log-bias **0.97894** (vs CPU 0.97936 — **−0.00042 worse**)
+  - best_iters: 6197 / 10919 / 9037 / 8492 / 8524 (avg ~8634, early
+    stopping triggered — didn't hit 16000 cap). So more training time
+    DID produce a converged model; the converged endpoint is just worse.
+- **Counter-intuitive cause**: `bootstrap_type='Bernoulli'` (CPU-only)
+  vs `bootstrap_type='Bayesian'` (GPU default). Bernoulli = per-tree
+  random row subsampling; Bayesian = posterior row weights. For this
+  problem, Bernoulli's stronger per-tree randomization acts as
+  implicit regularization that the longer training would otherwise
+  converge past. Bayesian lets CatBoost optimize to a worse minimum.
+  **Rule**: when porting CatBoost between CPU and GPU, verify
+  bootstrap_type compatibility — the defaults differ and the CPU
+  default (Bernoulli) may be the thing that makes the CPU run work.
+- GPU standalone at recipe's bias: 10,902 errors, Jaccard 0.7884 vs
+  recipe. Better orthogonality than CPU (0.8060) but worse magnitude.
+  Blend with recipe peaked at α=0.05-0.10 (TIED at 0.97967).
+- 3-way blend (recipe 0.7 + CPU_cat 0.3 + GPU_cat 0.0) → OOF 0.97967
+  (ties recipe standalone). GPU CatBoost gets **zero weight** when
+  recipe + CPU_cat are already present.
+- Verdict: GPU CatBoost **null** both standalone and as blend leg.
+  Longer training doesn't fix the calibration gap it amplifies with
+  the wrong bootstrap. No LB probe warranted.
+- Lever bank fully exhausted. Final candidates locked:
+  1. **Primary**: `submission_recipe_full_te.csv` → **LB 0.97939**
+  2. **Safe fallback**: `submission_recipe_full_te_catboost.csv`
+     → **LB 0.97935** (different model family, tight calibration)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_full_te.csv` →
