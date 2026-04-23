@@ -34,6 +34,18 @@ previously listed public-CSV blending as a "strategic option"
 should be treated as stale guidance and ignored — the updated
 rule is no-suggest.
 
+## ⚠️ KEEP FILES SHORT AND MODULAR
+
+**Long single-file writes risk stream idle timeouts on the API.**
+When scaffolding new pipelines (kernels, scripts), split into
+multiple short files (≤~150 lines each) with clear
+responsibilities — one file for model, one for features, one for
+training loop, one for the orchestrator — rather than a single
+large file. For Kaggle kernels that require a single `code_file`,
+assemble a thin orchestrator that imports from sibling modules
+(drop them next to the kernel script) or inline via a build step.
+Same rule for plans: short modular docs, not monoliths.
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**

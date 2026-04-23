@@ -1,0 +1,18 @@
+{
+  "id": "chrisleitescha/irrigation-nn-hp-tune",
+  "title": "irrigation-nn-hp-tune",
+  "code_file": "nn_digit_hp_tune.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-nn-baselines"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}

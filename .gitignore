@@ -102,3 +102,6 @@ kaggle_kernel/ds_*/test_*.npy
 # top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
 !scripts/artifacts/oof_xgb_dist_digits_ote.npy
 !scripts/artifacts/test_xgb_dist_digits_ote.npy
+
+# Built / concatenated kernel upload targets — regenerated via build.py
+kaggle_kernel/*/dist/
