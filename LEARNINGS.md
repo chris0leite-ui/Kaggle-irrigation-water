@@ -414,6 +414,19 @@ all of them on the same model.
 
 - (e.g. what stop-conditions worked, how to budget LB submissions,
   signs that CV–LB divergence is diagnostic)
+- **Smoke-test any pipeline with >10 min wall time on a 1-fold /
+  1-trial config first.** Before launching a full Optuna sweep,
+  seed bag, or multi-fold Kaggle kernel, push a tiny version
+  (N_TRIALS=1, TRIAL_EPOCHS=1, N_FOLDS=1, subsample=50k) and
+  confirm COMPLETE status + correct output shapes. Catches
+  bugs (sibling-import ordering, `from __future__` placement,
+  GPU shim timing relative to `import torch`, pip reinstall
+  flags, output-path perms) on a 2-minute cycle instead of
+  3 hours. 2026-04-23 launched v1→SyntaxError and v2→AdamW-
+  _dynamo ImportError on an unvalidated full-config kernel,
+  burning ~30 min of P100 warmup and iteration cost that a
+  smoke run would have saved. Rule: no long run without a
+  smoke pass, ever.
 - **Kill an iteration after fold 1 when fold 1 is already a clear
   null vs the best-known result.** Per-fold bal_acc std was ~0.0007
   on this competition; any fold 1 result ≥2σ below the current

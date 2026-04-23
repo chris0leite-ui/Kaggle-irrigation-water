@@ -46,6 +46,30 @@ assemble a thin orchestrator that imports from sibling modules
 (drop them next to the kernel script) or inline via a build step.
 Same rule for plans: short modular docs, not monoliths.
 
+## ⚠️ SMOKE-TEST BEFORE LONG RUNS
+
+**Always run a 1-fold / 1-trial smoke pass before launching a
+full multi-hour computation.** Kaggle kernels, Optuna sweeps,
+seed bags, and any pipeline with >10 min wall time should be
+validated end-to-end on a tiny configuration first — `N_FOLDS=1`,
+`N_TRIALS=1`, a stratified subsample, or a CPU debug run. Catch
+bugs (sibling-import errors, `from __future__` placement, shim
+ordering, pip reinstall flags, tensor shape mismatches, OOM,
+GPU/CUDA mismatches, output-path permissions) on the 2-minute
+smoke cycle, not the 3-hour real run.
+
+Concretely for a new Kaggle kernel:
+1. Build + push a smoke config (`N_TRIALS=1, TRIAL_EPOCHS=1,
+   N_FOLDS=1, subsample=50k`) — expect <5 min wall.
+2. Confirm it completes (`COMPLETE` status, submission CSV
+   present, results JSON parses, OOF/test npy shapes correct).
+3. THEN push the production config.
+
+Two failed kernel iterations (v1 SyntaxError on `__future__`
+ordering, v2 broken torch reinstall due to shim placement)
+on 2026-04-23 burned ~30 min and a P100 warmup before any
+training happened. A 2-min smoke run would have caught both.
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
