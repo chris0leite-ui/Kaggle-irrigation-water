@@ -3599,6 +3599,57 @@ architecture or feature view adds orthogonal bits at this base.
 - Current LB-best unchanged: `submission_recipe_greedy_recipe_pseudolabel.csv`
   at LB **0.97998** (from main).
 
+### 2026-04-23 — N1 remaining 3 variants (no_digits, no_combos, no_orig) all LB-null — magnitude-trap rule confirmed
+
+- Goal: despite the main-branch session saying "skipping remaining 3
+  variants" after no_ote's blend-null magnitude trap, a parallel
+  feature branch ran them anyway to verify the rule. All 3 ran on
+  the same 5-fold seed=42 with same XGB HPs as recipe_full_te.
+- Results (5-fold OOF, tuned log-bias):
+  ```
+                Tuned OOF   Δ vs recipe   Errors   Jaccard vs recipe
+  recipe         0.97967        —         10,114   1.00
+  no_digits      0.97956    −0.00011      10,393   0.7866   (+2.8% errs)
+  no_combos      0.97951    −0.00016      10,742   0.8361   (+6.2% errs)
+  no_ote         0.97465    −0.00502      11,730   0.6066   (+16% errs)
+  no_orig        0.97961    −0.00006      10,618   0.8555   (+5.0% errs)
+  ```
+- **Magnitude-trap rule holds for all 4 variants.** Each has MORE
+  errors than recipe (the rule predicts blend-null), despite some
+  having lower Jaccards. no_orig is the closest-to-tied standalone
+  but has highest Jaccard (0.8555 — errors overlap too much with
+  recipe). no_ote has lowest Jaccard but +16% error magnitude.
+- **5-way blend ceiling: OOF 0.97982 (Δ=+0.00015 vs recipe)**.
+  Greedy forward from recipe anchor at fixed bias:
+  ```
+  + no_digits α=0.300  OOF 0.97978 (+0.00012)
+  + no_orig   α=0.025  OOF 0.97982 (+0.00003)
+  no further additions (no_combos, no_ote below threshold)
+  ```
+  5-way grid gives same ceiling 0.97982 at (recipe 0.60,
+  no_digits 0.20, no_combos 0.15, no_ote 0.03, no_orig 0.00).
+  Coord-ascent on the 3-way weights converged at iter 0 — already
+  optimal.
+- **+0.00015 OOF is well below the +0.0002 LB-transfer threshold**
+  established by main's 4-way stage-2 blend null. Given recipe's
+  +0.00028 OOF→LB gap, expected LB ≈ 0.97926 (below current LB-best
+  0.97998). **No LB probe warranted.**
+- Verdict: N1 is **fully closed** — all 4 variants individually
+  confirm the magnitude-trap rule; blend ceiling +0.00015 OOF, below
+  LB-transfer threshold. Artifacts preserved for cross-branch greedy
+  use but unlikely to contribute to future blends.
+- **What N1 proved beyond its immediate null**: the 5-way-blend
+  ceiling of +0.00015 on recipe-subsets is a clean upper bound on
+  "feature-removal diversity" as a lever. To break through, we need
+  feature-ADDITION (171-pair OTE, external data source, etc.) or
+  a new training objective, not subtraction.
+- Artefacts:
+  - `scripts/artifacts/oof_recipe_no_digits.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_combos.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_orig.npy` (+ test + JSON)
+  - `scripts/artifacts/recipe_5way_blend_results.json`
+  - 4 diagnostic submissions (LB-inferior, not for probe)
+
 ### Next steps: feature-set diversity on top of the recipe anchor (2026-04-23)
 
 Confirmed after 4 tree-family nulls on recipe (XGB, LGBM, CatBoost CPU,
