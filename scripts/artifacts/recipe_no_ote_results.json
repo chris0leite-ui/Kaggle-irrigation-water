@@ -1,0 +1,33 @@
+{
+  "variant": "no_ote",
+  "seed": 42,
+  "n_folds": 5,
+  "smoke": false,
+  "fold_scores_argmax": [
+    0.9702967007152229,
+    0.9710164121502979,
+    0.971910368539621,
+    0.9707291727254702,
+    0.9694022124001673
+  ],
+  "overall_argmax_bal_acc": 0.9706710027542912,
+  "tuned_log_bias_bal_acc": 0.9746458171239624,
+  "log_bias": [
+    1.532441163236097,
+    1.468946691946548,
+    3.400768902044088
+  ],
+  "n_features": 92,
+  "feature_group_sizes": {
+    "nums": 11,
+    "cats": 8,
+    "combos": 28,
+    "digits": 66,
+    "num_as_cat": 11,
+    "freq": 36,
+    "tres": 4,
+    "logits": 3,
+    "orig_stats": 38
+  },
+  "te_col_count": 117
+}

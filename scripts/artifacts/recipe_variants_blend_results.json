@@ -1,0 +1,122 @@
+{
+  "anchor": {
+    "oof_fixed": 0.9796650350078755,
+    "bias": [
+      1.4324411632360974,
+      1.468946691946548,
+      3.400768902044088
+    ],
+    "errors": 10114
+  },
+  "variants": {
+    "recipe_full_te_a01": {
+      "standalone_fixed": 0.9795535010911524,
+      "standalone_tuned": 0.9796284893340955,
+      "errors": 10148,
+      "jaccard_vs_anchor": 0.8735090152565881,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.2,
+        "oof": 0.9797511927346393,
+        "delta": 8.615772676379141e-05
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_full_te_a10": {
+      "standalone_fixed": 0.9797042580972953,
+      "standalone_tuned": 0.9797114752229868,
+      "errors": 10234,
+      "jaccard_vs_anchor": 0.8411147303655447,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.5,
+        "oof": 0.9798699094114038,
+        "delta": 0.0002048744035283434
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_no_digits": {
+      "standalone_fixed": 0.9795401475278922,
+      "standalone_tuned": 0.9795578708580793,
+      "errors": 10376,
+      "jaccard_vs_anchor": 0.7912404930500918,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.3,
+        "oof": 0.979783888431903,
+        "delta": 0.00011885342402750965
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_no_combos": {
+      "standalone_fixed": 0.9794359501965427,
+      "standalone_tuned": 0.9795134903982249,
+      "errors": 9953,
+      "jaccard_vs_anchor": 0.8556500832254484,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.1,
+        "oof": 0.9797305604555859,
+        "delta": 6.5525447710435e-05
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_no_orig": {
+      "standalone_fixed": 0.9795643179353042,
+      "standalone_tuned": 0.9796148707017913,
+      "errors": 10073,
+      "jaccard_vs_anchor": 0.8683017121702915,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.4,
+        "oof": 0.9797672503014795,
+        "delta": 0.00010221529360399106
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_full_te_lgbm": {
+      "standalone_fixed": 0.9792469504812499,
+      "standalone_tuned": 0.9792606982072197,
+      "errors": 9968,
+      "jaccard_vs_anchor": 0.8314637482900137,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.125,
+        "oof": 0.9797101887243187,
+        "delta": 4.515371644320254e-05
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    },
+    "recipe_full_te_catboost": {
+      "standalone_fixed": 0.9771927688412397,
+      "standalone_tuned": 0.9793640332274199,
+      "errors": 13975,
+      "jaccard_vs_anchor": 0.655373831775701,
+      "jaccard_vs_lbbest": null,
+      "pairwise_vs_anchor": {
+        "alpha": 0.3,
+        "oof": 0.9796702089988846,
+        "delta": 5.173991009077561e-06
+      },
+      "pairwise_vs_lbbest": null,
+      "submission": null
+    }
+  },
+  "greedy": {
+    "baseline": "recipe_full_te",
+    "baseline_oof": 0.9796650350078755,
+    "picked": [
+      "recipe_full_te_a10",
+      "recipe_full_te_lgbm"
+    ],
+    "oof": 0.9799193181287927,
+    "delta_vs_baseline": 0.0002542831209172425,
+    "submission": null
+  }
+}

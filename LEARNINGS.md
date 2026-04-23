@@ -101,6 +101,23 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   blend, ≥ 0.80 skip". Safe default: always sweep a small blend if
   the candidate lands within ±0.002 of current best; Jaccard only
   decides whether to fully reject at > 0.90.
+- **Error-count magnitude trumps Jaccard novelty for weak
+  candidates.** 2026-04-23 `recipe_no_ote` on recipe features
+  produced the lowest Jaccard (0.60) ever seen vs recipe_full_te
+  — genuinely novel error geometry, much lower than LGBM (0.84),
+  CatBoost CPU (0.81), CatBoost GPU (0.79). But no_ote had **+16%
+  more total errors** (11,760 vs recipe's 10,114) because
+  dropping OTE cost it 0.005 standalone OOF. Fixed-bias blend
+  sweep peaked at α=0.025 with Δ=+0.00000 — the +16% error-
+  magnitude drag cancelled the Jaccard novelty. Greedy forward-
+  selection over 14 candidates also rejected no_ote at every α.
+  **Rule refinement**: for a weak candidate (≥0.003 below anchor
+  standalone), Jaccard < 0.80 alone isn't enough. Need Jaccard <
+  0.80 AND error count ≤ anchor's. Compare `recipe_pseudolabel`
+  on main: Jaccard 0.78 (novel) AND 10,039 errs (FEWER than
+  recipe's 10,114) → blend lift Δ=+0.00046 LB. The "error count"
+  is the stricter gate; check it BEFORE committing compute to
+  a candidate whose standalone lands below anchor.
 - **Seed-bagging is noise below 1 fold-std.** A 2-seed bag of a
   near-deterministic model (XGB-dist, per-seed spread 0.00010 well
   below fold-std σ=0.00088) hit OOF +0.00010 and LB **−0.00012**
@@ -471,6 +488,33 @@ all of them on the same model.
 
 - (e.g. what stop-conditions worked, how to budget LB submissions,
   signs that CV–LB divergence is diagnostic)
+- **Before killing a hung Kaggle kernel, download its logs first.**
+  `kaggle kernels output <owner>/<name> -p <path> -o` pulls the
+  `.log` file (stdout/stderr to the moment) even while the kernel
+  is in RUNNING state or stuck. `kaggle kernels delete` is
+  destructive — it removes the kernel AND all its logs/versions
+  permanently. 2026-04-23 deleted the NN kernel to free the GPU
+  while it was hung in the refit phase (last log 2h15m earlier at
+  Optuna trial 19 end, no refit log ever emitted). Lost the exact
+  failure trace — was it a hung DataLoader worker? An OOM between
+  Optuna exit and refit entry? Silent CUDA error? Can't diagnose
+  without the log. **Rule**: before `delete`, always try
+  `kaggle kernels output -o` first; if it returns any `.log` file,
+  read it end-to-end for clues; only delete once you've extracted
+  everything diagnosable.
+- **Smoke-test any pipeline with >10 min wall time on a 1-fold /
+  1-trial config first.** Before launching a full Optuna sweep,
+  seed bag, or multi-fold Kaggle kernel, push a tiny version
+  (N_TRIALS=1, TRIAL_EPOCHS=1, N_FOLDS=1, subsample=50k) and
+  confirm COMPLETE status + correct output shapes. Catches
+  bugs (sibling-import ordering, `from __future__` placement,
+  GPU shim timing relative to `import torch`, pip reinstall
+  flags, output-path perms) on a 2-minute cycle instead of
+  3 hours. 2026-04-23 launched v1→SyntaxError and v2→AdamW-
+  _dynamo ImportError on an unvalidated full-config kernel,
+  burning ~30 min of P100 warmup and iteration cost that a
+  smoke run would have saved. Rule: no long run without a
+  smoke pass, ever.
 - **Kill an iteration after fold 1 when fold 1 is already a clear
   null vs the best-known result.** Per-fold bal_acc std was ~0.0007
   on this competition; any fold 1 result ≥2σ below the current
@@ -480,6 +524,50 @@ all of them on the same model.
   experiment (the actual decisive test). Only applies when the fold
   distribution is tight; for noisier metrics or smaller validation
   folds, finish the run.
+- **Capacity-plan a memory budget alongside the wall-time budget
+  for every pipeline that builds >500 features on >100k rows.**
+  2026-04-23 171-pair OTE recipe crashed silently (OOM SIGKILL) on
+  fold 2 of a 5-fold production run after fold 1 completed cleanly;
+  smoke at 20k × 2 folds had passed without issue. Root cause was
+  simultaneous live-frame count, not computation — fold 2 held full
+  `train+test+orig` (>2GB post-FE), fold 1's un-GC'd X_tr/X_va/X_te,
+  and the 271-key OrderedTE fit materialising 813 per-row arrays
+  (cum_cnt, cum_sum, y_bin) × 403k rows during its groupby loop, then
+  pd.concat stacking them onto a 1.4GB frame. Peak ≈ 18-22GB against
+  a 21GB cap with no swap. Diagnostic lessons:
+  1. **Smoke-testing validates correctness, NOT memory scaling.** A
+     smoke at rows/25 cannot surface an OOM at full scale because peak
+     memory is dominated by concurrent live-frame count, not loop
+     iteration progression. Memory scales ~linearly with rows but the
+     number of live frames is constant — so smoke peak ≈ full peak /
+     25, too low to detect ceiling-approach.
+  2. **60-second peak-RAM estimate before launch**: peak ≈
+     `rows × (2 × feature_cols + OTE_intermediate_cols) × 4 bytes ×
+     frames_live`. For 403k × (900 + 813) × 4 × 3 ≈ 8.3GB just for
+     the OTE-fit peak frame set, plus train/test/orig (~3GB) + XGB
+     booster (~2GB). Plan for > 2× headroom; if peak estimate exceeds
+     60% of available RAM, engineer isolation BEFORE smoking.
+  3. **Fragmented pandas frames outlive their scope.** `pd.concat`
+     on 800+ cols retains block-manager refs that Python GC doesn't
+     free aggressively between folds. `gc.collect()` at fold end is
+     not sufficient under fragmentation — the parent-block references
+     persist until the enclosing function returns.
+  4. **Silent SIGKILL has no traceback.** Inspect `ps aux | grep
+     python` returning empty alongside the log stopping mid-fold =
+     OOM. Don't hunt for a missing error line; check the OS state.
+     No swap = no warning band, the cap is a cliff.
+  5. **Robust fix: subprocess isolation per fold.** `subprocess.run(
+     [sys.executable, ...], env={...,"FOLD":str(i)})` runs each fold
+     in its own Python process, and the OS reclaims all memory on
+     exit regardless of what pandas / numpy / XGBoost held. +10 min
+     plumbing, ~10s/fold overhead, eliminates the failure mode
+     entirely. Make this the default pattern for any pipeline that
+     builds >500 features on >100k rows.
+  6. **Skip-ahead trap**: when a smoke passes and fold 1 of production
+     completes without trouble, it's tempting to assume the pipeline
+     is safe. It isn't — fold 2 inherits fold 1's residual allocations
+     plus its own new ones. The first fold-boundary is the critical
+     point; architect for it explicitly.
 - **Select NN checkpoints on the metric you'll deploy with, not raw
   argmax.** An MLP trained with plain CE has a raw-argmax val_bal
   that plateaus quickly and bounces within ~0.003; the *probability

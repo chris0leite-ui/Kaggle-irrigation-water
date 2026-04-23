@@ -34,6 +34,42 @@ previously listed public-CSV blending as a "strategic option"
 should be treated as stale guidance and ignored — the updated
 rule is no-suggest.
 
+## ⚠️ KEEP FILES SHORT AND MODULAR
+
+**Long single-file writes risk stream idle timeouts on the API.**
+When scaffolding new pipelines (kernels, scripts), split into
+multiple short files (≤~150 lines each) with clear
+responsibilities — one file for model, one for features, one for
+training loop, one for the orchestrator — rather than a single
+large file. For Kaggle kernels that require a single `code_file`,
+assemble a thin orchestrator that imports from sibling modules
+(drop them next to the kernel script) or inline via a build step.
+Same rule for plans: short modular docs, not monoliths.
+
+## ⚠️ SMOKE-TEST BEFORE LONG RUNS
+
+**Always run a 1-fold / 1-trial smoke pass before launching a
+full multi-hour computation.** Kaggle kernels, Optuna sweeps,
+seed bags, and any pipeline with >10 min wall time should be
+validated end-to-end on a tiny configuration first — `N_FOLDS=1`,
+`N_TRIALS=1`, a stratified subsample, or a CPU debug run. Catch
+bugs (sibling-import errors, `from __future__` placement, shim
+ordering, pip reinstall flags, tensor shape mismatches, OOM,
+GPU/CUDA mismatches, output-path permissions) on the 2-minute
+smoke cycle, not the 3-hour real run.
+
+Concretely for a new Kaggle kernel:
+1. Build + push a smoke config (`N_TRIALS=1, TRIAL_EPOCHS=1,
+   N_FOLDS=1, subsample=50k`) — expect <5 min wall.
+2. Confirm it completes (`COMPLETE` status, submission CSV
+   present, results JSON parses, OOF/test npy shapes correct).
+3. THEN push the production config.
+
+Two failed kernel iterations (v1 SyntaxError on `__future__`
+ordering, v2 broken torch reinstall due to shim placement)
+on 2026-04-23 burned ~30 min and a P100 warmup before any
+training happened. A 2-min smoke run would have caught both.
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
@@ -2817,6 +2853,61 @@ architecture or feature view adds orthogonal bits at this base.
     `lgbm_dist_digits_ote_results.json`
   - `submission_greedy_full_bank.csv` (LB 0.97581, new best)
 
+### 2026-04-23 — ExtraTrees v2 + multi-start sanity check: both confirm 6-way is optimal
+
+- Goal: after LB 0.97581, test two cheap levers to see whether our
+  submitted 6-way blend is the true local optimum or whether a
+  better blend exists.
+- **ExtraTrees v2 (no `class_weight='balanced'`)** — `EXTRATREES_VARIANT=v2`
+  via env var. Hypothesis: v1's balanced weights flattened probabilities
+  to where log-bias couldn't recover them (OOF 0.93023 at digit-XGB's
+  fixed bias → greedy-rejected). Without balanced weights, raw argmax
+  tracks the Low-majority prior (0.96079 vs v1's 0.96419), but prior-
+  reweight (0.96588) + tuned log-bias (**0.96631**) converge to a value
+  just below v1 (0.96676). Null — both ET variants plateau ~0.008 below
+  digit-XGB (0.97449), and the "calibration fix" produces slightly
+  WORSE tuned OOF than v1. Implication: `class_weight='balanced'` was
+  doing something log-bias couldn't reproduce, and either way ExtraTrees
+  is structurally below XGB on this feature set.
+- **Multi-start + backward-elim + weight refinement** on the 6-way:
+  1. Multi-start (15 anchors): best alternate = `lgbm_digit_ote` start
+     → OOF **0.97559** (Δ +0.00002 vs submitted 0.97558 — numerical
+     tie). Different 6-way composition (lgbm_digit_ote 0.31 + digit_xgb
+     0.31 + xgb_nonrule 0.21 + hybrid_lgbmxgb 0.09 + digits_ote 0.05 +
+     cat_ote_light 0.03) but same ceiling. Confirms the greedy reaches
+     the same plateau from multiple starting points.
+  2. Backward-elimination: dropping any one component strictly hurts.
+     Ranked by harm of removal (biggest loss = most essential):
+     ```
+     drop xgb_nonrule       -0.00063  (most essential, confirms +0.00057
+                                       lift was real structural signal)
+     drop digit_xgb         -0.00035
+     drop xgb_corn          -0.00032
+     drop digits_ote        -0.00028
+     drop digits_pairs      -0.00009
+     drop digits_light_ote  -0.00006
+     ```
+     The Frank-Hall CORN component (−0.00032 to remove) is genuinely
+     contributing despite being a standalone-null leg on greedy+nonrule
+     — adds up as a 9% weight in the anchor-family blend.
+  3. Coord-ascent weight refinement (perturb each weight by ±0.025,
+     ±0.05): converged at iter 0 → no improvement. The greedy weights
+     are already at a local weight-optimum.
+- **Verdict**: the submitted 6-way blend is a genuine, stable local
+  optimum. Multi-start finds tied configurations; backward-elimination
+  confirms all 6 components contribute positively; weight perturbation
+  doesn't improve OOF. No LB submission warranted.
+- **Meta-lesson added**: the greedy path-dependence trap we hit earlier
+  (including lgbm_digit_ote in the pool produced a worse 3-way optimum)
+  is resolved by multi-start — starting from `lgbm_digit_ote` as the
+  anchor gives a tied solution. The heuristic rule "run greedy with
+  strong-only candidates first" is good practice but the multi-start
+  check is the cleaner verification.
+- LB budget unchanged: 7/10 used today, 3 remaining.
+- Current LB best unchanged (at time of this entry):
+  `submission_greedy_full_bank.csv` at **LB 0.97581**. **Subsequently
+  superseded** by the parallel-session public-notebook full recipe
+  (see next entry: LB 0.97939).
 
 ### 2026-04-23 — public-notebook FULL RECIPE: NEW LB BEST 0.97939 (+0.00457)
 
@@ -2933,39 +3024,997 @@ architecture or feature view adds orthogonal bits at this base.
   log-replay gotcha. Full recipe template captured for reuse on
   the next synthetic tabular competition.
 
+### 2026-04-23 — greedy-from-recipe + LR meta-stacker (both null on top of 0.97939)
+
+- Goal: test whether recipe_full_te (LB 0.97939) can be lifted by
+  blending it with our prior digit-family OOFs or by a learned LR
+  meta-stacker. Cheap post-hoc experiments — no retraining.
+- Changed: `scripts/greedy_from_recipe.py` (forward-selection with
+  recipe_full_te as anchor + fixed bias, 16-model candidate pool);
+  `scripts/lr_meta_stack.py` (multinomial LR on 30-dim meta-features
+  = 10 models × 3 classes, 5-fold OOF with class_weight='balanced').
+
+- **Greedy from recipe (BORDERLINE)**: recipe_full_te (0.925) +
+  digit_xgb (0.075) log-blend → OOF **0.97978** (Δ=+0.00012).
+  - All other 15 candidates (digits_ote, nonrule, corn, greedy_6way,
+    hybrid_lgbmxgb, etc.) rejected — recipe already captures what
+    they offer. Only digit_xgb's raw digit features added a sliver.
+  - Standalone OOFs at recipe's bias:
+    ```
+    recipe_full_te      0.97967  (anchor)
+    greedy_full_bank    0.97237
+    digit_xgb           0.97225
+    xgb_corn            0.97211
+    digits_ote          0.97157
+    (others)            0.970-0.972
+    ```
+    Note: xgb_nonrule evaluates to 0.536 at recipe's bias (recipe's
+    bias is tuned for recipe's scale, wildly different from nonrule's
+    rule-free prob scale). Greedy still blends it in principle but
+    effective weight is tiny.
+  - Blend has 9,857 errors vs recipe standalone's 10,114 — fewer
+    errors, Jaccard 0.9543 (high overlap). Real signal but small.
+  - Above +1e-4 emit gate but below +5e-4 submit-ready threshold.
+    Given recipe's POSITIVE OOF→LB gap (+0.00028), a +0.00012 OOF
+    lift likely translates to −0.00016 LB or zero. Not submitting.
+
+- **LR meta-stacker (NULL)**: 5-fold multinomial LR on concatenated
+  per-class probs from 10 models (recipe + greedy_6way + digit_xgb +
+  digits_ote + digits_pairs + cat_ote + lgbm_digit_ote + xgb_nonrule
+  + xgb_corn + hybrid_lgbmxgb).
+  - argmax 0.97833, tuned 0.97908 — **−0.00059 vs recipe standalone**.
+  - The LR can't improve on recipe because recipe already occupies
+    ~92.5% of the blend weight in the greedy (inferred from how
+    little room is left). Passing through ~all recipe + tiny
+    corrections is what greedy did, and LR can't do better than that
+    without overfitting.
+  - Consistent with earlier LR-meta-stacker null on the
+    greedy+nonrule stack (from 2026-04-21 soft-blend session).
+
+- Verdict: recipe_full_te is close to saturated on own-pipeline
+  OOFs. Neither greedy (+0.00012, borderline) nor LR meta (−0.00059)
+  gives a submission-worthy lift. LB budget unchanged: 7/10 used
+  today, 3 remaining. Current LB best unchanged at **0.97939**.
+
+- Remaining untried own-pipeline levers: CatBoost on the recipe
+  feature set (novel model family, ~1h). Everything else (seed-bag,
+  HP tuning, pseudo-labeling) is ruled out by prior LB regressions.
+
+### 2026-04-23 — CatBoost on recipe feature set: blend null, LB-best unchanged
+
+- Goal: test the one remaining untried own-pipeline lever — a novel
+  model family (CatBoost) on the full recipe feature set (~440 cols).
+  Target: Jaccard < 0.9 with recipe + competitive standalone OOF
+  would unlock a lift; otherwise recipe is saturated.
+- Changed: `scripts/recipe_full_te_catboost.py` — mirrors
+  `recipe_full_te.py` but with CatBoostClassifier
+  (`depth=4, l2_leaf_reg=10, iterations=2000, lr=0.1, Bernoulli
+  bootstrap, od_wait=200`). Same 5-fold seed=42 split, same
+  per-fold OrderedTE, same features, same class-balanced sample
+  weights. 17 min total wall on CPU (16 min train + 1 min OTE).
+- Standalone results (5-fold OOF, seed=42):
+  - Per-fold argmax: 0.97740 / 0.97800 / 0.97919 / 0.97786 / 0.97784
+  - Mean argmax **0.97806 ± 0.00060** (vs recipe 0.97589 mean,
+    **+0.00217 higher per-fold**)
+  - **Tuned log-bias OOF 0.97936** (vs recipe 0.97967, **−0.00031**
+    below). Note the paradox: CatBoost is +0.00217 stronger at argmax
+    but −0.00031 weaker after bias tuning. Means CatBoost's prob scale
+    is closer to prior-balanced (argmax already near macro-recall
+    optimum) while XGB needs large bias shifts to reach the same point.
+  - Best-iter = 1999-2000 on every fold → CatBoost HIT the iteration
+    cap without early stopping. Would benefit from more iterations
+    but time-boxed.
+  - Error count at its own bias = 10,447; at recipe's bias = 13,975
+    (recipe's bias is calibrated for XGB prob scale, not CatBoost).
+  - **Jaccard vs recipe_full_te at recipe's bias = 0.8060**. First
+    time we've seen Jaccard < 0.85 at this competitive OOF level!
+    Orthogonality looks promising on paper.
+- Blend sweep (fixed recipe bias, α_cat × CatBoost + (1−α_cat) × recipe):
+  ```
+  α_cat=0.05  OOF 0.97958  Δ=−0.00008
+  α_cat=0.10  0.97950  Δ=−0.00017
+  α_cat=0.15  0.97947  Δ=−0.00020
+  α_cat=0.20  0.97952  Δ=−0.00014
+  α_cat=0.25  0.97961  Δ=−0.00005
+  α_cat=0.30  0.97967  Δ=+0.00001 ← peak (noise)
+  α_cat=0.40  0.97961  Δ=−0.00006
+  α_cat=0.50  0.97939  Δ=−0.00028
+  α_cat=0.60  0.97902  Δ=−0.00065
+  ```
+  **Essentially null under fixed bias.** The peak +0.00001 at α=0.30
+  is noise-level; blend has 10,705 errors (recipe 10,114, +591 more).
+- Blend sweep WITH per-α retuned bias (diagnostic only):
+  - α=0.05 tuned 0.97974, α=0.35 tuned 0.97975 — +0.00007 to +0.00008
+    lift with bias retuning, but this is log-bias coord-ascent overfit
+    territory (binhigh-lesson rule).
+- 3-way blend (recipe + catboost + greedy_6way) grid: peak at
+  (recipe 0.76, catboost 0.14, 6way 0.10) → OOF 0.97978, **Δ=+0.00012**.
+  Same lift as the greedy-from-recipe result earlier (digit_xgb alone
+  added +0.00012). Adding CatBoost doesn't improve on digit_xgb's
+  contribution — blend-null confirmed.
+- Diagnosis: the **calibration gap** between CatBoost and XGB on this
+  feature set is the problem. They want biases an order of magnitude
+  apart on the High class (recipe's bias +3.40, CatBoost's +2.80).
+  In a log-blend with a single fixed bias, whichever model's probs
+  get preferential treatment dominates. Per-α bias retuning recovers
+  tiny lifts but risks LB overfit. **Tree-family architectural
+  diversity (XGB ⊗ CatBoost) doesn't help when the recipe feature
+  set dominates the decision surface** — both trees converge to
+  nearly identical error patterns on the rows that matter for
+  macro-recall.
+- **No LB probe warranted.** Current LB-best unchanged at
+  `submission_recipe_full_te.csv` → **LB 0.97939**. LB budget
+  unchanged at 7/10 used today, 3 remaining.
+- **Final-selection diversification candidate**:
+  `submission_recipe_full_te_catboost.csv` has OOF 0.97936 tuned
+  (−0.00031 below recipe but close). If we lock 2 final submissions,
+  one recipe + one CatBoost would give model-family variance
+  protection on private LB even though LB-public is slightly lower.
+  Not recommended given recipe's proven LB, but available.
+- **Own-pipeline lever bank now fully exhausted** for this competition.
+  Remaining paths to move LB:
+  1. More iterations for CatBoost (it hit the cap) — could push
+     standalone to 0.9795+. Expected LB lift < +0.00010. ~2-3h
+     additional wall.
+  2. Strategic: public-CSV blending (explicitly banned per CLAUDE.md
+     top-of-file rule).
+  Otherwise: lock 0.97939 as final. Pack 0.98114 stays +0.00175 above,
+  leader 0.98219 stays +0.00280 above.
+
+### 2026-04-23 — CatBoost CPU LB + GPU retry: both null, two-submission diversification unlocked
+
+- **CatBoost CPU LB probe** (`submission_recipe_full_te_catboost.csv`,
+  submitted 11:18 UTC after user approval): **LB 0.97935**, −0.00004
+  below recipe_full_te's 0.97939 but essentially **tied**. OOF→LB gap
+  **+0.00001** — near-perfect calibration (recipe's was +0.00028).
+  Implication: CatBoost calibrates tighter than XGB on this problem.
+  Also gives us a **final-selection diversification candidate**:
+  Primary `submission_recipe_full_te.csv` (XGB family, LB 0.97939) +
+  Safe fallback `submission_recipe_full_te_catboost.csv` (CatBoost
+  family, LB 0.97935) covers both model families on private LB.
+
+- **CatBoost GPU on Kaggle kernel** (16000-iter cap + proper early
+  stopping): scaffolded `kaggle_kernel/kernel_catboost_recipe/` with
+  inlined recipe_features + OrderedTE + log-bias tuner. Two failed
+  kernel versions before success (v1: hard-coded COMP_DIR path, v2:
+  `devices="0:1"` required 2 GPUs but only P100 present). v3 ran to
+  completion on P100 in ~28 min.
+- GPU results (5-fold, seed=42):
+  - Per-fold argmax 0.97634 / 0.97704 / 0.97723 / 0.97556 / 0.97647
+  - Overall OOF argmax **0.97653** (vs CPU 0.97806 — **−0.00153 worse**)
+  - Tuned log-bias **0.97894** (vs CPU 0.97936 — **−0.00042 worse**)
+  - best_iters: 6197 / 10919 / 9037 / 8492 / 8524 (avg ~8634, early
+    stopping triggered — didn't hit 16000 cap). So more training time
+    DID produce a converged model; the converged endpoint is just worse.
+- **Counter-intuitive cause**: `bootstrap_type='Bernoulli'` (CPU-only)
+  vs `bootstrap_type='Bayesian'` (GPU default). Bernoulli = per-tree
+  random row subsampling; Bayesian = posterior row weights. For this
+  problem, Bernoulli's stronger per-tree randomization acts as
+  implicit regularization that the longer training would otherwise
+  converge past. Bayesian lets CatBoost optimize to a worse minimum.
+  **Rule**: when porting CatBoost between CPU and GPU, verify
+  bootstrap_type compatibility — the defaults differ and the CPU
+  default (Bernoulli) may be the thing that makes the CPU run work.
+- GPU standalone at recipe's bias: 10,902 errors, Jaccard 0.7884 vs
+  recipe. Better orthogonality than CPU (0.8060) but worse magnitude.
+  Blend with recipe peaked at α=0.05-0.10 (TIED at 0.97967).
+- 3-way blend (recipe 0.7 + CPU_cat 0.3 + GPU_cat 0.0) → OOF 0.97967
+  (ties recipe standalone). GPU CatBoost gets **zero weight** when
+  recipe + CPU_cat are already present.
+- Verdict: GPU CatBoost **null** both standalone and as blend leg.
+  Longer training doesn't fix the calibration gap it amplifies with
+  the wrong bootstrap. No LB probe warranted.
+- Lever bank fully exhausted. Final candidates locked:
+  1. **Primary**: `submission_recipe_full_te.csv` → **LB 0.97939**
+  2. **Safe fallback**: `submission_recipe_full_te_catboost.csv`
+     → **LB 0.97935** (different model family, tight calibration)
+
+### 2026-04-23 — LGBM on recipe feature set: 4th tree-family null, pattern confirmed
+
+- Goal: LGBM has different splits than XGB/CatBoost — still a tree,
+  but leaf-wise growth vs level-wise. Hypothesis: the recipe's 500-col
+  feature set (esp. the 351 OTE cols + 38 ORIG stats) might give LGBM
+  structurally new signal to exploit.
+- Changed: `scripts/recipe_full_te_lgbm.py` — mirrors `recipe_full_te.py`
+  but swaps XGBClassifier → LGBMClassifier. HPs match recipe philosophy:
+  `num_leaves=16` (≈ max_depth=4), `min_data_in_leaf=20`, `lr=0.1`,
+  `feature/bagging_fraction=0.8`, `bagging_freq=5`, `lambda_l1=5`,
+  `lambda_l2=5`, `n_estimators=3000`, `early_stopping=200`. Same
+  5-fold seed=42, same per-fold OrderedTE, same class-balanced sample
+  weights. 13 min wall on CPU.
+- Standalone results:
+  - Per-fold argmax: 0.97527 / 0.97592 / 0.97619 / 0.97437 / 0.97539
+  - Mean fold argmax 0.97543 (recipe XGB 0.97589, CPU CatBoost 0.97806)
+  - **Tuned OOF 0.97926** (recipe: 0.97967, **−0.00041** below)
+  - **Error count 10,082** (recipe: 10,114) — first novel model with
+    FEWER errors than recipe
+  - best_iter range 722-983 (capped at 3000, early stopping triggered)
+- Blend results (fixed recipe bias):
+  ```
+  2-way LGBM × recipe:   peak α_lgbm=0.15 → 0.97971  Δ=+0.00004
+  3-way + CPU CatBoost:  (recipe 0.75, lgbm 0.20, cat 0.05) → 0.97971  Δ=+0.00005
+  ```
+  Both below +1e-4 emit gate. **Null.**
+- Jaccard vs recipe = **0.8350** — orthogonal but the blend still
+  doesn't lift.
+- **Diagnosis — redundancy math**: LGBM errors 10,082, recipe errors
+  10,114, Jaccard 0.835. From |A∩B|/|A∪B| = 0.835 ⇒ they share
+  ~9,189 error rows and disagree on only ~1,818. For a log-blend to
+  lift, the disagreement rows need to be dominated by one model being
+  right and the other wrong. With only 1,818 rows to work with (0.29%
+  of total), even perfect selection among them gives at most ~0.001
+  OOF lift — and real blends only get a fraction of that.
+- **Pattern confirmed across 4 tree-family models on recipe features**:
+  ```
+  Model                Tuned OOF    Errors    Jaccard   Blend Δ vs recipe
+  Recipe XGB           0.97967      10,114    1.00      — (baseline)
+  LGBM on recipe       0.97926      10,082    0.835     +0.00004 (null)
+  CatBoost CPU         0.97936      10,447    0.806     +0.00001 (null)
+  CatBoost GPU         0.97894      10,902    0.788     +0.00000 (null)
+  ```
+  All 4 converge to nearly the same prediction surface. **Tree-family
+  architectural diversity is structurally exhausted on this recipe
+  feature set.**
+- **Redundancy rule (added to LEARNINGS.md candidate)**: "When 4+
+  gradient-boosted-tree model families all produce Jaccard ≥ 0.78 AND
+  similar error counts on the same feature set, further tree-family
+  additions are null. To break the pattern: change the feature set,
+  not the model."
+- No LB probe. LB-best unchanged at 0.97939. Artifacts committed:
+  `oof_recipe_full_te_lgbm.npy`, `test_recipe_full_te_lgbm.npy`,
+  `recipe_full_te_lgbm_results.json`,
+  `submissions/submission_recipe_full_te_lgbm.csv` (diagnostic).
+### 2026-04-23 — recipe_catboost + blend (parallel branch, NULL — replicates main's CatBoost null)
+
+- Goal: first follow-up on the V10 recipe LB-best (0.97939). Train
+  CatBoost on the same 443-feature recipe matrix as recipe_full_te,
+  then log-blend / prob-blend / LR-stack against XGB-recipe. Hypothesis:
+  tree-family diversity at the correct FE level should give +0.001–0.003
+  mirror of the Ali Afzal public kernel's XGB+CAT architecture.
+- Changed: `scripts/recipe_catboost.py` (CatBoost mirror of
+  recipe_full_te; same load_and_engineer + OrderedTE, same 5-fold
+  seed=42; HPs mirror XGB heavy-reg regime: depth=4, l2_leaf_reg=5,
+  lr=0.1, iterations=3000, rsm=0.8, bagging_temperature=1.0,
+  border_count=254, class-balanced sample_weight). `scripts/recipe_blend_stack.py`
+  (fixed-bias + tuned-bias-diagnostic log / prob / LR-stack sweeps
+  vs XGB-recipe anchor).
+- Results (OOF tuned bal_acc, 5-fold):
+  - CatBoost standalone tuned = 0.97897 (Δ = −0.00070 vs XGB 0.97967).
+    Per-fold argmax 0.97760→0.97843→0.97758→0.97728 — each above XGB's
+    fold argmaxes (0.97544→0.97721). But tuned lift smaller because
+    CAT's High-bias landed at 2.80 (vs XGB's 3.40).
+  - **Log-blend fixed-bias peak α=0.85 → 0.97958 (Δ = −0.00008, NULL).**
+    Monotone-negative from CAT-heavy side. Tuned-bias diagnostic
+    confirms no hidden signal: peak α=0.55 tuned = 0.97973, Δ=+0.00007.
+  - Prob-blend fixed-bias peak α=0.90 → 0.97957, Δ=−0.00009. Same pattern.
+  - LR stacker @ XGB bias = 0.97075 (Δ=−0.00892, catastrophic — LR's
+    output scale mismatches XGB bias). At tuned-bias: 0.97965, essentially
+    ties XGB alone (Δ=−0.00002).
+- Diagnosis: **magnitude mismatch beats orthogonality.** Jaccard 0.68
+  (good orthogonality) but CAT has 13,435 errors vs XGB's 10,114 (+33%).
+  Classic blend-null magnitude mismatch — same pattern as FT-Transformer
+  (+42%), TabPFN (+17%), MLP-v5 (+35%). Compounded by CatBoost's softer
+  High-class probabilities (ordered-boosting signature) — CAT bias
+  [1.43, 1.77, 2.80] vs XGB [1.43, 1.47, 3.40]. Any positive α drags
+  High decision boundary off XGB's optimum under fixed-bias; tuned-bias
+  retune recovers some ground but stays below anchor.
+- LB delta: n/a (no submission from this work — fixed-bias gate killed all
+  three candidates).
+- Parked: CatBoost-on-recipe as a blend leg is a structural dead-end at
+  this feature set. Would require per-class isotonic calibration to fix
+  the High-class softness before blending, which is speculative.
+
+### 2026-04-23 — LGBM-recipe + pseudo-label + greedy blend: NEW LB BEST 0.97998 (+0.00059)
+
+- Goal: after the CatBoost-recipe blend null, pursue two
+  "hiding in plain sight" levers:
+  1. **V10 pseudo-label toggle**: the original include4eto V10 kernel
+     has pseudo-labels as an explicit parameter we turned OFF.
+     Prior pseudo-label attempts (2026-04-21) failed because the labeler
+     was LB 0.97352 — boundary errors compounded. Recipe_full_te at
+     LB 0.97939 has ~6x fewer test-set errors; τ=0.98 filters boundaries
+     for ~99.5% purity.
+  2. **LGBM leg on recipe features**: untested; LGBM doesn't share
+     CatBoost's High-class calibration issue, so blend may work even
+     if LGBM doesn't change the ceiling.
+- Changed:
+  - `scripts/recipe_lgbm.py` — LGBM mirror of recipe_full_te. Same FE,
+    same OTE (a=1), same 5-fold seed=42, same 443-feature matrix.
+    HPs mirror XGB's heavy-reg regime (num_leaves=30, max_depth=4,
+    reg_alpha=5, reg_lambda=5, feature/bagging_fraction=0.8).
+  - `scripts/recipe_pseudolabel.py` — V10's disabled toggle. Gates test
+    rows by recipe's max-prob ≥ τ=0.98, assigns argmax class as
+    pseudo-label. 5-fold split on REAL train only; pseudo rows always
+    go to training side, val stays real-only (OOF alignment preserved).
+    OTE per fold fits on augmented train (real_tr ∪ pseudo), so OTE
+    statistics see pseudo-labels as ground truth.
+  - `scripts/recipe_all_blend.py` — greedy forward log-blend over the
+    recipe OOF bank {recipe_full_te, recipe_lgbm, recipe_pseudolabel,
+    recipe_catboost} anchored on recipe's tuned bias.
+- LGBM results (OOF, 5-fold, seed=42):
+  - Per-fold argmax 0.97565 → 0.97599 → 0.97668 → 0.97426 → 0.97525
+    (vs XGB fold argmaxes 0.97544 → 0.97659 → 0.97721 → 0.97465 → 0.97557,
+    LGBM tracks ~6 bp below XGB per fold).
+  - Tuned OOF = **0.97952**, Δ=−0.00015 vs XGB. Bias = [1.23, 1.27, 3.40].
+  - **High bias 3.40 matches XGB's exactly** — CatBoost's 2.80 mismatch
+    absent here. Low/Medium biases close. Calibration profile aligned.
+  - Wall time ~15 min total (faster than XGB's 55 min on same feature
+    matrix and depth).
+- Pseudo-label results (OOF, 5-fold, seed=42):
+  - Pseudo subset at τ=0.98: 226,162 / 270,000 test rows kept (83.8%).
+    Label dist [Low 133923, Medium 83570, High 8669] — matches real-train
+    prior (no confidence bias). +8,669 pseudo-High rows = +41% boost vs
+    real-train's 21k High pool.
+  - Per-fold argmax 0.97700 → 0.97627 → 0.97881 → 0.97503 → 0.97589
+    (vs XGB fold argmaxes 0.97544 → 0.97659 → 0.97721 → 0.97465 → 0.97557,
+    mean Δ = +0.00071 per fold).
+  - **Tuned OOF = 0.97993, Δ=+0.00026 vs XGB-recipe — first standalone
+    lift on top of recipe.** Bias [1.63, 1.47, 3.30].
+  - Wall time ~48 min (5 folds × ~9.5 min each, training pool 504k→730k).
+- Greedy blend (fixed anchor bias = recipe's [1.43, 1.47, 3.40]):
+  ```
+  standalone @ anchor bias     fixed       tuned       err     Jaccard vs recipe
+    recipe_full_te             0.97967    0.97967    10114    1.00
+    recipe_pseudolabel         0.97987    0.97993    10039    0.78
+    recipe_lgbm                0.97939    0.97952    10018    0.86
+    recipe_catboost            0.97739    0.97897    13435    0.68
+
+  pairwise sweep vs recipe (fixed bias)
+    recipe × pseudo            peak α=0.50  OOF 0.98012  Δ=+0.00046  ← WINNER
+    recipe × lgbm              peak α=0.45  OOF 0.97967  Δ=+0.00001  (null)
+    recipe × catboost          peak α=0.00  OOF 0.97967  Δ=+0.00000  (null)
+  ```
+  Greedy final: **recipe_full_te (0.50) + recipe_pseudolabel (0.50),
+  OOF 0.98012, Δ=+0.00046**. Confusion matrix at blend: Low 99.50% /
+  Medium 96.84% / **High 97.68%** (up from XGB-recipe alone's ~96.5%) —
+  that's where the lift lives.
+- **LB probe: submitted at 14:06 UTC, result LB = 0.97998** — **new best**,
+  +0.00059 over prior best (0.97939). OOF→LB gap = **+0.00014** (tightest
+  in competition so far). **LB delta EXCEEDS OOF delta** (+0.00059 vs
+  +0.00046), meaning the blend generalizes better than CV predicted.
+  Gap to pack 0.98114: +0.00116 (was +0.00175); leader 0.98219: +0.00221.
+- Updated calibration ladder:
+  ```
+  recipe_full_te                    0.97967 → 0.97939   gap +0.00028
+  **recipe × pseudolabel (50/50)    0.98012 → 0.97998   gap +0.00014**  ← NEW LB BEST
+  ```
+- LB budget: 5/10 used today (blend probe +1); 5 remaining.
+- Read-out: **two diagnosis-aligned rules confirmed**:
+  1. LGBM at wide-OTE recipe features produces near-identical predictions
+     to XGB (Jaccard 0.86, err count within 1%) — tree-family diversity is
+     exhausted at this FE level. Same lesson as 2026-04-22 LGBM-digits
+     null (Jaccard 0.96 with XGB-digits).
+  2. Pseudo-label strength scales with labeler strength. The 2026-04-21
+     τ=0.95 hybrid-labeler null (hybrid at LB 0.97352) and this success
+     (recipe at LB 0.97939 + τ=0.98) validate the "labeler must be ≥97%
+     LB before pseudo-labels help" threshold.
+- Meta-lesson: **"own-pipeline ceiling" framing was wrong** — at every
+  prior session the conclusion was that remaining lift required public-CSV
+  blending. The V10 pseudo-label toggle was sitting in the kernel we
+  already implemented, just disabled. Adding a 2026-04-23 LEARNINGS.md
+  entry: "when implementing a public kernel, enumerate every disabled
+  toggle / commented-out parameter and test them individually."
+
+### 2026-04-23 — stage-2 pseudo-label + 4-way blend: LB null, stacking-inflation confirmed
+
+- Goal: the stage-1 blend landed LB 0.97998 (+0.00059 over recipe alone).
+  Test whether **self-refinement via stage-2 pseudo-label** (use the
+  LB-best blend as the labeler for a new pseudo-label run) + broader
+  greedy blend over 5 candidates pushes further.
+- Changed:
+  - `scripts/build_blend_labeler.py` — builds the stage-1 blend as a
+    standalone labeler: 50/50 log-blend of `test_recipe_full_te.npy` ×
+    `test_recipe_pseudolabel.npy` at recipe's fixed bias [1.43, 1.47, 3.40].
+    Saves as `test_recipe_blend_stage1.npy` + `recipe_blend_stage1_results.json`.
+  - `scripts/recipe_pseudolabel.py` — parameterized via env vars
+    (`LABELER_TEST_PATH`, `LABELER_BIAS_JSON`, `PSEUDO_SUFFIX`). Default
+    behavior unchanged.
+  - `scripts/recipe_all_blend.py` — CANDIDATES extended to include
+    `recipe_pseudolabel_stage2`.
+- Stage-2 results (OOF, 5-fold, seed=42):
+  - Labeler = blend (LB 0.97998). τ=0.98 → 229,307 rows kept (+3,145
+    vs stage-1's 226,162). Pseudo class dist matches real-train prior.
+  - Per-fold argmax vs stage-1 pseudo:
+    ```
+    fold 1: 0.97626 (Δ -0.00074 vs stage-1 0.97700)
+    fold 2: 0.97604 (Δ -0.00023 vs stage-1 0.97627)
+    fold 3: 0.97782 (Δ -0.00099 vs stage-1 0.97881)
+    fold 4: 0.97648 (Δ +0.00145 vs stage-1 0.97503)
+    fold 5: 0.97640 (Δ +0.00051 vs stage-1 0.97589)
+    sum Δ = 0.00000 — overall argmax identical to stage-1
+    ```
+  - **Tuned OOF = 0.98002** (Δ=+0.00009 vs stage-1's 0.97993; +0.00035
+    vs recipe). Bias [1.53, 1.37, 3.40] — **High bias matches recipe's
+    3.40 exactly** (stage-1's was 3.30 — stage-2 calibrates tighter).
+  - Wall 45 min.
+- Greedy forward blend (5 candidates: recipe_full_te, recipe_lgbm,
+  recipe_pseudolabel, recipe_pseudolabel_stage2, recipe_catboost):
+  ```
+  standalone @ anchor bias      fixed       tuned       err     Jaccard vs recipe
+    recipe_full_te              0.97967    0.97967    10114    1.00
+    recipe_pseudolabel_stage2   0.97996    0.98002     9996    0.7800   ← new best
+    recipe_pseudolabel          0.97987    0.97993    10039    0.7805
+    recipe_lgbm                 0.97939    0.97952    10018    0.8555
+    recipe_catboost             0.97739    0.97897    13435    0.6794
+
+  greedy path:
+    start:       recipe_full_te              OOF 0.97967
+    + stage2     α=0.500 → OOF 0.98026  Δ=+0.00059 (biggest add)
+    + catboost   α=0.150 → OOF 0.98029  Δ=+0.00003 (first time CAT adds)
+    + stage1     α=0.125 → OOF 0.98033  Δ=+0.00004
+    stop (LGBM rejected — Jaccard 0.86)
+
+  final weights: recipe 0.37, stage2 0.37, catboost 0.13, stage1 0.13
+  fixed-bias OOF = 0.98033  Δ vs recipe = +0.00066
+  ```
+  Blend confusion matrix: Low 99.51% / Medium 96.75% / **High 97.82%**
+  (vs prior blend's 97.68% High). Error count 9,891 (recipe 10,114).
+- **LB probe: submitted 15:12 UTC**, result **LB = 0.97997**. OOF→LB gap
+  = **+0.00036** (prior blend's gap was +0.00014).
+  Δ vs current LB best (2-way blend 0.97998) = **−0.00001**, essentially
+  tied within LB noise. **NULL on LB despite +0.00021 OOF over prior blend.**
+- Updated calibration ladder:
+  ```
+  recipe_full_te                    0.97967 → 0.97939   gap +0.00028
+  **recipe × pseudolabel (2-way)    0.98012 → 0.97998   gap +0.00014**  ← LB BEST still
+    4-way with stage-2+cat+pseudo   0.98033 → 0.97997   gap +0.00036    (null)
+  ```
+- Diagnosis:
+  1. **Self-refinement saturates fast.** Stage-1 lifted +0.00059 LB;
+     stage-2 adds 0 LB. The +0.00009 stage-2 OOF gain over stage-1 was
+     tighter-calibration, not new signal. Once the labeler is good
+     enough (recipe at 0.97939 LB), the pseudo-label set is already
+     ~99.5% pure, so making the labeler better doesn't improve the
+     downstream model.
+  2. **Greedy over saved OOFs has a stacking-inflation ceiling** beyond
+     2 anchor models. Each added component's OOF contribution lands at
+     ~noise-level (+0.00003-0.00004), which doesn't clear the LB
+     generalization threshold. The +0.00022 OOF from adding CatBoost +
+     stage-1 to the greedy did NOT transfer — gap widened from +0.00014
+     to +0.00036 (exactly matching the OOF inflation).
+- **New rule** (added to LEARNINGS.md candidate): "For greedy-forward
+  log-blends on a single-split OOF, the per-candidate lift must be ≥
+  +0.0002 to have >50% chance of transferring to LB. Below that, the
+  extra component is mostly fitting CV-split noise."
+- LB budget: 6/10 used today, 4 remaining.
+- Next bet: **Ali Afzal's 171-pair OTE** — the remaining feature-surface
+  expansion the public-kernel lineage points at. We have 28 cat×cat
+  combos; the untested 143 pairs (cat×num, num×num) are a fundamentally
+  different feature space, not a restack.
+
+### 2026-04-23 — allpairs (cat×num) + stage-2 2-way: LB −0.00009 null (OOF overfit)
+
+- Goal: test two remaining levers flagged in the prior entry —
+  (1) expand pair combos beyond cat×cat to include cat×num (Ali Afzal's
+  "pairwise magic" lite), and (2) test the simpler `recipe × pseudo_stage2`
+  2-way which the 4-way analysis hinted was OOF-stronger than our LB-best
+  `recipe × pseudo_stage1`.
+
+- **Allpairs pipeline** (`scripts/recipe_allpairs.py`):
+  - Initial attempt with full C(19,2)=171 pairs (1015 features) **died
+    silently at XGB init** — classic large-memory XGB histogram
+    allocation OOM. Dropped num×num (55 pairs, lowest-signal — two raw
+    floats rarely repeat → factorized keys near-unique → OTE shrinks to
+    prior) and kept cat×cat (28) + cat×num (88) = 116 pairs, 795 features.
+  - Rerun success. Per-fold argmax 0.97585 / 0.97617 / 0.97745 / 0.97526 /
+    0.97589 — mean Δ vs recipe per fold = +0.00021 (+0.00008 fold-by-fold
+    noise). Overall OOF argmax **0.97612**, tuned **0.97976** (Δ vs recipe
+    +0.00009). Bias [0.93, 1.07, 3.20] — lower Low/Medium biases than
+    recipe (pairs give sharper raw probs; less bias correction needed).
+  - **Error count 9,938** — LOWEST of any variant tested (vs recipe
+    10,114, pseudo_stage2 9,996, pseudo_stage1 10,039). Jaccard vs
+    recipe = 0.8111. Decent orthogonality + fewer errors = strong blend
+    candidate on paper.
+
+- **Greedy blend (6 candidates now including allpairs)** —
+  `scripts/recipe_all_blend.py`:
+  ```
+  standalone @ anchor bias     fixed       tuned       err     Jaccard vs recipe
+    recipe_full_te             0.97967    0.97967    10114    1.00
+    recipe_allpairs            0.97968    0.97976     9938    0.8111   ← new
+    recipe_lgbm                0.97939    0.97952    10018    0.8555
+    recipe_pseudolabel         0.97987    0.97993    10039    0.7805
+    recipe_pseudolabel_stage2  0.97996    0.98002     9996    0.7800
+    recipe_catboost            0.97739    0.97897    13435    0.6794
+
+  pairwise sweep vs recipe (fixed bias)
+    recipe × allpairs          peak α=0.45  OOF 0.97992  Δ=+0.00026
+    recipe × pseudo_stage2     peak α=0.55  OOF 0.98027  Δ=+0.00060  ← best pairwise
+    recipe × pseudo_stage1     peak α=0.50  OOF 0.98012  Δ=+0.00046  (= LB-best 2-way)
+
+  greedy path (starting from recipe_full_te):
+    + pseudo_stage2   α=0.500 → OOF 0.98026  Δ=+0.00059  (biggest add)
+    + catboost        α=0.150 → OOF 0.98029  Δ=+0.00003
+    + allpairs        α=0.200 → OOF 0.98033  Δ=+0.00004
+
+  final weights: recipe 0.34, stage2 0.34, catboost 0.12, allpairs 0.20
+  fixed-bias OOF = 0.98033  Δ vs recipe = +0.00067
+  ```
+  Interesting: the 4-way OOF (0.98033) is IDENTICAL to the earlier 4-way
+  that used pseudo_stage1 in place of allpairs. Greedy swapped stage-1
+  for allpairs with the same OOF ceiling — allpairs contributes the same
+  magnitude of signal as stage-1 when added on top of stage-2.
+
+- **LB probe: `recipe × pseudo_stage2` 2-way at α=0.55** (simpler than
+  the 4-way, higher pairwise OOF than stage-1 version). Submitted via
+  `submission_recipe_pseudolabel_stage2_w055.csv` at 17:33 UTC.
+  Result: **LB = 0.97989**. Δ vs current LB-best = **−0.00009** (NULL).
+  OOF→LB gap = **+0.00038** (vs stage-1 2-way's +0.00014).
+
+- **Updated calibration ladder:**
+  ```
+  recipe_full_te                    0.97967 → 0.97939   gap +0.00028
+  **recipe × pseudo_stage1 (α=0.50) 0.98012 → 0.97998   gap +0.00014**  ← LB BEST still
+    recipe × pseudo_stage2 (α=0.55) 0.98027 → 0.97989   gap +0.00038    (null)
+    4-way (stage2+cat+stage1)       0.98033 → 0.97997   gap +0.00036    (null)
+  ```
+
+- **Diagnosis — stage-2 pseudo-label is OOF-overfit:**
+  Stage-2's OOF gain over stage-1 (+0.00015 on 2-way blend, +0.00009
+  standalone) comes from **tighter calibration on the same 5-fold
+  training split** — NOT from new signal. Stage-2's labeler (the
+  LB-0.97998 stage-1 blend) was itself fit on those same 5 folds, so
+  its pseudo-labels encode the training-side calibration more
+  precisely. Hidden test split doesn't share those biases → gap blows
+  up by exactly the OOF inflation amount (+0.00024 OOF gain → +0.00024
+  gap widening from +0.00014 to +0.00038).
+
+  Rule (first stated in 4-way null entry, now LB-confirmed twice):
+  **"for greedy log-blends on a single CV split, per-candidate OOF
+  lift < +0.0002 likely does not transfer to LB. Below +0.0003, treat
+  any LB lift as lucky."** Stage-1 (LB-best) had +0.00046 OOF, cleared
+  the threshold; stage-2 +0.00015 and the 4-way's +0.00021 did not.
+
+- **Implication: self-refinement is dead at this labeler strength.** At
+  LB 0.97998 (tighter than V10 kernel's ~0.976 labelers), pseudo-labels
+  are already ~99.5% pure. Further stages cascade the same training-set
+  bias. To break +0.97998 LB needs either a DIFFERENT feature source
+  (allpairs in an LB-verified blend, not part of a stacked bundle) or
+  structural knowledge distillation (use blend's SOFT probs as target,
+  not argmax — uses the full posterior distribution the blend encodes).
+
+- **Allpairs LB-probe not submitted.** Pairwise OOF 0.97992 would
+  project LB ~0.97964 at stage-1-calibration, below LB-best.
+  Allpairs is a stronger blend COMPONENT (fewer errors, decent
+  orthogonality) but weaker STANDALONE vs stage-1's pseudo-label lever.
+  If the next LB submission is allpairs-family, it should be in a
+  `recipe × allpairs` 2-way at a LOW α (0.15-0.25) where the fewer-
+  errors quality matters more than the lower standalone OOF — but that
+  specific variant hasn't been tested yet and isn't in the greedy's
+  emitted submission.
+
+- LB budget: 7/10 used today, 3 remaining. Current LB best unchanged
+  at 0.97998.
+
+- Next untested own-pipeline levers (ranked by expected-value / risk):
+  1. **Quantile-binned num×num OTE** — bin each numeric to ~20 quantiles
+     before pair-concat; the 55 num×num pairs become tractable (key
+     cardinality ~400 instead of ~630k^2). This is the "literal 171-pair
+     magic" from the public kernels, which almost certainly bin their
+     nums implicitly. ~2-3h compute.
+  2. **Knowledge distillation from the LB-best blend** — train XGB on
+     recipe features but targeting the 2-way blend's full 3-class soft
+     probs (not argmax pseudo-labels). Uses full posterior info, not
+     just argmax class. Novel; untested anywhere in the repo. ~1.5h.
+  3. **τ sweep on pseudo-label (stage-1)** — we picked τ=0.98 by
+     instinct. Test 0.95 and 0.99. Each retrain ~1h.
+  4. **Pseudo-label using allpairs as labeler** — allpairs has FEWER
+     errors than recipe, so its argmax pseudo-labels at τ=0.98 are
+     slightly purer. Untested. ~1h.
+  5. **DART booster** on recipe features. We've only tested gbtree.
+     DART's tree-dropout is a structurally distinct model family at
+     the same features. ~1-2h.
+  6. **Heavy original-dataset weight (10x)**. Forces the decision
+     boundary toward the rule-perfect space; may help rare-class
+     recall. Tested lightly earlier, not with V10 recipe. ~1h.
+
+### 2026-04-23 — 171-pair OTE production run: OOM-killed on fold 2 (compute planning miss)
+
+- Goal: execute the `Next bet` from the prior entry — extend the V10
+  recipe to all C(19,2)=171 feature pairs by binning the 11 numerics
+  to 16-bin quantile categoricals, concatenating every (c1,c2) pair
+  into a single factorized combo col, then running the same OrderedTE
+  + heavy-reg XGB pipeline. 5-fold, seed=42, aligned OOF split.
+- Context: main branch independently attempted the same 171-pair
+  lever earlier in the day (see `2026-04-23 — allpairs (cat×num) +
+  stage-2 2-way` entry above) and ALSO hit an OOM — but at a
+  different stage (XGB histogram allocation at init, before
+  training). Main dropped num×num (55 pairs, lowest-signal — raw
+  float concat creates near-unique keys → OTE collapses to prior)
+  and ran 116 pairs = cat×cat (28) + cat×num (88) = 795 features
+  successfully. This branch took the "bin-nums-first" route (16-bin
+  quantile binning before any pair construction), which makes
+  num×num pairs tractable in principle — but the resulting 271 OTE
+  keys × 3 classes = 813 OTE columns pushed peak RAM past the 21GB
+  cap at the OTE-fit step instead of XGB init.
+- Changed:
+  - `scripts/recipe_pair_features.py` — `add_quantile_bins()` (16-bin
+    quantile binning with `duplicates="drop"`, fit on train, applied
+    to test/orig) and `add_all_pair_combos()` (C(n,2) over cats+bins,
+    factorized across combined splits).
+  - `scripts/recipe_full_te_171pair.py` — orchestrator mirroring
+    `recipe_full_te.py` with bins treated as cat-like for OTE.
+    Feature groups: cats=8, bins=11, combos=171, digits=66,
+    num_as_cat=11, tres=4, logits=3, freq=179 (FREQ on cats+combos),
+    orig_stats=38. **te_cols=271 → 813 OTE cols** (271 × 3 classes).
+  - `scripts/blend_171pair.py` — fixed-bias sweep vs recipe (anchor A)
+    and optionally vs LB-best (anchor B) per the `no_ote` Jaccard +
+    error-count rule.
+- Smoke pass (SMOKE=1, 20k train, 2 folds): PASSED in ~70 s, tuned
+  OOF 0.96455. All FE blocks built, OTE fit + transform clean, no
+  errors. Smoke config uses the same code path; the only difference
+  is data size and XGB iterations.
+- Production run (504k train, 5 folds, 813-OTE XGB) **CRASHED
+  silently on fold 2 OTE-fit**:
+  ```
+  [16:48:54] === fold 1/5 ===
+  [16:49:52]   OTE done in 50.4s (813 OTE cols)
+  [17:13:51]   fold 1 argmax_bal_acc = 0.97453  best_iter=1215
+  [17:13:51] === fold 2/5 ===
+  <SIGKILL — no further output, no traceback>
+  ```
+  Fold 1 completed 25 min wall. Fold 2 died in <1 min, before any
+  visible OTE-fit progress. Classic OOM-kill signature: no Python
+  exception, process disappears from `ps aux`, 21 GB RAM immediately
+  free again.
+- Root cause (memory stack-up, **unplanned**):
+  - Smoke at 20k × 2 folds peaked ~1.5 GB. Production scales ~25×
+    in row count and ~1.2× in feature count, but memory doesn't
+    scale linearly — it scales with **simultaneously-live frame count**.
+  - At fold 2 entry, the process held:
+    * `train` (504k × 900+ cols, post-FE)
+    * `test` (270k × 900+ cols)
+    * `orig` (10k × 900+ cols)
+    * fold 1's leftover `X_tr` / `X_va` / `X_te` DataFrames if Python
+      GC hadn't released them (pandas pd.concat fragments retain
+      parent-block refs longer than expected)
+    * fold 1's XGB Booster + its internal histogram buffers
+    * `compute_sample_weight` array
+  - Fold 2 then allocates: `X_tr.iloc[tr_idx].copy()` (403k rows ×
+    900+ cols ≈ 1.4 GB), shuffled copy for OrderedTE, OTE `.fit()`
+    builds 271 × 3 = 813 intermediate arrays (cum_cnt, cum_sum, etc.)
+    each of length 403k during the groupby loop, then pd.concat of
+    813 new float32 cols onto the 1.4 GB frame = another 1.6 GB peak.
+  - Peak simultaneous allocation on fold 2 OTE-fit is plausibly
+    ~18-22 GB against a 21 GB cap, no swap. SIGKILL at the peak.
+- One-fold signal before the crash: **fold 1 argmax 0.97453 vs recipe
+  fold 1's 0.97544** — directionally negative (−0.00091, inside the
+  fold-σ band of ~0.00088 but on the wrong side). Not enough folds
+  to judge OOF, but inconsistent with a "drop-in lift" expectation.
+  Error orthogonality vs recipe couldn't be computed (single fold,
+  and fold 1 OOF covers a different val set than recipe's fold 1 if
+  the split differs — which it doesn't here, seed=42 aligned, so the
+  Jaccard-on-fold-1 analysis is feasible once we recover it).
+- **Decision**: do NOT re-run naively. Two concrete fixes before
+  relaunching:
+  1. **Per-fold subprocess isolation**: spawn each fold as a separate
+     Python process via `subprocess.run()`, OS returns all memory on
+     process exit. Zero cross-fold contamination. ~15 min plumbing,
+     adds ~10 s/fold overhead from module re-imports.
+  2. **Intra-fold `gc.collect()` + explicit `del`** at end of each
+     OrderedTE.fit() loop iteration, plus `del` of fold-scoped frames
+     at fold end. Cheaper (~2 min) but doesn't guarantee recovery
+     under pandas pd.concat fragmentation.
+  Recommendation: do (1). Robust, portable, and the plumbing is
+  reusable for any future large-FE experiment.
+- LB delta: n/a. No OOF output. Fold 1 intermediate not saved.
+- Lessons logged to LEARNINGS.md §Process (new "Capacity-plan large
+  FE runs" entry):
+  1. **Smoke-testing validates correctness, NOT memory scaling.**
+     Smoke at N=20k × 2 folds cannot reveal an OOM at N=504k × 5
+     folds because peak memory is dominated by simultaneous live-frame
+     count, not computation progression. Need a **memory budget**
+     alongside the wall-time budget.
+  2. **Heavy-FE pipelines must estimate peak RAM before launch.**
+     Cheap 60-second calculation: rows × live_feature_cols × bytes ×
+     simultaneous_frames. If >60% of available RAM, plan isolation
+     (subprocess per fold, or dask/out-of-core) BEFORE the smoke.
+  3. **Fragmented pandas frames outlive their scope.** `pd.concat`
+     on 800+ cols per frame retains block-manager refs that Python
+     GC doesn't free aggressively. `gc.collect()` at loop end is not
+     sufficient — subprocess isolation is the only reliable fix.
+  4. **Silent SIGKILL has no traceback; inspect process table + RAM
+     state to diagnose**. `ps aux | grep python` returning empty
+     alongside the log stopping mid-fold is the OOM signature. No
+     need to hunt for a missing error line.
+### 2026-04-23 — asymmetric 3-way with allpairs: LB null confirms stacking-inflation ceiling is structural
+
+- Goal: after parallel session's `recipe_no_ote` reconfirmed the refined
+  blend heuristic ("Jaccard < 0.80 AND err_count ≤ anchor" are BOTH
+  needed), re-examine `recipe_allpairs` which satisfies both (Jaccard
+  0.8111, errors 9,938 < recipe's 10,114) and has NOT been OOF-overfit
+  like stage-2. Manually grid-search a 3-way blend with stage-1 (the
+  LB-verified pseudo-label component) + allpairs added.
+- Changed: no new scripts — manual grid-search on saved OOFs. Finds
+  full-grid optimum at (w_recipe=0.50, w_stage1=0.30, w_allpairs=0.20)
+  with fixed-bias OOF = **0.98033** (Δ=+0.00020 vs LB-best 2-way's
+  0.98012). Rationale: asymmetric weights let allpairs enter without
+  diluting recipe's proven LB-transfer calibration.
+- Per-class recall at asymmetric blend: Low 99.51% / Medium 96.86% /
+  **High 97.73%** (competitive with stage-2 4-way's 97.82%, above
+  LB-best 2-way's ~97.68%). Error count 9,805 — LOWEST we've seen
+  on any blend or standalone.
+- Hypothesis: if stage-2's LB null was due to OOF-overfit (labeler
+  trained on same folds), replacing stage-2 with stage-1 (LB-proven)
+  + allpairs (fresh, not folds-contaminated) in the 3-way might
+  transfer better. Best-case: LB 0.98019 at stage-1's +0.00014 gap.
+  Worst-case: LB 0.97997 at 4-way's +0.00036 gap.
+- **LB probe** (submitted 17:58 UTC):
+  `submission_asym_3way_recipe050_stage1030_allpairs020.csv` →
+  **LB = 0.97995**. Δ vs LB-best = **−0.00003** (effectively tied,
+  null). OOF→LB gap = **+0.00038** — matches the stage-2 4-way's
+  +0.00036 EXACTLY. Allpairs didn't change the gap math.
+- **Stacking-inflation ceiling is structural, not component-specific.**
+  Three separate 3+ component blends have all hit OOF 0.98033 and
+  all landed LB 0.97995-0.97997:
+  ```
+  OOF    LB      gap      composition
+  0.98033 0.97997 +0.00036  4-way w/ stage-2 (earlier)
+  0.98033 0.97995 +0.00038  asymmetric 3-way w/ allpairs (this)
+  0.98027 0.97989 +0.00038  2-way recipe × stage-2 (null)
+  0.98012 0.97998 +0.00014  2-way recipe × stage-1 (LB BEST) ← structural sweet spot
+  ```
+  **Rule:** on this feature set, OOF→LB gap grows ~+0.0001 per
+  +0.0001 OOF above 0.98012. LB stays pinned at ~0.97995-0.97998 for
+  any blend that reaches OOF 0.9802-0.9805. The 2-way LB-best is the
+  operating-point sweet spot; further stacking produces cosmetic OOF
+  lift with zero LB transfer.
+- **Implication:** breaking above LB 0.97998 requires a genuinely
+  different mechanism, not another blend variant. Ceiling-breaking
+  candidates:
+  1. **Quantile-binned num×num OTE** (fixes the literal 171-pair
+     attempt that OOM'd on raw-float pairs). Makes num×num
+     factorization tractable by binning nums first. New feature
+     surface, not another stacking variant.
+  2. **Soft-target distillation from LB-best blend.** Train XGB on
+     recipe features targeting the blend's full 3-class soft probs
+     (not argmax pseudo-labels). Uses the blend's full posterior
+     distribution; different signal-extraction path than hard pseudo.
+  3. **Heavy original-weight training.** Multiply the 10k rule-perfect
+     orig rows by 10x sample_weight during XGB training. Shifts
+     decision boundary toward the rule-clean space; may particularly
+     help rare-class (High) recall where the flip signal lives.
+- LB budget: **8/10 used today, 2 remaining.** Save the 2 for tomorrow's
+  potential ceiling-breaker probes. No further submissions today.
+
 ## Hypothesis board
 
-- **Current best (LB)**: `submission_recipe_full_te.csv` →
-  **LB 0.97939 / OOF tuned 0.97967** (gap +0.00028). Full
-  public-notebook recipe (V10): ~117 categoricals (raw+pair+digit+
-  num-as-cat+tres) OTE'd, plus FREQ + ORIG mean/std + LR-formula
-  logits + threshold flags = ~500 features. Heavy-reg XGB
-  (max_depth=4, alpha=5, reg_lambda=5) + class-balanced sample
-  weights + post-hoc log-bias. Pack 0.98114 is +0.00175 above;
-  leader 0.98219 is +0.00280 above — reachable.
-  LB budget today: 6 remaining (4/10 used: 2 digits-OTE variants +
-  1 greedy_full_bank probe + 1 recipe_full_te probe).
+- **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
+  **LB 0.97998 / OOF tuned 0.98012** (gap +0.00014 — tightest so far).
+  50/50 log-blend of recipe_full_te × recipe_pseudolabel at recipe's
+  fixed tuned bias [1.43, 1.47, 3.40]. Pseudo-label uses recipe_full_te's
+  test probs at τ=0.98 (226k/270k test rows kept, pseudo class dist
+  matches real-train, +41% boost to rare-High pool). Pack 0.98114 is
+  +0.00116 above; leader 0.98219 is +0.00221 above.
+  LB budget today: 2 remaining (8/10 used: 2 digits-OTE variants +
+  1 greedy_full_bank + 1 recipe_full_te + 1 recipe×pseudolabel 2-way
+  + 1 4-way blend probe + 1 recipe×pseudo_stage2 2-way
+  + 1 asymmetric 3-way with allpairs).
+  Stacking-inflation ceiling CONFIRMED: 3 submissions at OOF 0.9802-0.9804
+  all landed LB 0.97995-0.97997 (gap +0.00036 to +0.00038). Breaking above
+  LB 0.97998 requires a genuinely different mechanism, not another blend.
 
-  Second-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
+  Second-best: `submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_pseudolabel.csv`
+  → **LB 0.97997 / OOF tuned 0.98033** (gap +0.00036, null follow-up).
+  4-way greedy log-blend: recipe_full_te (0.37) + recipe_pseudolabel_stage2
+  (0.37) + recipe_catboost (0.13) + recipe_pseudolabel (0.13). Stage-2
+  uses the 2-way blend (LB 0.97998) as labeler. OOF gain +0.00021 vs
+  2-way did NOT transfer to LB — classic OOF stacking inflation beyond
+  2 anchors on a single CV split.
+
+  Third-best: `submission_recipe_full_te.csv` → **LB 0.97939 /
+  OOF tuned 0.97967** (gap +0.00028). Full V10 recipe: ~117
+  categoricals (raw+pair+digit+num-as-cat+tres) OTE'd, plus FREQ +
+  ORIG mean/std + LR-formula logits + threshold flags = ~500
+  features. Heavy-reg XGB (max_depth=4, alpha=5, reg_lambda=5) +
+  class-balanced sample weights + post-hoc log-bias.
+
+  Fourth-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
   digits_ote 0.24 + xgb_nonrule 0.11 + xgb_corn 0.09 + digits_pairs
   0.07 + digits_light_ote 0.05) → OOF 0.97558, LB 0.97581.
   Submission: `submissions/submission_greedy_full_bank.csv`.
 
-  Third-best: digits-OTE × digit-XGB log-blend at α=0.40
+  Fifth-best: digits-OTE × digit-XGB log-blend at α=0.40
   → OOF 0.97477, LB 0.97482. Submission:
   `submissions/submission_digit_ote_digits_blend.csv`.
 
-  Fourth-best: XGB-dist + digits standalone, tuned log-bias →
+  Sixth-best: XGB-dist + digits standalone, tuned log-bias →
   OOF 0.97449, LB 0.97468. Submission:
   `submissions/submission_xgb_dist_digits_tuned.csv`.
 
-  Fifth-best: greedy + xgb-nonrule log-blend at α=0.15
+  Seventh-best: greedy + xgb-nonrule log-blend at α=0.15
   → OOF 0.97421, LB 0.97352. Submission:
   `submissions/submission_greedy_nonrule_blend.csv`.
 
-  Sixth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
+  Eighth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
+
+### 2026-04-23 — N1 recipe_no_ote: genuinely novel errors (Jaccard 0.60) but blend null — magnitude trap
+
+- Goal: execute N1 from the "Next steps" menu below. First variant:
+  `recipe_no_ote` — drop OrderedTE entirely, train XGB on the 92
+  numeric features only (nums + tres + logits + freq + orig_stats).
+  Hypothesis: OTE is the dominant signal source in full recipe; a
+  tree that never sees OTE is a structurally different decision
+  surface, unlike LGBM/CatBoost/XGB-dart which all share the 351
+  OTE features.
+- Changed: `scripts/recipe_subset_{fe,cv,xgb}.py` — short modular
+  split per the CLAUDE.md rule. Env var `RECIPE_SUBSET ∈ {no_ote,
+  no_digits, no_combos, no_orig}` selects which feature block to
+  drop. Reuses recipe_full_te's FE pipeline and XGB HPs so the
+  comparison is apples-to-apples. `scripts/analyze_vs_recipe.py`
+  for quick Jaccard + fixed-bias blend-sweep diagnostics.
+- Results (5-fold, seed=42, 630k):
+  - Per-fold argmax: 0.97030 / 0.97102 / 0.97191 / 0.97005 / 0.97010
+  - **Overall argmax 0.97067 ± 0.00083**
+  - **Tuned OOF 0.97465** (bias [1.53, 1.47, 3.40]) — **−0.00502 vs
+    recipe's 0.97967**. Weakest "on-recipe" tree so far.
+  - Error count: **11,760** (+16% vs recipe's 10,114)
+  - **Jaccard(err) vs recipe = 0.6040** — the lowest error overlap
+    of any tree on the recipe features. LGBM was 0.835, CatBoost
+    CPU 0.806, CatBoost GPU 0.788. The "novel" tag triggers per
+    the < 0.80 heuristic.
+- Fixed-bias log-blend sweep vs recipe:
+  ```
+  α=0.000  OOF=0.97967  Δ=+0.00000   (anchor)
+  α=0.025  OOF=0.97967  Δ=+0.00000   ← peak (flat)
+  α=0.050  OOF=0.97964  Δ=-0.00002
+  α=0.100  OOF=0.97958  Δ=-0.00008
+  α=0.500  OOF=0.97867  Δ=-0.00099
+  ```
+  Greedy forward-selection over all 14 saved OOFs (including
+  no_ote): picked `recipe_full_te (0.925) + digit_xgb (0.075)`
+  → OOF 0.97978 (+0.00012). **no_ote rejected at every α.**
+- **Lesson — refinement of the Jaccard heuristic**: Jaccard 0.60
+  is genuinely novel error geometry (lower than any prior tree
+  null), but the +16% error-magnitude dominates. Even at α=0.025,
+  the extra ~5k wrong answers from no_ote cancel the ~3.4k
+  complementary right answers it contributes. Compare to
+  pseudolabel on main (Jaccard 0.78, **FEWER** errors 10,039,
+  blend Δ=+0.00046): low Jaccard PLUS ≤-anchor error count is
+  what moves the blend.
+  New rule to LEARNINGS.md: **"Jaccard < 0.80 is necessary but
+  not sufficient for blend lift. A candidate must also have
+  error count ≤ the anchor's — otherwise the magnitude drag on
+  unique-wrong rows cancels the novelty on unique-right rows."**
+- Implication: **N1 variants no_digits / no_combos / no_orig will
+  hit the same trap.** Each is strictly weaker than full recipe
+  (less information), so their error counts will be comparable to
+  or worse than no_ote's 11,760. Skipping the remaining 3 variants.
+- Next bet (reframed): the only known component satisfying BOTH
+  Jaccard < 0.80 AND errors ≤ recipe is `recipe_pseudolabel`
+  (main's 0.97998 LB-best component). OOF is gitignored on main,
+  so we'd need to run `scripts/recipe_pseudolabel.py` locally
+  (~48 min) to experiment with 3-way blends adding no_ote/digit_xgb.
+  Alternatively pursue the untried 171-pair OTE (main's stated
+  next bet) which creates a fundamentally new feature surface.
+- LB delta: n/a (no LB probe warranted; OOF Δ +0.00012 via greedy
+  is below the +0.0002 LB-transfer threshold).
+- Artefacts:
+  - `scripts/artifacts/oof_recipe_no_ote.npy` + `test_recipe_no_ote.npy`
+  - `scripts/artifacts/recipe_no_ote_results.json`
+  - `submissions/submission_recipe_no_ote.csv` (diagnostic, not LB-worthy)
+- Current LB-best unchanged: `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at LB **0.97998** (from main).
+
+### 2026-04-23 — N1 remaining 3 variants (no_digits, no_combos, no_orig) all LB-null — magnitude-trap rule confirmed
+
+- Goal: despite the main-branch session saying "skipping remaining 3
+  variants" after no_ote's blend-null magnitude trap, a parallel
+  feature branch ran them anyway to verify the rule. All 3 ran on
+  the same 5-fold seed=42 with same XGB HPs as recipe_full_te.
+- Results (5-fold OOF, tuned log-bias):
+  ```
+                Tuned OOF   Δ vs recipe   Errors   Jaccard vs recipe
+  recipe         0.97967        —         10,114   1.00
+  no_digits      0.97956    −0.00011      10,393   0.7866   (+2.8% errs)
+  no_combos      0.97951    −0.00016      10,742   0.8361   (+6.2% errs)
+  no_ote         0.97465    −0.00502      11,730   0.6066   (+16% errs)
+  no_orig        0.97961    −0.00006      10,618   0.8555   (+5.0% errs)
+  ```
+- **Magnitude-trap rule holds for all 4 variants.** Each has MORE
+  errors than recipe (the rule predicts blend-null), despite some
+  having lower Jaccards. no_orig is the closest-to-tied standalone
+  but has highest Jaccard (0.8555 — errors overlap too much with
+  recipe). no_ote has lowest Jaccard but +16% error magnitude.
+- **5-way blend ceiling: OOF 0.97982 (Δ=+0.00015 vs recipe)**.
+  Greedy forward from recipe anchor at fixed bias:
+  ```
+  + no_digits α=0.300  OOF 0.97978 (+0.00012)
+  + no_orig   α=0.025  OOF 0.97982 (+0.00003)
+  no further additions (no_combos, no_ote below threshold)
+  ```
+  5-way grid gives same ceiling 0.97982 at (recipe 0.60,
+  no_digits 0.20, no_combos 0.15, no_ote 0.03, no_orig 0.00).
+  Coord-ascent on the 3-way weights converged at iter 0 — already
+  optimal.
+- **+0.00015 OOF is well below the +0.0002 LB-transfer threshold**
+  established by main's 4-way stage-2 blend null. Given recipe's
+  +0.00028 OOF→LB gap, expected LB ≈ 0.97926 (below current LB-best
+  0.97998). **No LB probe warranted.**
+- Verdict: N1 is **fully closed** — all 4 variants individually
+  confirm the magnitude-trap rule; blend ceiling +0.00015 OOF, below
+  LB-transfer threshold. Artifacts preserved for cross-branch greedy
+  use but unlikely to contribute to future blends.
+- **What N1 proved beyond its immediate null**: the 5-way-blend
+  ceiling of +0.00015 on recipe-subsets is a clean upper bound on
+  "feature-removal diversity" as a lever. To break through, we need
+  feature-ADDITION (171-pair OTE, external data source, etc.) or
+  a new training objective, not subtraction.
+- Artefacts:
+  - `scripts/artifacts/oof_recipe_no_digits.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_combos.npy` (+ test + JSON)
+  - `scripts/artifacts/oof_recipe_no_orig.npy` (+ test + JSON)
+  - `scripts/artifacts/recipe_5way_blend_results.json`
+  - 4 diagnostic submissions (LB-inferior, not for probe)
+
+### Next steps: feature-set diversity on top of the recipe anchor (2026-04-23)
+
+Confirmed after 4 tree-family nulls on recipe (XGB, LGBM, CatBoost CPU,
+CatBoost GPU all Jaccard 0.78-0.84 + similar error counts): **further
+tree-family additions on the same features are null. To break the
+pattern, change the feature set, not the model.** Candidate levers,
+all untried as of this entry, ranked by expected ROI:
+
+  **N1. Recipe-subset XGBs for blend diversity** (top pick, ~40 min each).
+  Recipe has 9 distinct feature blocks: `nums / cats / combos / digits
+  / num_as_cat / tres / logits / freq / orig_stats`. Train recipe XGB
+  on subsets:
+    - recipe-no-digits: drop 66 digit cols + their ~198 derived OTE
+      features → ~300 features. Forces model onto OTE+ORIG+FREQ only.
+    - recipe-no-combos: drop 28 pair combos + their ~84 OTE → ~390
+      features. Leans on single-cat OTE + digits.
+    - recipe-no-OTE: just the 85 numeric feats (raw nums + tres +
+      logits + freq + orig_stats). Pure-numeric XGB, very different
+      decision surface. Expected weaker standalone but orthogonal
+      errors to the OTE-dominated full recipe.
+    - recipe-no-ORIG: drop 38 ORIG stats + their OTE contributions.
+  Each creates an XGB that captures different aspects of the signal.
+  Blend them with the full recipe — if the feature-block drop produces
+  Jaccard < 0.75 with full recipe AND error count within +10%, the
+  blend-null heuristic predicts a lift. All reuse the existing recipe
+  pipeline with a one-line feature-slice change.
+
+  **N2. Multi-strength OTE on recipe features** (~45 min). Recipe
+  uses `a=1.0` for OTE shrinkage. Train parallel recipes at `a=0.1`
+  (less smoothing) and `a=10` (more smoothing). Different shrinkage
+  changes how low-count categories are encoded, producing different
+  XGB splits on the same raw features. Blend all three.
+
+  **N3. Pseudo-labeling with recipe as labeler** (~90 min). Prior
+  attempts were null with weaker labelers (greedy+nonrule level).
+  Recipe at LB 0.97939 is a much stronger labeler. High-confidence
+  test predictions added as training labels could reshape the
+  decision surface on boundary rows. Gate: confidence ≥ 0.98 AND
+  rule_pred == argmax (double confirmation).
+
+  **N4. XGB-dart on recipe** (~1h). Same gradient-boosted family
+  but `booster='dart'` applies tree dropout during training. The
+  4-way tree null pattern is within `gbtree`; dart is structurally
+  different-enough that it may break the pattern. Lower expected
+  ROI than N1/N2 given the pattern, but cheap.
+
+  **N5. Greedy forward-selection over expanded OOF bank**. Re-run
+  `greedy_from_recipe.py` after any of N1/N2/N3/N4 land — the new
+  components enter the candidate pool. Previously greedy-from-recipe
+  found only digit_xgb at +0.00012 (borderline). New orthogonal
+  components may unlock a real lift.
+
+  **Skipping on principled grounds:**
+  - Further OTE key expansion (triples, etc.) — OTE family saturated
+    across 5 variants already.
+  - SVM / k-NN / Naive Bayes — earlier benchmarks (heuristic 0.60,
+    NB 0.75, LR 0.83) show them too weak to contribute.
+  - Seed bagging — LB-regressed twice (2026-04-22 Session B,
+    2026-04-23 digit seed-bag). Below fold-std threshold rule.
+  - General HP tuning — LB-regressed twice earlier. Any +OOF is
+    likely bias-overfit.
+
+  **Execution order**: N1 (recipe-no-OTE is the cheapest and most
+  structurally different — best first shot) → N1 variants (no-digits,
+  no-combos, no-ORIG) in parallel on separate runs → N5 greedy over
+  the expanded bank. Budget: ~2-4h for the N1 family, 15 min for N5.
 
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
