@@ -53,10 +53,13 @@ RAW_NUMERIC = [
 ]
 DIGITS = (-3, -2, -1, 0, 1, 2, 3)
 
-# Variants controlled via env vars so all three runs share one code path:
-#   OTE_VARIANT=default  ->  8 cats + 6 pairs + 2 rule keys, alpha=10, shuffles=8
-#   OTE_VARIANT=light    ->  same keys, alpha=1, shuffles=2 (less regularisation)
-#   OTE_VARIANT=digits   ->  keys = 46 surviving digit columns, alpha=10, shuffles=8
+# Variants controlled via env vars so all runs share one code path:
+#   OTE_VARIANT=default       8 cats + 6 pairs + 2 rule keys, alpha=10, shuffles=8
+#   OTE_VARIANT=light         same keys, alpha=1, shuffles=2 (less regularisation)
+#   OTE_VARIANT=digits        keys = 46 surviving digit columns, alpha=10, shuffles=8
+#   OTE_VARIANT=digits_light  digit keys + alpha=1, shuffles=2 (compound light+digits wins)
+#   OTE_VARIANT=digits_pairs  digit + (digit × Crop_Type) pairs, alpha=10, shuffles=8
+# Optional: OTE_FOLD_SEED=<int>  overrides StratifiedKFold seed for fold-seed bagging.
 VARIANT = os.environ.get("OTE_VARIANT", "default")
 
 # OTE keys: 8 single cats + 6 pairs + 2 rule-cell (mirror benchmark_te_oof + dgp_score / cell).
@@ -78,14 +81,20 @@ RULE_KEYS = [
     ("rule_pred", "Crop_Type"),
 ]
 
-if VARIANT == "light":
+if VARIANT in ("light", "digits_light"):
     N_SHUFFLES = 2
     OTE_ALPHA = 1.0
 else:
     N_SHUFFLES = 8
     OTE_ALPHA = 10.0
 
-ART_SUFFIX = "" if VARIANT == "default" else f"_{VARIANT}"
+# Allow an extra SEED override for fold-seed bagging. Default seed stays 42.
+_SEED_OVERRIDE = os.environ.get("OTE_FOLD_SEED")
+if _SEED_OVERRIDE is not None:
+    SEED = int(_SEED_OVERRIDE)
+    ART_SUFFIX = f"_{VARIANT}_fs{SEED}" if VARIANT != "default" else f"_fs{SEED}"
+else:
+    ART_SUFFIX = "" if VARIANT == "default" else f"_{VARIANT}"
 
 ART = Path("scripts/artifacts")
 OUT = Path("submissions")
@@ -123,12 +132,23 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray):
 
 
 def _all_key_specs(digit_cols: list[str] | None = None) -> list[list[str]]:
-    """Return list of OTE key specs. For the 'digits' variant, override
-    with per-digit-column single-key OTEs."""
-    if VARIANT == "digits":
+    """Return list of OTE key specs per variant.
+
+    - digits / digits_light: 46 single-key OTEs on digit columns.
+    - digits_pairs:          46 single-key digit OTEs + 46 (digit, Crop_Type)
+                             pair keys.
+    - default / light:       8 cats + 6 pairs + 2 rule keys.
+    """
+    if VARIANT in ("digits", "digits_light"):
         if not digit_cols:
-            raise ValueError("digits variant needs digit_cols passed in")
+            raise ValueError("digits* variant needs digit_cols passed in")
         return [[c] for c in digit_cols]
+    if VARIANT == "digits_pairs":
+        if not digit_cols:
+            raise ValueError("digits_pairs variant needs digit_cols passed in")
+        singles = [[c] for c in digit_cols]
+        pairs = [[c, "Crop_Type"] for c in digit_cols]
+        return singles + pairs
     return (
         [[c] for c in SINGLE_CATS]
         + [list(p) for p in PAIR_CATS]
