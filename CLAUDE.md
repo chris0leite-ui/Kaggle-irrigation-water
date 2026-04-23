@@ -2988,6 +2988,62 @@ architecture or feature view adds orthogonal bits at this base.
   log-replay gotcha. Full recipe template captured for reuse on
   the next synthetic tabular competition.
 
+### 2026-04-23 — greedy-from-recipe + LR meta-stacker (both null on top of 0.97939)
+
+- Goal: test whether recipe_full_te (LB 0.97939) can be lifted by
+  blending it with our prior digit-family OOFs or by a learned LR
+  meta-stacker. Cheap post-hoc experiments — no retraining.
+- Changed: `scripts/greedy_from_recipe.py` (forward-selection with
+  recipe_full_te as anchor + fixed bias, 16-model candidate pool);
+  `scripts/lr_meta_stack.py` (multinomial LR on 30-dim meta-features
+  = 10 models × 3 classes, 5-fold OOF with class_weight='balanced').
+
+- **Greedy from recipe (BORDERLINE)**: recipe_full_te (0.925) +
+  digit_xgb (0.075) log-blend → OOF **0.97978** (Δ=+0.00012).
+  - All other 15 candidates (digits_ote, nonrule, corn, greedy_6way,
+    hybrid_lgbmxgb, etc.) rejected — recipe already captures what
+    they offer. Only digit_xgb's raw digit features added a sliver.
+  - Standalone OOFs at recipe's bias:
+    ```
+    recipe_full_te      0.97967  (anchor)
+    greedy_full_bank    0.97237
+    digit_xgb           0.97225
+    xgb_corn            0.97211
+    digits_ote          0.97157
+    (others)            0.970-0.972
+    ```
+    Note: xgb_nonrule evaluates to 0.536 at recipe's bias (recipe's
+    bias is tuned for recipe's scale, wildly different from nonrule's
+    rule-free prob scale). Greedy still blends it in principle but
+    effective weight is tiny.
+  - Blend has 9,857 errors vs recipe standalone's 10,114 — fewer
+    errors, Jaccard 0.9543 (high overlap). Real signal but small.
+  - Above +1e-4 emit gate but below +5e-4 submit-ready threshold.
+    Given recipe's POSITIVE OOF→LB gap (+0.00028), a +0.00012 OOF
+    lift likely translates to −0.00016 LB or zero. Not submitting.
+
+- **LR meta-stacker (NULL)**: 5-fold multinomial LR on concatenated
+  per-class probs from 10 models (recipe + greedy_6way + digit_xgb +
+  digits_ote + digits_pairs + cat_ote + lgbm_digit_ote + xgb_nonrule
+  + xgb_corn + hybrid_lgbmxgb).
+  - argmax 0.97833, tuned 0.97908 — **−0.00059 vs recipe standalone**.
+  - The LR can't improve on recipe because recipe already occupies
+    ~92.5% of the blend weight in the greedy (inferred from how
+    little room is left). Passing through ~all recipe + tiny
+    corrections is what greedy did, and LR can't do better than that
+    without overfitting.
+  - Consistent with earlier LR-meta-stacker null on the
+    greedy+nonrule stack (from 2026-04-21 soft-blend session).
+
+- Verdict: recipe_full_te is close to saturated on own-pipeline
+  OOFs. Neither greedy (+0.00012, borderline) nor LR meta (−0.00059)
+  gives a submission-worthy lift. LB budget unchanged: 7/10 used
+  today, 3 remaining. Current LB best unchanged at **0.97939**.
+
+- Remaining untried own-pipeline levers: CatBoost on the recipe
+  feature set (novel model family, ~1h). Everything else (seed-bag,
+  HP tuning, pseudo-labeling) is ruled out by prior LB regressions.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_full_te.csv` →
