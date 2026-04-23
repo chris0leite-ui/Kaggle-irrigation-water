@@ -382,8 +382,12 @@ def main():
     ap.add_argument("--skip-tvae", action="store_true",
                     help="reuse cached TVAE; only re-sample features")
     ap.add_argument("--no-validate", action="store_true")
+    ap.add_argument("--out-tag", type=str, default="",
+                    help="suffix for outputs (csv + validation json), so "
+                         "successive configs don't overwrite each other")
     args = ap.parse_args()
     mlp_hidden = tuple(int(x) for x in args.mlp_hidden.split(","))
+    tag = f"_{args.out_tag}" if args.out_tag else ""
 
     log(f"=== Option 1: SDV TVAE + MLP labeler  (n_gen={args.n_gen})")
     log(f"device={DEVICE}  seed={args.seed}")
@@ -423,7 +427,7 @@ def main():
     repr_df[TARGET] = labels
 
     # ----- write reproduced dataset -----------------------------------------
-    out_csv = DATA_DIR / "reproduced_v1_train.csv"
+    out_csv = DATA_DIR / f"reproduced_v1{tag}_train.csv"
     repr_df.to_csv(out_csv, index=False)
     log(f"wrote {out_csv}  shape={repr_df.shape}")
 
@@ -438,7 +442,7 @@ def main():
         val_report["validation"] = validate_against_real(
             repr_df, real_train, num_cols, cat_cols)
 
-    val_path = ART_DIR / "reproduce_v1_validation.json"
+    val_path = ART_DIR / f"reproduce_v1{tag}_validation.json"
     with open(val_path, "w") as f:
         json.dump(val_report, f, indent=2, default=str)
     log(f"wrote {val_path}")
