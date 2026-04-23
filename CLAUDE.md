@@ -3359,6 +3359,93 @@ architecture or feature view adds orthogonal bits at this base.
   entry: "when implementing a public kernel, enumerate every disabled
   toggle / commented-out parameter and test them individually."
 
+### 2026-04-23 — stage-2 pseudo-label + 4-way blend: LB null, stacking-inflation confirmed
+
+- Goal: the stage-1 blend landed LB 0.97998 (+0.00059 over recipe alone).
+  Test whether **self-refinement via stage-2 pseudo-label** (use the
+  LB-best blend as the labeler for a new pseudo-label run) + broader
+  greedy blend over 5 candidates pushes further.
+- Changed:
+  - `scripts/build_blend_labeler.py` — builds the stage-1 blend as a
+    standalone labeler: 50/50 log-blend of `test_recipe_full_te.npy` ×
+    `test_recipe_pseudolabel.npy` at recipe's fixed bias [1.43, 1.47, 3.40].
+    Saves as `test_recipe_blend_stage1.npy` + `recipe_blend_stage1_results.json`.
+  - `scripts/recipe_pseudolabel.py` — parameterized via env vars
+    (`LABELER_TEST_PATH`, `LABELER_BIAS_JSON`, `PSEUDO_SUFFIX`). Default
+    behavior unchanged.
+  - `scripts/recipe_all_blend.py` — CANDIDATES extended to include
+    `recipe_pseudolabel_stage2`.
+- Stage-2 results (OOF, 5-fold, seed=42):
+  - Labeler = blend (LB 0.97998). τ=0.98 → 229,307 rows kept (+3,145
+    vs stage-1's 226,162). Pseudo class dist matches real-train prior.
+  - Per-fold argmax vs stage-1 pseudo:
+    ```
+    fold 1: 0.97626 (Δ -0.00074 vs stage-1 0.97700)
+    fold 2: 0.97604 (Δ -0.00023 vs stage-1 0.97627)
+    fold 3: 0.97782 (Δ -0.00099 vs stage-1 0.97881)
+    fold 4: 0.97648 (Δ +0.00145 vs stage-1 0.97503)
+    fold 5: 0.97640 (Δ +0.00051 vs stage-1 0.97589)
+    sum Δ = 0.00000 — overall argmax identical to stage-1
+    ```
+  - **Tuned OOF = 0.98002** (Δ=+0.00009 vs stage-1's 0.97993; +0.00035
+    vs recipe). Bias [1.53, 1.37, 3.40] — **High bias matches recipe's
+    3.40 exactly** (stage-1's was 3.30 — stage-2 calibrates tighter).
+  - Wall 45 min.
+- Greedy forward blend (5 candidates: recipe_full_te, recipe_lgbm,
+  recipe_pseudolabel, recipe_pseudolabel_stage2, recipe_catboost):
+  ```
+  standalone @ anchor bias      fixed       tuned       err     Jaccard vs recipe
+    recipe_full_te              0.97967    0.97967    10114    1.00
+    recipe_pseudolabel_stage2   0.97996    0.98002     9996    0.7800   ← new best
+    recipe_pseudolabel          0.97987    0.97993    10039    0.7805
+    recipe_lgbm                 0.97939    0.97952    10018    0.8555
+    recipe_catboost             0.97739    0.97897    13435    0.6794
+
+  greedy path:
+    start:       recipe_full_te              OOF 0.97967
+    + stage2     α=0.500 → OOF 0.98026  Δ=+0.00059 (biggest add)
+    + catboost   α=0.150 → OOF 0.98029  Δ=+0.00003 (first time CAT adds)
+    + stage1     α=0.125 → OOF 0.98033  Δ=+0.00004
+    stop (LGBM rejected — Jaccard 0.86)
+
+  final weights: recipe 0.37, stage2 0.37, catboost 0.13, stage1 0.13
+  fixed-bias OOF = 0.98033  Δ vs recipe = +0.00066
+  ```
+  Blend confusion matrix: Low 99.51% / Medium 96.75% / **High 97.82%**
+  (vs prior blend's 97.68% High). Error count 9,891 (recipe 10,114).
+- **LB probe: submitted 15:12 UTC**, result **LB = 0.97997**. OOF→LB gap
+  = **+0.00036** (prior blend's gap was +0.00014).
+  Δ vs current LB best (2-way blend 0.97998) = **−0.00001**, essentially
+  tied within LB noise. **NULL on LB despite +0.00021 OOF over prior blend.**
+- Updated calibration ladder:
+  ```
+  recipe_full_te                    0.97967 → 0.97939   gap +0.00028
+  **recipe × pseudolabel (2-way)    0.98012 → 0.97998   gap +0.00014**  ← LB BEST still
+    4-way with stage-2+cat+pseudo   0.98033 → 0.97997   gap +0.00036    (null)
+  ```
+- Diagnosis:
+  1. **Self-refinement saturates fast.** Stage-1 lifted +0.00059 LB;
+     stage-2 adds 0 LB. The +0.00009 stage-2 OOF gain over stage-1 was
+     tighter-calibration, not new signal. Once the labeler is good
+     enough (recipe at 0.97939 LB), the pseudo-label set is already
+     ~99.5% pure, so making the labeler better doesn't improve the
+     downstream model.
+  2. **Greedy over saved OOFs has a stacking-inflation ceiling** beyond
+     2 anchor models. Each added component's OOF contribution lands at
+     ~noise-level (+0.00003-0.00004), which doesn't clear the LB
+     generalization threshold. The +0.00022 OOF from adding CatBoost +
+     stage-1 to the greedy did NOT transfer — gap widened from +0.00014
+     to +0.00036 (exactly matching the OOF inflation).
+- **New rule** (added to LEARNINGS.md candidate): "For greedy-forward
+  log-blends on a single-split OOF, the per-candidate lift must be ≥
+  +0.0002 to have >50% chance of transferring to LB. Below that, the
+  extra component is mostly fitting CV-split noise."
+- LB budget: 6/10 used today, 4 remaining.
+- Next bet: **Ali Afzal's 171-pair OTE** — the remaining feature-surface
+  expansion the public-kernel lineage points at. We have 28 cat×cat
+  combos; the untested 143 pairs (cat×num, num×num) are a fundamentally
+  different feature space, not a restack.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
@@ -3368,34 +3455,43 @@ architecture or feature view adds orthogonal bits at this base.
   test probs at τ=0.98 (226k/270k test rows kept, pseudo class dist
   matches real-train, +41% boost to rare-High pool). Pack 0.98114 is
   +0.00116 above; leader 0.98219 is +0.00221 above.
-  LB budget today: 5 remaining (5/10 used: 2 digits-OTE variants +
-  1 greedy_full_bank + 1 recipe_full_te + 1 recipe×pseudolabel probe).
+  LB budget today: 4 remaining (6/10 used: 2 digits-OTE variants +
+  1 greedy_full_bank + 1 recipe_full_te + 1 recipe×pseudolabel 2-way
+  + 1 4-way blend probe).
 
-  Second-best: `submission_recipe_full_te.csv` → **LB 0.97939 /
+  Second-best: `submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_pseudolabel.csv`
+  → **LB 0.97997 / OOF tuned 0.98033** (gap +0.00036, null follow-up).
+  4-way greedy log-blend: recipe_full_te (0.37) + recipe_pseudolabel_stage2
+  (0.37) + recipe_catboost (0.13) + recipe_pseudolabel (0.13). Stage-2
+  uses the 2-way blend (LB 0.97998) as labeler. OOF gain +0.00021 vs
+  2-way did NOT transfer to LB — classic OOF stacking inflation beyond
+  2 anchors on a single CV split.
+
+  Third-best: `submission_recipe_full_te.csv` → **LB 0.97939 /
   OOF tuned 0.97967** (gap +0.00028). Full V10 recipe: ~117
   categoricals (raw+pair+digit+num-as-cat+tres) OTE'd, plus FREQ +
   ORIG mean/std + LR-formula logits + threshold flags = ~500
   features. Heavy-reg XGB (max_depth=4, alpha=5, reg_lambda=5) +
   class-balanced sample weights + post-hoc log-bias.
 
-  Third-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
+  Fourth-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
   digits_ote 0.24 + xgb_nonrule 0.11 + xgb_corn 0.09 + digits_pairs
   0.07 + digits_light_ote 0.05) → OOF 0.97558, LB 0.97581.
   Submission: `submissions/submission_greedy_full_bank.csv`.
 
-  Fourth-best: digits-OTE × digit-XGB log-blend at α=0.40
+  Fifth-best: digits-OTE × digit-XGB log-blend at α=0.40
   → OOF 0.97477, LB 0.97482. Submission:
   `submissions/submission_digit_ote_digits_blend.csv`.
 
-  Fifth-best: XGB-dist + digits standalone, tuned log-bias →
+  Sixth-best: XGB-dist + digits standalone, tuned log-bias →
   OOF 0.97449, LB 0.97468. Submission:
   `submissions/submission_xgb_dist_digits_tuned.csv`.
 
-  Sixth-best: greedy + xgb-nonrule log-blend at α=0.15
+  Seventh-best: greedy + xgb-nonrule log-blend at α=0.15
   → OOF 0.97421, LB 0.97352. Submission:
   `submissions/submission_greedy_nonrule_blend.csv`.
 
-  Seventh-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
+  Eighth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
   spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
   `submissions/submission_blend_greedy_w045_040_015.csv`.
 
