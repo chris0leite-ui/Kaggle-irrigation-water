@@ -3777,6 +3777,47 @@ architecture or feature view adds orthogonal bits at this base.
 - LB budget: **8/10 used today, 2 remaining.** Save the 2 for tomorrow's
   potential ceiling-breaker probes. No further submissions today.
 
+### 2026-04-23 — full 12-component greedy confirms +0.0002 LB-transfer ceiling is structural
+
+- Goal: with ALL parallel-session OOFs synced locally (recipe,
+  pseudolabel, pseudo_stage2, lgbm, catboost, allpairs, N1 subsets
+  {no_digits, no_combos, no_orig, no_ote}, OTE-strength variants
+  {a01, a10}), run comprehensive greedy over the full 12-component
+  OOF bank to check whether any combination main hadn't tested
+  produces a blend with per-step Δ ≥ +0.0002 (the documented LB-
+  transfer threshold).
+- Changed: ad-hoc script in `logs/greedy_full_recipe_bank.log` (no
+  retraining — OOF-space only).
+- **Results — greedy from recipe anchor (6-way, identical to main's
+  4-way ceiling + 2 extras)**:
+  ```
+  + pseudo_stage2 α=0.500  OOF 0.98026  Δ=+0.00059  ≥+0.0002 ✓
+  + catboost      α=0.175  OOF 0.98031  Δ=+0.00005  ✗
+  + no_digits     α=0.050  OOF 0.98034  Δ=+0.00004  ✗
+  + allpairs      α=0.075  OOF 0.98036  Δ=+0.00002  ✗
+  + a10           α=0.025  OOF 0.98039  Δ=+0.00002  ✗
+  final OOF 0.98039  (Δ +0.00072 vs recipe)
+  ```
+- **Greedy from LB-best anchor (pseudolabel 50/50, OOF 0.98012)**:
+  ```
+  + allpairs α=0.250  OOF 0.98026  Δ=+0.00014  ✗
+  + no_ote   α=0.075  OOF 0.98031  Δ=+0.00005  ✗
+  ```
+- **Verdict**: every per-step addition after the first (pseudo_stage2)
+  is below the +0.0002 LB-transfer threshold. Main already verified
+  this with the 4-way `recipe+stage2+cat+stage1` (OOF 0.98033 → LB
+  0.97997 null). Expected LB of the new 6-way ≈ 0.97997 — same
+  structural ceiling.
+- **The +0.00072 OOF lift over recipe is spread across 5 components,
+  each below +0.0002. No single addition produces a real LB move.**
+- **Own-pipeline LB ceiling at 0.97998 is robust** across all 12-
+  component combinations (recipe, pseudo, pseudo_stage2, lgbm,
+  catboost, allpairs, 4 N1 subsets, 2 OTE-alpha variants). The
+  structural rule holds. Pack 0.98114 remains +0.00116 above,
+  reachable only via public-CSV blending (banned).
+- No LB probe warranted. LB-best stays `submission_recipe_greedy_recipe_pseudolabel.csv`
+  → **LB 0.97998**.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
