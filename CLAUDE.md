@@ -2817,6 +2817,60 @@ architecture or feature view adds orthogonal bits at this base.
     `lgbm_dist_digits_ote_results.json`
   - `submission_greedy_full_bank.csv` (LB 0.97581, new best)
 
+### 2026-04-23 — ExtraTrees v2 + multi-start sanity check: both confirm 6-way is optimal
+
+- Goal: after LB 0.97581, test two cheap levers to see whether our
+  submitted 6-way blend is the true local optimum or whether a
+  better blend exists.
+- **ExtraTrees v2 (no `class_weight='balanced'`)** — `EXTRATREES_VARIANT=v2`
+  via env var. Hypothesis: v1's balanced weights flattened probabilities
+  to where log-bias couldn't recover them (OOF 0.93023 at digit-XGB's
+  fixed bias → greedy-rejected). Without balanced weights, raw argmax
+  tracks the Low-majority prior (0.96079 vs v1's 0.96419), but prior-
+  reweight (0.96588) + tuned log-bias (**0.96631**) converge to a value
+  just below v1 (0.96676). Null — both ET variants plateau ~0.008 below
+  digit-XGB (0.97449), and the "calibration fix" produces slightly
+  WORSE tuned OOF than v1. Implication: `class_weight='balanced'` was
+  doing something log-bias couldn't reproduce, and either way ExtraTrees
+  is structurally below XGB on this feature set.
+- **Multi-start + backward-elim + weight refinement** on the 6-way:
+  1. Multi-start (15 anchors): best alternate = `lgbm_digit_ote` start
+     → OOF **0.97559** (Δ +0.00002 vs submitted 0.97558 — numerical
+     tie). Different 6-way composition (lgbm_digit_ote 0.31 + digit_xgb
+     0.31 + xgb_nonrule 0.21 + hybrid_lgbmxgb 0.09 + digits_ote 0.05 +
+     cat_ote_light 0.03) but same ceiling. Confirms the greedy reaches
+     the same plateau from multiple starting points.
+  2. Backward-elimination: dropping any one component strictly hurts.
+     Ranked by harm of removal (biggest loss = most essential):
+     ```
+     drop xgb_nonrule       -0.00063  (most essential, confirms +0.00057
+                                       lift was real structural signal)
+     drop digit_xgb         -0.00035
+     drop xgb_corn          -0.00032
+     drop digits_ote        -0.00028
+     drop digits_pairs      -0.00009
+     drop digits_light_ote  -0.00006
+     ```
+     The Frank-Hall CORN component (−0.00032 to remove) is genuinely
+     contributing despite being a standalone-null leg on greedy+nonrule
+     — adds up as a 9% weight in the anchor-family blend.
+  3. Coord-ascent weight refinement (perturb each weight by ±0.025,
+     ±0.05): converged at iter 0 → no improvement. The greedy weights
+     are already at a local weight-optimum.
+- **Verdict**: the submitted 6-way blend is a genuine, stable local
+  optimum. Multi-start finds tied configurations; backward-elimination
+  confirms all 6 components contribute positively; weight perturbation
+  doesn't improve OOF. No LB submission warranted.
+- **Meta-lesson added**: the greedy path-dependence trap we hit earlier
+  (including lgbm_digit_ote in the pool produced a worse 3-way optimum)
+  is resolved by multi-start — starting from `lgbm_digit_ote` as the
+  anchor gives a tied solution. The heuristic rule "run greedy with
+  strong-only candidates first" is good practice but the multi-start
+  check is the cleaner verification.
+- LB budget unchanged: 7/10 used today, 3 remaining.
+- Current LB best unchanged: `submission_greedy_full_bank.csv` at
+  **LB 0.97581**.
+
 ## Hypothesis board
 
 - **Current best (LB)**: greedy full-bank 6-way log-blend

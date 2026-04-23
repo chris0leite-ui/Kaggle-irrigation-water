@@ -102,3 +102,9 @@ kaggle_kernel/ds_*/test_*.npy
 # top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
 !scripts/artifacts/oof_xgb_dist_digits_ote.npy
 !scripts/artifacts/test_xgb_dist_digits_ote.npy
+# ExtraTrees variants on dist+digits (v1 class_weight=balanced, v2 none):
+# both null vs XGB but saved for greedy-selection experiments
+!scripts/artifacts/oof_extratrees_dist_digits.npy
+!scripts/artifacts/test_extratrees_dist_digits.npy
+!scripts/artifacts/oof_extratrees_dist_digits_v2.npy
+!scripts/artifacts/test_extratrees_dist_digits_v2.npy
