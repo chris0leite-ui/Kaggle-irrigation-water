@@ -2,20 +2,26 @@
 
 Novel orthogonal-model test on the LB-best feature set (digit-XGB 0.97468).
 Extra Trees uses fully random split thresholds, so error footprint differs
-from gradient-boosted trees. If errors are orthogonal AND count is near
-or below digit-XGB's, a blend could lift. Historical digit-XGB has 8,879
-errors; target is <= 9,500 errors to avoid the "orthogonal but too many"
-blend-null pattern.
+from gradient-boosted trees.
+
+Parameterised via env var OTE_VARIANT (yes, reused for consistency):
+  EXTRATREES_VARIANT=default   class_weight='balanced' at training time
+  EXTRATREES_VARIANT=v2        no class_weight — let log-bias do all the work
+
+v1 (balanced) produced probs that landed at OOF 0.93023 under digit-XGB's
+fixed bias (off-calibration, greedy-rejected). v2 leaves probs on the raw
+prior-weighted scale so the log-bias tune shifts them consistently with
+XGB's family, giving greedy a chance to use them.
 
 Pipeline mirrors `xgb_dist_digits.py`:
   - 5-fold StratifiedKFold(seed=42), aligned with every other OOF.
   - Ordinal encoding for cats (ExtraTrees doesn't take pandas categoricals).
-  - class_weight='balanced' to handle 3.3% High prior at training time.
   - Save oof + test + json + diagnostic submission.
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -30,6 +36,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from benchmark_dist import add_distance_features
 from digit_features import add_digit_features, drop_zero_variance
 
+VARIANT = os.environ.get("EXTRATREES_VARIANT", "default")  # 'default' | 'v2'
+SUFFIX = "" if VARIANT == "default" else f"_{VARIANT}"
 
 SEED = 42
 N_FOLDS = 5
@@ -115,20 +123,22 @@ def main() -> None:
     log(f"features total={X.shape[1]}  num={len(num_cols)}  cat={len(cat_cols)}")
     log(f"class priors: {dict(zip(CLASSES, prior.round(4)))}")
 
-    # ExtraTrees config: 500 trees, sqrt feature sampling, class_weight balanced
-    # to handle the High-class scarcity at training time (instead of tuning the
-    # decision rule after).
+    # ExtraTrees config. v1 used class_weight='balanced' (flattened probs,
+    # off-calibration). v2 drops class_weight and lets the post-training
+    # log-bias coord-ascent handle the High-class rebalance, matching XGB's
+    # probability scale.
     et_params = dict(
         n_estimators=500,
         criterion="gini",
         max_features="sqrt",
         min_samples_leaf=20,
-        class_weight="balanced",
+        class_weight=None if VARIANT == "v2" else "balanced",
         bootstrap=False,  # true for RF, false for ExtraTrees
         n_jobs=-1,
         random_state=SEED,
         verbose=0,
     )
+    log(f"ExtraTrees variant={VARIANT}  class_weight={et_params['class_weight']}")
 
     log(f"training 5-fold ExtraTrees  n_estimators=500")
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
@@ -159,9 +169,9 @@ def main() -> None:
     print(f"  prior-reweight  : {reweight_bal:.5f}")
     print(f"  tuned log-bias  : {tuned_bal:.5f}")
 
-    np.save(ART / "oof_extratrees_dist_digits.npy", oof)
-    np.save(ART / "test_extratrees_dist_digits.npy", test_pred)
-    with open(ART / "extratrees_dist_digits_results.json", "w") as f:
+    np.save(ART / f"oof_extratrees_dist_digits{SUFFIX}.npy", oof)
+    np.save(ART / f"test_extratrees_dist_digits{SUFFIX}.npy", test_pred)
+    with open(ART / f"extratrees_dist_digits{SUFFIX}_results.json", "w") as f:
         json.dump(
             {
                 "seed": SEED,
@@ -179,9 +189,9 @@ def main() -> None:
 
     tuned_test_idx = (np.log(np.clip(test_pred, 1e-9, 1.0)) + bias).argmax(axis=1)
     pd.DataFrame({ID: te[ID], TARGET: [IDX2CLS[i] for i in tuned_test_idx]}).to_csv(
-        OUT / "submission_extratrees_dist_digits_tuned.csv", index=False
+        OUT / f"submission_extratrees_dist_digits{SUFFIX}_tuned.csv", index=False
     )
-    log(f"artefacts written")
+    log(f"artefacts written  (variant={VARIANT})")
 
 
 if __name__ == "__main__":
