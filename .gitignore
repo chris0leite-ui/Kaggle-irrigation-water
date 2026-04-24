@@ -376,5 +376,12 @@ kernel_audit*/
 !scripts/artifacts/oof_selective_router.npy
 !scripts/artifacts/test_selective_router.npy
 
+# Missed-High detector (binary XGB, P(y=H ∧ teacher_pred ∈ {L,M})) —
+# AUC 0.9711 (ranking signal real) but deploy precision 6.5% at N=200
+# vs 8.8% break-even → override strictly net-negative. Closes the
+# "High-recall orthogonality" Pareto-frontier path explicitly.
+!scripts/artifacts/oof_missed_high.npy
+!scripts/artifacts/test_missed_high.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
