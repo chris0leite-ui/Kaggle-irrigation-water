@@ -422,5 +422,14 @@ kernel_audit*/
 !scripts/artifacts/oof_spec6_mh_v2.npy
 !scripts/artifacts/test_spec6_mh_v2.npy
 
+# v3 boundary specialists keyed on the NEW LB-best 3-stack teacher
+# (OOF 0.98061 / LB 0.98008). score=5 and score=6 variants. Both null
+# as hard-override legs on the new teacher (score=5 peak Δ=+0.00004,
+# score=6 dead). Kept for future experiments that may find uses.
+!scripts/artifacts/oof_spec_mh_v3_score5.npy
+!scripts/artifacts/test_spec_mh_v3_score5.npy
+!scripts/artifacts/oof_spec_mh_v3_score6.npy
+!scripts/artifacts/test_spec_mh_v3_score6.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
