@@ -410,7 +410,9 @@ def main():
     train, test, orig, NUMS, CATS, combo_cols = build_features(
         train, test, orig,
     )
-    y = train[TARGET].to_numpy()
+    # map -> pandas Series is float64 if any NaN; cast to int64 so
+    # np.bincount works. fails loudly if any class label was unmapped.
+    y = train[TARGET].to_numpy().astype(np.int64)
 
     result = run_cv(train, test, orig, NUMS, CATS, combo_cols)
     oof = result["oof"]
