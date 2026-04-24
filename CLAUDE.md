@@ -3943,6 +3943,85 @@ architecture or feature view adds orthogonal bits at this base.
   feature surface, not a new learning signal, so it can't inherit
   the distillation overfit failure mode.
 
+### 2026-04-24 — final-selection hedge audit (write-up)
+
+- Goal: stop deferring the final-selection call. Deadline 2026-04-30;
+  6 days out, 2/2 final slots spent once submitted. LB-state: LB-best
+  3-way multi-seed `submission_3way_recipe025_s1035_s7040.csv` at 0.98005,
+  prior LB-best 2-way `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at 0.97998, recipe standalone `submission_recipe_full_te.csv` at 0.97939,
+  recipe CatBoost `submission_recipe_full_te_catboost.csv` at 0.97935.
+- **Problem with the plan-of-record (primary 3-way + fallback 2-way)**:
+  both anchor on `recipe_full_te + recipe_pseudolabel` (pseudo_s1). If
+  pseudo_s1 overfits private LB — which is plausible since the whole
+  stacking-inflation ceiling analysis treats it as the "unusually lucky"
+  draw that stage-2 / seed-7 / seed-123 couldn't reproduce — BOTH
+  submissions regress together. That's correlated exposure dressed up
+  as a hedge.
+- **Recommendation**: lock primary = 3-way multi-seed (0.98005), hedge =
+  **`submission_recipe_full_te_catboost.csv`** (LB 0.97935, gap +0.00001,
+  the tightest calibration in the whole ladder). Reasoning:
+  1. Different model family (CatBoost ordered-boosting vs XGB), so the
+     per-row error distribution is materially different (Jaccard 0.806
+     vs recipe, 0.788 on GPU variant). Errors on private LB will not
+     overlap with the XGB-family primary's errors in the same way the
+     2-way fallback's will.
+  2. Single-model, no blend composition — can't suffer stacking-
+     inflation overfit. The +0.00001 gap is the only submission in the
+     log with OOF ≤ LB, not the other way around.
+  3. Hedge cost: −0.00070 LB vs 2-way fallback. That's the insurance
+     premium. If the 3-way stays on top of private, the primary wins
+     and we don't care about the gap. If the 3-way drops, a
+     XGB-family fallback at LB 0.97998 likely drops with it;
+     CatBoost-family fallback at LB 0.97935 might stay put or drop
+     less (different error geometry under distribution shift).
+  4. Alternative hedge = `submission_recipe_full_te.csv` (LB 0.97939).
+     Same family as primary (both XGB-on-recipe), but no blend overfit.
+     Slightly cheaper premium (+0.00004 vs CatBoost-hedge). I prefer
+     CatBoost-hedge because model-family diversity is the stronger
+     insurance-against-correlation-failure axis than within-family
+     standalone-vs-blend.
+- **Zero-risk auxiliary candidate emitted this session**:
+  `submission_hedge_avg_2way_3way.csv` (OOF 0.98020, not yet LB-probed).
+  50/50 log-mean of the two LB-verified blends at recipe's fixed bias.
+  Not recommended as either final slot — shares overfit surface with
+  BOTH its parents. Useful only as a diagnostic LB probe if we have a
+  slot to spare (~10/day from 2026-04-25 reset).
+- No LB spend this session (scaffold only; focal + GroupKFold-crop
+  still in flight).
+
+### 2026-04-24 — hedge-avg 50/50 submission built (not yet LB-probed)
+
+- Goal: realize item 4 of the "overlooked levers" pass — zero-risk
+  50/50 log-mean of the two LB-verified bests (2-way + 3-way) as an
+  "ensemble-of-ensembles" midpoint submission for private LB variance
+  protection.
+- Changed: `scripts/hedge_avg_lb_bests.py`. Reconstructs 2-way and
+  3-way from components (recipe_full_te, recipe_pseudolabel,
+  recipe_pseudolabel_seed7labeler), takes a 50/50 log-mean in
+  probability space, applies recipe's fixed tuned bias
+  [1.43, 1.47, 3.40] (no retune — binhigh-rule compliance), emits
+  `submissions/submission_hedge_avg_2way_3way.csv`.
+- OOF @ recipe bias:
+  - 2-way component       → 0.98012
+  - 3-way component       → 0.98029
+  - 50/50 log-mean hedge  → **0.98020**
+- Test-argmax disagreement matrix:
+  - 2-way ↔ 3-way           = 163 rows
+  - hedge ↔ 2-way           = 88 rows (hedge agrees with 2-way more often)
+  - hedge ↔ 3-way           = 75 rows
+  - 88 + 75 = 163 — hedge sits exactly between the two submissions.
+- Class dist: Low 159,534 / Medium 100,213 / High 10,253 — pulls the
+  High count down from 3-way's 11,101 toward 2-way's territory
+  (2-way's split is closer to train prior). Implicit "rare-class
+  shrinkage" effect from log-averaging over two predictors with
+  different High thresholds.
+- Not recommended as a final-slot candidate (shares overfit surface
+  with both its parents). Available as a diagnostic LB probe if
+  surplus slots remain near deadline.
+- Artefacts committed: `oof_hedge_avg_lb_bests.npy`,
+  `test_hedge_avg_lb_bests.npy`, `hedge_avg_lb_bests_results.json`.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
