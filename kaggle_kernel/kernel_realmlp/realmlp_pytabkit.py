@@ -54,15 +54,44 @@ from itertools import combinations
 from pathlib import Path
 
 # ========================= environment setup =========================
-# Install pytabkit if not present. pytabkit pulls torch, pandas, numpy.
-try:
-    import pytabkit as _pt
-    print(f"[boot] pytabkit {getattr(_pt, '__version__', 'unknown')}", flush=True)
-except ImportError:
-    print("[boot] installing pytabkit", flush=True)
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-                           "pytabkit"])
-    import pytabkit as _pt  # noqa
+# P100 sm_60 shim: pre-installed torch on Kaggle kernels often lacks
+# kernel images for Pascal GPUs. Install cu121 build BEFORE pytabkit
+# (which depends on torch) so pytabkit imports against a working torch.
+def _gpu_arch():
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+            text=True, timeout=10,
+        ).strip().splitlines()
+        return [x.strip() for x in out if x.strip()]
+    except Exception as e:
+        print(f"[boot] nvidia-smi error: {e}", flush=True)
+        return []
+
+_arches = _gpu_arch()
+print(f"[boot] gpu compute_cap = {_arches}", flush=True)
+if any(a in ("6.0", "6.1") for a in _arches):
+    # Pin torch + torchvision to a matched cu121 pair that supports sm_60.
+    # --no-deps on torch to avoid pulling CPU-only numpy etc., but we must
+    # also force-reinstall torchvision to a version compatible with 2.5.1
+    # (otherwise pytabkit's lightning dep sees torchvision incompat).
+    print("[boot] sm_60/61 detected - pinning torch+torchvision cu121", flush=True)
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--quiet",
+        "--upgrade", "--force-reinstall", "--no-deps",
+        "torch==2.5.1", "torchvision==0.20.1",
+        "--index-url", "https://download.pytorch.org/whl/cu121",
+    ])
+
+# Install pytabkit + lightning explicitly (pytabkit's pyproject doesn't
+# always mark lightning as a hard dep, and on Kaggle images neither is
+# pre-installed). Use regular install so pip resolves any remaining deps.
+subprocess.check_call([
+    sys.executable, "-m", "pip", "install", "--quiet",
+    "pytabkit", "lightning",
+])
+import pytabkit as _pt
+print(f"[boot] pytabkit {getattr(_pt, '__version__', 'unknown')}", flush=True)
 
 try:
     out = subprocess.check_output(
@@ -72,7 +101,7 @@ try:
     ).strip()
     print(f"[boot] GPU info: {out}", flush=True)
 except Exception as e:
-    print(f"[boot] nvidia-smi error: {e}", flush=True)
+    print(f"[boot] nvidia-smi info error: {e}", flush=True)
 
 import numpy as np
 import pandas as pd

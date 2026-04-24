@@ -210,6 +210,39 @@ def add_decimal_fractions(df: pd.DataFrame,
     return cols
 
 
+def add_groupby_cat_num_stats(train: pd.DataFrame, test: pd.DataFrame,
+                               cats: list[str], nums: list[str],
+                               stats=("mean", "std")) -> list[str]:
+    """Per-cat-group mean/std of each numeric, computed on SYNTHETIC TRAIN only.
+
+    Port of rohit8527kmr7518/ps-s6e4-lgbm-with-target-encoding-group-stats:
+    for each (cat, num) pair, group train by cat → aggregate num via mean/std,
+    merge back onto train and test. Leak-free for the synthetic train fold
+    structure (computed on FULL train once, not per-fold; but downstream
+    target encoding handles the leak path via OrderedTE).
+
+    Distinct from `add_orig_mean_std` (which aggregates TARGET on 10k
+    original) — this aggregates NUMERIC distributions on the full 630k
+    synthetic pool. Mutates train, test in-place.
+
+    Returns list of new numeric column names (2 × |cats| × |nums| = 176
+    for 8 cats + 11 nums + mean/std).
+    """
+    new_cols: list[str] = []
+    for c in cats:
+        for n in nums:
+            stats_df = train.groupby(c, observed=False)[n].agg(list(stats)).reset_index()
+            stats_df.columns = [c] + [f"GBY_{c}_{n}_{s}" for s in stats]
+            for df_name in ("train", "test"):
+                df = {"train": train, "test": test}[df_name]
+                merged = df.merge(stats_df, on=c, how="left")
+                for s in stats:
+                    col = f"GBY_{c}_{n}_{s}"
+                    df[col] = merged[col].fillna(0).astype(np.float32).values
+            new_cols += [f"GBY_{c}_{n}_{s}" for s in stats]
+    return new_cols
+
+
 def add_num_as_cat(train: pd.DataFrame, test: pd.DataFrame,
                    orig: pd.DataFrame, nums: list[str]) -> list[str]:
     """Duplicate each numeric as a string-cast categorical column.

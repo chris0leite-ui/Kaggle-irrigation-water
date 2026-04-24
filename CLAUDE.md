@@ -6662,6 +6662,55 @@ read time has surfaced every real lever we've found. Start there.
   rohit8527 group-by stats, sakuno binning) are cheap but have
   lower EV given the recipe's mature OTE coverage.
 
+### 2026-04-24 — GBY rohit8527 group-by cat×num stats closed as NULL
+
+- Goal: execute B1 audit finding #4 — rohit8527's per-cat-group
+  `mean/std` of each numeric on the SYNTHETIC 630k pool (we only had
+  `add_orig_mean_std` which aggregates TARGET on 10k original; this
+  aggregates NUMERIC distributions on the full train). 8 cats × 11
+  nums × 2 stats = 176 extra numeric features via `GBY=1` env var.
+- Changed: `scripts/recipe_features.py` new
+  `add_groupby_cat_num_stats()`, `scripts/recipe_full_te.py` new
+  `GBY` env var with `_gby` output suffix. Smoke (SMOKE=1, 20k
+  2-fold): 619 features total, clean end-to-end. Production (GBY=1,
+  5-fold 630k seed=42) ran ~3h CPU (folds 1-2 ~35 min each, folds
+  3-5 ~30 min each; slower than recipe due to 619 features vs 443).
+- Results (5-fold OOF seed=42):
+  - Per-fold argmax: 0.97518, 0.97557, 0.97754, 0.97460, 0.97566
+  - Mean fold argmax: **0.97571 ± 0.00099** (recipe: 0.97589)
+  - **Tuned OOF: 0.97959** (recipe: 0.97967, Δ=−0.00008)
+  - Tuned bias [1.03, 1.17, **3.00**] vs recipe's [1.43, 1.47, 3.40] —
+    High bias dropped 0.40 (GBY features produce SHARPER High probs).
+    Group-by stats on Humidity, Previous_Irrigation, etc. carry
+    class-discriminative signal the model exploits.
+  - Error count **10,040** vs recipe **10,114** (−74 rows — real
+    signal gain at prob level, same pattern as A4).
+- Blend gate vs 3 anchors (fixed recipe bias):
+  - vs recipe (0.97967): peak α=0.450 → 0.97981 (Δ=+0.00014)
+  - vs LB-best 2-way (0.98012): peak α=0.025 → 0.98014 (Δ=+0.00002)
+  - vs LB-best 3-way (0.98029): peak α=0.025 → 0.98030 (Δ=+0.00001)
+- **Jaccards**:
+  - vs recipe: 0.87
+  - vs LB2: 0.86
+  - vs LB3: 0.83
+  All ≥ 0.80 redundancy threshold — same pattern as A4.
+- **Verdict: NULL** vs both LB-best anchors. Standalone tuned is
+  0.97959 (−0.00008 vs recipe, within fold noise). Blend peaks
+  below +0.0002 LB-transfer threshold.
+- **Two-experiment pattern confirmed** (GBY + A4): any derived
+  numeric FE on top of the recipe ends up with Jaccard 0.83-0.87 vs
+  LB-best 3-way. The recipe's OTE + digit + ORIG_stats already
+  encode what ratios, decimals, and per-cat group stats describe —
+  trees reconstruct the same signal via splits on the existing
+  OTE-encoded manifold. **Further numeric FE on recipe is
+  architecturally capped**.
+- Artefacts committed (whitelisted in `.gitignore`):
+  - `scripts/artifacts/oof_recipe_full_te_gby.npy` + test + JSON
+  - `submissions/submission_recipe_full_te_gby.csv` (diagnostic,
+    not for LB probe)
+- LB best unchanged at **0.98005**.
+- Companion work: A1 RealMLP v3 RUNNING on Kaggle GPU (v1 CUDA
+  error, v2 lightning-missing, v3 fixed both). Status check pending.
 ### 2026-04-24 — blamerx τ=0.92 pseudo-label executed: NULL (blend-redundant)
 
 - Goal: execute blamerx's "lower τ + many-pseudo" mechanism from the B1
