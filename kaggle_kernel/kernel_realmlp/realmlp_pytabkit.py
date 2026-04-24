@@ -71,22 +71,27 @@ def _gpu_arch():
 _arches = _gpu_arch()
 print(f"[boot] gpu compute_cap = {_arches}", flush=True)
 if any(a in ("6.0", "6.1") for a in _arches):
-    print("[boot] sm_60/61 detected - installing torch 2.5.1 cu121", flush=True)
+    # Pin torch + torchvision to a matched cu121 pair that supports sm_60.
+    # --no-deps on torch to avoid pulling CPU-only numpy etc., but we must
+    # also force-reinstall torchvision to a version compatible with 2.5.1
+    # (otherwise pytabkit's lightning dep sees torchvision incompat).
+    print("[boot] sm_60/61 detected - pinning torch+torchvision cu121", flush=True)
     subprocess.check_call([
         sys.executable, "-m", "pip", "install", "--quiet",
         "--upgrade", "--force-reinstall", "--no-deps",
-        "torch==2.5.1", "--index-url", "https://download.pytorch.org/whl/cu121",
+        "torch==2.5.1", "torchvision==0.20.1",
+        "--index-url", "https://download.pytorch.org/whl/cu121",
     ])
 
-# Install pytabkit (will link to the newly-installed torch).
-try:
-    import pytabkit as _pt
-    print(f"[boot] pytabkit {getattr(_pt, '__version__', 'unknown')}", flush=True)
-except ImportError:
-    print("[boot] installing pytabkit", flush=True)
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-                           "pytabkit"])
-    import pytabkit as _pt  # noqa
+# Install pytabkit + lightning explicitly (pytabkit's pyproject doesn't
+# always mark lightning as a hard dep, and on Kaggle images neither is
+# pre-installed). Use regular install so pip resolves any remaining deps.
+subprocess.check_call([
+    sys.executable, "-m", "pip", "install", "--quiet",
+    "pytabkit", "lightning",
+])
+import pytabkit as _pt
+print(f"[boot] pytabkit {getattr(_pt, '__version__', 'unknown')}", flush=True)
 
 try:
     out = subprocess.check_output(
