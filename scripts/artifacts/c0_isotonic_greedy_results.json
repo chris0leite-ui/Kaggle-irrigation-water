@@ -1,0 +1,23 @@
+{
+  "anchor": "recipe_full_te",
+  "chosen": [
+    [
+      "recipe_full_te",
+      1.0
+    ],
+    [
+      "soft_distill__iso",
+      0.5
+    ]
+  ],
+  "final_oof_bal_acc": 0.9805458581105245,
+  "delta_vs_lb_best": 0.00041585811052458066,
+  "per_class_recall": {
+    "Low": 0.9957936510081992,
+    "Medium": 0.9699172641106938,
+    "High": 0.9604931219953353
+  },
+  "n_components_loaded": 38,
+  "skipped": [],
+  "elapsed_sec": 273.93087339401245
+}
