@@ -2,6 +2,34 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ GPU KERNEL RUNTIME CAP — 1 HOUR MAX
+
+**Never launch a Kaggle GPU kernel without a hard 1-hour wall-time
+budget.** If an estimate suggests >1h, shrink the config (fewer
+folds, smaller `n_ens`, reduced epochs, subsampled data) BEFORE
+pushing. If a running kernel exceeds 1h, kill it — don't wait for
+"just a bit more."
+
+Context: 2026-04-24 RealMLP-TD via pytabkit pushed with a naive
+"~45 min P100" estimate based on the public-kernel author's claim.
+v3 ran **3h 34min of CPU preprocessing before GPU training even
+started** (pytabkit's `n_ens=8` internal preprocessing × per-fold
+`TargetEncoder(cv=5)` compounding + sklearn / Lightning setup).
+Kernel killed at that point — zero output produced. Wasted the
+queued GPU slot and ~4h of session time waiting on monitors.
+
+Concrete rules for future GPU kernels:
+1. Estimate wall time by MULTIPLYING published single-fold claims
+   by `n_folds × n_ensemble × 2` (safety margin). If the product
+   exceeds 60 min, shrink the config.
+2. Always run `SMOKE=1` locally (or as a 5-min Kaggle variant)
+   BEFORE pushing production. The `n_ens` / `cv` multiplier bugs
+   show up immediately on 20k rows.
+3. If a kernel is still in preprocessing at t+30min with no fold
+   output, KILL IT — don't let it eat the budget.
+4. Prefer CPU pipelines. Most own-pipeline levers on this problem
+   worked fine on 12-16 core CPU in under 2h wall.
+
 ## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST
 
 **Never upload a submission CSV to Kaggle without explicit user
@@ -7019,3 +7047,148 @@ read time has surfaced every real lever we've found. Start there.
      class = teacher-correct rows (subsampled). If AUC > 0.9 on
      held-out rows, the signal exists and can be deployed as a
      hard-gated override (not a blend). Untested.
+
+### 2026-04-24 — RealMLP kernel killed at t+3.5h (wasted GPU budget)
+
+- Goal: A1 RealMLP-TD via pytabkit on Kaggle GPU. B1 kernel audit #1
+  ranked this as highest-EV remaining experiment (production-tuned
+  tabular NN, only NN family not yet nulled).
+- Changed: `kaggle_kernel/kernel_realmlp/` scaffold with
+  `RealMLP_TD_Classifier(n_ens=8)`, 11 raw nums (raw + factorized) +
+  8 cats + 15 pair combos of 6 rule-relevant features, per-fold
+  multiclass TargetEncoder(cv=5). 5-fold StratifiedKFold(seed=42).
+- Kernel iterations:
+  - v1: `torch.AcceleratorError: CUDA error: no kernel image` on P100
+    (sm_60). Classic pre-installed-torch-vs-Pascal mismatch.
+  - v2: `ModuleNotFoundError: No module named 'lightning'`. Fix: install
+    torch+torchvision cu121 pair explicitly + `pip install lightning`.
+  - v3: boot + GPU detection OK, training started, then stalled in
+    per-fold preprocessing.
+- v3 timeline on Kaggle P100:
+  - t+0 to t+52s: torch 2.5.1 cu121 install + pytabkit install.
+  - t+52s to t+3h34min: CPU preprocessing silent (no output).
+  - t+3h34min: Lightning Trainer.fit() engaged, GPU available msg.
+  - **Killed at that point by user** (0 fold results after 3.5h).
+- Estimated cause: `n_ens=8` × 5-fold × per-fold TargetEncoder(cv=5)
+  produces a 200× preprocessing multiplier inside pytabkit. Mahogany-
+  buttstrings' CV 0.97802 claim was likely a single-fold run with
+  simpler preprocessing; we didn't scale up the estimate.
+- **User instruction: hard 1h wall-time cap on GPU kernels going
+  forward.** See ⚠️ rule at top of CLAUDE.md.
+- Lever status: RealMLP via pytabkit is NOT closed, but re-attempt
+  requires a drastically smaller config:
+  - `SMOKE=1` first — single fold, n_ens=1, 3 epochs, 20k rows.
+  - If smoke succeeds + produces a sensible OOF, scale to n_folds=5
+    with n_ens=4 (not 8), epochs=50 (not pytabkit default 256).
+  - Hard budget: kill at t+60min.
+- LB best unchanged at **0.98005**. Own-pipeline lever count still
+  converging on "ceiling is structural" per B2 GroupKFold confirmation
+  (OOF honest) + 15+ other nulls.
+### 2026-04-24 — Missed-High detector: AUC 0.9711 but deploy precision 6.5% << break-even 8.8% → NULL closes Pareto-frontier via explicit High route
+
+- Goal: execute the #1 candidate proposed after the disagree+router
+  closure — train a binary XGB specifically targeting rows where
+  `y = High AND teacher_argmax != High` (the 475 rows teacher misses,
+  0.075% prevalence). If held-out AUC ≥ 0.9 the signal exists; deploy
+  as a hard override (flip `teacher_pred ∈ {L, M}` → `High` on rows
+  where `P_missed > θ`). Runs on top of LB-best 3-way teacher.
+- Changed: `scripts/missed_high_detector.py` (binary:logistic XGB,
+  depth=4, scale_pos_weight=1325, 46 features = 24 dist + 11 raw
+  numerics + 3 teacher probs + teacher conf/argmax + 3 recipe probs
+  + 3 nonrule probs, 5-fold StratifiedKFold seed=42 stratified on y).
+  `scripts/missed_high_deploy.py` (θ-sweep × 3 score-band variants:
+  all scores, score ∈ {5,6,7,8}, score=6 only).
+- Diagnostic before run (crucial): missed-High by score band:
+  ```
+  score    n_in_band   missed-H    rate
+  0-3        374k         0          0%
+  4         117k        11       0.009%
+  5          79k       124       0.157%
+  6          38k       331       0.862%   ← 70% of all misses
+  7          15k         5       0.033%
+  8         2.7k         4       0.149%
+  9         3.2k         0          0%
+  ```
+  95% of the missed-High signal concentrates in score ∈ {5, 6} bands.
+- **Detector results** (5-fold OOF):
+  - Per-fold AUC: 0.9765 / 0.9767 / 0.9835 / 0.9837 / 0.9830
+  - **Overall OOF AUC = 0.9711** (consistent, all folds ≥ 0.97)
+  - Training wall: 24 s total (best_iter 22-101 per fold — signal is
+    easy for XGB to pick up).
+  - Signal EXISTS in ranking terms. But…
+- **Deploy sweep results** (all score-bands + all θ):
+  ```
+  BEST observed config: θ=0.90 all_scores
+    n_overridden =  7,399
+    correct      =    193   (true missed-H)
+    false        =  7,206   (not actually High)
+    precision    =  3%
+    bal_acc      = 0.97331  (Δ = −0.00698 vs teacher 0.98029)
+  ```
+  Every single (θ, band) combination is **strictly net-negative on
+  bal_acc**. At every threshold, false overrides outnumber correct
+  overrides 30–100×.
+- **Top-N rank-based probe** (idealized precision ceiling):
+  ```
+      N  precision  recall_miss  bal_acc   delta
+    100    0.040       0.008     0.98022  -0.00007
+    200    0.065       0.027     0.98023  -0.00005   ← max precision
+    475    0.055       0.055     0.98007  -0.00021
+   1000    0.051       0.107     0.97977  -0.00051
+  ```
+  Best achievable precision on the detector's top picks is 6.5% at
+  N=200. Even the idealized "just take top N by rank" is net-negative.
+- **Mathematical closure — break-even precision under macro-recall**:
+  Each **correct** override adds `+1/21009 ≈ +4.76e-5` to High recall.
+  Each **incorrect** override removes roughly `1/239074 ≈ +4.18e-6`
+  from Medium recall (most false flips come from Medium, which
+  dominates `teacher_pred != H` rows). For bal_acc to even break even,
+  need `correct/incorrect > 21009/239074 = 0.088` → **precision ≥ 8.8%**.
+  Observed precision at every θ is 1–6.5%, **3–8× below break-even**.
+  The detector's ranking is real but insufficient to deploy.
+- **Definitive closure** of the "High-recall orthogonality" path. The
+  4-way evidence stack is now:
+  1. (2026-04-24) Disagree meta — 335 fewer total errors, but trades
+     High down 0.18 pp — Δ +0.00001 null.
+  2. (2026-04-24) Selective router — +316 net correct but +78/+266/−28
+     per-class distribution is anti-macro-recall — Δ -0.00000 null.
+  3. (2026-04-24) Missed-High detector — AUC 0.9711 ranking signal
+     exists but top-N precision 6.5% << 8.8% break-even — Δ -0.00005
+     at best rank-based attempt.
+  4. Per-candidate High-promotion sweep (from disagree+router entry)
+     monotone-negative at every θ.
+  **Teacher's High recall of 0.9774 is a genuine Pareto-frontier
+  ceiling** given the current 7-candidate OOF bank. The 475 missed-H
+  rows are not cleanly separable from teacher-correct rows in the
+  feature space we have.
+- **Portable rule** (LEARNINGS.md candidate): **"AUC ≥ 0.95 on a
+  binary detector with <0.1% prevalence does NOT imply a useful
+  operating point."** AUC is a pairwise ranking metric; when
+  positives are rare, even modest false-positive rates on the
+  negative class drown the top picks. Compute break-even precision
+  from the target metric's class weights FIRST (under macro-recall:
+  `break_even = n_positives / n_negatives_in_override_space`) and
+  compare to observed top-N precision BEFORE declaring the lever
+  workable. The detector's AUC tells you signal exists; precision
+  tells you whether you can deploy it.
+- LB delta: n/a (no submission warranted — every config strictly
+  below teacher's OOF). LB budget unchanged at 10/10 used yesterday.
+- Artefacts committed for cross-branch reuse:
+  - `scripts/artifacts/oof_missed_high.npy` (630k,) binary prob
+  - `scripts/artifacts/test_missed_high.npy` (270k,) binary prob
+  - `scripts/artifacts/missed_high_results.json` (AUC breakdown)
+  - `scripts/artifacts/missed_high_deploy_results.json` (θ × band sweep)
+- **Strategic implication**: own-pipeline LB 0.98005 is the real
+  ceiling within the current OOF bank. Breaking it requires a
+  component whose errors come from a FUNDAMENTALLY different feature
+  pathway, not a re-mapping of existing components. Remaining
+  untried bets with plausible High-orthogonality:
+  1. **RealMLP-TD on Kaggle GPU** — only NN family untested; if
+     errors come from its periodic embeddings rather than trees,
+     the detector pattern may break.
+  2. **Focal-loss / Logit-Adjusted XGB on recipe features** —
+     rare-class-focused training-time mechanism, not another
+     post-hoc override.
+  3. **SMOTE-NC or CVAE for synthetic High rows** — training-data
+     augmentation, not model architecture. Direct attack on the 21k
+     High sample shortage.
