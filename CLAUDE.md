@@ -5770,3 +5770,42 @@ Closed the two open paths from the argmax-equivalence theorem:
      tomorrow (e.g. a different 3-way weighting or seed=123 labeler)
      would strengthen the choice between 3-way and 2-way as primary
      final.
+
+### 2026-04-24 — c0_v2 4-way LB PROBE: 0.97961 (−0.00044 REGRESSION)
+
+- Goal: LB-probe the greedy v2 4-way candidate
+  (recipe + pseudolabel_stage2 α=0.50 + recipe_seed7 α=0.25 +
+  recipe_171pair α=0.10, OOF 0.98050). Tests whether adding
+  multi-seed + pair-binning on top of recipe anchor produces a new
+  LB best above the current 3-way 0.98005.
+- Submitted at 06:42 UTC, result **LB 0.97961**.
+- **Δ vs LB-best = −0.00044** (clear regression).
+- OOF→LB gap = **0.00089** — widest blend gap we've seen. Prior
+  calibration ladder:
+  ```
+  2-way (recipe × pseudo_s1)      OOF 0.98012 → LB 0.97998  gap +0.00014
+  3-way multi-seed (LB best)      OOF 0.98029 → LB 0.98005  gap +0.00024
+  **4-way c0_v2 (w/ stage-2)       OOF 0.98050 → LB 0.97961  gap +0.00089 ← REGRESSION**
+  ```
+
+- **Diagnosis:** the c0_v2 greedy picked `recipe_pseudolabel_stage2`
+  as step 1 at α=0.50 because its OOF lift (+0.00059) was the
+  largest. But stage-2 is the confirmed OOF-overfit component
+  (2026-04-23: stage-2 2-way at α=0.55 hit LB 0.97989 vs OOF 0.98027,
+  gap +0.00038). Diluted in a 4-way with recipe + seed7 + 171pair,
+  its overfit didn't cancel — it dominated. The OOF 0.98050 vs 3-way
+  0.98029 apparent lift was stage-2's OOF inflation.
+
+- **Refined rule (already knew but now LB-confirmed):** **greedy
+  forward-selection with "pick highest OOF-Δ per step" is unreliable
+  when some candidates are OOF-overfit relative to LB. Known
+  LB-regressors (stage-2 pseudo-label, soft_distill) must be
+  EXCLUDED from the candidate pool before running greedy.**
+
+- Launched `scripts/c0_safe_greedy_v3.py` with EXCLUDE =
+  `{soft_distill, xgb_spec_678, recipe_pseudolabel_stage2}` — same
+  architecture but stage-2 removed. Running in background.
+
+- **LB budget**: 4/10 used today, 6 remaining.
+- **LB best unchanged**: `submission_3way_recipe025_s1035_s7040.csv`
+  at LB 0.98005.
