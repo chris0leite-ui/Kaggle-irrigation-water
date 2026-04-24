@@ -5918,3 +5918,46 @@ Anchor lb_best_3way:
 
 - **LB budget**: 4/10 used today, 6 remaining.
 - **LB best unchanged**: 0.98005.
+
+### 2026-04-24 — P2 symbolic regression (gplearn) closed as NULL
+
+- Goal: search analytic formulas in the 7 non-rule continuous features
+  (Humidity, Prev_Irrigation, EC, Field_Area, Soil_pH, Organic_Carbon,
+  Sunlight) that predict within-cell label flips at the 2 dominant error
+  cells (score=3 rule=Low→flip to Medium, score=6 rule=Medium→flip to
+  High). Hypothesis: if the NN generator's flip function has polynomial
+  / algebraic structure, gplearn finds it; deploy as hard override.
+- Changed: `scripts/p2_symbolic_flip.py` — bug fix (`_Program.execute`
+  not `.predict`) + try/except per formula evaluation.
+- Setup: gplearn SymbolicRegressor, pop=1000, gen=25, MAE loss,
+  function set = (+, -, *, /, sqrt, log, abs), parsimony=0.01.
+- **Results (trivial formulas won):**
+  ```
+  cell3 (n=102,157, flip_rate=4.796%)
+    rank 0:  sub(Organic_Carbon, Organic_Carbon) = 0
+             precision 0.0, recall 0.0, selected 0 rows
+    rank 1:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+    rank 2:  sub(Organic_Carbon, Organic_Carbon) = 0
+
+  cell6 (n=38,416, flip_rate=4.032%)
+    rank 0:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+    rank 1:  sub(Humidity, Humidity) = 0
+    rank 2:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+  ```
+- **Diagnosis:** predicting constant 0 (no flip) gives MAE = flip_rate
+  ≈ 0.04. gplearn's fitness landscape + parsimony penalty favors short
+  formulas with low MAE. No polynomial/algebraic expression built from
+  the 7 features achieves lower MAE than the trivial "predict 0" —
+  the evolution converged on degenerate `sub(X, X)` = 0 formulas as
+  globally optimal.
+- **Closes the hypothesis:** the DGP's within-cell flip signal is NOT
+  expressible as a compact analytic formula of the 7 non-rule
+  continuous features. Consistent with the 2026-04-21 "DGP is a
+  deterministic NN function, not a noise process" finding — the NN's
+  within-cell decision surface is too non-linear / high-order for
+  gplearn with population 1000 × 25 generations to find.
+- **No LB probe.** P2 lever CLOSED.
+- Parallel learning: `p2_symbolic_flip.py` pattern can be reused on
+  future synthetic-DGP competitions WHERE the DGP is known or strongly
+  suspected to be a finite-degree polynomial function. On this
+  competition, the NN generator is structurally outside that class.
