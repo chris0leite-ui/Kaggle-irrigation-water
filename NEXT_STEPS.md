@@ -1,29 +1,33 @@
 # Next steps
 
-## 🚧 Work in flight (as of 2026-04-24 ~11:10 UTC)
+## 🚧 Work in flight (as of 2026-04-24 ~11:45 UTC)
 
 Other agents: check here FIRST before starting a Tier-A/B item — these
 are actively running or recently scaffolded on feature branches.
 
-| Branch | Task | Status | ETA |
-|---|---|---|---|
-| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain interactions + 5 decimal-fraction features, `EXTRA_FE=both`) | production running, ~55 min CPU | ~11:50 UTC |
-| `claude/review-leaderboard-strategy-IMYgZ` | **B1 kernel audit round 2** (10 high-vote kernels) | COMPLETE — findings merged below under "Already-running" | — |
+| Branch | Task | Status |
+|---|---|---|
+| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain + 5 decimal-fraction, `EXTRA_FE=both`) | ✅ COMPLETE — **NULL**. OOF 0.97955 (Δ=−0.00012), blend peaks +0.00001 to +0.00006. Jaccard 0.83-0.87 (redundant with anchors). See CLAUDE.md 2026-04-24 entry. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **B1 kernel audit round 2** (10 high-vote kernels) | ✅ COMPLETE — findings below. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **A1 RealMLP kernel scaffold** (`kaggle_kernel/kernel_realmlp/` + `scripts/blend_realmlp.py`) | ✅ SCAFFOLD READY — needs `kaggle kernels push` from an env with GPU queue access. |
 
 **Open / untriggered Tier-A/B items** (other agents, claim via empty
 commit before starting):
-- **A1 RealMLP via pytabkit** on Kaggle GPU — highest-EV remaining.
-  Scaffold `kaggle_kernel/kernel_realmlp/` needed. ~45 min GPU.
+- **A1 RealMLP launch** — scaffold ready; push to Kaggle GPU and run
+  the kernel. ~45 min P100. Blend-gate script `blend_realmlp.py` emits
+  submission only if Δ ≥ +0.0002 vs LB-best 3-way. Highest-EV remaining.
 - **A2 Trompt via pytorch_frame** on Kaggle GPU. ~1h GPU.
 - **A3 Mixup re-run of recipe XGB** on CPU. ~1h.
-- **B0 DivideMix** on CPU (~3h). Only if A4 produces a Jaccard <0.80
-  + errs ≤ anchor component worth compounding.
+- **B0 DivideMix** on CPU (~3h). Only pursue if A1/A2/A3 produces a
+  Jaccard<0.80 + errs≤anchor component worth compounding.
 - **B2 GroupKFold diagnostic** (~1h CPU). OOF-honesty check.
 - **B3 Multi-task XGB** (~1h CPU).
 - **rohit8527 group-by cat×num stats on 630k pool** (from B1 audit,
-  ~30 min CPU). Cheapest new FE lever.
+  ~30 min CPU). **Cheapest untried FE lever** — worth running next.
 - **blamerx τ=0.92 + full-train refit at pooled best_iter** (from B1,
   ~1h CPU). Distinct pseudo-label mechanism.
+- **rohit8527 MIN_COUNT=5 rare-cat bucketing before OTE** (from B1,
+  ~10 min CPU). Cheap to port.
 
 **LB budget status**: 4/10 used today, 6 remaining. Resets 00:00 UTC 04-25.
 
