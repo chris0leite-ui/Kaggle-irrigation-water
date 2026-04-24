@@ -1,0 +1,19 @@
+{
+  "id": "chrisleitescha/irrigation-recipe-dae-gpu",
+  "title": "irrigation-recipe-dae-gpu",
+  "code_file": "recipe_dae_gpu.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-prediction-original",
+    "chrisleitescha/irrigation-dae-swapnoise-embeddings"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}

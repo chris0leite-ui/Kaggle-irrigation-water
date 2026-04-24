@@ -5961,3 +5961,94 @@ Anchor lb_best_3way:
   future synthetic-DGP competitions WHERE the DGP is known or strongly
   suspected to be a finite-degree polynomial function. On this
   competition, the NN generator is structurally outside that class.
+
+### 2026-04-24 — A2 SwapNoise DAE (Porto Seguro mechanism): NULL
+
+- Goal: execute Tier-A #A2 from the research plan. Train a label-unaware
+  SwapNoise denoising autoencoder on train+test+orig joint (910k rows),
+  extract 128-d bottleneck embeddings as extra numeric features for
+  recipe_full_te's XGB. Architecturally decoupled from every prior
+  label-supervised NN attempt (v5-v9 MLP, FT-T, TabPFN, pretrain-finetune
+  MLP, NN-on-orig, soft-distill — 10 nulls collectively).
+- Changed:
+  - `kaggle_kernel/kernel_dae/` — 1.48M-param encoder-decoder MLP,
+    [43 → 1024 → 512 → 256 → 128] with mirrored decoder, GELU+BN+
+    dropout 0.1, SwapNoise p=0.15 in-batch column-preserving swap,
+    MSE reconstruction, AdamW lr=1e-3 + cosine schedule.
+  - `kaggle_kernel/ds_dae_embed/` — Kaggle dataset
+    `chrisleitescha/irrigation-dae-swapnoise-embeddings` with
+    fp16 (154MB + 66MB) for downstream kernel consumption.
+  - `kaggle_kernel/kernel_recipe_dae_gpu/` — GPU XGB variant of
+    recipe_full_te with +128 DAE cols loaded from the dataset.
+  - `scripts/recipe_full_te.py` — `DAE_EMBED_PATH` env var added
+    for local consumption (CPU path: ~4h ETA, aborted; GPU 21.6 min).
+  - `scripts/blend_recipe_dae.py` — fixed-bias α sweep + 3-way grid.
+
+- DAE production (Kaggle P100): 3.2 min wall for 30 epochs. MSE
+  converged 0.268 → 0.106 (plateau at epoch 22). Embedding stats
+  healthy (mean ≈ 0, std ≈ 0.36, range [-2.58, 2.95]).
+
+- Recipe+DAE production (Kaggle P100): 21.6 min wall (vs CPU's
+  estimated 4h).
+  ```
+                            fold argmax range     OOF argmax   tuned
+  recipe baseline           0.97465-0.97721      0.97589      0.97967
+  recipe+DAE                0.97416-0.97680      0.97545      0.97942
+  Δ                         ~flat                -0.00044     -0.00025
+  ```
+
+- Blend analysis (fixed-bias, recipe's log-bias [1.43,1.47,3.40]):
+  ```
+                                  fixed@anchor  tuned    errs
+  recipe_full_te                   0.97967      0.97967   10114
+  recipe_pseudolabel               0.97987      0.97993   10039
+  LB-best (recipe × pseudo)        0.98012      0.98012    9851
+  recipe+DAE                       0.97930      0.97942   10025
+
+  Jaccard DAE vs recipe            = 0.8425  (above 0.80 redundancy)
+  Jaccard DAE vs LB-best           = 0.8404
+  Jaccard LB-best vs recipe        = 0.8830
+
+  sweep vs recipe (α_dae=0.15)     peak Δ = +0.00004
+  sweep vs LB-best (α_dae=0.05)    peak Δ = +0.00003
+  3-way (recipe, pseudo, dae)     best OOF 0.98013 at (0.45, 0.50, 0.05)
+                                   Δ vs LB-best = +0.00001 (noise)
+  ```
+
+- **Verdict: NULL.** All peaks below the +0.0002 LB-transfer threshold;
+  most are below fold-std noise. Jaccard 0.84 both anchors = blend-
+  redundancy zone (heuristic: < 0.80 required for useful orthogonality).
+
+- Diagnosis: the DAE, despite being label-unaware and architecturally
+  distinct, converges to features that encode essentially the same
+  manifold structure that OTE target encoding already captures at the
+  recipe level. The 128 bottleneck dims reconstruct the same 43-d
+  feature surface the recipe sees, so the downstream XGB doesn't gain
+  discrimination. Fewer errors (10,025 vs 10,114) but worse tuned
+  bal_acc because the DAE-induced error trade is less macro-recall-
+  favourable than recipe's pure-feature errors.
+
+- Pattern (now 11 NN-family nulls): Regardless of whether the NN sees
+  labels (v5-v9, FT-T, pretrain-FT, soft-distill), is in-context
+  (TabPFN), or is label-unaware (this DAE), the NN-generated features
+  on this feature set fail to clear the Jaccard < 0.80 + error-count
+  ≤ anchor bar. The recipe's FE + OTE already extracts ~all the
+  signal available from train+test+orig. **Own-pipeline NN levers
+  are exhausted on this problem.**
+
+- LB delta: n/a. No submission emitted (all sweeps under the +0.0005
+  emit gate). LB best unchanged at 0.97998.
+
+- New rule for LEARNINGS.md: **"SwapNoise-DAE features don't add
+  blend signal when the downstream model's FE already includes
+  target-encoded categoricals over the same feature set. The DAE's
+  reconstruction objective aligns its latent space with the same
+  joint distribution OTE approximates conditionally, so the
+  orthogonality the DAE theoretically provides doesn't survive as
+  marginal gain."**
+
+- Next: A0, A1, A2 all null (cleanlab, Saerens EM, DAE); C0 isotonic
+  also null per the main-side entry above. Remaining untried is B0
+  DivideMix (mechanism-novel), C1 TTA + C2 conformal, D-tier L1 zoo
+  and model families (TabM, ModernNCA). Own-pipeline NN levers are
+  exhausted on this feature set.
