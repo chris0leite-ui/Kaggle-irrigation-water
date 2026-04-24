@@ -61,6 +61,10 @@ kaggle_kernel/output_*/test_*.npy
 kaggle_kernel/ds_*/oof_*.npy
 kaggle_kernel/ds_*/test_*.npy
 
+# Transient downloaded public-kernel notebooks for B1 kernel audit.
+# Regenerated ad-hoc via `kaggle kernels pull`. Not worth committing.
+kernel_audit*/
+
 # Exception: commit these OOF/test artifacts for cross-branch blending.
 # Each file is ~6-15 MB; total ~84 MB. Add more with care — check
 # OOFS.md for what's tracked and what's not.
