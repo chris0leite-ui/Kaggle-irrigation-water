@@ -334,14 +334,46 @@ gate (reject any step where OOF→LB gap proxy grows).
 
 ### Already-running (do NOT duplicate)
 
-- **DROP cleanlab variant** — `claude/improve-balanced-accuracy-7Au6Y`,
-  PID 12104 on main container, folds 1-4 done
-  (deltas −0.00010, +0.00010, +0.00066, +0.00154), fold 5 running.
-  Next: blend analysis + LB-probe decision.
-- **Multi-seed pseudo-label chain** — started on main by the
-  `claude/leaderboard-optimization-plan-DNN4w` branch (see 2026-04-24
-  CLAUDE.md entry). FOLD_SEED=7 recipe → FOLD_SEED=42 pseudo with
-  seed=7 labeler. Output will be `oof_recipe_pseudolabel_seed7labeler.npy`.
+- **A4 FE transplant** — `claude/review-leaderboard-strategy-IMYgZ`,
+  started 2026-04-24 ~10:55 UTC, expected ~55 min. Adds utaazu's 11
+  domain interactions (moist_rain, moist_temp, ET_proxy, heat_stress,
+  drying_force, water_supply, water_deficit, soil_quality, etc.) +
+  5 decimal-fraction features `(col % 1).round(2)` via `EXTRA_FE=both`
+  env var on recipe_full_te. 459 total features (443 base + 16 extra).
+  Outputs: `oof_recipe_full_te_fexboth.npy`, `test_*_fexboth.npy`,
+  submission + results JSON. Blend analysis will follow.
+- **B1 kernel audit (round 2)** — COMPLETE 2026-04-24. Top findings
+  from 10 high-vote kernels, ranked by novelty × plausibility:
+  - **#1 RealMLP-TD via pytabkit** (mahoganybuttstrings, CV 0.97802 /
+    LB 0.97685) — novel NN arch NOT in our 11-NN-null set. n_ens=8
+    parallel BatchEnsemble heads, PBLD (periodic basis) numeric
+    embedding, smooth-clip scaler, label smoothing with cosine
+    schedule. **→ This is essentially A1. Maps directly to kernel_realmlp
+    GPU scaffold. Highest-EV remaining experiment.**
+  - **#2 blamerx pseudolabel τ=0.92 + full-train refit at pooled best_iter** —
+    distinct mechanism from our per-fold stage-1/stage-2. Trains ONE
+    model on `(train ∪ confident_test)` with `best_iter = mean(fold
+    best_iters)` — no CV, no pseudo in OTE folds. Untested variant.
+  - **#3 utaazu 11 domain interactions** — ported in A4 scaffold above.
+  - **#4 rohit8527 LGBM group-by cat×num stats on synthetic 630k** —
+    we only have ORIG_mean/std from 10k. Per-cat-group stats from
+    the full 630k pool is untested FE. ~30 min CPU.
+  - **#5 rohit8527 MIN_COUNT=5 rare-cat bucketing before OTE** —
+    untried; map rare categories to a single bucket.
+  - **#6 blamerx multiplicative class-weight Nelder-Mead** — functionally
+    equivalent to log-bias but multiplicative. Our coord-ascent likely
+    occupies the same operating point; low EV.
+  - **#7 sakuno pd.qcut/pd.cut/(col/20).round binning** — overlap with
+    our num_as_cat but different granularity.
+  - **#8 saamhm 50-fold CV** — extreme-fold averaging as ensemble.
+    10x our current 5-fold cost; marginal EV.
+  - **#9 chovyxu TreeBinner (DecisionTreeClassifier bin edges)** —
+    data-driven binning vs qcut. Minor lever.
+  - **Public-CSV blending in ravi20076 kernel** — confirmed banned
+    by rule; do not port.
+- **Multi-seed pseudo-label chain** — COMPLETE 2026-04-24. Seed=7
+  (LB 0.98005 via 3-way), seed=123 (4-way OOF-null). Mechanism
+  saturates at 2 labelers on this feature set.
 
 ---
 
