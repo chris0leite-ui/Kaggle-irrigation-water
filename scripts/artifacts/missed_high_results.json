@@ -1,0 +1,27 @@
+{
+  "n_positives": 475,
+  "positive_prevalence": 0.000753968253968254,
+  "scale_pos_weight": 1325.3157894736842,
+  "per_fold_auc": [
+    0.9764685991160433,
+    0.9766908633429702,
+    0.9835021496824042,
+    0.9837121525019856,
+    0.9830439180513195
+  ],
+  "overall_auc": 0.9711380334797122,
+  "per_score_auc": {
+    "score=0": null,
+    "score=1": null,
+    "score=2": null,
+    "score=3": null,
+    "score=4": 0.9106995986377446,
+    "score=5": 0.8946940156617577,
+    "score=6": 0.8153260694098547,
+    "score=7": 0.9890686372411956,
+    "score=8": null,
+    "score=9": null
+  },
+  "n_features": 46,
+  "wall_seconds": 23.5
+}
