@@ -1,47 +1,107 @@
 # Next steps
 
-## 2026-04-24 end-of-day status + tomorrow's LB probes
+## 2026-04-24 end-of-day ACTUAL state (post-session results)
 
 **Current LB best on main**: `submission_3way_recipe025_s1035_s7040.csv`
 → **LB 0.98005 / OOF 0.98029** (3-way multi-seed log-blend of
 recipe 0.25 + pseudo_s1 0.35 + pseudo_s7labeler 0.40).
 Pack 0.98114 (+0.00109), leader 0.98219 (+0.00214).
 
-**Today's verified nulls (do not re-try without new angle):**
-- Cleanlab A0 (drop/downweight/relabel) — flagged rows are signal not noise
-- Saerens/BBSE EM A1 — log-bias already near-Bayes-optimal, no label shift
-- C0 isotonic + greedy (38 comp) — same 0.98030 stacking ceiling
-- Soft-target distillation — LB 0.97850 (−0.00148)
-- 171-pair OTE on GPU — redundant with existing digit FE
-- Stage-2 pseudo-label w/ blend-labeler — LB 0.97989
-- Multi-seed pseudo-label (seed=7 labeler) — OOF null standalone
+**LB budget today: 4/10 used, 6 remaining.** Resets 00:00 UTC 04-25.
 
-**Today's new OOF candidate (waiting for LB probe tomorrow):**
-- `submission_c0_v2_recipe_full_te.csv` — 4-way log-blend anchored
-  on recipe: +pseudolabel_stage2 (α=0.50) +recipe_seed7 (α=0.25)
-  +recipe_171pair (α=0.10). **OOF 0.98050**, Δ=+0.00021 vs current
-  LB-best 3-way's OOF 0.98029. At LB-transfer threshold — range of
-  expected LB is 0.98005-0.98026 (ties current vs +0.00021 lift).
+### Session results (9 independent null confirmations)
 
-**Running overnight (CPU):**
-- P1 TTA production — `tta_recipe_full.py` with σ ∈ {0.01, 0.02, 0.03},
-  K=5 perturbations. Tests inference-time smoothing on rule
-  threshold axes. If baseline output matches recipe_full_te and at
-  least one σ produces Jaccard < 0.80 + errors ≤ anchor, it's a
-  fresh blend component. ETA ~55 min wall.
+All tested CPU levers on this problem's feature representation:
 
-## Tomorrow's LB-probe priority (10 available)
+| Lever | Tested by | Result |
+|---|---|---|
+| A0 Cleanlab DROP | improve-balanced-accuracy-7Au6Y | NULL (flagged rows are NN-flip signal, not noise) |
+| A1 Saerens/BBSE EM | improve-balanced-accuracy-7Au6Y | NULL (log-bias already near-Bayes-optimal) |
+| A2 SwapNoise DAE | leaderboard-optimization-plan-DNN4w | NULL (11th NN-family null; Jaccard 0.84 = redundant w/ OTE) |
+| C0 isotonic full greedy | improve-balanced-accuracy-7Au6Y | NULL (soft_distill overfit dominates) |
+| C0 safe greedy v1 | improve-balanced-accuracy-7Au6Y | NULL (below +0.00020 threshold) |
+| C0 safe greedy v2 | improve-balanced-accuracy-7Au6Y | LB 0.97961 (**−0.00044 regression** — stage-2 poisoned) |
+| C0 safe greedy v3 | improve-balanced-accuracy-7Au6Y | NULL (seed7labeler also overfit) |
+| P1 TTA (σ={0.001..0.03}) | both | NULL (trees lack smooth boundary) |
+| P2 symbolic regression | both | NULL (no analytic formula, trivial `sub(X,X)=0` wins) |
 
-1. **`submission_c0_v2_recipe_full_te.csv`** (OOF 0.98050). Highest-
-   EV probe — at LB-transfer threshold, realistic chance of new LB
-   best. If LB ≥ 0.98010, save 2 probes; if < 0.98000, gap-inflation
-   confirmed beyond 4-way and further own-pipeline stacking is dead.
-2. If TTA overnight produces OOF ≥ recipe + orthogonal signal: blend
-   into greedy, probe the best new candidate. ~1 probe.
-3. If #1 lifts: try a variant with different weighting of the 4-way
-   (e.g. 0.4 / 0.35 / 0.15 / 0.10 distribution) to confirm the lift
-   isn't a single-point artefact.
-4. Hold remaining probes for end-of-comp final selection.
+### Verified structural patterns
+
+- **OOF ceiling is 0.98030** for any stacking variant anchored on recipe+
+  pseudo family. Further components below +0.00020 OOF lift are noise.
+- **Greedy forward-selection is unreliable when pool contains known
+  LB-regressors** (stage-2, soft_distill, seed7labeler). Must EXCLUDE
+  them before greedy search, not rank against them.
+- **OOF→LB gap scales with component count** AND with overfit-component
+  weight: 2-way (+0.00014), 3-way (+0.00024), 4-way-with-overfit
+  (+0.00089). Beyond 3 components stacking-inflation dominates.
+- **NN architectures uniformly fail on this feature set** (11 null
+  attempts: v5-v9 MLP, FT-Transformer, TabPFN, pretrain-finetune MLP,
+  NN-on-original, soft-distill, DAE). The recipe OTE features already
+  encode the joint feature manifold; adding NN-derived features is
+  redundant regardless of architecture.
+
+### Final candidates (locked unless a new GPU lever produces signal)
+
+**Primary (verified LB-best)**:
+`submission_3way_recipe025_s1035_s7040.csv` → **LB 0.98005**
+
+**Safe fallback (verified)**:
+`submission_recipe_greedy_recipe_pseudolabel.csv` → **LB 0.97998**
+
+**Diversification candidate (model-family, tied calibration)**:
+`submission_recipe_full_te_catboost.csv` → **LB 0.97935**
+(CatBoost vs XGB — same recipe features, different tree family for
+private-LB variance protection)
+
+### Tomorrow's plan (6 LB probes remaining today + 10 fresh tomorrow)
+
+**Do NOT probe anything below these rules:**
+- Blend OOF delta vs LB-best ≥ +0.00020 AND
+- All blend components LB-verified OR uncorrelated with known regressors
+- Jaccard < 0.80 vs anchor AND error-count ≤ anchor for new components
+
+**What IS worth probing:**
+
+1. **GPU-based novel architectures (untested)**. Require a Kaggle GPU
+   kernel — none of these can be done on this CPU container:
+   - **TabM** (ICLR 2025, BatchEnsemble-style MLP, K=32 parallel heads).
+     Script scaffold exists in parallel-work todos P3.
+   - **ModernNCA** (differentiable KNN with learned metric, 2024).
+     P4 in parallel-work todos.
+   - **GRANDE** (ICLR 2024, differentiable GBDT variant). Novel.
+   - Kaggle kernel push + 1.5-2h wall per kernel. High variance EV.
+
+2. **B0 DivideMix** (mutual co-divide with GMM gating). CPU-runnable
+   but ~3h wall. Mechanism: two XGBs, each round splits training into
+   clean/noisy via GMM on per-row loss, trains on OTHER model's clean
+   subset. Principled fix to stage-2 null. EV uncertain.
+
+3. **Private-LB variance hedging**: during final 48 hours, submit
+   2-3 variants of the LB-best blend with small weight perturbations
+   to confirm robustness. ~3 LB probes.
+
+### What NOT to try (explicitly ruled out)
+
+- Any new greedy over the existing 40-component bank — OOF-ceiling is
+  structural at 0.98030, not a search problem
+- Any single-head NN on the recipe feature set — confirmed 11 times
+- Heavy original-dataset weight — LB-regressed at w=20, Cleanlab
+  confirms orig-mismatch rows are signal
+- Any sub-+0.00020 OOF lift candidate — structurally doesn't transfer
+- Public-CSV blending — banned by our repo rule
+
+### Compute-cheap maintenance work anyone can do
+
+- Run greedy WITHOUT soft_distill AND stage-2 AND seed7labeler AND
+  allpairs_iso — see if the 4th most-over-fit component gets picked
+  and lands at OOF 0.98030 cleanly (proves the ceiling)
+- Scaffold `kaggle_kernel/kernel_tabm/` and `kernel_modern_nca/` for
+  someone with GPU access to launch (~30 min plumbing each)
+- Brute-force search over 3-way (recipe, pseudo_s1, pseudo_s7) weight
+  simplex at 0.05 granularity. If the max is close to the LB-best 3-way
+  (0.25/0.35/0.40) we have robustness; if a DIFFERENT weighting is
+  OOF-better, worth LB-probing tomorrow (1 probe)
 
 ## 2026-04-24 — Targeted research recommendations (post-LB 0.97998 ceiling)
 
