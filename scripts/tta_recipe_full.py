@@ -15,6 +15,9 @@ Env vars:
   TTA_K=<int>           perturbations per sigma (default 3).
   TTA_SIGMAS="0.02,0.05,0.10"   comma-sep sigmas (IQR-scaled).
   FOLD_SEED=<int>       override fold split (default 42 for alignment).
+  MAX_BIN=<int>         XGB max_bin (default 512, dropped from recipe's
+                         1024 to halve histogram memory — still gives
+                         >99% split AUC per the recipe comment).
 
 Outputs per sigma:
   scripts/artifacts/oof_tta_recipe_s{tag}.npy
@@ -26,6 +29,7 @@ And a results JSON with all OOF scores + per-sigma deltas.
 """
 from __future__ import annotations
 
+import gc
 import json
 import os
 import sys
@@ -63,6 +67,7 @@ FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
 TTA_K = int(os.environ.get("TTA_K", "2" if SMOKE else "3"))
 TTA_SIGMAS = [float(s) for s in os.environ.get(
     "TTA_SIGMAS", "0.05" if SMOKE else "0.02,0.05,0.10").split(",")]
+MAX_BIN = int(os.environ.get("MAX_BIN", "256" if SMOKE else "512"))
 
 ART = Path("scripts/artifacts")
 ART.mkdir(exist_ok=True, parents=True)
@@ -140,6 +145,9 @@ def load_and_engineer():
     raw = dict(train=raw_train, test=raw_test,
                stage_train=stage_train, stage_test=stage_test,
                mulch_train=mulch_train, mulch_test=mulch_test)
+    # orig is no longer needed after FE — release before training.
+    del orig
+    gc.collect()
     return train, test, info, test_ids, raw
 
 
@@ -179,7 +187,7 @@ def run_cv(train, test, info, raw, test_ids):
         max_depth=4, max_leaves=30,
         learning_rate=0.1, subsample=0.8, colsample_bytree=0.8,
         min_child_weight=2, reg_alpha=5, reg_lambda=5,
-        max_bin=256 if SMOKE else 1024,
+        max_bin=MAX_BIN,
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss",
         enable_categorical=False, n_jobs=-1, random_state=SEED,
@@ -259,6 +267,10 @@ def run_cv(train, test, info, raw, test_ids):
             tests[tag] += te_softmax.astype(np.float32) / N_FOLDS
             bal = balanced_accuracy_score(y[va_idx], oofs[tag][va_idx].argmax(1))
             log(f"  fold {fold} TTA {tag} argmax_bal_acc = {bal:.5f}  inf_t={time.time()-t0:.1f}s")
+
+        # End-of-fold cleanup so memory doesn't accumulate between folds.
+        del X_tr, X_va, X_te, X_tr_shuf, te, model
+        gc.collect()
 
     return oofs, tests
 
