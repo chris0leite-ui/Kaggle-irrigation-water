@@ -86,6 +86,10 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_corn.npy
 !scripts/artifacts/oof_tabpfn.npy
 !scripts/artifacts/test_tabpfn.npy
+# P3 transductive label-propagation (null vs recipe and LB-best but
+# Jaccard 0.65 — kept for cross-branch diversity experiments)
+!scripts/artifacts/oof_p3_embed_propagate.npy
+!scripts/artifacts/test_p3_embed_propagate.npy
 # Session B (multi-seed fold bagging): keep per-seed LB-best OOF/test so
 # any branch can reproduce the bag without re-running the 8-min pipeline.
 !scripts/artifacts/oof_lb_best_fs7.npy
@@ -242,6 +246,17 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_pseudolabel_seed7labeler.npy
 !scripts/artifacts/recipe_pseudolabel_seed7labeler_results.json
 
+# Third multi-seed pseudo-label leg: recipe at FOLD_SEED=123 +
+# pseudo_seed123labeler (target at FOLD_SEED=42). Third independent
+# labeler-split for the 4-way blend (recipe + s1 + s7 + s123) — tests
+# whether the multi-seed mechanism compounds beyond the 3-way that
+# landed LB 0.98005 (2026-04-24).
+!scripts/artifacts/oof_recipe_full_te_seed123.npy
+!scripts/artifacts/test_recipe_full_te_seed123.npy
+!scripts/artifacts/oof_recipe_pseudolabel_seed123labeler.npy
+!scripts/artifacts/test_recipe_pseudolabel_seed123labeler.npy
+!scripts/artifacts/recipe_pseudolabel_seed123labeler_results.json
+
 # Cleanlab confident-learning diagnostic: per-row boolean mask of
 # likely-noisy training rows, built from the LB-best 2-way blend as
 # teacher. Diagnostic flagged 2,035 rows (0.32%), 98.4% precision vs
@@ -326,6 +341,10 @@ kaggle_kernel/ds_*/test_*.npy
 # Blend-unsuitable (+15-50% more errors than recipe). TTA lever CLOSED.
 !scripts/artifacts/oof_tta_recipe_baseline.npy
 !scripts/artifacts/test_tta_recipe_baseline.npy
+!scripts/artifacts/oof_tta_recipe_s001.npy
+!scripts/artifacts/test_tta_recipe_s001.npy
+!scripts/artifacts/oof_tta_recipe_s005.npy
+!scripts/artifacts/test_tta_recipe_s005.npy
 !scripts/artifacts/oof_tta_recipe_s010.npy
 !scripts/artifacts/test_tta_recipe_s010.npy
 !scripts/artifacts/oof_tta_recipe_s020.npy

@@ -4314,6 +4314,142 @@ are modeling paradigms that don't map onto any lever in the log.
   dominant error cells) launched immediately. P3 (label-propagation-
   in-embedding) queued if P2 is null.
 
+### 2026-04-24 — P2 symbolic regression (gplearn) closed as NULL
+
+- Goal: search analytic formulas in the 7 non-rule continuous features
+  (Humidity, Prev_Irrigation, EC, Field_Area, Soil_pH, Organic_Carbon,
+  Sunlight) that predict within-cell label flips at the 2 dominant error
+  cells (score=3 rule=Low→flip to Medium, score=6 rule=Medium→flip to
+  High). Hypothesis: if the NN generator's flip function has polynomial
+  / algebraic structure, gplearn finds it; deploy as hard override.
+- Changed: `scripts/p2_symbolic_flip.py` — bug fix (`_Program.execute`
+  not `.predict`) + try/except per formula evaluation.
+- Setup: gplearn SymbolicRegressor, pop=1000, gen=25, MAE loss,
+  function set = (+, -, *, /, sqrt, log, abs), parsimony=0.01.
+- **Results (trivial formulas won):**
+  ```
+  cell3 (n=102,157, flip_rate=4.796%)
+    rank 0:  sub(Organic_Carbon, Organic_Carbon) = 0
+             precision 0.0, recall 0.0, selected 0 rows
+    rank 1:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+    rank 2:  sub(Organic_Carbon, Organic_Carbon) = 0
+
+  cell6 (n=38,416, flip_rate=4.032%)
+    rank 0:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+    rank 1:  sub(Humidity, Humidity) = 0
+    rank 2:  sub(Field_Area_hectare, Field_Area_hectare) = 0
+  ```
+- **Diagnosis:** predicting constant 0 (no flip) gives MAE = flip_rate
+  ≈ 0.04. gplearn's fitness landscape + parsimony penalty favors short
+  formulas with low MAE. No polynomial/algebraic expression built from
+  the 7 features achieves lower MAE than the trivial "predict 0" —
+  the evolution converged on degenerate `sub(X, X)` = 0 formulas as
+  globally optimal.
+- **Closes the hypothesis:** the DGP's within-cell flip signal is NOT
+  expressible as a compact analytic formula of the 7 non-rule
+  continuous features. Consistent with the 2026-04-21 "DGP is a
+  deterministic NN function, not a noise process" finding — the NN's
+  within-cell decision surface is too non-linear / high-order for
+  gplearn with population 1000 × 25 generations to find.
+- Parallel run with sample_weight rebalancing (pos_weight×20) and
+  pop=1500/gen=30 also converged to constant-length-1 formulas with
+  fitness 0.495 — the imbalance fix doesn't rescue the null, the
+  functional form simply isn't in the reachable search space.
+- **No LB probe.** P2 lever CLOSED.
+- Parallel learning: `p2_symbolic_flip.py` pattern can be reused on
+  future synthetic-DGP competitions WHERE the DGP is known or strongly
+  suspected to be a finite-degree polynomial function. On this
+  competition, the NN generator is structurally outside that class.
+
+### 2026-04-24 — P3 transductive label-propagation closed as NULL
+
+- Goal: supervised-contrastive embedding + k-NN label propagation on
+  (train ∪ test). Different modeling paradigm than any tree / NN /
+  transformer / pretrained tabular-FM previously tested — test-row
+  geometry enters prediction via the graph Laplacian. Structurally
+  orthogonal failure modes from inductive methods.
+- Changed: `scripts/p3_embed_propagate.py` — supervised contrastive
+  MLP backbone (SupCon + cross-entropy joint loss on recipe 443-feature
+  matrix), 32-dim projection, FAISS k=30 Gaussian kernel graph,
+  label-spreading with α=0.2. 5-fold StratifiedKFold(seed=42) aligned
+  with all other OOFs. `scripts/p3_analyze.py` runs the fixed-bias
+  blend-gate vs both recipe and LB-best 2-way.
+- Install: `pip install torch --index-url .../cpu` +
+  `pip install faiss-cpu` (both CPU-only, ~250MB).
+- Wall: 120 min on CPU. 15 epochs per fold × 5 folds × 34 s/epoch
+  training = ~43 min; 6 k-NN queries (5 fold val + full-train test)
+  with FAISS = ~17 min; full-train final embedding = ~12 min for 15
+  epochs at 48s/epoch. First production attempt died silently at
+  epoch 8 of fold 1 (likely session-cleanup event; OOM ruled out,
+  memory was fully free afterwards); relaunched with
+  `Bash(run_in_background=True)` for proper detachment.
+- Standalone results (OOF, 5-fold seed=42):
+  - argmax 0.96629, tuned **0.97047** (bias [2.53, 0.17, 4.50] —
+    sharply different from recipe's [1.43, 1.47, 3.40], consistent
+    with the embedding's different calibration regime).
+  - errors **9,958** (+1,591 vs recipe's 8,367, +1,657 vs LB-best 2-way's 8,301).
+  - **Jaccard vs recipe = 0.6456** (lowest Jaccard of any standalone
+    tested on this feature set except FT-Transformer's 0.614).
+  - Jaccard vs LB-best = 0.6473.
+- Blend sweep (fixed bias, α ∈ [0, 0.50]):
+  ```
+  vs recipe (anchor 0.97967):      peak α=0.000  Δ=0.00000   (monotone negative)
+  vs LB-best 2-way (anchor 0.98012): peak α=0.000  Δ=0.00000   (monotone negative)
+  ```
+  Any α > 0 is strictly negative. No blend weight threads the needle.
+- **Classic magnitude-trap failure** (fifth confirmation on this
+  problem). Jaccard 0.65 = genuinely novel errors; but +1,657 MORE
+  errors than LB-best overwhelm the complementary-signal gain.
+  The log-blend math: at α=0.1, we trade a tiny contribution of
+  P3's unique-right rows (weighted 0.1) for a sizable contribution
+  of P3's unique-wrong rows (also weighted 0.1 but there are more
+  of them). Net loss.
+- Portable rule (adds to LEARNINGS.md candidate): **transductive
+  label-propagation in a learned contrastive embedding shares the
+  magnitude-trap failure mode of inductive NN / transformer / TabPFN
+  on deeply-engineered tabular problems.** Even "test geometry enters
+  prediction" doesn't rescue you when the graph neighbors are
+  systematically wrong on ~2% of rows the XGB is right on. For P3 to
+  succeed, the embedding would need to be trained with a loss that
+  penalizes errors on rows where a strong inductive baseline is right
+  — which is effectively distillation, not transductive SSL.
+- LB budget unchanged at 8/10 used Thursday, 2 remaining today.
+  Current LB best unchanged at 0.97998.
+- Artefacts:
+  - `scripts/artifacts/oof_p3_embed_propagate.npy`
+  - `scripts/artifacts/test_p3_embed_propagate.npy`
+  - `scripts/artifacts/p3_embed_propagate_results.json`
+  - `scripts/artifacts/p3_blend_gate_results.json`
+
+### 2026-04-24 — All three outside-the-envelope perspectives closed
+
+**Session close-out**: P1 (TTA), P2 (symbolic regression), P3 (label-
+propagation) all NULL. Three fundamentally different modeling
+paradigms, each tested as a standalone + blend-gate candidate on top
+of the LB-best 2-way. None cleared the +0.00020 LB-transfer threshold;
+each failed for a structurally different reason:
+
+  - P1 TTA: perturbation noise scales with N (far-row noise) while
+    boundary-smoothing gain scales with ~2% boundary fraction. At
+    504k rows, noise dominates.
+  - P2 symbolic: flip signal is not expressible as a compact analytic
+    formula of 7 non-rule continuous features at gplearn's search
+    capacity (pop 1000-1500, gen 25-30).
+  - P3 label-prop: genuine error orthogonality (Jaccard 0.65) but
+    magnitude overflow (+1,657 extra errors) — same failure mode as
+    every prior NN-family attempt on this feature set.
+
+LB 0.97998 is the firm own-pipeline ceiling across four major lever
+categories (tree families, NN families, FE families, modeling
+paradigms). Final-selection candidates remain:
+  1. **Primary**: `submission_recipe_greedy_recipe_pseudolabel.csv`
+     (LB 0.97998, OOF 0.98012, gap +0.00014)
+  2. **Safe fallback**: `submission_recipe_full_te.csv`
+     (LB 0.97939, OOF 0.97967, gap +0.00028)
+
+Pack 0.98114 stays +0.00116 above; leader 0.98219 stays +0.00221 above.
+Reachable only via public-CSV blending (CLAUDE.md rule forbids).
+
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
 The v6 {0,1,2,5} null (−0.00012) revealed that single-class-pure rows
@@ -6149,3 +6285,92 @@ pipeline ceiling. Pack 0.98114 (+0.00109), Leader 0.98219 (+0.00214).
 - 1 LB probe at most on any remaining marginal OOF candidate
 - Scaffold + push at least one GPU kernel (DAE being highest EV)
 - Reserve remaining 5-6 probes for end-of-comp final selection hedging
+### 2026-04-24 — 4-way multi-seed (seed=123 labeler) closed as OOF-null
+
+- Goal: after the 3-way (recipe + s1 + s7) landed LB 0.98005 (+0.00007
+  over the 2-way LB-best), extend to a 4-way by adding a third labeler
+  trained on a different fold split (FOLD_SEED=123). Hypothesis: if the
+  multi-seed mechanism is compositional (not a single lucky draw), a
+  third seed should either compound the lift or cleanly saturate it,
+  giving us calibration information about the lever's ceiling.
+- Changed: launched `FOLD_SEED=123 scripts/recipe_full_te.py` →
+  `LABELER_TEST_PATH=...seed123... scripts/recipe_pseudolabel.py` chain
+  (~1h45m total wall); `scripts/blend_4way_multiseed.py` for the
+  fixed-bias blend analysis. Whitelist exception added for 5 seed=123
+  artifacts.
+- Stage 1 (recipe at seed=123): tuned OOF **0.97895** with bias
+  [1.03, 1.17, 3.40]. ~0.0007 below s42 (0.97967) and s7 (0.97973) —
+  weaker labeler, but fold-std 0.00056 was the tightest of the three
+  seeds.
+- Stage 2 (pseudo with s123 labeler, target at FOLD_SEED=42):
+  - τ=0.98 keep rate 82.8% (223,619 rows, s7 was 82.6%, s1 was 83.8%)
+  - Tuned OOF **0.97992**, bias [1.43, 1.27, 3.40]
+  - Cross-seed pseudos now tied: s1 0.97993, s7 0.98002, s123 0.97992
+    (all within 0.00010). **Ideal "different signal, same strength"
+    pattern** — pseudo-label augmentation compensated for the weaker
+    stage-1 labeler (τ=0.98 only keeps rows all seeds agree on).
+- Blend analysis (fixed recipe bias, 4-way OOF vs 3-way LB-best 0.98029):
+  ```
+  standalone @ recipe bias:
+    recipe       0.97967  errs=10114
+    pseudo_s1    0.97987  errs=10039  Jaccard=0.7805
+    pseudo_s7    0.98002  errs=10170  Jaccard=0.7781
+    pseudo_s123  0.97973  errs=10049  Jaccard=0.7820  ← fewer errs than s7
+  pairwise recipe × s123 peak α=0.750 → 0.98002 (narrower than s1/s7)
+  4-way axis-scan (shrink 3-way, add s123): β=0.000 optimal — s123
+    gets ZERO weight when searching along this axis
+  4-way dense grid step=0.05: best = (0.25, 0.15, 0.35, 0.25) → 0.98029
+    (TIED with 3-way, different geometry)
+  4-way fine grid step=0.025: top-15 all at 0.98029-0.98030 (plateau);
+    best 0.98030 at (0.225, 0.300, 0.425, 0.050) — s123 only 5%
+  ```
+  **Best 4-way OOF = 0.98030** vs 3-way LB-best 0.98029 = **+0.00001**,
+  firmly inside fold noise.
+- Test-prediction-space diagnostic (best 4-way vs LB-best 3-way):
+  - 4-way top (s123=0.05): **22 test rows disagree** (0.008%)
+  - 4-way grid (s123=0.25): 82 test rows disagree (0.030%)
+  - At this test-flip magnitude, expected LB delta is ±0.00010 —
+    indistinguishable from private-fold draw variance.
+- **Verdict: s123 is cleanly falsified. The multi-seed pseudo-label
+  mechanism SATURATES at 2 labelers on this feature set.** The signal
+  s123 carries is already contained in the {recipe, s1, s7} span.
+  Adding the 3rd seed re-arranges blend weights without adding
+  information — classic "ridge of local optima" pattern.
+- LB budget: unchanged (10/10 used today, 0 remaining). **No LB probe
+  warranted** — expected LB delta ±0.00010 is pure gamble, not
+  experimental payoff.
+- **Multi-seed ceiling calibrated** (important for future
+  compositions):
+  - 2-way recipe × pseudo(s42) lifted LB by +0.00046 (LB-best 0.97998)
+  - 3-way adding pseudo(s7) lifted LB by +0.00007 (new best 0.98005)
+  - 4-way adding pseudo(s123): OOF +0.00001, predicted LB ±0.00010
+  Decay factor ~6x between each addition. Further labeler seeds
+  (s456, s789, etc.) predicted to add ≤ +0.00002 each — not worth
+  a slot.
+- Current LB best unchanged: `submission_3way_recipe025_s1035_s7040.csv`
+  at **LB 0.98005**.
+- **Strategic implication: breaking the 0.98005 ceiling requires a
+  fundamentally different lever, not more seeds.** Pack 0.98114 remains
+  +0.00109 above. Untried levers still on the hypothesis board:
+  1. **P1 — threshold-axis test-time augmentation** (cheap, no LB
+     spend to validate). Per-test-row Gaussian perturbation at rule
+     thresholds (Soil=25, Rain=300, Temp=30, Wind=10), K=5-10
+     perturbations, re-run recipe FE + OTE lookups, average
+     log-probs. Targets the axis-aligned-tree-vs-smooth-NN mismatch
+     at exactly the rows where flips concentrate.
+  2. **P2 — symbolic regression (PySR/gplearn) for within-cell flip
+     formula** (~1 evening). Binary flipped-vs-not on score=3 (n=5041)
+     and score=6 (n=4163) cells using the 7 non-rule continuous
+     features. Deploy any formula with ≥70% flip recall at <10% FP
+     as a hardcoded override — orthogonal to blending by construction.
+  3. **P3 — transductive k-NN label propagation in a learned embedding**
+     (~2h). Supervised contrastive MLP → embed train+test into ~32-d
+     → FAISS k-NN graph → sklearn LabelPropagation. Test-row
+     prediction depends on test-row-to-test-row geometry — a
+     modeling paradigm unrepresented in the log so far.
+- Artefacts committed for cross-branch reuse:
+  - `scripts/artifacts/oof_recipe_full_te_seed123.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_pseudolabel_seed123labeler.npy` + test + JSON
+  - `scripts/artifacts/blend_4way_multiseed_results.json`
+  - `submissions/submission_multiseed_4way_{axis,grid}.csv` (OOF 0.98029
+    and 0.98029 — not recommended for LB probe, emitted for reference)
