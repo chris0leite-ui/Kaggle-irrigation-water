@@ -38,9 +38,9 @@ from sklearn.utils.class_weight import compute_sample_weight
 sys.path.insert(0, str(Path(__file__).parent))
 from common import tune_log_bias  # noqa: E402
 from recipe_features import (  # noqa: E402
-    add_cat_pair_combos, add_digit_features, add_freq_features,
-    add_lr_formula_logits, add_num_as_cat, add_orig_mean_std,
-    add_threshold_flags,
+    add_cat_pair_combos, add_decimal_fractions, add_digit_features,
+    add_domain_interactions, add_freq_features, add_lr_formula_logits,
+    add_num_as_cat, add_orig_mean_std, add_threshold_flags,
 )
 from recipe_ote import OrderedTE  # noqa: E402
 
@@ -75,6 +75,16 @@ FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
 # replacing "oof_" → "test_". When set, the K columns are added as extra
 # numerics. Integration for A2 / P1.
 DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
+# EXTRA_FE: A4 FE transplant from public kernels.
+#   ""       — baseline recipe (no extra FE)
+#   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
+#   "decimal"— +5 decimal-fraction features `(col % 1).round(2)` on numerics
+#   "both"   — both sets (16 new numeric features total)
+# Suffix "_fex{variant}" on outputs so LB-best artefacts stay untouched.
+EXTRA_FE = os.environ.get("EXTRA_FE", "")
+assert EXTRA_FE in ("", "domain", "decimal", "both"), (
+    f"EXTRA_FE must be ''|domain|decimal|both, got {EXTRA_FE!r}"
+)
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -97,6 +107,8 @@ if CLEANLAB_TREATMENT:
     _parts.append(f"cl{CLEANLAB_TREATMENT}")
 if DAE_EMBED_PATH:
     _parts.append("dae")
+if EXTRA_FE:
+    _parts.append(f"fex{EXTRA_FE}")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -147,6 +159,20 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         tres = add_threshold_flags(df)
     for df in (train, test, orig):
         logits = add_lr_formula_logits(df)
+
+    # A4 FE transplant: extra numeric features from public kernels.
+    # Added BEFORE digit extraction so they're included as "extra nums" for
+    # the tree but NOT digit-expanded (would explode feature count).
+    extra_domain: list[str] = []
+    extra_decimal: list[str] = []
+    if EXTRA_FE in ("domain", "both"):
+        log("A4 FE transplant: +11 domain interaction features (utaazu)")
+        for df in (train, test, orig):
+            extra_domain = add_domain_interactions(df)
+    if EXTRA_FE in ("decimal", "both"):
+        log("A4 FE transplant: +5 decimal-fraction features")
+        for df in (train, test, orig):
+            extra_decimal = add_decimal_fractions(df)
 
     # Pair combos (concat string values; factorized across combined).
     log("adding cat x cat pair combos")
@@ -204,13 +230,16 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         nums=nums, cats=cats, combos=combos, digits=digits,
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
+        extra_domain=extra_domain, extra_decimal=extra_decimal,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
         f"cats={len(cats)} combos={len(combos)} digits={len(digits)} "
         f"num_as_cat={len(num_as_cat)} tres={len(tres)} logits={len(logits)} "
         f"freq={len(freq)} orig_stats={len(orig_stats_cols)} "
-        f"dae_embed={len(dae_cols)} te_cols={len(info['te_cols'])}")
+        f"dae_embed={len(dae_cols)} "
+        f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
+        f"te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
 
 
@@ -253,7 +282,9 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
     numeric_feats = (info["nums"] + info["tres"] + info["logits"]
                      + info["freq"] + info["orig_stats"]
-                     + info.get("dae_embed", []))
+                     + info.get("dae_embed", [])
+                     + info.get("extra_domain", [])
+                     + info.get("extra_decimal", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)

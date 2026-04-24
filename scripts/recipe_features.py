@@ -163,6 +163,53 @@ def add_orig_mean_std(train: pd.DataFrame, test: pd.DataFrame,
     return new_cols
 
 
+def add_domain_interactions(df: pd.DataFrame) -> list[str]:
+    """11 ratio/product features from utaazu kernel (0.979 CV).
+
+    Mutates df in-place. All safe additions (+1/+0.1 denominators prevent
+    div-by-zero). No groupby or cross-split stats — purely row-wise.
+    """
+    d = df
+    d["moist_rain"]    = d["Soil_Moisture"]  / (d["Rainfall_mm"]      + 1)
+    d["moist_temp"]    = d["Soil_Moisture"]  / (d["Temperature_C"]    + 1)
+    d["moist_wind"]    = d["Soil_Moisture"]  / (d["Wind_Speed_kmh"]   + 1)
+    d["ET_proxy"]      = (d["Temperature_C"] * d["Wind_Speed_kmh"] *
+                          d["Sunlight_Hours"]) / (d["Humidity"]       + 1)
+    d["heat_stress"]   = d["Temperature_C"]  * d["Sunlight_Hours"]
+    d["drying_force"]  = (d["Wind_Speed_kmh"] * d["Temperature_C"]) / (
+                          d["Humidity"] + 1)
+    d["water_supply"]  = d["Rainfall_mm"]    + d["Previous_Irrigation_mm"]
+    d["water_deficit"] = d["Soil_Moisture"]  - d["water_supply"] * 0.1
+    d["soil_quality"]  = d["Organic_Carbon"] / (d["Electrical_Conductivity"]
+                                                + 0.1)
+    d["moist_x_temp"]  = d["Soil_Moisture"]  * d["Temperature_C"]
+    d["wind_x_temp"]   = d["Wind_Speed_kmh"] * d["Temperature_C"]
+    return ["moist_rain", "moist_temp", "moist_wind", "ET_proxy",
+            "heat_stress", "drying_force", "water_supply", "water_deficit",
+            "soil_quality", "moist_x_temp", "wind_x_temp"]
+
+
+def add_decimal_fractions(df: pd.DataFrame,
+                          nums: list[str] | None = None) -> list[str]:
+    """Extract 2-dp decimal fraction `(col % 1).round(2)` per numeric.
+
+    Structurally distinct from digit extraction: digit FE captures INTEGER
+    digit positions, this captures the FRACTIONAL portion. Float rounding
+    noise below the 2nd decimal is suppressed via .round(2).
+    """
+    if nums is None:
+        nums = ["Temperature_C", "Organic_Carbon", "Soil_Moisture",
+                "Soil_pH", "Sunlight_Hours"]
+    cols: list[str] = []
+    for c in nums:
+        if c not in df.columns:
+            continue
+        name = f"{c}_dec"
+        df[name] = (df[c] % 1).round(2).astype(np.float32)
+        cols.append(name)
+    return cols
+
+
 def add_num_as_cat(train: pd.DataFrame, test: pd.DataFrame,
                    orig: pd.DataFrame, nums: list[str]) -> list[str]:
     """Duplicate each numeric as a string-cast categorical column.
