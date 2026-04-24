@@ -150,6 +150,12 @@ kernel_audit*/
 # Kept for cross-branch diagnostic reuse.
 !scripts/artifacts/oof_recipe_full_te_fexboth.npy
 !scripts/artifacts/test_recipe_full_te_fexboth.npy
+# GBY rohit8527 group-by cat×num stats (176 extra numerics from
+# per-cat-group mean/std on synthetic 630k pool). Null vs recipe
+# (Δ −0.00008) and vs LB-best anchors (Jaccard 0.83-0.87, blend Δ
+# +0.00001 to +0.00014). Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_recipe_full_te_gby.npy
+!scripts/artifacts/test_recipe_full_te_gby.npy
 # N1 recipe-subset XGB variants (drop one feature block each).
 # All 4 null vs 2-way pseudolabel blend (+0.00015 5-way OOF ceiling, below
 # +0.0002 LB-transfer threshold). Kept for cross-branch greedy selection.
