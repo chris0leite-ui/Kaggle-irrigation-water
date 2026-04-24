@@ -240,6 +240,7 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_full_te_seed7.npy
 !scripts/artifacts/oof_recipe_pseudolabel_seed7labeler.npy
 !scripts/artifacts/test_recipe_pseudolabel_seed7labeler.npy
+!scripts/artifacts/recipe_pseudolabel_seed7labeler_results.json
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
