@@ -282,6 +282,34 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   surfaces. Distillation for blend diversity needs a different
   model class (student-NN from tree-teacher, or teacher-NN from
   tree-student), not same-family self-distillation.
+- **Soft-target distillation from a bagged-OOF teacher to an
+  equal-capacity student is a structural overfit trap**, even when
+  per-row leak analysis is clean. The teacher's OOF contains its
+  test-equivalent errors (on this problem ~12k confident-wrong
+  rows at the NN-flip boundary). A student matched in capacity
+  (max_depth=4, ~3000 trees, 443 features = same regime as the
+  teacher) can memorize those per-row wrong posteriors during
+  training, then reproduce them on test. Empirical result on
+  2026-04-24: OOF tuned 0.98096 (+0.00084 above LB-best teacher
+  0.98012) → LB 0.97850 (−0.00148 below teacher's LB 0.97998).
+  OOF→LB gap blew up 17× to +0.00246 (competition record for
+  widest gap). Mechanism — the student's log-bias coord-ascent found
+  an OOF sweet spot by exploiting the teacher's confident-wrong
+  posteriors which are absent on the hidden test set.
+  Hallmark warning sign: student's natural bias is sharply
+  DIFFERENT from the teacher's (student [0.53, 1.07, 3.20] vs
+  teacher [1.43, 1.47, 3.40] — an order of magnitude smaller on
+  Low/Medium). Sharpness from mimicry, not discrimination.
+  To use soft distillation safely: (a) shrink student capacity
+  at least 2× (fewer trees, smaller depth, heavier L2), (b)
+  temperature-softened teacher probs before training
+  (divide logits by T > 1 so student sees softer targets harder
+  to memorize), or (c) true N-1-fold teacher (exclude row i from
+  EVERY model in the teacher blend, not just the one whose OOF
+  slot was row i) so the teacher's per-row signal carries no
+  test-leakage pattern. Unlike hard pseudo-labels (τ=0.98 filter
+  drops boundary-band errors), soft distillation has no confidence
+  gate, so teacher errors propagate at full strength.
 
 ## Multi-class imbalance — tactical gotchas
 

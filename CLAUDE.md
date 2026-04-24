@@ -3818,6 +3818,103 @@ architecture or feature view adds orthogonal bits at this base.
 - No LB probe warranted. LB-best stays `submission_recipe_greedy_recipe_pseudolabel.csv`
   → **LB 0.97998**.
 
+### 2026-04-24 — soft-target distillation from LB-best teacher: OOF +0.00084 → LB −0.00148 (OOF-noise memorization null)
+
+- Goal: execute candidate #2 from the ceiling-breaker shortlist — train an
+  XGB student with custom soft-cross-entropy objective against the
+  LB-best blend's full posterior, bypassing argmax pseudo-label's
+  information loss. Motivation: every blend-level experiment so far
+  compresses argmax-equivalent predictors; distillation trains on the
+  teacher's full per-row posterior, including boundary uncertainty.
+- Changed: `scripts/soft_distill_common.py` (teacher builder +
+  custom soft-xent objective factory + hard-label mlogloss val metric),
+  `scripts/soft_distill_xgb.py` (5-fold pipeline using xgb.train native
+  API with obj= closure; same 443-feature recipe matrix, same
+  StratifiedKFold seed=42, same OrderedTE; no class-balanced sample
+  weight since teacher posterior already encodes it),
+  `scripts/blend_soft_distill.py` (Jaccard + fixed-bias α sweep vs
+  recipe anchor and LB-best anchor; 3-way grid; auto-emit gate at
+  Δ ≥ +5e-4 fixed-bias).
+- Teacher construction verified: softmax(0.5*log(recipe_full_te) +
+  0.5*log(recipe_pseudolabel)) reproduces LB-best OOF 0.98012 exactly
+  with bias [1.4324, 1.4689, 3.4008]. Teacher entropy: mean 0.0425,
+  21,968 rows (3.5%) carry >0.3 entropy — the distillation surface.
+- Wall: 2h02m total (fold 1 27min, folds 2-5 ~23min each). Custom
+  obj Python callback is ~2.5× slower than native multi:softprob —
+  504k × 3 softmax + grad + hess computation per iteration × ~3000
+  iterations. best_iter 2989-2998 on every fold (near the 3000 cap;
+  still learning marginal).
+- Per-fold OOF argmax (distill vs recipe):
+  ```
+  fold 1:  0.97486 vs 0.97544   Δ = -0.00058
+  fold 2:  0.97595 vs 0.97659   Δ = -0.00064
+  fold 3:  0.97654 vs 0.97721   Δ = -0.00067
+  fold 4:  0.97484 vs 0.97465   Δ = +0.00019
+  fold 5:  0.97565 vs 0.97557   Δ = +0.00008
+  OOF:     0.97557 vs 0.97589   Δ = -0.00032  (within fold-std noise)
+  ```
+- **Standalone OOF at distill's own tuned log-bias = 0.98096**
+  (+0.00084 ABOVE LB-best teacher's 0.98012). Student bias
+  [0.5324, 1.0689, 3.2008] — Low/Medium biases much smaller than
+  recipe's [1.4324, 1.4689, 3.4008], suggesting student probs are
+  already closer to bal_acc-optimal.
+- Error count 9,520 < teacher's 9,851 < recipe's 10,114. Jaccard vs
+  recipe = 0.7924 (below 0.80 "novel" threshold); Jaccard vs LB-best
+  = 0.8155 (borderline). The blend-lift fingerprint looked present on
+  every diagnostic.
+- **LB probe (user-approved, submitted at 04:10 UTC)**:
+  `submission_soft_distill.csv` → **LB public = 0.97850**.
+  Δ vs LB-best = **−0.00148** (clear regression).
+  OOF → LB gap = **+0.00246** — blew up 17× vs LB-best's +0.00014.
+  Widest OOF→LB gap in the competition log.
+- **Diagnosis — OOF-noise memorization null.** Per-row leak analysis
+  is clean (teacher_oof[i] came from a model trained on folds != i).
+  But the teacher's OOF contains ~12k errors (the 2% boundary-band
+  where NN flips live). The student was trained at max_depth=4 ×
+  ~3000 trees × 443 features, which is the same capacity regime as
+  recipe XGB — ample to memorize the teacher's per-row confident-
+  wrong posteriors on those ~12k rows. The student reproduces those
+  overconfident-wrong posteriors on the test set, where they DON'T
+  match the true labels.
+
+  Leak-free does not equal overfit-free. Student capacity matched to
+  teacher capacity means the student can perfectly mimic the teacher
+  — including teacher mistakes. Unlike hard pseudo-labels
+  (τ=0.98 filters >99% confidence, dropping boundary rows), soft
+  distillation retains 100% of rows and propagates teacher errors
+  into the student's decision surface.
+
+- **Warning sign in hindsight**: student bias [0.53, 1.07, 3.20] vs
+  recipe's [1.43, 1.47, 3.40] — Low/Medium biases an order of
+  magnitude smaller. This meant student's raw probs were SHARPER on
+  Low than recipe's. Sharpness came from teacher-mimicry, NOT from
+  better discrimination — the student's "natural calibration" was
+  fitting fold-specific calibration artifacts.
+- **LB budget**: 1/10 used today (only 1 probe this session; blend
+  variants anchored on the same overfit student not submitted).
+  9 remaining.
+- Current LB best unchanged: `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at **LB 0.97998**.
+- Artefacts committed via gitignore whitelist for cross-branch reuse:
+  `oof_soft_distill.npy` (7.3MB), `test_soft_distill.npy` (3.1MB),
+  `soft_distill_results.json`, `blend_soft_distill_results.json`,
+  5 candidate submissions (1 submitted, 4 diagnostic-only).
+- **Rule (portable, logging to LEARNINGS.md)**: "Soft-target
+  distillation from a bagged-OOF teacher to a student of equal
+  capacity is a structural overfit trap. The student memorizes the
+  teacher's OOF noise (including confident-wrong posteriors on
+  boundary rows). Unlike hard pseudo-labels, soft distillation has
+  no confidence gate, so teacher errors propagate at full strength.
+  To use distillation safely: reduce student capacity by at least 2×
+  (fewer trees, smaller depth, or stronger regularization), or
+  train the teacher on N-1 folds with row i held out completely
+  (not just from the one model that produced teacher_oof[i], but
+  from ALL models in the teacher blend)."
+- Next bet: pivot to ceiling-breaker #1 — 171-pair OTE with
+  subprocess-isolation fix (fixes the 2026-04-23 OOM-kill). New
+  feature surface, not a new learning signal, so it can't inherit
+  the distillation overfit failure mode.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
