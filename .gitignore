@@ -232,6 +232,15 @@ kaggle_kernel/ds_*/test_*.npy
 # 2 components into a smoother decision surface.
 !scripts/artifacts/oof_soft_distill.npy
 !scripts/artifacts/test_soft_distill.npy
+# Multi-seed pseudo-label: recipe_full_te at FOLD_SEED=7 (labeler source)
+# + recipe_pseudolabel with seed7 labeler (target model at FOLD_SEED=42).
+# Labeler's fold split is decoupled from target's - bypasses stage-2
+# OOF-overfit mechanism.
+!scripts/artifacts/oof_recipe_full_te_seed7.npy
+!scripts/artifacts/test_recipe_full_te_seed7.npy
+!scripts/artifacts/oof_recipe_pseudolabel_seed7labeler.npy
+!scripts/artifacts/test_recipe_pseudolabel_seed7labeler.npy
+!scripts/artifacts/recipe_pseudolabel_seed7labeler_results.json
 
 # Cleanlab confident-learning diagnostic: per-row boolean mask of
 # likely-noisy training rows, built from the LB-best 2-way blend as

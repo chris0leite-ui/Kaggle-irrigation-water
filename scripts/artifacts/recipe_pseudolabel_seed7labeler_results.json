@@ -1,0 +1,36 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "tau": 0.98,
+  "pseudo_weight": 1.0,
+  "pseudo_n": 222978,
+  "pseudo_label_dist": [
+    131298,
+    83000,
+    8680
+  ],
+  "fold_scores_argmax": [
+    0.9763317677921487,
+    0.9764086924046356,
+    0.9776189040022883,
+    0.9762534973445319,
+    0.9763795621812569
+  ],
+  "overall_argmax_bal_acc": 0.9765984977342752,
+  "tuned_log_bias_bal_acc": 0.9801704062882196,
+  "log_bias": [
+    1.2324411632360976,
+    1.2689466919465482,
+    3.400768902044088
+  ],
+  "baseline_tuned": 0.9796650350078755,
+  "delta_vs_baseline": 0.0005053712803441135,
+  "labeler_test_path": "scripts/artifacts/test_recipe_full_te_seed7.npy",
+  "labeler_bias_json": "scripts/artifacts/recipe_full_te_seed7_results.json",
+  "labeler_bias": [
+    1.1324411632360976,
+    1.2689466919465482,
+    3.3007689020440885
+  ],
+  "suffix": "seed7labeler"
+}

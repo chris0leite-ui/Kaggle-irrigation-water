@@ -5555,3 +5555,132 @@ Closed the two open paths from the argmax-equivalence theorem:
   isotonic would find."
 
 - **No LB probe.** LB-best unchanged at 0.97998. LB budget unchanged.
+
+### 2026-04-24 — multi-seed pseudo-label completed: NULL, ceiling-breaker list exhausted
+
+- Goal: complete the multi-seed pseudo-label experiment to test whether
+  decoupling the labeler's fold-split (FOLD_SEED=7) from the target
+  model's fold-split (FOLD_SEED=42) bypasses the stage-2 OOF-overfit
+  failure mode. Stage-2 NULL on LB (0.97989) was attributed to
+  labeler+target chain on the same seed=42 folds; seed=7 labeler
+  removes that chain.
+
+- **Stage 1: recipe at FOLD_SEED=7 (~40 min CPU)**
+  - Per-fold argmax: 0.97828/0.97652/0.97512/0.97484/0.97323
+  - Overall argmax: 0.97560 (±0.00170)
+  - Tuned OOF: 0.97973  bias=[1.13, 1.27, 3.30]
+  - Vs seed=42 recipe (0.97967): Δ=+0.00006, statistically tied.
+    Confirms same-pipeline-different-seed produces equivalent overall
+    OOF — the variation is fold-split noise, no structural lift from
+    choosing a different seed.
+
+- **Stage 2: pseudo-label at FOLD_SEED=42 with seed=7 labeler (~50 min CPU)**
+  - Pseudo subset at τ=0.98: 222,978 rows (vs seed=42 labeler's 226,162)
+  - Per-fold argmax: 0.97633/0.97641/0.97762/0.97625/0.97638
+  - Overall argmax: 0.97660 (±0.00051)
+  - **Tuned OOF: 0.98017** (bias [1.23, 1.27, **3.40**])
+  - Vs recipe (0.97967):              Δ=+0.00051
+  - Vs stage-1 pseudo (0.97993):       Δ=+0.00024
+  - Vs stage-2 LB-blend-labeler (0.98002): Δ=+0.00015
+  - **High bias 3.40 matches recipe family** (vs stage-2's 3.30) —
+    seed=7 labeler produced better-calibrated pseudo-labels than the
+    LB-best blend labeler (stage-2's labeler).
+
+- **Per-fold sum identity is the smoking gun:**
+  ```
+                        f1      f2      f3      f4      f5     sum
+  recipe (s42)         0.97544 0.97659 0.97721 0.97465 0.97557 4.87946
+  pseudo_s1 (s42 lab)  0.97700 0.97627 0.97881 0.97503 0.97589 4.88300
+  pseudo_s7 (s7 lab)   0.97633 0.97641 0.97762 0.97625 0.97638 4.88299
+  ```
+  pseudo_s1 and pseudo_s7 sums are **essentially identical** (0.00001
+  apart). Same overall lift, distributed differently across folds.
+  The fold-decoupling did NOT structurally change the lift mechanism.
+
+- **Blend analysis at recipe's bias** (saved OOFs):
+  ```
+  pseudo_s1   tuned 0.97987  errs 10,039  Jaccard vs recipe 0.7805
+  pseudo_s7   tuned 0.98002  errs 10,170  Jaccard vs recipe 0.7781
+                                          Jaccard vs s1     0.8157
+  LB-best 2way 0.98012      errs  9,851  (LB 0.97998 verified)
+
+  pairwise recipe × pseudo_s7:  peak α=0.35-0.40 → OOF 0.98014
+                                Δ vs LB-best = +0.00002 (noise)
+  pairwise LB-best × pseudo_s7: peak α=0.30-0.35 → OOF 0.98029
+                                Δ vs LB-best = +0.00017 (below threshold)
+  3-way grid (recipe + pseudo_s1 + pseudo_s7):
+                                best (0.25, 0.35, 0.40) → OOF 0.98029
+                                Δ vs LB-best = +0.00017 (same as above)
+  ```
+
+- **Diagnosis:** pseudo_s7 has **MORE errors than pseudo_s1** (10,170
+  vs 10,039) and more errors than recipe (10,170 vs 10,114). Fails
+  the "errors ≤ anchor" half of the blend heuristic. The tuned-OOF
+  lift over stage-1 (+0.00024) comes from bias-tuner re-trading errors
+  across classes, not from genuinely fewer errors. Pairwise blend
+  with recipe gives essentially same OOF as LB-best 2-way (0.98014
+  vs 0.98012, indistinguishable).
+
+  3-way blend reaches OOF 0.98029 — squarely in the structural
+  stacking-ceiling band where 3 prior submissions all landed
+  LB 0.97995-0.97997 (NULL). Expected LB ~0.97995-0.97998 = NULL.
+
+- **No LB probe warranted.** The +0.00017 OOF lift falls below the
+  +0.0002 LB-transfer threshold; expected LB lands at the structural
+  ceiling.
+
+- **Multi-seed pseudo-label closes the ceiling-breaker list.** ALL
+  four candidates we identified as "potentially structurally different
+  from existing OOFs" have now been tested and confirmed NULL:
+  ```
+  Candidate                              Result    Tested by
+  ────────────────────────────────────────────────────────────
+  Soft-target distillation               LB 0.97850 (-0.00148)  parallel session
+  171-pair binned (cat+num quantile)     OOF 0.97946 (NULL)     this branch
+  Stage-2 with LB-blend labeler          LB 0.97989 (-0.00009)  this branch
+  Multi-seed pseudo (seed=7 labeler)     OOF 0.98017 (NULL)     this branch
+  ```
+  Combined with the prior 12-component greedy bank (all stacking
+  variants confirmed null at OOF 0.98030 → LB 0.97995-0.97997), this
+  is **rock-solid evidence that LB 0.97998 is the structural ceiling
+  for own-pipeline approaches** on this competition's feature
+  representation.
+
+- LB budget: 8/10 used today, 2 saved for tomorrow.
+
+- **New LEARNINGS.md candidates from this experiment:**
+  1. **Per-fold OOF sum identity is the diagnostic for structural-
+     equivalence**: when two pipelines produce nearly identical fold-
+     argmax sums (4.88300 vs 4.88299), they differ only in WHICH rows
+     they get right per-fold, not in TOTAL signal extracted. Decoupling
+     mechanisms (different fold seeds) don't change this — the lift
+     mechanism is the same, just the specific rows differ.
+  2. **The "magnitude trap" applies to multi-seed pseudo too**: a
+     candidate with MORE errors than the anchor will fail to lift even
+     if its Jaccard < 0.80. Decoupling labeler seed doesn't cure this.
+  3. **Multi-seed pseudo-label is NOT a structural fold-decoupling
+     lever**: the stage-2 OOF-overfit failure mode is NOT bypassed by
+     using a different fold-seed for the labeler. The mechanism we
+     hypothesized (labeler+target on same folds → calibration leak)
+     was wrong; the actual mechanism is more subtle (probably: the
+     pseudo-label's argmax encodes the LABELER MODEL's specific
+     tree-split bias, regardless of which folds the labeler was
+     trained on).
+  4. **Ceiling-breaker exhaustion takes O(n) experiments where n is
+     the number of GENUINELY DIFFERENT mechanisms**, not the number
+     of variants per mechanism. We tested 4 mechanisms × ~3 variants
+     each = 12 experiments to be confident the ceiling is structural.
+     Less than that and we'd have residual uncertainty; more would be
+     diminishing returns.
+
+- **Final candidates for LB submission (locked unless something
+  fundamentally new arrives):**
+  1. **Primary: `submission_recipe_greedy_recipe_pseudolabel.csv`**
+     (LB 0.97998, OOF 0.98012, gap +0.00014). Verified
+     ceiling-sweet-spot.
+  2. **Safe fallback: `submission_recipe_full_te.csv`**
+     (LB 0.97939, OOF 0.97967, gap +0.00028). Pure single-model
+     baseline, no blend overfit risk on private LB.
+
+  Pack 0.98114 stays +0.00116 above; leader 0.98219 stays +0.00221
+  above. Reachable only via public-CSV blending (banned).
