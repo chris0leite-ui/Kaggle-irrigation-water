@@ -70,6 +70,11 @@ if SMOKE:
 OTE_ALPHA = float(os.environ.get("OTE_ALPHA", "1.0"))
 XGB_BOOSTER = os.environ.get("XGB_BOOSTER", "gbtree")
 FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
+# DAE_EMBED_PATH: optional path to a 128-d SwapNoise-DAE train embedding
+# (.npy, shape (n_train, K)). The matching test array is derived by
+# replacing "oof_" → "test_". When set, the K columns are added as extra
+# numerics. Integration for A2 / P1.
+DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -90,6 +95,8 @@ if FOLD_SEED != SEED:
     _parts.append(f"seed{FOLD_SEED}")
 if CLEANLAB_TREATMENT:
     _parts.append(f"cl{CLEANLAB_TREATMENT}")
+if DAE_EMBED_PATH:
+    _parts.append("dae")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -114,11 +121,19 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     test_ids = test["id"].values
     train.drop(columns=["id"], inplace=True)
     test.drop(columns=["id"], inplace=True)
+    # Track original positions so DAE embeddings (produced on full 630k/270k)
+    # can be subsampled to match the SMOKE subset.
+    train_subset_idx = None
+    test_subset_idx = None
     if SMOKE:
         log("SMOKE=1 — subsampling to 20k train, 10k test")
-        train = train.sample(20_000, random_state=SEED).reset_index(drop=True)
-        test = test.sample(10_000, random_state=SEED).reset_index(drop=True)
-        test_ids = test_ids[:10_000]
+        train_s = train.sample(20_000, random_state=SEED)
+        train_subset_idx = train_s.index.to_numpy()
+        train = train_s.reset_index(drop=True)
+        test_s = test.sample(10_000, random_state=SEED)
+        test_subset_idx = test_s.index.to_numpy()
+        test = test_s.reset_index(drop=True)
+        test_ids = test_ids[test_subset_idx]
 
     nums = list(test.select_dtypes(include=np.number).columns)
     cats = [c for c in test.columns if c not in nums]
@@ -163,17 +178,39 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         test[c] = codes[s:t]
         orig[c] = codes[t:]
 
+    # Optional DAE embeddings (A2 / P1). Load after all categorical-string
+    # FE is done so raw-dtype expectations are stable.
+    dae_cols: list[str] = []
+    if DAE_EMBED_PATH:
+        log(f"loading DAE embeddings from {DAE_EMBED_PATH}")
+        dae_tr = np.load(DAE_EMBED_PATH).astype(np.float32)
+        test_path_guess = DAE_EMBED_PATH.replace("oof_", "test_")
+        dae_te = np.load(test_path_guess).astype(np.float32)
+        log(f"  dae_train={dae_tr.shape}  dae_test={dae_te.shape}")
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            dae_tr = dae_tr[train_subset_idx]
+            dae_te = dae_te[test_subset_idx]
+            log(f"  SMOKE-subsampled dae: {dae_tr.shape}, {dae_te.shape}")
+        assert dae_tr.shape[0] == len(train), (dae_tr.shape, len(train))
+        assert dae_te.shape[0] == len(test), (dae_te.shape, len(test))
+        n_dae = dae_tr.shape[1]
+        dae_cols = [f"dae_{i}" for i in range(n_dae)]
+        for i, c in enumerate(dae_cols):
+            train[c] = dae_tr[:, i]
+            test[c] = dae_te[:, i]
+
     info = dict(
         nums=nums, cats=cats, combos=combos, digits=digits,
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
-        orig_stats=orig_stats_cols,
+        orig_stats=orig_stats_cols, dae_embed=dae_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
         f"cats={len(cats)} combos={len(combos)} digits={len(digits)} "
         f"num_as_cat={len(num_as_cat)} tres={len(tres)} logits={len(logits)} "
         f"freq={len(freq)} orig_stats={len(orig_stats_cols)} "
-        f"te_cols={len(info['te_cols'])}")
+        f"dae_embed={len(dae_cols)} te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
 
 
@@ -215,7 +252,8 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                 f"rows where teacher disagrees with observed")
 
     numeric_feats = (info["nums"] + info["tres"] + info["logits"]
-                     + info["freq"] + info["orig_stats"])
+                     + info["freq"] + info["orig_stats"]
+                     + info.get("dae_embed", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
