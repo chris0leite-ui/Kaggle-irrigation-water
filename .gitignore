@@ -319,5 +319,19 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/oof_recipe_full_te_dae.npy
 !scripts/artifacts/test_recipe_full_te_dae.npy
 
+# TTA production OOF artefacts (this session's K=5, σ={0.01,0.02,0.03}
+# run; complements main's K=3, σ={0.001,0.005,0.01} earlier run).
+# Baseline reproduces recipe_full_te exactly (tuned 0.97967). All σ
+# variants monotonically regress (tuned 0.97851 / 0.97683 / 0.97524).
+# Blend-unsuitable (+15-50% more errors than recipe). TTA lever CLOSED.
+!scripts/artifacts/oof_tta_recipe_baseline.npy
+!scripts/artifacts/test_tta_recipe_baseline.npy
+!scripts/artifacts/oof_tta_recipe_s010.npy
+!scripts/artifacts/test_tta_recipe_s010.npy
+!scripts/artifacts/oof_tta_recipe_s020.npy
+!scripts/artifacts/test_tta_recipe_s020.npy
+!scripts/artifacts/oof_tta_recipe_s030.npy
+!scripts/artifacts/test_tta_recipe_s030.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/

@@ -6052,3 +6052,100 @@ Anchor lb_best_3way:
   DivideMix (mechanism-novel), C1 TTA + C2 conformal, D-tier L1 zoo
   and model families (TabM, ModernNCA). Own-pipeline NN levers are
   exhausted on this feature set.
+
+### 2026-04-24 — TTA (threshold-axis Gaussian perturbation) closed as NULL
+
+- Goal: inference-time smoothing of tree step-functions at the 4 rule
+  thresholds (Soil<25, Rain<300, Temp>30, Wind>10). Perturb raw
+  numerics by σ·IQR Gaussian noise, K=5 times, recompute
+  threshold-dependent features (rule flags, LR logits, digit cols),
+  log-average predictions. Hypothesis: smooths tree step-function
+  boundaries to approximate the NN generator's smooth decision
+  surface. OTE/FREQ/num_as_cat held fixed (perturbing them would
+  create unknown keys and degenerate to prior).
+- Script: `scripts/tta_recipe_full.py` + `scripts/tta_helpers.py`
+  (scaffolded on main 2026-04-24, executed this session).
+- Production run: TTA_K=5, TTA_SIGMAS={0.01, 0.02, 0.03}, 5-fold
+  seed=42, ~50 min wall.
+- **Per-fold argmax vs recipe baseline (consistent across all 5 folds):**
+  ```
+  fold  baseline  σ=0.01   σ=0.02   σ=0.03
+  1     0.97544   0.97324  0.97131  0.96926
+  2     0.97659   0.97458  0.97248  0.97086
+  3     0.97721   0.97538  0.97335  0.97174
+  4     0.97465   0.97298  0.97097  0.96915
+  5     0.97557   0.97343  0.97146  0.96997
+  ```
+- **OOF aggregate:**
+  ```
+  variant   argmax    tuned     bias                      Δ tuned
+  baseline  0.97589   0.97967   [1.432, 1.469, 3.401]     0
+            (= recipe_full_te exactly)
+  s010      0.97392   0.97851   [1.632, 1.469, 3.401]    -0.00116
+  s020      0.97191   0.97683   [1.632, 1.469, 3.401]    -0.00284
+  s030      0.97020   0.97524   [1.132, 0.969, 2.901]    -0.00443
+  ```
+- **Diagnosis:** axis-aligned tree boundaries do NOT have smooth
+  interpolation structure. Perturbing the raw threshold numerics:
+  1. Flips rule-indicator binaries (0→1 or 1→0) when noise crosses
+     the threshold — discontinuous change in the most important
+     tree splits.
+  2. Changes digit-position features (a different integer per
+     perturbation) — more tree splits change discontinuously.
+  3. OTE / num_as_cat / FREQ held fixed (good), but the tree's
+     other path-dependent decisions (conditional on the flipped
+     rule flags) still change non-smoothly.
+  Log-averaging K predictions with discontinuous differences blurs
+  correct predictions into wrong ones rather than smoothing a single
+  correct boundary.
+- **Fundamental mismatch**: TTA works when the model has a smooth
+  underlying decision function that's being quantized by a discrete
+  step. Tree ensembles have no smooth underlying function — the step
+  IS the decision function.
+- **Blend unsuitable**: all σ variants have +15-50% more errors than
+  recipe. Blend heuristic (Jaccard <0.80 AND errs≤anchor) fails on
+  magnitude side.
+- **TTA lever CLOSED.** Baseline OOF artefact kept as clean
+  regeneration of recipe_full_te for cross-branch diagnostic.
+
+- **LB budget**: 4/10 used today, 6 remaining.
+- **LB best unchanged**: `submission_3way_recipe025_s1035_s7040.csv`
+  at LB 0.98005.
+
+---
+
+### 2026-04-24 — End-of-day session summary
+
+**5 hypothesized mechanisms tested today, ALL null or LB-regressive:**
+1. Cleanlab confident learning (A0) — flagged rows are deterministic
+   signal, not stochastic noise
+2. Saerens/BBSE EM label-shift correction (A1) — no label shift, log-bias
+   already near-Bayes-optimal
+3. C0 isotonic + greedy (v1/v2/v3) — same ~0.98030 stacking ceiling;
+   v2 LB probed at 0.97961 (−0.00044, regression from stage-2 overfit)
+4. P2 symbolic regression (gplearn) — no analytic formula for flip
+   signal; converged on trivial `sub(X,X)=0`
+5. P1 TTA inference-time smoothing — trees lack smooth underlying
+   boundary to interpolate across; monotone regression at all σ
+
+**Today's single new LB result:** c0_v2 4-way → LB 0.97961 (−0.00044
+regression, gap +0.00089). Widest gap we've observed for a blend.
+Confirms greedy forward-selection unreliable when pool contains
+known LB-regressors (stage-2, soft_distill, seed7labeler).
+
+**LB state unchanged**: 0.98005 (3-way multi-seed) remains the own-
+pipeline ceiling. Pack 0.98114 (+0.00109), Leader 0.98219 (+0.00214).
+
+**Budget used**: 1/6 net (started at 3, used 1, ended at 4/10).
+
+**Remaining mechanisms (all require GPU, not runnable on this container):**
+- P1/A2 DAE SwapNoise embeddings (Porto Seguro mechanism)
+- P3 TabM ICLR 2025 BatchEnsemble MLP
+- P4 ModernNCA differentiable kNN
+- P3 label-propagation in learned embedding (from 2026-04-24
+  outside-the-envelope list)
+
+**Recommendation for tomorrow**:
+- 1 LB probe at most on any remaining marginal OOF candidate
+- Scaffold + push at least one GPU kernel (DAE being highest EV)
+- Reserve remaining 5-6 probes for end-of-comp final selection hedging
