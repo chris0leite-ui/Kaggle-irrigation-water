@@ -4241,6 +4241,79 @@ are modeling paradigms that don't map onto any lever in the log.
     recipe pipeline; expected bounded by tree-family ceiling
     already confirmed 4 times.
 
+### 2026-04-24 — P1 TTA executed: NULL across all σ and both blend anchors
+
+- Goal: execute P1 — inference-time TTA on the 4 rule-threshold numerics.
+  Perturb Soil_Moisture / Rainfall_mm / Temperature_C / Wind_Speed_kmh
+  with Gaussian noise σ × feature_IQR, recompute only the threshold-
+  derived features (flags, LR logits, digit cols for those 4 nums, raw
+  nums), predict K times, log-average. OTE / FREQ / num_as_cat / combos
+  held fixed — perturbing them would degenerate to prior and add noise.
+- Changed: `scripts/tta_helpers.py` (perturbation + feature-recompute
+  helpers), `scripts/tta_recipe_full.py` (mirrors recipe_full_te with
+  TTA inference loops; MAX_BIN=512 to halve XGB histogram memory after
+  an OOM kill on the first production attempt with MAX_BIN=1024),
+  `scripts/tta_analyze.py` (Jaccard + magnitude + blend-gate post-
+  analysis). K=3, σ ∈ {0.001, 0.005, 0.010}.
+- Full 5-fold production wall: 31 min on CPU (after OOM fix of `del
+  orig` post-FE + per-fold `gc.collect` + `MAX_BIN=512`).
+- Results (OOF bal_acc, 5-fold seed=42):
+  ```
+  variant   argmax   tuned    errs   Jacc(recipe)  Jacc(lb_best)
+  baseline  0.97596  0.97955  8,380  0.9260        0.9101
+  s001      0.97595  0.97953  8,450  0.9084        0.8936
+  s005      0.97479  0.97870  8,984  0.8459        0.8324
+  s010      0.97364  0.97787  9,600  0.7814        0.7683
+  ```
+  Note: baseline here differs slightly from recipe_full_te's 0.97967
+  because MAX_BIN=512 vs 1024; apples-to-apples is tuned(baseline) vs
+  tuned(s*), not vs recipe_full_te.
+- Fixed-bias blend sweeps (over α ∈ [0, 0.50]):
+  ```
+                      vs recipe (anchor 0.97967)   vs LB-best 2-way (0.98012)
+  s001                peak α=0.300  Δ=+0.00008     peak α=0.075  Δ=+0.00007
+  s005                peak α=0.200  Δ=+0.00003     peak α=0.075  Δ=+0.00008
+  s010                peak α=0.150  Δ=+0.00002     peak α=0.150  Δ=+0.00009
+  ```
+  **All deltas well below the +0.0002 LB-transfer threshold**
+  documented on 2026-04-23. No LB probe warranted.
+- **Classic blend-null pattern** (third confirmation of the
+  2026-04-23 magnitude-trap rule): s001 has fewest extra errors
+  (+70) but Jaccard 0.91 is too redundant with the anchor; s010
+  has promising Jaccard 0.78 but +1,220 extra errors overwhelm
+  the orthogonal signal. No σ threads the needle.
+- **Interpretation:** at 1200+ XGB iterations on 504k rows, trees
+  have placed near-optimal axis-aligned splits across the whole
+  feature space. Any perturbation shifts far-from-boundary rows
+  more often than it helps the ~2% of boundary rows; averaging
+  K perturbations adds far-row noise faster than it smooths the
+  boundary discontinuity. The mechanism that would make TTA work
+  ("smooth step-function discontinuities near rule thresholds")
+  doesn't dominate because (a) most rows are far from thresholds,
+  (b) the model's splits are distributed across hundreds of
+  non-rule features too. Matches the recurring failure mode of
+  the axial-mechanism interventions (monotone constraints,
+  Frank-Hall ordinal, etc.) on this feature set.
+- **Portable rule** (logged for next synthetic tabular comp):
+  **Tabular TTA on threshold-axis numerics is unlikely to lift a
+  recipe-level ensemble once training has saturated. The
+  perturbation-smoothing gain scales with boundary-row fraction
+  (~2%), while the far-row noise scales with N. At 504k rows the
+  far-row noise dominates.** Skip TTA on tabular problems unless
+  the training set is small AND the boundary-row fraction is
+  large (e.g., >10%).
+- Artefacts:
+  - `scripts/artifacts/oof_tta_recipe_{baseline,s001,s005,s010}.npy`
+  - `scripts/artifacts/test_tta_recipe_{baseline,s001,s005,s010}.npy`
+  - `scripts/artifacts/tta_recipe_results.json`,
+    `tta_blend_gate_results.json`
+- LB budget unchanged at 8/10 used yesterday, 2 remaining today.
+  Current LB-best still `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at LB 0.97998.
+- Next (per P1/P2/P3 plan): P2 (gplearn symbolic regression on the 2
+  dominant error cells) launched immediately. P3 (label-propagation-
+  in-embedding) queued if P2 is null.
+
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
 The v6 {0,1,2,5} null (−0.00012) revealed that single-class-pure rows
