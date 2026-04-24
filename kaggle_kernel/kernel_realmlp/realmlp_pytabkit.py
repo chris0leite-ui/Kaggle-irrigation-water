@@ -54,7 +54,31 @@ from itertools import combinations
 from pathlib import Path
 
 # ========================= environment setup =========================
-# Install pytabkit if not present. pytabkit pulls torch, pandas, numpy.
+# P100 sm_60 shim: pre-installed torch on Kaggle kernels often lacks
+# kernel images for Pascal GPUs. Install cu121 build BEFORE pytabkit
+# (which depends on torch) so pytabkit imports against a working torch.
+def _gpu_arch():
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+            text=True, timeout=10,
+        ).strip().splitlines()
+        return [x.strip() for x in out if x.strip()]
+    except Exception as e:
+        print(f"[boot] nvidia-smi error: {e}", flush=True)
+        return []
+
+_arches = _gpu_arch()
+print(f"[boot] gpu compute_cap = {_arches}", flush=True)
+if any(a in ("6.0", "6.1") for a in _arches):
+    print("[boot] sm_60/61 detected - installing torch 2.5.1 cu121", flush=True)
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--quiet",
+        "--upgrade", "--force-reinstall", "--no-deps",
+        "torch==2.5.1", "--index-url", "https://download.pytorch.org/whl/cu121",
+    ])
+
+# Install pytabkit (will link to the newly-installed torch).
 try:
     import pytabkit as _pt
     print(f"[boot] pytabkit {getattr(_pt, '__version__', 'unknown')}", flush=True)
@@ -72,7 +96,7 @@ try:
     ).strip()
     print(f"[boot] GPU info: {out}", flush=True)
 except Exception as e:
-    print(f"[boot] nvidia-smi error: {e}", flush=True)
+    print(f"[boot] nvidia-smi info error: {e}", flush=True)
 
 import numpy as np
 import pandas as pd
