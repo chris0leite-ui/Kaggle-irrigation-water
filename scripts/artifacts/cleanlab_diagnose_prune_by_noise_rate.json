@@ -1,0 +1,51 @@
+{
+  "method": "prune_by_noise_rate",
+  "n_total": 630000,
+  "n_issues": 2035,
+  "pct_flagged": 0.32301587301587303,
+  "teacher_oof_argmax_bal": 0.9762236671058826,
+  "flagged_by_class": [
+    810,
+    964,
+    261
+  ],
+  "flagged_frac_by_class": [
+    0.0021896803877626604,
+    0.0040322243322151305,
+    0.012423247179780094
+  ],
+  "flagged_by_score": {
+    "0": 0,
+    "1": 5,
+    "2": 295,
+    "3": 372,
+    "4": 792,
+    "5": 127,
+    "6": 182,
+    "7": 225,
+    "8": 35,
+    "9": 2
+  },
+  "total_by_score": {
+    "0": 33767,
+    "1": 115457,
+    "2": 122220,
+    "3": 102157,
+    "4": 117837,
+    "5": 79203,
+    "6": 38416,
+    "7": 15026,
+    "8": 2680,
+    "9": 3237
+  },
+  "rule_mismatch_total": 10304,
+  "flagged_rule_mismatch": 2003,
+  "capture_rate_vs_rule": 0.19439052795031056,
+  "precision_vs_rule": 0.9842751842751842,
+  "flagged_teacher_agrees_with_rule": 2003,
+  "mean_self_conf_flagged": 0.011904533952474594,
+  "mean_self_conf_unflagged": 0.9813512563705444,
+  "flagged_and_teacher_right": 0,
+  "flagged_and_teacher_wrong": 2035,
+  "elapsed_sec": 0.9249606132507324
+}
