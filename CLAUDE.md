@@ -7164,6 +7164,106 @@ read time has surfaced every real lever we've found. Start there.
   - `submissions/submission_lb2_realmlp_a0375.csv` (submitted, LB 0.97991)
   - `submissions/submission_lb3_realmlp_a020.csv` (not submitted)
 
+### 2026-04-24 — greedy refit + RealMLP 3-stack: NEW LB BEST 0.98008 (+0.00003)
+
+- Goal: after the RealMLP n_ens=1 blend hit LB 0.97991 (-0.00014 from
+  magnitude trap despite Jaccard 0.62), user asked how to build on
+  the result. Diagnostic: run greedy forward-selection with RealMLP
+  added to the 38-component OOF bank, from two anchors (recipe and
+  LB-best 3-way), to see whether a better blend configuration than
+  the hand-picked α=0.375 exists in the pool.
+- Changed: `scripts/greedy_realmlp_refit.py` (mirrors c0_safe_greedy_v3
+  pattern with realmlp added to CANDIDATES, fixed recipe bias,
+  EXCLUDE = {soft_distill, xgb_spec_678, pseudo_stage2}); 17 min wall
+  on CPU. `scripts/emit_realmlp_3stack.py` emits the greedy-chosen
+  submission.
+- Greedy results:
+  ```
+  Anchor: recipe_full_te  (starts OOF 0.97967)
+    step1: + recipe_full_te_seed7          α=0.500  +0.00053
+    step2: + recipe_pseudolabel_seed7lab   α=0.200  +0.00016
+    step3: + xgb_nonrule__iso              α=0.150  +0.00012
+    step4: + em_uniform                    α=0.075  +0.00008 (stop, <1e-4)
+    final 0.98047 — RealMLP NOT picked
+  Anchor: lb_best_3way  (starts OOF 0.98029)
+    step1: + realmlp                       α=0.200  +0.00019  ← TOP PICK
+    step2: + xgb_nonrule__iso              α=0.075  +0.00014
+    step3: + recipe_full_te_a10            α=0.200  +0.00006 (stop, <1e-4)
+    final 0.98061 (Δ+0.00032 vs LB3 0.98029)
+  ```
+- **Anchor dependency is the key insight:** from recipe (weaker anchor),
+  greedy prefers same-family additions (seed7 recipe/pseudo). From
+  LB-best 3-way (stronger anchor, already exhausted within-family
+  lifts), greedy picks RealMLP FIRST — its cross-family orthogonality
+  only becomes the top pick after the anchor has consumed the easy
+  tree-family gains.
+- Structural comparison (3-stack vs first RealMLP blend):
+  ```
+  metric          submission_lb2_realmlp_a0375  submission_lb3_realmlp_nonruleiso
+  OOF             0.98039 (+0.00027)            0.98061 (+0.00032)
+  errs vs anchor  +358 (10472 vs 10114)  TRAP   -301 (9572 vs 9873)  PASS
+  Jaccard vs LB3  0.62                          0.92
+  High recall     similar                       0.9774
+  LB              0.97991 (-0.00014)            0.98008 (+0.00003)
+  ```
+- **LB probe (user-approved, submitted 19:28 UTC):**
+  `submission_lb3_realmlp_nonruleiso.csv` → **LB public = 0.98008**.
+  Δ vs prior LB-best (0.98005 from 3-way multi-seed) = **+0.00003**.
+  OOF→LB gap = **+0.00053** (wider than multi-seed's +0.00024,
+  tighter than first RealMLP blend's +0.00048).
+- Updated calibration ladder:
+  ```
+  greedy + nonrule α=0.15       0.97421 → 0.97352  gap +0.00069
+  digit-XGB standalone          0.97449 → 0.97468  gap -0.00019
+  digits-OTE × digit-XGB α=0.40 0.97477 → 0.97482  gap -0.00005
+  recipe_full_te                0.97967 → 0.97939  gap +0.00028
+  recipe × pseudo 2-way         0.98012 → 0.97998  gap +0.00014
+  3-way multi-seed              0.98029 → 0.98005  gap +0.00024
+  lb2 + realmlp α=0.375 (trap)  0.98039 → 0.97991  gap +0.00048
+  **lb3 + realmlp + nonrule_iso 0.98061 → 0.98008  gap +0.00053**  ← NEW LB BEST
+  ```
+  Gap to pack 0.98114: +0.00106 (was +0.00109).
+  Gap to leader 0.98219: +0.00211 (was +0.00214).
+- Validates THREE previously stated rules:
+  1. **Refined blend-magnitude rule (errs ≤ 1.005 × anchor)**: first
+     blend +3.5% errs → LB -0.00014; this blend -3.0% errs → LB +0.00003.
+     Sign of the LB delta tracks sign of the err-count delta.
+  2. **Greedy forward-selection beats hand-picked α**: the hand-picked
+     α=0.375 on LB2 produced a worse blend (OOF and LB) than the
+     greedy-picked α=0.200 on LB3 with xgb_nonrule_iso stacked on.
+  3. **RealMLP transfers as a blend leg** when paired correctly with
+     an LB-proven anchor + an LB-proven secondary leg (xgb_nonrule
+     was itself an LB +0.00056 lift earlier; its isotonic-calibrated
+     version on top of RealMLP addition stacks cleanly).
+- Per-class recall breakdown (stack vs LB3 anchor):
+  Low 0.9955 (vs 0.9951, +0.0004); Medium 0.9689 (vs 0.9675, +0.0014);
+  High 0.9774 (vs 0.9782, -0.0008). Net: macro-recall trade favors
+  LB transfer — larger Medium+Low gains slightly outweigh small High
+  drop under macro-recall's equal-class-weight aggregation.
+- LB budget: **2/10 spent today**, 8 remaining.
+- Artefacts:
+  - `scripts/greedy_realmlp_refit.py`, `scripts/emit_realmlp_3stack.py`
+  - `scripts/artifacts/greedy_realmlp_refit_results.json`
+  - `submissions/submission_lb3_realmlp_nonruleiso.csv` (LB 0.98008, new best)
+- **Updated final-selection candidates**:
+  1. **Primary (new LB best)**: `submission_lb3_realmlp_nonruleiso.csv`
+     → LB 0.98008, OOF 0.98061, gap +0.00053
+  2. **Safe fallback (prior LB best)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → LB 0.98005, OOF 0.98029, gap +0.00024 (tighter calibration,
+     lower variance surface — good hedge for private LB)
+- Next bets:
+  1. **n_ens=4 RealMLP retry** (~45 min GPU) — a lower-error RealMLP
+     should stack even cleaner. Expected OOF floor ~0.9770+ (+0.00060
+     vs n_ens=1), potentially pushing 3-stack OOF to 0.9808-0.9810.
+  2. **4-step greedy** trying step 3 (recipe_full_te_a10) — risky
+     since step 3 Δ=+0.00006 is below both LB-transfer threshold
+     (+0.0002) and fold noise (~0.00088). Likely OOF-overfit.
+  3. **RealMLP + other NN family** (Trompt / TabM) — test if another
+     architecturally orthogonal leg stacks cleanly with RealMLP.
+  4. **Greedy with finer α grid** around α=0.200 for RealMLP step —
+     5-min diagnostic to check if {0.175, 0.225} give materially
+     different OOF.
+
 ### 2026-04-24 — Missed-High detector: AUC 0.9711 but deploy precision 6.5% << break-even 8.8% → NULL closes Pareto-frontier via explicit High route
 
 - Goal: execute the #1 candidate proposed after the disagree+router
