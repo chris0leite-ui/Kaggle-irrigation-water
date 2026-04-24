@@ -1,0 +1,25 @@
+{
+  "anchors": {
+    "recipe_full_te": {
+      "final_oof": 0.9802561991342934,
+      "delta_vs_lb_best": 0.00012619913429345875,
+      "chosen": [
+        [
+          "recipe_pseudolabel_stage2",
+          0.5
+        ]
+      ]
+    },
+    "lb_best_2way": {
+      "final_oof": 0.9803098888315084,
+      "delta_vs_lb_best": 0.0001798888315084346,
+      "chosen": [
+        [
+          "recipe_allpairs__iso",
+          0.3
+        ]
+      ]
+    }
+  },
+  "elapsed_sec": 405.0353014469147
+}
