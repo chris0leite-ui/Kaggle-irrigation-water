@@ -1,5 +1,237 @@
 # Next steps
 
+## 2026-04-24 — Targeted research recommendations (post-LB 0.97998 ceiling)
+
+**Current LB best**: `submission_recipe_greedy_recipe_pseudolabel.csv`
+at **LB 0.97998 / OOF 0.98012** (50/50 log-blend of recipe_full_te ×
+recipe_pseudolabel). Pack 0.98114 (+0.00116 above), leader 0.98219
+(+0.00221). LB budget: ~2–3 per day remaining; deadline 2026-04-30.
+
+**Recently closed on main (2026-04-24)**:
+- Soft-target distillation — NULL (OOF +0.00084, LB −0.00148; student
+  memorized teacher OOF noise).
+- 171-pair OTE on GPU — NULL (redundant with existing digit-extraction).
+
+**Still running on main**: multi-seed pseudo-label chain (labeler at
+fold-seed=7, target at fold-seed=42) — result pending.
+
+### Consolidated lever bank (ranked by EV / hour)
+
+After a three-agent research sweep (novel tabular + imbalanced losses +
+Kaggle forum/leader recon), these are the **untried** mechanisms most
+likely to move LB. Filtered to exclude anything already in the exhausted
+bank on `CLAUDE.md`.
+
+#### Tier A — glove-fit to this problem (each plausibly +0.001 to +0.005 LB)
+
+**A0. Confident Learning / Cleanlab on training data.** `pip install
+cleanlab`; feed existing `oof_recipe_full_te.npy` into
+`find_label_issues()` to flag likely-flipped training rows; retrain
+recipe XGB with those rows either dropped, downweighted, or relabeled
+to model consensus. **Surgical fit to the known 10,304-flip setup.**
+Uses existing OOF — no training compute for the diagnostic step.
+Cost: **~45 min**. Highest EV / hour on the board.
+Ref: Northcutt 2021 (arXiv:1911.00068), github.com/cleanlab/cleanlab.
+
+**A1. Saerens-2002 / BBSE EM posterior correction.** Principled
+replacement for the heuristic log-bias [1.43, 1.47, 3.40]. Iterates
+`P(y|x) ∝ P_src(y|x) · P_tgt(y)/P_src(y)` until convergence; uses the
+10k rule-perfect reference as source. Directly targets the
+confusion-matrix geometry macro-recall optimizes. Cost: **~3 h**.
+Ref: Saerens/Latinne/Decaestecker 2002; Lipton et al. ICML 2018 BBSC.
+
+**A2. Denoising Autoencoder (Porto Seguro mechanism).** SwapNoise DAE
+on train+test+orig jointly (NO labels). Extract 128-d bottleneck
+embedding per row. Feed as 128 extra features to recipe XGB. **The
+mechanism that won Porto Seguro** (classic noisy-label tabular).
+Architecturally different from every prior NN attempt because it is
+target-unaware. Cost: **~2 h GPU**. Ref: ryancheunggit/tabular_dae.
+
+#### Tier B — mechanism-novel (+0.001 to +0.003 each)
+
+**B0. DivideMix-for-tabular (co-divide with GMM gating).** Two XGBs,
+each round splits its own train into clean/noisy via GMM on per-row
+loss, trains on the OTHER model's clean subset + soft pseudo on noisy.
+Principled fix to the stage-2 pseudo-label OOF-overfit null. Cost:
+**~3 h**. Ref: Li et al. ICLR 2020 (arXiv:2002.07394).
+
+**B1. Co-training with feature-view split.** Train recipe on rule-view
+(cats + digits) AND non-rule-view (Humidity + Prev_Irrig + EC + ORIG).
+Keep only test rows where both argmax agrees AND both margins > 0.9 as
+pseudo-labels. Breaks stage-2's labeler/target coupling via disjoint
+views. Cost: **~4-5 h**.
+
+**B2. BalPoE calibrated experts (logit-adjusted MoE).** K=4 recipes
+with `sample_weight = 1/prior^τ` for τ ∈ {0, 0.5, 1.0, 2.0}; uniform-
+average logits. Pareto-optimal for different head/tail tradeoffs.
+Cost: **~4-6 h**. Ref: Aimar et al. WACV 2024 (arXiv:2206.05260).
+
+#### Tier C — diversification / robustness (+0.0005 to +0.002 each)
+
+**C0. Per-class isotonic calibration before log-blending.** The one-
+line fix to the CatBoost-in-blend null: fit per-class isotonic on each
+component's OOF, apply to test, then log-blend calibrated probs.
+Cost: **~2 h**.
+
+**C1. Test-time augmentation via feature mask-out.** At inference, mask
+each of 19 raw features in turn (impute with column mean), average
+19+1 predictions. Cost: **~1 h**.
+
+**C2. Conformal-set size as a meta-feature.** Inductive conformal using
+10k original as calibration; encode |set| + set membership as 4 new
+features for L2 XGB. Cost: **~3 h**.
+
+#### Tier D — expanded L1 zoo (Deotte-style 3-level stack)
+
+Rank-1 Chris Deotte's signature pattern (5 prior Playground wins): 8-10
+L1 model families × 15 seeds each × L2 GBDT/MLP meta × L3 hill-climb.
+The +0.0022 LB gap to him is almost certainly compound diversity +
+stacking depth, not a single hidden trick. Missing L1 legs:
+
+**D0. TabM (ICLR 2025).** Single MLP with K=32 BatchEnsemble-style
+parallel heads. First NN family consistently matching GBDT on 46-set
+TabArena. Different from your single-head MLPs. Cost: **~1.5 h GPU**.
+Ref: yandex-research/tabm; arXiv:2410.24210.
+
+**D1. ModernNCA (differentiable KNN).** Predicts via soft-attention
+over distance-weighted training labels. Uses full 630k pool. Error
+geometry distinct from tree splits. Cost: **~2 h GPU**.
+Ref: Ye et al. 2024 (arXiv:2407.03257); LAMDA TALENT toolkit.
+
+**D2. KNN / SVR / Ridge / RF L1 legs.** Each ~30-45 min; add as
+diversity seeds for the meta-stack. Cost: **~3 h combined**.
+
+**D3. Proper L2 meta-stacker + L3 hill-climb.** Replace greedy-forward
+with multinomial LR (class_weight='balanced') AND small GBDT on
+concatenated L1 OOF probs (36+ features for 12 L1 components × 3
+classes), then differential-evolution hill-climb on L2 OOFs. Strict
+"trust-CV" rule: reject any step where OOF→LB gap proxy grows.
+Cost: **~3 h**.
+
+### Execution order (10 LB probes left, 6 days to deadline)
+
+1. **A0 Cleanlab** — today. 45 min. First LB probe.
+2. **A1 Saerens EM** + **A2 DAE** — parallel this week.
+3. **C0 isotonic calibration** as plumbing before any new blend.
+4. **D2 cheap L1 legs** (KNN / SVR / Ridge / RF) — background adds.
+5. **D0 TabM** + **D1 ModernNCA** — one GPU kernel session.
+6. **D3 proper L2 + L3 stack** — final consolidation.
+7. **B0 DivideMix** only if a component with Jaccard < 0.80 AND fewer-
+   errors than LB-best emerges (worth compounding; otherwise skip).
+
+### Rules consolidated from the last two LB regressions
+
+- **OOF→LB gap ≤ +0.00020** = likely transfer. Above +0.0003 = treat
+  any LB lift as lucky. Confirmed twice (LB-best 2-way +0.00014
+  transferred; soft-distill +0.00246 blew up −0.00148).
+- **Equal-capacity student + bagged-OOF teacher = structural overfit.**
+  Soft distillation needs student capacity ≥ 2× smaller, or full-
+  hold-out teacher construction per row.
+- **Per-step blend gains < +0.0002** likely don't transfer to LB.
+  Multi-step compounds without per-step validation = stacking
+  inflation.
+
+### Parallel-work todos — claim one, don't duplicate
+
+These are independently executable in a parallel session/container.
+Before starting, **claim it** by pushing an empty commit to main with
+message `CLAIM: <todo-id> <branch-name>` so other instances skip it.
+Output artefacts follow the listed naming convention so cross-branch
+greedy blending works out of the box.
+
+**P1. A2 Denoising Autoencoder on Kaggle GPU** — highest EV, label-
+unaware 128-d embedding feeding recipe XGB. Porto Seguro winner's
+mechanism. Architecturally novel vs every prior NN null (all label-
+supervised). ~2 h GPU.
+- Branch: `claude/dae-swapnoise-embeddings`
+- Scaffold: `kaggle_kernel/kernel_dae/` (mirror of
+  `kernel_catboost_recipe` / `kernel_ftt`).
+- SwapNoise corruption ~15% on train+test+orig jointly; bottleneck
+  128-d. Encoder-decoder MLP ~1M params; AdamW + cosine schedule.
+- Outputs: `scripts/artifacts/oof_dae_embed.npy` (630000, 128),
+  `scripts/artifacts/test_dae_embed.npy` (270000, 128),
+  `scripts/artifacts/dae_embed_results.json`.
+- Follow-up (same branch): feed 128 DAE cols as numerics to
+  `recipe_full_te.py` via a new env var `DAE_EMBED_PATH`, rerun
+  5-fold seed=42 → `oof_recipe_dae.npy`, `test_recipe_dae.npy`.
+- Ref: github.com/ryancheunggit/tabular_dae, Porto Seguro 1st-place.
+
+**P2. D2 L1 zoo expansion (KNN / SVR / Ridge / RF)** — 4 cheap CPU
+legs for the Deotte-style 8-10-family L2 stack we're missing. ~3 h
+total, **separate CPU container** (will compete with any recipe
+training on main container).
+- Branch: `claude/l1-zoo-knn-svr-ridge-rf`
+- Same 5-fold `StratifiedKFold(seed=42, shuffle=True)` split (required
+  for OOF alignment with the bank).
+- KNN (~20-30 min): `scripts/l1_knn.py`, K=50, cosine distance on
+  scaled numerics + one-hot cats. Subsample if >200k rows /fold.
+- SVR (~30-45 min): `scripts/l1_svr.py`, `sklearn.svm.SVR(kernel='rbf')`
+  on 10% stratified subsample per fold, one-vs-rest for 3-class.
+- Ridge (~10 min): `scripts/l1_ridge.py`, multinomial LR with
+  `class_weight='balanced'` on scaled numerics + OHE cats.
+- RF (~45 min): `scripts/l1_rf.py`, 500 trees `class_weight='balanced'`,
+  depth 12, on dist features.
+- Outputs per leg: `oof_<leg>.npy`, `test_<leg>.npy`,
+  `<leg>_results.json`, `submission_<leg>.csv` (diagnostic, not for LB).
+
+**P3. D0 TabM on Kaggle GPU** — ICLR 2025 BatchEnsemble-style MLP,
+K=32 parallel heads sharing most weights. First NN family consistently
+matching GBDT on TabArena. Different from v5-v9 single-head MLPs.
+~1.5 h GPU.
+- Branch: `claude/tabm-icl2025`
+- Scaffold: `kaggle_kernel/kernel_tabm/` mirroring existing NN kernels.
+- Trained on recipe 443-feature matrix OR (cheaper) on 43-dist + 66
+  digit features. Balanced-softmax loss, 5-fold seed=42.
+- Fold-1 Jaccard gate vs LB-best OOF: abort at ≥ 0.90, warn 0.85-0.90.
+- Outputs: `oof_tabm.npy`, `test_tabm.npy`, `tabm_results.json`.
+- Ref: github.com/yandex-research/tabm, arXiv:2410.24210.
+
+**P4. D1 ModernNCA on GPU** — differentiable KNN with learned
+embedding metric, uses full 630k pool (vs TabPFN's 1.5k context
+cap). Error geometry distinct from tree splits. ~2 h GPU.
+- Branch: `claude/modern-nca`
+- Ref: arXiv:2407.03257, LAMDA TALENT toolkit.
+- Outputs: `oof_modern_nca.npy`, `test_modern_nca.npy`.
+
+**P5. C0 Isotonic per-class calibration on existing OOFs** — 10 min
+CPU, no new training needed. Can run in any container with numpy +
+sklearn. Fixes the CatBoost-in-blend calibration-mismatch null.
+- Branch: `claude/isotonic-calibration`
+- Fit `IsotonicRegression(out_of_bounds='clip')` per class per
+  component on OOF, apply to test probs, save calibrated variants
+  for each of the ~20 bank OOFs.
+- Outputs: `oof_<name>_iso.npy`, `test_<name>_iso.npy` for each.
+- Greedy re-run over calibrated bank may pick a different weight vector
+  than uncalibrated.
+
+**P6. B0 DivideMix-for-tabular** — iterative mutual co-divide with GMM
+gating. Heavy (~3 h compute, CPU). Fix to stage-2 pseudo-label null
+via 2-network disagreement. Mostly worth it IF P1 or P2 reveal a leg
+with Jaccard < 0.80 AND errors ≤ LB-best.
+- Branch: `claude/dividemix-tabular`
+- Defer until a Tier-A/D result gates it.
+- Ref: Li et al. ICLR 2020 (arXiv:2002.07394).
+
+**P7. D3 proper L2 + L3 stack** — consolidation step, run ONLY after
+at least 2 new legs from P1-P3 complete. Multinomial LR
+(`class_weight='balanced'`) AND small GBDT on concatenated L1 OOF
+probs; differential-evolution hill-climb on L2 OOFs. Strict trust-CV
+gate (reject any step where OOF→LB gap proxy grows).
+- Branch: `claude/l2-meta-stack`
+
+### Already-running (do NOT duplicate)
+
+- **DROP cleanlab variant** — `claude/improve-balanced-accuracy-7Au6Y`,
+  PID 12104 on main container, folds 1-4 done
+  (deltas −0.00010, +0.00010, +0.00066, +0.00154), fold 5 running.
+  Next: blend analysis + LB-probe decision.
+- **Multi-seed pseudo-label chain** — started on main by the
+  `claude/leaderboard-optimization-plan-DNN4w` branch (see 2026-04-24
+  CLAUDE.md entry). FOLD_SEED=7 recipe → FOLD_SEED=42 pseudo with
+  seed=7 labeler. Output will be `oof_recipe_pseudolabel_seed7labeler.npy`.
+
+---
+
 **Current LB best**: `submission_greedy_nonrule_blend.csv`
 (greedy 3-way + non-rule-features-only XGB log-blend α=0.15, fixed
 greedy bias) → OOF **0.97421** / **LB 0.97352** (gap 0.00069 —

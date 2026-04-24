@@ -70,7 +70,16 @@ if SMOKE:
 OTE_ALPHA = float(os.environ.get("OTE_ALPHA", "1.0"))
 XGB_BOOSTER = os.environ.get("XGB_BOOSTER", "gbtree")
 FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
+# Cleanlab intervention: modify training rows flagged as label-noise.
+#   ""           — baseline (no intervention)
+#   "drop"       — drop flagged rows from each fold's train set
+#   "downweight" — multiply flagged rows' sample_weight by CLEANLAB_WEIGHT
+#   "relabel"    — replace flagged rows' y with teacher argmax
+# Expected mask path: scripts/artifacts/cleanlab_issues_prune_by_noise_rate.npy
+CLEANLAB_TREATMENT = os.environ.get("CLEANLAB_TREATMENT", "")
+CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 assert XGB_BOOSTER in ("gbtree", "dart"), f"XGB_BOOSTER must be gbtree|dart, got {XGB_BOOSTER}"
+assert CLEANLAB_TREATMENT in ("", "drop", "downweight", "relabel"), CLEANLAB_TREATMENT
 
 _parts = []
 if OTE_ALPHA != 1.0:
@@ -79,6 +88,8 @@ if XGB_BOOSTER != "gbtree":
     _parts.append(XGB_BOOSTER)
 if FOLD_SEED != SEED:
     _parts.append(f"seed{FOLD_SEED}")
+if CLEANLAB_TREATMENT:
+    _parts.append(f"cl{CLEANLAB_TREATMENT}")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -172,6 +183,37 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
     y = train[TARGET].to_numpy()
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
 
+    # Load cleanlab mask + teacher (if relabel) once, up-front.
+    cleanlab_mask = None
+    teacher_pred = None
+    if CLEANLAB_TREATMENT and SMOKE:
+        log("SMOKE=1: synthesising a fake cleanlab mask (~0.3% True) so the "
+            "plumbing runs, without needing the real 630k-row mask")
+        rng = np.random.default_rng(SEED)
+        cleanlab_mask = rng.random(len(train)) < 0.003
+        if CLEANLAB_TREATMENT == "relabel":
+            teacher_pred = rng.integers(0, 3, size=len(train), dtype=np.int64)
+    elif CLEANLAB_TREATMENT:
+        mask_path = ART / "cleanlab_issues_prune_by_noise_rate.npy"
+        cleanlab_mask = np.load(mask_path)
+        assert cleanlab_mask.shape == (len(train),), cleanlab_mask.shape
+        log(f"cleanlab treatment={CLEANLAB_TREATMENT} "
+            f"flagged={int(cleanlab_mask.sum()):,} "
+            f"({100*cleanlab_mask.mean():.3f}%)")
+        if CLEANLAB_TREATMENT == "relabel":
+            eps = 1e-12
+            teach_a = np.load(ART / "oof_recipe_full_te.npy")
+            teach_b = np.load(ART / "oof_recipe_pseudolabel.npy")
+            la = np.log(np.clip(teach_a, eps, 1.0))
+            lb = np.log(np.clip(teach_b, eps, 1.0))
+            z = 0.5 * la + 0.5 * lb
+            z = z - z.max(axis=1, keepdims=True)
+            ez = np.exp(z)
+            teacher = ez / ez.sum(axis=1, keepdims=True)
+            teacher_pred = teacher.argmax(axis=1).astype(np.int64)
+            log(f"  relabel teacher loaded; {(teacher_pred != y).sum():,} "
+                f"rows where teacher disagrees with observed")
+
     numeric_feats = (info["nums"] + info["tres"] + info["logits"]
                      + info["freq"] + info["orig_stats"])
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
@@ -213,6 +255,30 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)
 
+        # Cleanlab treatment is applied BEFORE OTE fit so that the target-
+        # encoding statistics see the modified training set (matters for
+        # `drop` and `relabel`; `downweight` only affects XGB sample_weight).
+        fold_flagged = None
+        if cleanlab_mask is not None:
+            fold_flagged = cleanlab_mask[tr_idx]
+            if CLEANLAB_TREATMENT == "drop":
+                keep = ~fold_flagged
+                X_tr = X_tr.iloc[keep].reset_index(drop=True)
+                fold_tr_idx = tr_idx[keep]
+                log(f"  drop: kept {len(X_tr):,} / {len(tr_idx):,} "
+                    f"({int((~keep).sum()):,} flagged rows removed)")
+            elif CLEANLAB_TREATMENT == "relabel":
+                flagged_local = np.where(fold_flagged)[0]
+                new_labels = teacher_pred[tr_idx][fold_flagged]
+                X_tr.loc[flagged_local, TARGET] = new_labels
+                fold_tr_idx = tr_idx
+                log(f"  relabel: {len(flagged_local):,} rows reassigned "
+                    f"to teacher argmax")
+            else:  # downweight
+                fold_tr_idx = tr_idx
+        else:
+            fold_tr_idx = tr_idx
+
         # OrderedTE on train only; apply to val+test.
         log("  fitting OrderedTE")
         t0 = time.time()
@@ -229,12 +295,17 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         log(f"    OTE done in {time.time()-t0:.1f}s")
 
         feat_cols = numeric_feats + te.te_col_names()
-        sw = compute_sample_weight("balanced", y[tr_idx])
+        y_tr = y[fold_tr_idx].copy() if CLEANLAB_TREATMENT != "relabel" else X_tr[TARGET].to_numpy()
+        sw = compute_sample_weight("balanced", y_tr)
+        if CLEANLAB_TREATMENT == "downweight":
+            sw[fold_flagged] *= CLEANLAB_WEIGHT
+            log(f"  downweight: {int(fold_flagged.sum()):,} flagged rows "
+                f"weight ×{CLEANLAB_WEIGHT}")
 
-        log(f"  training XGB on {len(feat_cols)} features")
+        log(f"  training XGB on {len(feat_cols)} features, {len(X_tr):,} rows")
         model = xgb.XGBClassifier(**xgb_params)
         model.fit(
-            X_tr[feat_cols], y[tr_idx],
+            X_tr[feat_cols], y_tr,
             sample_weight=sw,
             eval_set=[(X_va[feat_cols], y[va_idx])],
             verbose=500,

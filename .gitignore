@@ -233,5 +233,22 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/oof_soft_distill.npy
 !scripts/artifacts/test_soft_distill.npy
 
+# Cleanlab confident-learning diagnostic: per-row boolean mask of
+# likely-noisy training rows, built from the LB-best 2-way blend as
+# teacher. Diagnostic flagged 2,035 rows (0.32%), 98.4% precision vs
+# rule-mismatch (the known 10,304 NN flips). Used as input mask for
+# recipe_full_te CLEANLAB_TREATMENT ∈ {drop, downweight, relabel}
+# interventions.
+!scripts/artifacts/cleanlab_issues_prune_by_noise_rate.npy
+
+# Saerens-2002 EM label-shift corrected posteriors on LB-best blend.
+# EM-uniform OOF = 0.97969 (Δ -0.00043 vs recipe-bias baseline 0.98012);
+# ties after bias re-tune. Test prior matches train prior (no label
+# shift). A1 lever CLOSED as null — log-bias already near-Bayes-optimal.
+# Kept for potential blend experiments.
+!scripts/artifacts/oof_em_uniform.npy
+!scripts/artifacts/test_em_uniform.npy
+!scripts/artifacts/test_em_testprior.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
