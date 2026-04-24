@@ -241,5 +241,14 @@ kaggle_kernel/ds_*/test_*.npy
 # interventions.
 !scripts/artifacts/cleanlab_issues_prune_by_noise_rate.npy
 
+# Saerens-2002 EM label-shift corrected posteriors on LB-best blend.
+# EM-uniform OOF = 0.97969 (Δ -0.00043 vs recipe-bias baseline 0.98012);
+# ties after bias re-tune. Test prior matches train prior (no label
+# shift). A1 lever CLOSED as null — log-bias already near-Bayes-optimal.
+# Kept for potential blend experiments.
+!scripts/artifacts/oof_em_uniform.npy
+!scripts/artifacts/test_em_uniform.npy
+!scripts/artifacts/test_em_testprior.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
