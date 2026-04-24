@@ -144,6 +144,12 @@ kernel_audit*/
 !scripts/artifacts/test_recipe_full_te_a10.npy
 !scripts/artifacts/oof_recipe_full_te_dart.npy
 !scripts/artifacts/test_recipe_full_te_dart.npy
+# A4 FE transplant (utaazu 11 domain interactions + 5 decimal-fraction
+# features via EXTRA_FE=both). Null vs recipe (Δ −0.00012) and vs
+# LB-best anchors (Jaccard 0.83-0.87, blend Δ +0.00001 to +0.00006).
+# Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_recipe_full_te_fexboth.npy
+!scripts/artifacts/test_recipe_full_te_fexboth.npy
 # N1 recipe-subset XGB variants (drop one feature block each).
 # All 4 null vs 2-way pseudolabel blend (+0.00015 5-way OOF ceiling, below
 # +0.0002 LB-transfer threshold). Kept for cross-branch greedy selection.

@@ -6542,3 +6542,122 @@ read time has surfaced every real lever we've found. Start there.
   - Further HP tuning on recipe components — LB-regressed twice
     (per-component 2026-04-22, seed-bag 2026-04-22).
 
+
+### 2026-04-24 — A4 FE transplant (utaazu 11 domain + 5 decimal) closed as NULL
+
+- Goal: execute Tier A #A4 from the kernel-audit plan. Port utaazu's 11
+  domain interaction features (`moist_rain`, `moist_temp`, `moist_wind`,
+  `ET_proxy`, `heat_stress`, `drying_force`, `water_supply`,
+  `water_deficit`, `soil_quality`, `moist_x_temp`, `wind_x_temp`) +
+  5 decimal-fraction features `(col % 1).round(2)` on
+  `{Temperature_C, Organic_Carbon, Soil_Moisture, Soil_pH,
+  Sunlight_Hours}`. 16 new numeric features added on top of the 443-col
+  recipe; total 459 features.
+- Hypothesis: utaazu's ratios encode water-balance physics that our
+  `logit_P_*` formula features approximate only via a 4-binary
+  indicator basis. The decimal-fraction features are structurally
+  distinct from our digit extraction (captures FRACTIONAL portion vs
+  INTEGER digit positions). Either source might be non-redundant with
+  the OTE-encoded joint feature manifold.
+- Changed: `scripts/recipe_features.py` + `scripts/recipe_full_te.py`
+  gained `EXTRA_FE` env var (`''|domain|decimal|both`). Suffix
+  `_fex{variant}` on outputs keeps LB-best artefacts untouched. Smoke
+  (SMOKE=1, 2-fold 20k) passed cleanly with 459 features. Production
+  (EXTRA_FE=both, 5-fold 630k seed=42) ran ~42 min CPU.
+- Results (5-fold OOF seed=42):
+  - Per-fold argmax: 0.97559, 0.97653, 0.97720, 0.97423, 0.97600
+  - Mean fold argmax: **0.97591 ± 0.00100** (recipe: 0.97589 ± 0.00090;
+    A4 tracking recipe within fold-noise, actually +0.00002 at argmax
+    but post-tune −0.00012 below)
+  - **Tuned OOF: 0.97955** (recipe 0.97967, **Δ = −0.00012**)
+  - Tuned bias [0.9324, 1.0689, 3.2008] vs recipe's [1.4324, 1.4689,
+    3.4008] — Low/Medium biases dropped ~0.4, indicating the 16 extra
+    FE features produced sharper raw probs. But the tuned argmax
+    operating point shifted to less-optimal macro-recall geometry,
+    netting a small loss.
+  - Error count **10,024** vs recipe **10,114** — A4 has **fewer
+    errors** (−90 rows) at its own bias. The FE additions are doing
+    SOMETHING real at the prob level.
+- Blend gate vs 3 anchors (fixed recipe bias):
+  - vs recipe (0.97967): peak α=0.125 → 0.97973 (Δ = +0.00006)
+  - vs LB-best 2-way (0.98012): peak α=0.025 → 0.98016 (Δ = +0.00004)
+  - vs LB-best 3-way (0.98029): peak α=0.025 → 0.98030 (Δ = +0.00001)
+- **Jaccards** (the decisive diagnostic):
+  - vs recipe: **0.87**
+  - vs LB-best 2-way: **0.86**
+  - vs LB-best 3-way: **0.83**
+  All ≥ 0.80 redundancy threshold. A4's errors overlap too much with
+  every anchor's errors for the blend math to extract orthogonal
+  signal — even though A4 has fewer absolute errors.
+- **Verdict: NULL.** Every blend Δ is below +0.00020 LB-transfer
+  threshold; every Jaccard exceeds the 0.80 novelty threshold. The
+  extra 16 FE features are redundant with the recipe's 443-col OTE
+  surface — XGB already reconstructs these ratios/decimals via splits
+  on the OTE-encoded joint manifold.
+- **Rule confirmed** (previously stated, now 2nd empirical validation):
+  blend-gate requires BOTH `Jaccard < 0.80` AND `errs ≤ anchor`. A4
+  satisfies the magnitude half (90 fewer errors than recipe) but
+  fails the orthogonality half (Jaccard 0.83–0.87). Either alone is
+  insufficient.
+- LB delta: n/a (no submission warranted; below emit gate).
+- Current LB best unchanged at **0.98005**.
+- Artefacts committed:
+  - `scripts/artifacts/oof_recipe_full_te_fexboth.npy` + test + JSON
+  - `submissions/submission_recipe_full_te_fexboth.csv` (diagnostic,
+    not for LB probe)
+- Companion work: A1 RealMLP kernel scaffold (`kaggle_kernel/kernel_realmlp/`)
+  + `scripts/blend_realmlp.py` blend-gate analysis committed in parallel.
+  Not yet launched (requires Kaggle GPU push).
+
+### 2026-04-24 — B1 kernel audit round 2 (10 high-vote public kernels)
+
+- Goal: fresh audit of 10 high-vote public kernels never-read on this
+  branch. Every prior kernel audit has surfaced at least one real
+  lever (recipe itself was +0.00457 LB from a kernel read).
+- Kernels read (via `kaggle kernels pull`):
+  sakuno/irrigation-need-eda-combination-fe-cat (41 votes),
+  chovyxu/playgrounds2026-ep4-neural-network (42),
+  rohit8527kmr7518/ps-s6e4-lgbm-with-target-encoding-group-stats (39),
+  utaazu/0-979-cv-single-lgbm-pairwise-te-bias-tuning (36),
+  mahoganybuttstrings/pg-s6e4-realmlp-cv-0-97802-lb-0-97685 (50),
+  blamerx/s6e4-lightgbm-high-balance-0-979-cv (33),
+  blamerx/s6e4-xgboost-adv-fe-0-979-cv (33),
+  ravi20076/playgrounds6e4-tunedblend-v1 (39),
+  rohit8527kmr7518/ps-s6e4-catboost-pipeline (56),
+  saamhm/eda-baseline-model-fe-cv-ensemble-blend (43).
+- Findings ranked by novelty × plausibility:
+  1. **RealMLP-TD via pytabkit** (mahoganybuttstrings, CV 0.97802 /
+     LB 0.97685) — novel tabular NN arch NOT in our 11-NN-null set.
+     Production-tuned with n_ens=8 BatchEnsemble heads, PBLD periodic
+     embedding, smooth-clip scaler, label smoothing with cosine
+     schedule. **Highest-EV remaining GPU kernel. Scaffolded as A1
+     this session** (`kaggle_kernel/kernel_realmlp/`).
+  2. **utaazu 11 domain interactions** — ported in A4 scaffold,
+     tested NULL this session (see entry above).
+  3. **blamerx pseudolabel τ=0.92 + full-train refit at pooled
+     best_iter** — distinct from our per-fold stage-1/stage-2. Trains
+     ONE model on `train ∪ confident_test` without CV. Untested.
+  4. **rohit8527 LGBM group-by cat×num stats on synthetic 630k** —
+     we only have ORIG_mean/std from 10k. Per-cat-group mean/std
+     from the full 630k pool is untested FE. ~30 min CPU. Highest
+     ROI remaining CPU experiment.
+  5. **rohit8527 MIN_COUNT=5 rare-cat bucketing before OTE** —
+     untried; map rare categories to a single bucket before
+     target encoding. Cheap to port.
+  6. **blamerx multiplicative class-weight + Nelder-Mead** —
+     functionally equivalent to our log-bias coord-ascent but
+     multiplicative. Likely same operating point. Low EV.
+  7. **sakuno pd.qcut/pd.cut/(col/20).round binning** — overlap
+     with our num_as_cat but different granularity.
+  8. **saamhm 50-fold CV** — extreme-fold averaging as ensemble.
+     10x our compute cost for marginal lift.
+  9. **chovyxu TreeBinner (DecisionTreeClassifier bin edges)** —
+     data-driven bin edges vs qcut. Minor lever.
+  - **Skip**: `ravi20076/playgrounds6e4-tunedblend-v1` uses public-CSV
+     blending (reads `.npy`/`.parquet` from ~10 other users' kernels
+     into a `TunedBlender()` class). Banned by repo rule.
+- Read-out: the 2 highest-novelty findings (RealMLP + blamerx
+  pseudolabel τ=0.92) both require NEW compute (GPU kernel + CPU
+  rerun respectively). FE-level transplants (utaazu A4 above,
+  rohit8527 group-by stats, sakuno binning) are cheap but have
+  lower EV given the recipe's mature OTE coverage.
