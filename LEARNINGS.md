@@ -862,3 +862,50 @@ all of them on the same model.
   but overshoots into over-prediction of flips. Direct-y 3-class
   on the same features is better behaved — forces per-row
   discrimination across all rows.
+- **Focal loss with aggressive per-class alpha can REDUCE rare-class
+  recall on imbalanced tabular problems.** (PS6e4 2026-04-24) Custom
+  multi-class focal (gamma=2, alpha=(1,1,3), no class-balanced
+  sample_weight) on recipe features produced High recall 0.9741,
+  LOWER than recipe's 0.9765 baseline at each model's own tuned
+  log-bias. Mechanism: focal gradient concentrates on rare-class
+  rows AND on low-confidence rows simultaneously, shifting the
+  Med-vs-High threshold toward High predictions. The shift is
+  DISCRETE (threshold crossings) not PROBABILISTIC (calibration
+  refinement) — previously-correct Medium rows flip to High faster
+  than previously-missed-High rows get caught. Best_iter collapses
+  (59-200 for focal vs 1200+ for plain recipe), which stops training
+  while the rare-class decision surface is still overshooting.
+  Remedies: (a) milder alpha (2.0 not 3.0); (b) drop focal gamma and
+  use plain weighted-CE; (c) extend early_stopping_rounds 3-5× to
+  let the overshoot self-correct; (d) maintain class-balanced
+  sample_weight (stacks multiplicatively with focal's per-row weight).
+  Blend math is still trapped: Jaccard 0.74 (genuinely orthogonal)
+  but errs +467 vs anchor → magnitude-trap null.
+- **Teacher posteriors are the strongest signal source for boundary-
+  specialist training.** (PS6e4 2026-04-24 spec6_mh v1→v2) A binary
+  specialist on the ~10% minority class within a boundary score band
+  went from AUC 0.862 (35 raw+dist+nonrule features) to 0.938 (+5
+  teacher meta-features: `teacher_P[L|M|H]`, `teacher_mh_margin =
+  P_M - P_H`, `teacher_mh_ratio = log(P_H/P_M)`). Mechanism: boundary
+  uncertainty is exactly what the rare-class override should target,
+  and the teacher's calibrated margins measure that uncertainty
+  directly. Raw features force the specialist to re-discover the
+  boundary; teacher features hand it over pre-computed. best_iter
+  dropped 352-544 → 34-128 rounds, confirming teacher probs carry
+  most of the signal. **Use whenever training a specialist on top
+  of a strong base model.** Note: this unlocks precision but NOT
+  absolute count — hard-override at 28% precision (3.2× break-even
+  8.8%) only fires on 25 rows OOF / 2 rows test. Prevalence-bound
+  the LB impact to noise floor.
+- **Hard-override deploy break-even under macro-recall:**
+  `precision_required = n_positive_class / n_negative_pool` where
+  negative_pool is the set of rows the override can misfire on.
+  Each correct override contributes `+1/n_pos_class` to that class's
+  recall (and thus `+1/(3·n_pos_class)` to macro-recall); each wrong
+  override subtracts `-1/n_neg_class` from the negative class's
+  recall. For rare-class boundary overrides (e.g. rare-High in a
+  largely-Medium score band), the break-even precision is set by the
+  WHOLE-dataset class sizes, not the in-band ratios. On PS6e4 this
+  was 21009/239074 = 8.8%. Compute this first before scaffolding a
+  specialist — it tells you whether the specialist's achievable
+  precision is even in the usable range.

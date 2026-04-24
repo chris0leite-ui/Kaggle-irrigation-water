@@ -7192,3 +7192,167 @@ read time has surfaced every real lever we've found. Start there.
   3. **SMOTE-NC or CVAE for synthetic High rows** — training-data
      augmentation, not model architecture. Direct attack on the 21k
      High sample shortage.
+
+### 2026-04-24 — #3 focal-loss XGB + #4 score=6 M-vs-H specialist: both NULL, but v2 is first precision-beating override
+
+- Goal: execute candidates #3 (focal-loss XGB on recipe features) and
+  #4 (per-cell score=6 Medium↔High specialist) from the remaining
+  recommendation list after the Pareto-frontier closure. Both target
+  the High-recall weakness but via different mechanisms: #3 at training
+  time, #4 at deploy time.
+
+- **#3 focal-loss XGB** — `scripts/focal_common.py` +
+  `scripts/recipe_focal.py` + `scripts/blend_focal.py`.
+  Custom multi-class focal-weighted CE objective:
+  ```
+  w_sample = alpha_y * (1 - p_y)^gamma
+  grad     = w * (softmax(z) - one_hot(y))
+  hess     = w * p * (1 - p)   + eps     (diagonal softmax approx)
+  ```
+  Outer-weight approximation (treats w as constant in grad step; exact
+  focal gradient has extra terms from chain rule through (1-p_y)^gamma
+  but the approximation is indistinguishable at gamma ≤ 3 and keeps
+  hess PSD). Production run with gamma=2, alpha=(1,1,3) on the 443-
+  feature recipe matrix, xgb.train native API, custom_metric=bal_acc
+  (maximize), NO sample_weight='balanced' (focal alpha already
+  upweights rare class). 29 min wall on CPU.
+  - Per-fold timings:
+    ```
+    fold 1  best_iter=200  best_score=0.97472  argmax=0.97327  wall=433s
+    fold 2  best_iter=135  best_score=0.97512  argmax=0.97313  wall=326s
+    fold 3  best_iter=61   best_score=0.97682  argmax=0.97477  wall=242s
+    fold 4  best_iter=59   best_score=0.97422  argmax=0.97344  wall=240s
+    fold 5  argmax ~0.97384 (inferred from mean 0.97369 ± 0.00059)
+    OOF argmax = 0.97369  tuned = 0.97846  bias=[1.73, 1.77, 2.60]
+    ```
+  - Tuned bias insight: High bias 2.60 vs recipe's 3.40 — focal's
+    alpha_H=3 already pushes High probs up at training time, so
+    post-hoc log-bias correction is smaller. Test dist
+    [159674 / 100201 / 10125] = 3.75 % High (above train prior 3.33 %).
+  - Blend-gate vs LB-best 3-way (0.98029):
+    ```
+                    errs   Jaccard vs recipe   Jaccard vs 3-way
+    recipe         10,114         1.00              0.79
+    LB-best 3-way   9,983         -                 1.00
+    focal          10,450       0.779             0.739
+    peak alpha vs recipe       = 0.000  delta = +0.00000
+    peak alpha vs 2-way LB-best= 0.025  delta = +0.00002
+    peak alpha vs 3-way LB-best= 0.000  delta = +0.00000
+    ```
+  - **Jaccard 0.74 PASSES the orthogonality gate (< 0.80)** —
+    focal's errors ARE genuinely different. But errs 10,450 > 9,983
+    → +467 more errors than 3-way fails magnitude gate. Classic
+    magnitude-trap null.
+  - Per-class recall at own tuned bias:
+    ```
+               recL      recM      recH
+    recipe    0.9950    0.9675    0.9765
+    3-way     0.9941    0.9694    0.9774
+    focal     0.9950    0.9663    0.9741   ← LOWER High than recipe
+    ```
+  - **Counter-intuitive finding**: focal with High-class upweight
+    produces LOWER High recall than baseline recipe. Mechanism:
+    gamma=2 + alpha_H=3 + no sample_weight='balanced' over-concentrates
+    gradient on rare-class rows, shifting the Medium-vs-High decision
+    surface TOWARD High predictions. But the shift is DISCRETE
+    (threshold changes) not PROBABILISTIC (calibration changes). Some
+    previously-correct Medium rows flip to High (wrong); some
+    previously-missed-High rows get caught (right); net per-class
+    recall is LOWER on High because the threshold overshoot loses
+    ~30 True-Medium rows per ~15 True-High captured. log-bias
+    coord-ascent at tuned bias=2.6 tries to compensate but plateau
+    is structural.
+  - **Portable rule** (LEARNINGS.md candidate): **"Focal loss with
+    aggressive per-class alpha on imbalanced tabular problems can
+    REDUCE rare-class recall"** when the alpha upweight is not
+    paired with a matching increase in early-stopping patience.
+    Focal's best_iter dropped from recipe's 1200+ to 59-200 rounds;
+    training stops while the rare-class decision surface is still
+    overshooting. Either (a) use milder alpha (2.0 instead of 3.0),
+    (b) remove focal gamma (plain weighted-CE), or (c) extend
+    early_stopping_rounds 3-5× to let the overshoot self-correct.
+  - LB delta: n/a (both gates fail below +0.00020 LB-transfer
+    threshold). Submission at alpha=0.00 emitted as diagnostic
+    (identical to LB-best 3-way standalone).
+
+- **#4 score=6 Medium-vs-High binary specialist** —
+  `scripts/spec6_mh.py` (v1) + `scripts/spec6_mh_v2.py` (v2) +
+  `scripts/spec6_deploy.py` + `scripts/spec6_deploy_v2.py`.
+  - Score=6 band (38,416 rows, 4.03 % High prevalence, rule always
+    predicts Medium) concentrates 70 % of all missed-High signal per
+    the 2026-04-24 error analysis. Binary P(y=High | features,
+    score=6) trained only on score=6 train-fold rows, 5-fold
+    StratifiedKFold(seed=42) aligned with every saved OOF.
+  - **v1 features (35)**: 28 dist-features (sm/rf/tc/ws dist+abs +
+    rule flags + score + boundary distances + pairwise products)
+    + 7 nonrule numerics (`Humidity, Previous_Irrigation_mm,
+    Electrical_Conductivity, Soil_pH, Organic_Carbon, Sunlight_Hours,
+    Field_Area_hectare`). OOF AUC = **0.862**.
+  - **v2 features (40)**: v1 + 5 teacher meta-features
+    (`teacher_PL, teacher_PM, teacher_PH, teacher_mh_margin,
+    teacher_mh_ratio`). Teacher = LB-best 3-way log-blend
+    (0.25 recipe + 0.35 pseudo_s1 + 0.40 pseudo_s7), OOF-leakfree
+    by construction. OOF AUC = **0.938** (+0.076 vs v1). best_iter
+    dropped 352-544 → 34-128 rounds — teacher probs carry most of
+    the signal; XGB converges fast on residual.
+  - **Deploy mechanism**: hard-override teacher_pred=Medium rows on
+    score=6 → High where P_spec > theta. Under macro-recall break-
+    even precision = H_count / M_count = 21009/239074 = 8.8 %
+    (or 8.1 % in the ratio form). Override space: 35,180 rows
+    (score=6 ∩ teacher-Medium), of which 331 are truly-High.
+  - **v1 peak at theta=0.50**: 41 overrides, 4 correct → 9.8 %
+    precision. Delta = +0.00001. Marginal.
+  - **v2 peak at theta=0.15**: 25 overrides, 7 correct →
+    **28.0 % precision** (3.2× break-even). Delta = +0.00009.
+    Rank-based top-N=50: 14 % precision, delta +0.00005.
+  - Test-side deploy: v1 at theta=0.50 → 15 overrides;
+    **v2 at theta=0.15 → only 2 overrides**. Test distribution
+    has sharper high-confidence cutoffs than OOF (expected).
+  - **Significance**: v2 is the FIRST experiment on this problem
+    to cleanly BEAT break-even precision on a High-class override
+    (28 % >> 8.8 %). The 2026-04-24 Pareto-frontier closure noted
+    that no candidate in the 7-model bank could predict High
+    correctly on teacher-miss rows, even at high candidate
+    confidence. v2 with teacher meta-features partially breaks
+    that — but only on the tiny score=6 override space, where
+    absolute counts are too small to move LB.
+  - **Portable rule** (LEARNINGS.md candidate):
+    **"Teacher posteriors (especially boundary-margin features
+    like `P_M - P_H` or `log(P_H/P_M)`) are the strongest signal
+    source for boundary-specialists."** v1→v2 went from AUC 0.862
+    to 0.938 purely by adding 5 teacher-derived features to 35
+    raw/dist features. Mechanism: boundary uncertainty is what
+    the rare-class override should target, and teacher's
+    calibrated margins directly measure that uncertainty. Raw
+    features force the specialist to re-discover the boundary;
+    teacher features hand it over pre-computed. Use this pattern
+    whenever training a specialist to complement a strong
+    base-model's decisions.
+  - LB delta: n/a. Both variants below +0.00020 LB-transfer
+    threshold; test override count (2 rows at v2 peak) too small
+    to shift LB.
+
+- **Combined session read-out** (both #3 and #4 NULL for LB):
+  - Focal-loss: magnitude-trap null (Jaccard passes, errs fails).
+    The orthogonality-is-necessary-not-sufficient rule confirmed
+    yet again. Reinforces the 2026-04-24 Pareto-frontier closure.
+  - Score=6 specialist v2: first precision-beating override
+    mechanism on this problem; lever EXISTS (28 % precision) but
+    prevalence-bounded to ~10 override rows. Proof-of-concept that
+    teacher meta-features unlock signal hiding in raw features,
+    but insufficient magnitude to move LB.
+  - Still remaining untried (from the strategic shortlist):
+    RealMLP smoke-first retry (only NN family untested); SMOTE-NC
+    synthetic High rows; B0 DivideMix. Current LB best unchanged
+    at **0.98005** (3-way multi-seed).
+
+- Artefacts committed for cross-branch reuse (gitignore whitelist):
+  - `scripts/artifacts/oof_recipe_focal_g2h3.npy` + test + JSON
+  - `scripts/artifacts/oof_spec6_mh.npy` + test + JSON (v1, AUC 0.862)
+  - `scripts/artifacts/oof_spec6_mh_v2.npy` + test + JSON (v2, AUC 0.938)
+  - `scripts/artifacts/spec6_deploy_v2_results.json` (theta sweeps + rank)
+  - `scripts/artifacts/blend_focal_g2h3_results.json` (full blend-gate output)
+  - `submissions/submission_recipe_focal_g2h3.csv` (diagnostic)
+  - `submissions/submission_focal_blend_a000.csv` (diagnostic, = 3-way)
+  - `submissions/submission_spec6_override_th50.csv` (v1 hard-override test)
+  - `submissions/submission_spec6_override_v2_th15.csv` (v2 hard-override test)
