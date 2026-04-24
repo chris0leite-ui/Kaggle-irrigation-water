@@ -39,8 +39,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from common import tune_log_bias  # noqa: E402
 from recipe_features import (  # noqa: E402
     add_cat_pair_combos, add_decimal_fractions, add_digit_features,
-    add_domain_interactions, add_freq_features, add_lr_formula_logits,
-    add_num_as_cat, add_orig_mean_std, add_threshold_flags,
+    add_domain_interactions, add_freq_features, add_groupby_cat_num_stats,
+    add_lr_formula_logits, add_num_as_cat, add_orig_mean_std,
+    add_threshold_flags,
 )
 from recipe_ote import OrderedTE  # noqa: E402
 
@@ -85,6 +86,12 @@ EXTRA_FE = os.environ.get("EXTRA_FE", "")
 assert EXTRA_FE in ("", "domain", "decimal", "both"), (
     f"EXTRA_FE must be ''|domain|decimal|both, got {EXTRA_FE!r}"
 )
+# GBY: rohit8527-style group-by cat x num stats on the SYNTHETIC 630k pool.
+# When set to "1", adds per-cat-group mean/std of each numeric, merged onto
+# train+test. Distinct from add_orig_mean_std which aggregates TARGET on
+# 10k original. 8 cats x 11 nums x 2 stats = 176 extra numeric features.
+# Suffix "_gby" on outputs.
+GBY = os.environ.get("GBY", "") == "1"
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -109,6 +116,8 @@ if DAE_EMBED_PATH:
     _parts.append("dae")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
+if GBY:
+    _parts.append("gby")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -194,6 +203,14 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     log("adding ORIG mean/std per col")
     orig_stats_cols = add_orig_mean_std(train, test, orig, nums + cats, TARGET)
 
+    # rohit8527 group-by cat x num stats on synthetic 630k pool.
+    # Distinct from orig_stats (which aggregates TARGET on 10k orig).
+    gby_cols: list[str] = []
+    if GBY:
+        log("adding group-by cat x num stats (mean/std) on synthetic 630k")
+        gby_cols = add_groupby_cat_num_stats(train, test, cats, nums)
+        log(f"  gby_cols={len(gby_cols)}")
+
     # Factorize raw cats AFTER all FE that needs string values is done.
     # (OrderedTE groupby handles int keys just fine.)
     for c in cats:
@@ -231,6 +248,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
         extra_domain=extra_domain, extra_decimal=extra_decimal,
+        gby=gby_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
@@ -239,6 +257,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"freq={len(freq)} orig_stats={len(orig_stats_cols)} "
         f"dae_embed={len(dae_cols)} "
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
+        f"gby={len(gby_cols)} "
         f"te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
 
@@ -284,7 +303,8 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info["freq"] + info["orig_stats"]
                      + info.get("dae_embed", [])
                      + info.get("extra_domain", [])
-                     + info.get("extra_decimal", []))
+                     + info.get("extra_decimal", [])
+                     + info.get("gby", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
