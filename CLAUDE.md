@@ -6798,3 +6798,224 @@ read time has surfaced every real lever we've found. Start there.
   Stage-1 τ=0.98 is the only variant that transferred to LB positively.
   Every decoupling (stage-2 chain, lower τ, seed-7 labeler) tightened
   OOF calibration in ways that didn't survive the test split.
+
+### 2026-04-24 — B2 GroupKFold diagnostic: honest OOF confirmed, ceiling is real
+
+- Goal: execute B2 from the kernel-audit plan. Re-split the 630k
+  training set by Region (5 groups: South, West, East, Central, North)
+  instead of stratified-on-y. If StratifiedKFold(seed=42) is leaking
+  region-specific signal via OTE group means, OOF drops materially
+  under GroupKFold and the apparent 0.98005 LB ceiling is partly CV
+  artifact. Otherwise, OOF holds and the ceiling is a real structural
+  saturation.
+- Changed: new `scripts/b2_groupkfold.py` (thin 191-line wrapper;
+  imports `load_and_engineer` from `recipe_full_te`, swaps
+  StratifiedKFold for GroupKFold, keeps everything else identical —
+  same 443-feature matrix, same XGB HPs, same class-balanced sample
+  weights, same OrderedTE, same log-bias coord-ascent). Env var
+  `GROUP=region|crop` selects the grouping column. 5 regions × 5-fold
+  GroupKFold → each val fold validates exactly 1 region.
+- Production run stats (5-fold seed=42, 45 min CPU):
+  ```
+  fold  val region   n_val     best_iter   argmax_bal_acc
+  1     South        134,809   1363        0.97543
+  2     West         131,189   1183        0.97493
+  3     East         126,163   1166        0.97280   ← hardest (new-region generalisation)
+  4     Central      123,712   1238        0.97681   ← easiest
+  5     North        114,127   1175        0.97463
+
+  OOF argmax   = 0.97500 ± 0.00130   (σ wider than StratifiedKFold's ~0.00088)
+  Tuned OOF    = 0.97938             (bias [1.3324, 1.1689, 3.4008])
+  ```
+- Comparison vs StratifiedKFold baseline:
+  ```
+                          tuned OOF     bias
+  StratifiedKFold s42     0.97967       [1.4324, 1.4689, 3.4008]
+  GroupKFold Region       0.97938       [1.3324, 1.1689, 3.4008]
+  Δ                      −0.00029
+  ```
+- **Verdict: HONEST OOF.** Δ=−0.00029 is well within the 0.002
+  "honest" threshold (ruled out leakage ≥0.005 as material; 0.002–0.005
+  as moderate; ≤0.002 as honest). StratifiedKFold(seed=42) is NOT
+  exploiting region-specific leakage.
+- Interpretation details:
+  - Per-fold σ widened from ~0.00088 (StratifiedKFold) to 0.00130
+    (GroupKFold) because each fold now validates a structurally
+    distinct region. The wider variance reflects genuine regional
+    heterogeneity, not leakage.
+  - East is the hardest held-out region (−0.00287 below baseline mean);
+    Central is easiest (+0.00114 above baseline mean). Spread ~0.004
+    across regions is within the bias sensitivity a global log-bias
+    tuner can accommodate.
+  - Medium bias dropped ~0.30 (1.47→1.17) — natural consequence of
+    the fold structure producing less-balanced per-fold priors. The
+    High bias is unchanged at 3.40, confirming the High-class
+    calibration point is region-invariant.
+- **Strategic consequence**: the apparent stacking-inflation ceiling
+  documented across multiple entries (3 submissions at OOF 0.98030 →
+  LB 0.97995-0.97997; 12-component full greedy saturating at same
+  level) is confirmed REAL structural saturation. Not a CV artifact.
+  Not a region-leakage artifact. To break above LB 0.98005 requires
+  a fundamentally different mechanism, not another blend variant.
+- **Portable rule** (adds to LEARNINGS.md candidates): "When a
+  stacking ceiling is suspected, run GroupKFold over each plausible
+  leakage vector (region / crop / temporal / user-id). If the tuned
+  OOF holds within 0.002 across all vectors, the ceiling is
+  structural; if any vector produces a ≥0.002 drop, investigate
+  leakage in the OTE / frequency / group-stats features."
+- Companion blamerx τ=0.92 run (same session) came back NULL —
+  see 2026-04-24 blamerx entry above. Combined result of this
+  session: two open hypothesis items (B2 diagnostic, blamerx τ=0.92)
+  both closed; B2 with positive diagnostic value (ceiling is real),
+  blamerx with null blend result.
+- Artefacts committed:
+  - `scripts/b2_groupkfold.py`
+  - `scripts/artifacts/oof_b2_groupkfold_region.npy` + test + JSON
+  - `submissions/submission_b2_groupkfold_region.csv` (diagnostic)
+- LB budget unchanged at 10/10 used today (0 remaining). No probe
+  warranted — B2 standalone OOF is BELOW LB-best, and its purpose
+  was diagnostic anyway.
+- Current LB best unchanged at **0.98005** (3-way multi-seed).
+- **Remaining open items on the board after this session** (for
+  other agents / next session):
+  - A1 RealMLP GPU kernel (on `claude/review-leaderboard-strategy-IMYgZ`,
+    awaiting GPU queue)
+  - rohit8527 group-by cat×num stats FE (same branch)
+  - A2 Trompt GPU kernel (unclaimed)
+  - A3 Mixup XGB (unclaimed)
+  - B0 DivideMix (unclaimed; only if A1 produces a passing leg)
+  - B3 Multi-task XGB (unclaimed)
+  - rohit8527 MIN_COUNT=5 rare-cat bucketing (unclaimed)
+  - GroupKFold by Crop_Type as a second diagnostic axis (cheap
+    extension, ~45 min CPU — run with `GROUP=crop`)
+
+### 2026-04-24 — disagree meta-stack + selective router: both NULL at per-class Pareto frontier
+
+- Goal: attack the "magnitude trap" that's killed every prior blend leg
+  from two orthogonal angles simultaneously. (Option 3) train a shallow
+  XGB on teacher-vs-candidate DISAGREEMENT features (not raw probs) —
+  the stacking math no α-blend weight can encode. (Option 1) abandon
+  global log-blend entirely: route per row, keeping LB-best argmax on
+  confident rows and deferring only to a router-chosen argmax on
+  low-confidence rows. Both run on saved OOFs; no retraining of base
+  learners, ~8 min each on 8 CPU cores. Teacher = LB-best 3-way
+  (recipe 0.25 + pseudo_s1 0.35 + pseudo_s7 0.40) at fixed recipe
+  bias [1.4324, 1.4689, 3.4008], OOF 0.98029, LB 0.98005.
+- Changed: `scripts/meta_common.py` (shared loader — teacher
+  reconstruction, 7-candidate bank, y/dist/score features, pinned
+  StratifiedKFold(seed=42)), `scripts/disagree_meta_stack.py`
+  (Option 3, 36 features: per-cand P_teacher−P_cand ×3 + argmax
+  disagreement flag + teacher conf/entropy/argmax + dgp_score +
+  signed distances), `scripts/selective_router.py` (Option 1, 28
+  features: argmaxes + confidences + disagreement flags + score/dist,
+  τ ∈ {0.80..0.99} sweep + High-class-only gate), and
+  `scripts/analyze_options_3_and_1.py` (Jaccard + forecast-LB +
+  consolidated verdict).
+- **Option 3 meta-stacker — NULL**:
+  ```
+  standalone tuned OOF       0.98015  (Δ vs teacher  -0.00014)
+  meta @ recipe bias         0.97992  (Δ  -0.00036)
+  meta errors                9,538    (teacher 9,873 — 335 FEWER)
+  Jaccard vs teacher         0.8827   (redundancy zone; needs <0.80)
+  blend sweep peak α=0.35    0.98030  (Δ  +0.00001)  ← NULL
+  ```
+  Per-class recall at meta's tuned bias: Low 0.9953 / Med 0.9695 /
+  **High 0.9756** (vs teacher Low 0.9949 / Med 0.9685 / High 0.9774).
+  Meta trades **0.18 pp of High** for small Low+Medium gains.
+  Under macro-recall that trade is exactly net-zero. The 335-row
+  error reduction is invisible because macro-recall cares about
+  per-class rate, not absolute count.
+- **Option 1 router — NULL**:
+  ```
+  standalone tuned          0.98027  (Δ vs teacher  -0.00002)
+  τ=0.80  routed  8,340   bal_acc 0.98024  Δ -0.00005  net_wins +157
+  τ=0.90  routed 19,544   bal_acc 0.98026  Δ -0.00003  net_wins +424
+  τ=0.95  routed 37,467   bal_acc 0.98028  Δ -0.00000  net_wins +316  ← peak
+  τ=0.97  routed 55,160   bal_acc 0.98027  Δ -0.00001  net_wins +309
+  τ=0.99  routed 106,406  bal_acc 0.98027  Δ -0.00001  net_wins +308
+  ```
+  Low-conf (τ=0.95) routed set, per-class breakdown:
+  ```
+  class     in routed   teacher right   router right   Δ
+  Low         25,170        24,220         24,298      +78
+  Medium      11,085         5,389          5,655      +266
+  High         1,212         1,052          1,024      -28
+  ```
+  Router wins +316 rows cumulatively but **loses 28 High**. Under
+  macro-recall the +78 Low / +266 Med gains are diluted by their
+  large class denominators while the −28 High is amplified (High
+  denominator 21k). Net bal_acc: flat.
+- **High-promotion diagnostic probe** (rule: if teacher argmax ≠
+  High AND max-candidate P(High)|recipe_bias > θ → flip to High):
+  ```
+  θ=0.50  n=26,968  Δ=-0.02844   monotone worse
+  θ=0.60  n=13,350  Δ=-0.01346
+  θ=0.70  n= 5,595  Δ=-0.00544
+  θ=0.80  n= 1,738  Δ=-0.00153
+  θ=0.90  n=   252  Δ=-0.00014
+  θ=0.95  n=    62  Δ=-0.00005
+  ```
+  Strictly monotone negative at every θ. **No candidate in the
+  7-model bank predicts High correctly on rows where teacher
+  misses, even at very high candidate confidence.**
+- **Mathematical read** (portable): the LB-best 3-way teacher
+  occupies a **per-class Pareto frontier** at
+  `(recall_L, recall_M, recall_H) = (0.9949, 0.9685, 0.9774)`.
+  Every row-level rearrangement built from the existing 7-candidate
+  OOF bank shifts error mass ALONG the frontier — it cannot push
+  the frontier outward. Both a smart meta-stacker (Option 3) and
+  surgical per-row routing (Option 1) land at the same OOF 0.98028–
+  0.98030 ceiling because that's the frontier's upper envelope
+  under the current component geometry. To break 0.98030 OOF
+  requires a component whose errors are orthogonal **specifically
+  in the rare-High direction** — i.e. correctly predicts High on
+  rows where teacher says Medium, without adding new False-High
+  noise. The per-candidate High-promotion sweep proves no such
+  component exists in the current bank.
+- **New portable rules** (logging to LEARNINGS.md candidates):
+  1. **"Fewer total errors" is not enough when the metric is
+     macro-recall.** A meta-stacker that reduces total errors can
+     still be net-zero if the error reduction is distributed
+     against the rare class. Under macro-recall, errors-per-class
+     matter, not errors-total. Blend-gate should include per-class
+     recall delta, not just total-correct delta.
+  2. **Per-row routing has the same ceiling as global log-blend**
+     when router features are derived from the same component bank.
+     The router can't invent new orthogonal signal — it can only
+     choose which existing argmax to trust. If no argmax in the
+     bank is systematically better than teacher on the rare class,
+     routing plateaus at teacher.
+  3. **High-promotion rule sweep** is a cheap lever-existence test
+     (~30 s): for each θ, count how often "at least one candidate
+     says High at confidence > θ" correlates with true High among
+     teacher-misses. If monotone-negative at every θ, no future
+     blend / meta / route experiment built on the same bank can
+     break teacher in the rare-class direction. Run this BEFORE
+     scaffolding more complex experiments.
+- LB budget unchanged at 10/10 used yesterday, full 10 remaining
+  tomorrow. LB best unchanged: `submission_3way_recipe025_s1035_s7040.csv`
+  at **LB 0.98005**. No LB probe warranted — both forecasts land
+  at ~0.98005, indistinguishable from current best.
+- Artefacts committed for cross-branch reuse (.gitignore whitelist):
+  - `scripts/artifacts/oof_disagree_meta.npy` + `test_...` + JSON
+  - `scripts/artifacts/oof_selective_router.npy` + `test_...` + JSON
+  - 4 scripts under `scripts/` — all ~150 lines each, standalone,
+    reusable as diagnostic tools on any future LB-best teacher.
+- **Next (re-framed by this finding)**: the remaining path past
+  LB 0.98005 is necessarily a component-ADDITION experiment, not
+  a stacking/routing rearrangement. Candidates aligned with the
+  High-recall-specific orthogonality requirement:
+  1. **RealMLP-TD** (already scaffolded in `kaggle_kernel/kernel_realmlp/`,
+     not yet run on GPU) — untested NN family; if its errors are
+     orthogonal to teacher AND biased toward High recall, first
+     real lever since multi-seed.
+  2. **Focal-loss XGB** on the full recipe feature set, with γ=2
+     and High-class α upweight. Produces probs that push High
+     recall up by construction; different error geometry than the
+     balanced-sample-weight recipe XGB family.
+  3. **Self-supervised "missed-High" detector**: binary XGB trained
+     only on rows where `teacher_argmax ∈ {Low, Medium}` and
+     `y = High`, using the same 43-dist feature set. Negative
+     class = teacher-correct rows (subsampled). If AUC > 0.9 on
+     held-out rows, the signal exists and can be deployed as a
+     hard-gated override (not a blend). Untested.

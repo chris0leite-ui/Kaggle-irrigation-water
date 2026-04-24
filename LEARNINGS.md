@@ -183,6 +183,31 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
   hybrid. The {6,7,8} specialist (69 % Med / 31 % High, +0.00019
   hybrid lift) worked; per-rule-class specialists on score {0-3}
   (98 % Low) and {4-6} (98 % Med) were net-negative.
+- **Bi-modal mixed domains can mask the 20-80% heuristic; check per-
+  score, not aggregate.** Score-{3,6} combined is 69 % Low / 30 % Med
+  / 1.1 % High — the aggregate looks 20-80 for Low/Med, but the
+  mixture is actually score-3 (95/5 Low/Med) + score-6 (96/4 Med/High).
+  Each sub-score is uniform-class; neither individually satisfies the
+  heuristic, and combining them cannot manufacture the missing
+  minority mass (High stays at 1.1 %). Spec-36 at 43-feature dist set
+  landed spec-domain bal_acc 0.666 vs LB-best 3-way's 0.878 on the
+  same rows — override Δ was −0.008 OOF; every softmix α ≤ 0.05 gave
+  ≤ +0.00003. Rule: when combining sub-domains into a single
+  specialist, evaluate the 20-80 heuristic at the finest score/
+  cell level, not the aggregate. Bi-modal 95/5 + 96/4 sub-domains
+  stay bi-modal.
+- **Specialist feature set must match the anchor's.** Spec-678
+  worked at +0.00019 because hybrid_v3 and spec-678 both used the
+  43-feature dist set — specialization was on TRAINING DATA. Spec-36
+  on 43-dist features lost vs the LB-best 3-way (443-feature recipe)
+  on the same spec rows (−0.21 bal_acc on spec domain) even though
+  spec-36 had 750 fewer absolute errors. The richer feature set
+  provides per-class calibration (especially on rare High) that a
+  43-feature model with 1,549 High training rows can't match. Rule:
+  before specialising by training data, match the anchor's feature
+  richness — otherwise you're competing a weaker feature basis
+  against a stronger one, and bal_acc will punish you on the rare
+  class regardless of your aggregate error-count advantage.
 - **Route, don't predict, when a deterministic predictor is
   ≥99.5 % on the sub-domain AND the predicted class is
   over-represented in the remainder — AND the routed rows are not
