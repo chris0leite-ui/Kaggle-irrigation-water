@@ -242,6 +242,17 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_pseudolabel_seed7labeler.npy
 !scripts/artifacts/recipe_pseudolabel_seed7labeler_results.json
 
+# Third multi-seed pseudo-label leg: recipe at FOLD_SEED=123 +
+# pseudo_seed123labeler (target at FOLD_SEED=42). Third independent
+# labeler-split for the 4-way blend (recipe + s1 + s7 + s123) — tests
+# whether the multi-seed mechanism compounds beyond the 3-way that
+# landed LB 0.98005 (2026-04-24).
+!scripts/artifacts/oof_recipe_full_te_seed123.npy
+!scripts/artifacts/test_recipe_full_te_seed123.npy
+!scripts/artifacts/oof_recipe_pseudolabel_seed123labeler.npy
+!scripts/artifacts/test_recipe_pseudolabel_seed123labeler.npy
+!scripts/artifacts/recipe_pseudolabel_seed123labeler_results.json
+
 # Cleanlab confident-learning diagnostic: per-row boolean mask of
 # likely-noisy training rows, built from the LB-best 2-way blend as
 # teacher. Diagnostic flagged 2,035 rows (0.32%), 98.4% precision vs
