@@ -392,5 +392,13 @@ kernel_audit*/
 !scripts/artifacts/oof_missed_high.npy
 !scripts/artifacts/test_missed_high.npy
 
+# RealMLP-TD via pytabkit (careful n_ens=1 retry, 2026-04-24). First NN
+# leg in 12 attempts to pass the Jaccard gate (0.62 vs LB-best 3-way).
+# Blend submission landed LB 0.97991 (−0.00014 vs best 0.98005) —
+# magnitude-trap dominated (errs +358 vs anchor). Retained as the only
+# Jaccard-<0.65 NN OOF for future stacking experiments.
+!scripts/artifacts/oof_realmlp.npy
+!scripts/artifacts/test_realmlp.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/

@@ -7084,6 +7084,86 @@ read time has surfaced every real lever we've found. Start there.
 - LB best unchanged at **0.98005**. Own-pipeline lever count still
   converging on "ceiling is structural" per B2 GroupKFold confirmation
   (OOF honest) + 15+ other nulls.
+
+### 2026-04-24 — RealMLP retry (careful, n_ens=1): blend LB 0.97991 — Jaccard 0.62 real but magnitude trap dominates (12th NN lever closed)
+
+- Goal: careful retry of the A1 RealMLP lever after yesterday's 3h34min
+  preprocessing kill. Three config fixes applied:
+  1. `n_ens=1` explicit (was pytabkit default 8; removed 8× BatchEnsemble
+     internal preprocess multiplier that caused the hang)
+  2. `n_epochs=40` explicit (was pytabkit default ~256)
+  3. `TargetEncoder(cv=2)` (was cv=5; cuts internal TE passes 60%)
+  Plus two safety nets: fold-1 t+20min kill + total-wall t+55min kill,
+  both with graceful partial-output save on kernel side.
+- Pipeline: SMOKE-first discipline enforced via `IS_SMOKE=True` top-level
+  toggle. Kaggle SMOKE v5 confirmed end-to-end on 20k × 2 folds × 3 epochs
+  in ~5 min wall (2.6s + 2.0s per-fold GPU training, tuned OOF 0.87958 —
+  structurally clean). Downstream `np.bincount` dtype bug (y was float64
+  from pd.Series.map) fixed before production push.
+- Production (v6): 5/5 folds completed in 57.1 min kernel-internal. The
+  `TOTAL_KILL_SEC=55*60` fired at fold 5 END exactly as designed — final
+  save executed normally, all outputs written. Total Kaggle wall from
+  push ~62 min including pip installs.
+- Per-fold argmax: 0.97042 / 0.96820 / 0.97270 / 0.97053 / 0.97090
+  (σ=0.00144). **OOF argmax 0.97055, tuned 0.97636** with bias
+  [1.2324, 1.4689, 3.4008]. Feature set: 30 base cols (8 cats + 11
+  raw float nums + 11 factorized dupes of the same nums) + 9 pair
+  combos (6 pairs dropped as `nunique > N/2`) + 27 TE cols (9 combos
+  × 3 classes) = ~66 features fed to RealMLP_TD_Classifier.
+- Blend-gate analysis (`scripts/blend_realmlp.py`, fixed recipe bias
+  [1.4324, 1.4689, 3.4008]):
+  ```
+  standalone @ recipe bias:   0.97633  errs=10472  (+358 vs recipe 10114)
+  tuned (own bias):           0.97636
+
+  Jaccards:
+    vs recipe_full_te         0.6171   ← LOWEST NN Jaccard in comp log
+    vs LB-best 2-way           0.6251
+    vs LB-best 3-way           0.6206
+  ```
+- Blend sweeps (fixed recipe bias, α ∈ {0..0.50}):
+  ```
+  vs recipe   peak α=0.275  OOF 0.97991  Δ=+0.00024
+  vs LB2      peak α=0.375  OOF 0.98039  Δ=+0.00027   ← selected for LB probe
+  vs LB3      peak α=0.200  OOF 0.98047  Δ=+0.00019   (1e-5 below +0.0002 gate)
+  ```
+- **LB probe (submitted 18:32 UTC with user approval):**
+  `submission_lb2_realmlp_a0375.csv` → **LB public = 0.97991**.
+  Δ vs LB-best (0.98005) = **−0.00014**.
+  Gap OOF→LB = +0.00048 (anchor LB2's historical gap was +0.00014 →
+  inflated by +0.00034 when RealMLP added to the blend). Classic
+  magnitude-trap behavior at the LB-transfer level: the 358 extra
+  RealMLP errors translated to ~+0.00034 LB degradation despite
+  novel Jaccard.
+- Read-out: this is the **12th NN null** on this problem but of a
+  NEW flavor. Prior 11 nulls (v5-v9 MLP, FT-T, TabPFN, pretrain-FT,
+  NN-on-orig, soft-distill, DAE) all had BOTH Jaccard≥0.80 AND
+  err-magnitude issues. RealMLP uniquely satisfied the orthogonality
+  half (Jaccard 0.62 — best of any NN ever tested here) but still
+  failed the magnitude half (+3.5% more errors than anchor). New
+  rule for LEARNINGS: **Jaccard 0.62 with 0.000 err-count margin IS
+  already LB-negative** — errs ≤ anchor is tighter than just +3.5%
+  for LB transfer. Informal threshold: errs ≤ `1.005 × anchor` for
+  positive LB Δ, not `1.04 × anchor`.
+- Lever status: RealMLP at **n_ens=1** is closed. Open follow-ups:
+  1. n_ens=4 retry (~45 min expected, requires careful wall-time
+     budget; expected standalone OOF ~0.9770, same Jaccard pattern,
+     potentially lower error count if ensembling reduces per-row
+     noise).
+  2. Frozen RealMLP OOF + test are committed to the artifact bank
+     as a real diversity leg — future greedy-stacking experiments
+     on expanded OOF pools MAY still find a local optimum that
+     includes it (just not at 0.375 α on LB2 anchor).
+- LB budget: **1/10 spent today**, 9 remaining. LB best unchanged
+  at **0.98005**.
+- Artefacts:
+  - `scripts/artifacts/oof_realmlp.npy` (5.4 MB)
+  - `scripts/artifacts/test_realmlp.npy` (3.1 MB)
+  - `scripts/artifacts/realmlp_results.json`
+  - `scripts/artifacts/blend_realmlp_results.json`
+  - `submissions/submission_lb2_realmlp_a0375.csv` (submitted, LB 0.97991)
+  - `submissions/submission_lb3_realmlp_a020.csv` (not submitted)
+
 ### 2026-04-24 — Missed-High detector: AUC 0.9711 but deploy precision 6.5% << break-even 8.8% → NULL closes Pareto-frontier via explicit High route
 
 - Goal: execute the #1 candidate proposed after the disagree+router
