@@ -1,5 +1,48 @@
 # Next steps
 
+## 2026-04-24 end-of-day status + tomorrow's LB probes
+
+**Current LB best on main**: `submission_3way_recipe025_s1035_s7040.csv`
+→ **LB 0.98005 / OOF 0.98029** (3-way multi-seed log-blend of
+recipe 0.25 + pseudo_s1 0.35 + pseudo_s7labeler 0.40).
+Pack 0.98114 (+0.00109), leader 0.98219 (+0.00214).
+
+**Today's verified nulls (do not re-try without new angle):**
+- Cleanlab A0 (drop/downweight/relabel) — flagged rows are signal not noise
+- Saerens/BBSE EM A1 — log-bias already near-Bayes-optimal, no label shift
+- C0 isotonic + greedy (38 comp) — same 0.98030 stacking ceiling
+- Soft-target distillation — LB 0.97850 (−0.00148)
+- 171-pair OTE on GPU — redundant with existing digit FE
+- Stage-2 pseudo-label w/ blend-labeler — LB 0.97989
+- Multi-seed pseudo-label (seed=7 labeler) — OOF null standalone
+
+**Today's new OOF candidate (waiting for LB probe tomorrow):**
+- `submission_c0_v2_recipe_full_te.csv` — 4-way log-blend anchored
+  on recipe: +pseudolabel_stage2 (α=0.50) +recipe_seed7 (α=0.25)
+  +recipe_171pair (α=0.10). **OOF 0.98050**, Δ=+0.00021 vs current
+  LB-best 3-way's OOF 0.98029. At LB-transfer threshold — range of
+  expected LB is 0.98005-0.98026 (ties current vs +0.00021 lift).
+
+**Running overnight (CPU):**
+- P1 TTA production — `tta_recipe_full.py` with σ ∈ {0.01, 0.02, 0.03},
+  K=5 perturbations. Tests inference-time smoothing on rule
+  threshold axes. If baseline output matches recipe_full_te and at
+  least one σ produces Jaccard < 0.80 + errors ≤ anchor, it's a
+  fresh blend component. ETA ~55 min wall.
+
+## Tomorrow's LB-probe priority (10 available)
+
+1. **`submission_c0_v2_recipe_full_te.csv`** (OOF 0.98050). Highest-
+   EV probe — at LB-transfer threshold, realistic chance of new LB
+   best. If LB ≥ 0.98010, save 2 probes; if < 0.98000, gap-inflation
+   confirmed beyond 4-way and further own-pipeline stacking is dead.
+2. If TTA overnight produces OOF ≥ recipe + orthogonal signal: blend
+   into greedy, probe the best new candidate. ~1 probe.
+3. If #1 lifts: try a variant with different weighting of the 4-way
+   (e.g. 0.4 / 0.35 / 0.15 / 0.10 distribution) to confirm the lift
+   isn't a single-point artefact.
+4. Hold remaining probes for end-of-comp final selection.
+
 ## 2026-04-24 — Targeted research recommendations (post-LB 0.97998 ceiling)
 
 **Current LB best**: `submission_recipe_greedy_recipe_pseudolabel.csv`
