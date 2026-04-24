@@ -4022,6 +4022,71 @@ architecture or feature view adds orthogonal bits at this base.
 - Artefacts committed: `oof_hedge_avg_lb_bests.npy`,
   `test_hedge_avg_lb_bests.npy`, `hedge_avg_lb_bests_results.json`.
 
+### 2026-04-24 — focal-loss XGB (γ=2, α=balanced) smoke: NULL (magnitude-trap calibration mismatch)
+
+- Goal: the one untried *training-time* lever for the High Pareto
+  frontier. Teacher's per-class recall [0.9949, 0.9685, 0.9774] is a
+  Pareto ceiling on the current OOF bank; post-hoc overrides
+  (detector, router, disagree-meta) all null because they rearrange
+  the same bank. Focal loss changes the ERROR DISTRIBUTION produced
+  by the base learner via the `(1-p_y)^γ` hardness modulation.
+- Changed: `scripts/recipe_focal_obj.py` — multiclass softmax-focal
+  grad/hess closure over (γ, per-class α, sample_weight). Unit
+  tests: γ=0 recovers softmax CE exactly; γ∈{1,2,3} analytical
+  gradient matches finite-difference at rel err ~1e-8.
+  `scripts/recipe_focal.py` — mirrors recipe_full_te FE+CV but uses
+  `xgb.train()` with the custom obj (α = balanced-per-class
+  × ALPHA_HIGH env multiplier, γ via GAMMA env, early-stop on
+  custom bal_acc metric). `scripts/focal_smoke_blend_gate.py` —
+  post-hoc Jaccard + fixed-bias sweep diagnostic.
+- Smoke pass (FOCAL_SMOKE=1, 2-fold × 630k, γ=2.0, α_High=1×balanced):
+  - Fold 1: argmax 0.97598, best_iter=**45**
+  - Fold 2: argmax 0.97553, best_iter=**39**
+  - Overall OOF argmax: 0.97576 (σ=0.00022)
+  - **Tuned OOF: 0.97742** with bias **[1.83, 1.77, 2.20]** —
+    notably the High bias is 2.20 vs recipe's 3.40. Focal's γ
+    modulation + balanced α already produces sharper High probs,
+    so less post-hoc bias correction is needed.
+  - Per-class recall at focal's own tuned bias:
+    Low 0.99479 / Medium 0.96513 / **High 0.97235** — vs teacher's
+    0.9774, focal's High is LOWER despite the extra hardness focus.
+  - **Gradient verified correct** — `best_iter` 39-45 across folds,
+    not the pathological best_iter=1 from the 2026-04-21 GCE bug.
+- Fixed-bias blend gate vs LB-best 3-way teacher (held-out rows only,
+  recipe bias [1.43, 1.47, 3.40]):
+  - Teacher bal_acc @ recipe bias: 0.98029, errs 9,873
+  - Focal bal_acc @ recipe bias:  **0.94801**, errs **36,942** (3.7×)
+  - Jaccard(focal, teacher) = **0.2401** (lowest Jaccard we've ever
+    seen — true architectural orthogonality)
+  - Blend sweep α∈[0, 0.5]: **monotone negative from α=0.025 onwards**
+    (α=0.050 Δ=−0.00001, α=0.500 Δ=−0.00142). Peak at α=0 (no blend).
+- **Classic magnitude-trap failure** — the 11th NN-family-adjacent
+  null with the same geometry: exceptional Jaccard orthogonality
+  (0.24!) but 3.7× error-count overflow when evaluated at the
+  anchor's calibration scale. Focal's α=balanced + γ=2 produces
+  probs in a fundamentally different scale from recipe's XGB +
+  balanced-sample-weight. At recipe's fixed bias (the rule to
+  prevent binhigh-style retune overfit), focal's probs are
+  misaligned and 36k rows flip to wrong argmax.
+- **Production NOT launched**: 5-fold with the same objective won't
+  change the calibration-mismatch geometry — the scale difference is
+  architectural (training-time focal modulation), not variance.
+  Retuning bias on the focal+teacher blend per-α would manufacture
+  OOF lift that won't transfer to LB (binhigh-rule, 2026-04-21).
+- **Rule** (candidate LEARNINGS.md add): *Training-time loss changes
+  that alter a model's prob-scale calibration (focal γ>0, LDAM-DRW,
+  logit-adjustment with non-uniform priors) cannot be blended with
+  a differently-calibrated anchor at the anchor's fixed bias. They
+  either (a) need full pipeline replacement — refit teacher at the
+  new scale — or (b) need per-class isotonic calibration before
+  blending, which already nulled on C0 isotonic+greedy.* This
+  closes focal loss as a blend leg on this feature set; it remains
+  unclosed as a STANDALONE replacement for recipe, which would need
+  full 5-fold production + LB probe.
+- No LB probe warranted. Artefacts committed for cross-branch reuse:
+  `oof_recipe_focal_g2_aH1.npy` + test + results JSON + blend-gate
+  JSON + diagnostic submission CSV.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
