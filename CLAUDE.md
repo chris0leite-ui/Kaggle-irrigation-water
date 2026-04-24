@@ -7193,6 +7193,77 @@ read time has surfaced every real lever we've found. Start there.
      augmentation, not model architecture. Direct attack on the 21k
      High sample shortage.
 
+### 2026-04-24 — W2/W3/W5 weaknesses-audit session (3 experiments: 2 nulls, 1 guardrail shipped)
+
+- **Context**: branch `claude/identify-ml-weaknesses-RJbG4` session
+  driven by a plan-mode audit identifying five specific weaknesses
+  (W1 = RealMLP completion, W2 = boundary-cell specialist,
+  W3 = binary Medium head, W4 = stranded NN OOFs, W5 = greedy
+  guardrail). Executed W2 / W3 / W5 locally this session (W1 and W4
+  require Kaggle GPU push, deferred). None broke LB 0.98005 but
+  two portable rules + one tooling guardrail landed.
+- **W2 — xgb_specialist_36 (boundary cells {3,6}) closed NULL**:
+  43-feature dist set, 5-fold seed=42, spec domain 140,573 rows
+  (Low 69.2% / Medium 29.7% / High 1.1%). Specialist standalone
+  spec-domain bal_acc 0.666 vs rule 0.628 (+0.038 real lift), but
+  LB-best 3-way scored **0.878 on the same rows** (21 pp higher).
+  Override (α=1) on spec rows: Δ=−0.00846 OOF. Softmix sweep
+  monotone-neg past α=0.05 on all three routing widths (score-3,
+  score-6, combined). Root cause: bi-modal domain (score 3 is 95/5
+  Low/Med, score 6 is 96/4 Med/High) + 43-dist features ≺ 443-
+  recipe. Spec has 750 fewer raw errors but 21 pp lower bal_acc
+  because High recall craters (12% vs 97.74%). Two rules landed:
+  (a) bi-modal aggregates can mask the 20-80% minority heuristic —
+  check at sub-domain granularity, and (b) specialist feature set
+  must match the anchor's feature richness.
+- **W3 — binary_medium_head closed NULL**: 443-feature recipe set,
+  XGBoost binary:logistic on `y == 1`, 5-fold seed=42. OOF AUC
+  **0.99767** (per-fold 0.9975-0.9978). Fixed-bias sweeps on LB-
+  best 3-way (NO log-bias retune, per 2026-04-21 binhigh rule):
+  prob_mix and geo_mix peaks at g=0 (monotone-neg past 0);
+  logit_add peak at g=0 (monotone-neg both sides). Raw error count
+  DROPS with positive weight (logit_add +1.0: 8,420 errs vs
+  baseline 9,873 — 1,453 fewer wrong rows) but bal_acc DROPS in
+  lockstep because High recall is sacrificed first (prior 3.3% →
+  12× per-row leverage under macro-recall). Rule extends binhigh:
+  a binary class-k head on the SAME feature basis as the 3-class
+  anchor cannot lift at fixed bias regardless of AUC quality —
+  binary-Medium head is a reparameterisation of information
+  already in the 3-class Medium column.
+- **W5 — EXCLUDE_GREEDY_ADD guardrail shipped** in
+  `scripts/c0_safe_greedy_v3.py`. Two-level exclusion:
+  `EXCLUDE_FROM_POOL` = `{soft_distill, xgb_spec_678,
+  recipe_pseudolabel_stage2}` (never loaded) and
+  `EXCLUDE_GREEDY_ADD` = pool-excludes ∪ `{recipe_pseudolabel_
+  seed7labeler, recipe_pseudolabel_seed123labeler}` (valid anchor
+  ingredients, cannot be greedy-added). Diagnostic validated on a
+  side-by-side unguarded-vs-guarded run:
+  ```
+  anchor               unguarded  guarded    Δ
+  recipe_full_te       0.98047    0.98032   -0.00015  ← guardrail strips seed7labeler
+  lb_best_3way         0.98041    0.98041   +0.00000  ← seed7labeler already in anchor
+  ```
+  Invariant `guarded_OOF ≤ unguarded_OOF` holds in both cases. The
+  guardrail correctly prevents greedy from re-picking the
+  `seed7labeler` 2-way (documented LB regressor −0.00029) as a
+  new addition. For future greedy experiments on any branch that
+  inherits this script, adding new LB-regressors to the
+  EXCLUDE_GREEDY_ADD set is the cheapest insurance against
+  burning an LB slot on the same regression pattern twice.
+- LB budget unchanged: 0 probes spent this session. Current LB-
+  best still `submission_3way_recipe025_s1035_s7040.csv` at
+  **LB 0.98005**.
+- Three LEARNINGS.md rules landed (see LEARNINGS.md Modelling +
+  Ensembling sections):
+  1. Bi-modal sub-domains can mask 20-80% minority heuristic.
+  2. Specialist feature set must match anchor's feature richness.
+  3. Binary class-k head on same basis as anchor ≈ null at fixed
+     bias regardless of AUC.
+  4. `EXCLUDE_GREEDY_ADD` two-level exclusion for greedy
+     forward-select once ≥3 LB-regressors are in the pool.
+- Remaining W1/W4 require Kaggle GPU push (RealMLP completion +
+  stranded NN OOF backfill); skipped for next session.
+
 ### 2026-04-24 — #3 focal-loss XGB + #4 score=6 M-vs-H specialist: both NULL, but v2 is first precision-beating override
 
 - Goal: execute candidates #3 (focal-loss XGB on recipe features) and

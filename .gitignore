@@ -76,6 +76,8 @@ kernel_audit*/
 !scripts/artifacts/test_xgb_spec_678.npy
 !scripts/artifacts/oof_xgb_spec_36.npy
 !scripts/artifacts/test_xgb_spec_36.npy
+!scripts/artifacts/oof_xgb_bin_medium.npy
+!scripts/artifacts/test_xgb_bin_medium.npy
 !scripts/artifacts/oof_xgb_vanilla_dist.npy
 !scripts/artifacts/test_xgb_vanilla_dist.npy
 !scripts/artifacts/oof_lgbm_te_orig.npy

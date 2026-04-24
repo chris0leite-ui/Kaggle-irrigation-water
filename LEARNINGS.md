@@ -696,6 +696,26 @@ all of them on the same model.
   components. Use greedy first; only invest in meta-stack when your
   component pool is diverse or you're pairing it with stacking
   features the components don't already see.
+- **Greedy forward-select needs an EXCLUDE_GREEDY_ADD guardrail
+  once you have ≥3 LB-probed regressors in the pool.** On single-CV-
+  split OOFs, greedy's "pick the highest-Δ candidate at each step"
+  keeps rediscovering components that OOF-overfit against any
+  baseline trained on the same folds. Four such components on this
+  problem kept getting proposed: `stage-2 pseudo-label`,
+  `seed7labeler 2-way`, `seed123labeler`, `soft_distill`. Each had
+  OOF +0.00020 to +0.00060 lift but LB regression (−0.00029 to
+  −0.00148). Rule: maintain two exclusion sets — `EXCLUDE_FROM_POOL`
+  for components whose LB was directly probed as regressive or whose
+  output breaks log-blend semantics (sparse carriers), and
+  `EXCLUDE_GREEDY_ADD` for components that are valid anchor
+  INGREDIENTS (so must stay in pool) but are OOF-overfit
+  greedy-adds. Verify the guardrail isn't manufacturing signal by
+  running both unguarded and guarded greedy; `guarded_OOF ≤
+  unguarded_OOF` must hold (the guardrail can only strip manufactured
+  lift, never add it). Concrete: on this competition, guarded
+  greedy from `recipe_full_te` anchor dropped OOF 0.98047 → 0.98032
+  (lost the +0.00015 that `seed7labeler` would have added as step 2)
+  — the guardrail correctly traded OOF for LB-transfer.
 - **Log-space blend α around 0.15–0.50 matches the intuition that
   "mix the best model with one other for bias-variance correction".**
   Across 6 pairs on this problem, the α picked by the sweep always
@@ -812,6 +832,23 @@ all of them on the same model.
   (gap blew up from 0.00079 to 0.00186, 2.4×). Same component
   swept at fixed bias → monotonic negative from λ=0. Cost-free rule
   that prevents ~1 overfit LB burn per session.
+- **A binary class-k head on the SAME feature basis as the 3-class
+  anchor cannot lift the anchor at fixed bias, regardless of AUC
+  quality.** W3 confirmed the binhigh pattern generalises beyond the
+  rare class: binary-Medium head (OOF AUC 0.99767) on the full
+  443-feature recipe set swept into LB-best 3-way at fixed bias —
+  all three parameterisations (`prob_mix`, `geo_mix`, `logit_add`)
+  peaked at weight 0 with monotone-negative deltas in both
+  directions. The binary head is information-redundant with the
+  3-class anchor's class-k column; positive weight only shifts the
+  operating point off the macro-recall optimum. Diagnostic: raw
+  error count DROPS monotonically as the binary weight grows
+  (pushing rows toward the target class) while balanced accuracy
+  DROPS in lockstep — the rare class's recall is sacrificed first
+  because its prior is 12× smaller. Rule: for a binary head to add
+  signal, it MUST see a DIFFERENT feature basis than the anchor
+  (e.g. `xgb_nonrule`'s 13-feature rule-blind set did lift greedy
+  by +0.00056 because it ignored rule features entirely).
 - **Real LB delta ≈ 1/3 OOF delta when stacking tuned blends on
   tuned baselines.** Compounding OOF-selection biases: blend weight
   sweep + log-bias retune + component-picking. Each layer adds
