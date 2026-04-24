@@ -58,6 +58,16 @@ SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
 
+# FOLD_SEED lets us decouple the labeler's fold-split from the target
+# model's fold-split. For the "multi-seed pseudo-label" experiment:
+#   1. Train recipe_full_te at FOLD_SEED=7 → produces seed-7 labeler probs.
+#   2. Run recipe_pseudolabel at FOLD_SEED=42 (the standard target seed)
+#      with LABELER_TEST_PATH pointing at the seed=7 test probs.
+# The labeler's fold structure is disjoint from the target's, so the
+# OOF-overfit mechanism that killed stage-2 (labeler + target on same
+# seed=42 folds) doesn't apply.
+FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
+
 TAU = float(os.environ.get("PSEUDO_TAU", "0.98"))
 # Optional: down-weight pseudo rows during XGB training. V10 default = 1.0
 # (treated identically to real data). Lower values are a conservative hedge
@@ -115,7 +125,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
            a_ote: float = 1.0) -> dict:
     """OOF on REAL train only; pseudo-test rows always in training partition."""
     y_real = train[TARGET].to_numpy()
-    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
 
     numeric_feats = (info["nums"] + info["tres"] + info["logits"]
                      + info["freq"] + info["orig_stats"])

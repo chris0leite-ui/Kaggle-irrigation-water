@@ -60,10 +60,16 @@ if SMOKE:
 # Variant knobs (default preserves the LB-best pipeline):
 #   OTE_ALPHA    — shrinkage toward prior in OrderedTE (default 1.0)
 #   XGB_BOOSTER  — "gbtree" (default) or "dart" (tree dropout)
-# When either differs from default, output paths get a suffix like
-# "_a01", "_a10", "_dart", "_a10_dart" so the LB-best artefacts stay untouched.
+#   FOLD_SEED    — seed for StratifiedKFold split (default 42). Override to
+#                  7 / 123 / etc. for multi-seed pseudo-label experiments
+#                  where the labeler's fold structure is decoupled from
+#                  the downstream target model's fold split.
+# When any differs from default, output paths get a suffix like
+# "_a01", "_a10_dart", "_seed7", "_seed7_dart" so the LB-best artefacts
+# stay untouched.
 OTE_ALPHA = float(os.environ.get("OTE_ALPHA", "1.0"))
 XGB_BOOSTER = os.environ.get("XGB_BOOSTER", "gbtree")
+FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
 assert XGB_BOOSTER in ("gbtree", "dart"), f"XGB_BOOSTER must be gbtree|dart, got {XGB_BOOSTER}"
 
 _parts = []
@@ -71,6 +77,8 @@ if OTE_ALPHA != 1.0:
     _parts.append("a" + f"{OTE_ALPHA:g}".replace(".", ""))
 if XGB_BOOSTER != "gbtree":
     _parts.append(XGB_BOOSTER)
+if FOLD_SEED != SEED:
+    _parts.append(f"seed{FOLD_SEED}")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -162,7 +170,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
 def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
            a_ote: float = 1.0) -> dict:
     y = train[TARGET].to_numpy()
-    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
 
     numeric_feats = (info["nums"] + info["tres"] + info["logits"]
                      + info["freq"] + info["orig_stats"])
