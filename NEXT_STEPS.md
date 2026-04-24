@@ -11,6 +11,13 @@ recipe_pseudolabel). Pack 0.98114 (+0.00116 above), leader 0.98219
 - Soft-target distillation — NULL (OOF +0.00084, LB −0.00148; student
   memorized teacher OOF noise).
 - 171-pair OTE on GPU — NULL (redundant with existing digit-extraction).
+- **A0 Cleanlab DROP** — NULL (flagged rows are signal not noise; see
+  CLAUDE.md 2026-04-24 entry).
+- **A1 Saerens EM BBSE** — NULL (OOF ties baseline 0.98012; log-bias
+  already finds the macro-recall operating point EM would pick).
+- **A2 SwapNoise DAE** — NULL (standalone Δ=−0.00025; Jaccard 0.84 vs
+  anchors exceeds 0.80 redundancy threshold; 3-way blend Δ=+0.00001
+  at LB-best). 11th NN-family null. See CLAUDE.md 2026-04-24 entry.
 
 **Still running on main**: multi-seed pseudo-label chain (labeler at
 fold-seed=7, target at fold-seed=42) — result pending.
@@ -40,12 +47,14 @@ replacement for the heuristic log-bias [1.43, 1.47, 3.40]. Iterates
 confusion-matrix geometry macro-recall optimizes. Cost: **~3 h**.
 Ref: Saerens/Latinne/Decaestecker 2002; Lipton et al. ICML 2018 BBSC.
 
-**A2. Denoising Autoencoder (Porto Seguro mechanism).** SwapNoise DAE
+**A2. Denoising Autoencoder (Porto Seguro mechanism).** ~~SwapNoise DAE
 on train+test+orig jointly (NO labels). Extract 128-d bottleneck
-embedding per row. Feed as 128 extra features to recipe XGB. **The
-mechanism that won Porto Seguro** (classic noisy-label tabular).
-Architecturally different from every prior NN attempt because it is
-target-unaware. Cost: **~2 h GPU**. Ref: ryancheunggit/tabular_dae.
+embedding per row. Feed as 128 extra features to recipe XGB.~~
+**DONE, NULL (2026-04-24)**. Tuned OOF 0.97942 (−0.00025 vs recipe
+0.97967). Jaccard 0.84 vs anchors (> 0.80 redundancy). 3-way blend
+vs LB-best peaks at Δ=+0.00001 (noise). Label-unaware NN features
+converge to the same manifold OTE target encoding already describes;
+marginal gain doesn't survive. Artefacts committed on this branch.
 
 #### Tier B — mechanism-novel (+0.001 to +0.003 each)
 
@@ -108,15 +117,16 @@ classes), then differential-evolution hill-climb on L2 OOFs. Strict
 "trust-CV" rule: reject any step where OOF→LB gap proxy grows.
 Cost: **~3 h**.
 
-### Execution order (10 LB probes left, 6 days to deadline)
+### Execution order (updated 2026-04-24)
 
-1. **A0 Cleanlab** — today. 45 min. First LB probe.
-2. **A1 Saerens EM** + **A2 DAE** — parallel this week.
-3. **C0 isotonic calibration** as plumbing before any new blend.
-4. **D2 cheap L1 legs** (KNN / SVR / Ridge / RF) — background adds.
-5. **D0 TabM** + **D1 ModernNCA** — one GPU kernel session.
-6. **D3 proper L2 + L3 stack** — final consolidation.
-7. **B0 DivideMix** only if a component with Jaccard < 0.80 AND fewer-
+1. ~~**A0 Cleanlab**~~ — DONE, null.
+2. ~~**A1 Saerens EM**~~ — DONE, null.
+3. ~~**A2 DAE**~~ — DONE, null.
+4. **C0 isotonic calibration** as plumbing before any new blend.
+5. **D2 cheap L1 legs** (KNN / SVR / Ridge / RF) — background adds.
+6. **D0 TabM** + **D1 ModernNCA** — one GPU kernel session.
+7. **D3 proper L2 + L3 stack** — final consolidation.
+8. **B0 DivideMix** only if a component with Jaccard < 0.80 AND fewer-
    errors than LB-best emerges (worth compounding; otherwise skip).
 
 ### Rules consolidated from the last two LB regressions

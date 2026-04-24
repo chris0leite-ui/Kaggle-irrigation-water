@@ -261,10 +261,17 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_recipe_full_te_cldrop.npy
 
 # A2 / P1 SwapNoise DAE embeddings (Porto Seguro mechanism) —
-# NOT committed: 153 MB + 65 MB fp16 arrays exceed repo size policy.
-# Regenerate via: `cd kaggle_kernel/kernel_dae && kaggle kernels push`
-# then download (3 min P100 wall). fp16 cast stderr 7e-5 is invisible
-# to XGB's float32 input path.
+# raw 128-d DAE arrays NOT committed: 153 MB + 65 MB fp16 exceed
+# repo size policy. Regenerate via:
+#   cd kaggle_kernel/kernel_dae && kaggle kernels push  (3 min P100)
+# fp16 cast stderr 7e-5 is invisible to XGB's float32 input path.
+#
+# BUT the recipe+DAE XGB OOFs (7.5 MB + 3.2 MB, float32) are small
+# enough for cross-branch greedy blend. A2 was null as a blend leg
+# on 2026-04-24 but the arrays travel so future greedy searches can
+# reject it automatically from a consistent bank.
+!scripts/artifacts/oof_recipe_full_te_dae.npy
+!scripts/artifacts/test_recipe_full_te_dae.npy
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
