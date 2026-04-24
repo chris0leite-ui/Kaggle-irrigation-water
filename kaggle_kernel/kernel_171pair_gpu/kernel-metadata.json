@@ -1,0 +1,18 @@
+{
+  "id": "chrisleitescha/irrigation-171pair-recipe-gpu",
+  "title": "irrigation-171pair-recipe-gpu",
+  "code_file": "recipe_171pair_gpu.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-prediction-original"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
