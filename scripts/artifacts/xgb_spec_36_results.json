@@ -1,0 +1,27 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "spec_scores": [
+    3,
+    6
+  ],
+  "train_rows_in_spec": 140573,
+  "test_rows_in_spec": 60398,
+  "spec_prior": [
+    0.6918682819602626,
+    0.29711253227860257,
+    0.011019185761134784
+  ],
+  "best_iters_per_fold": [
+    439,
+    427,
+    367,
+    349,
+    327
+  ],
+  "n_features": 43,
+  "rule_bal_acc_on_spec": 0.6275678781784226,
+  "specialist_argmax_bal_acc": 0.6663323175719428,
+  "specialist_raw_acc": 0.9555248874250389,
+  "smoke": false
+}

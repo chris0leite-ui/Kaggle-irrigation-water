@@ -1,0 +1,24 @@
+{
+  "lb_best_oof": 0.9802863771805209,
+  "lb_best_errs": 9873,
+  "lb_best_on_spec_domain": {
+    "bal": 0.8775155741346464,
+    "errs": 7002
+  },
+  "spec36_on_spec_domain": {
+    "bal": 0.6663323175719428,
+    "errs": 6252
+  },
+  "override": {
+    "oof": 0.9718248496725059,
+    "delta": -0.008461527508014988,
+    "errs": 9724,
+    "jaccard_vs_lb": 0.6495791245791246
+  },
+  "best_softmix": {
+    "alpha": 0.05,
+    "oof": 0.9803157880914913,
+    "delta": 2.9410910970417703e-05
+  },
+  "emitted": []
+}
