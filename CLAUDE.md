@@ -4087,6 +4087,32 @@ architecture or feature view adds orthogonal bits at this base.
   `oof_recipe_focal_g2_aH1.npy` + test + results JSON + blend-gate
   JSON + diagnostic submission CSV.
 
+### 2026-04-24 — session close-out (review-edge-cases)
+
+- 4-item overlooked-levers pass executed on `claude/review-edge-cases-6K1Dm`.
+- **Item 1 (final-selection hedge audit)**: written up — primary 3-way
+  (LB 0.98005) + CatBoost hedge (LB 0.97935, gap +0.00001) preferred
+  over 3-way + 2-way pairing (both share pseudo_s1 overfit surface).
+- **Item 2 (focal-loss XGB)**: closed NULL. Smoke confirmed gradient
+  math (best_iter 39-45, not pathological 1), tuned OOF 0.97742,
+  but magnitude-trap blend gate (Jaccard 0.24 yet 3.7× errors at
+  recipe bias) killed the lever. Production not launched —
+  calibration-mismatch is architectural.
+- **Item 3 (GroupKFold-crop)**: SCRIPT WORKS but environment repeatedly
+  killed the 45-min CPU job at session turnover (three attempts
+  with `setsid nohup` detach; each died mid-training). Last
+  progress: fold 1 at round 1000, mlogloss 0.048 — consistent with
+  recipe's single-fold training curve. No artifacts produced.
+  Script `scripts/b2_groupkfold.py` is invoked with `GROUP=crop`;
+  a future session with longer wall budget should complete it.
+  Expected: OOF-honest per the Region precedent (−0.00029 delta),
+  confirming structural ceiling.
+- **Item 4 (hedge log-mean submission)**: zero-risk 50/50 log-blend
+  of 2-way × 3-way at recipe's fixed bias. OOF 0.98020. Midway
+  between anchors geometrically. Diagnostic only.
+- LB budget unchanged (no probes this session). LB best unchanged:
+  `submission_3way_recipe025_s1035_s7040.csv` at **LB 0.98005**.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
