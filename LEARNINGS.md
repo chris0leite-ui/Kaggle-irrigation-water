@@ -832,6 +832,23 @@ all of them on the same model.
   (gap blew up from 0.00079 to 0.00186, 2.4×). Same component
   swept at fixed bias → monotonic negative from λ=0. Cost-free rule
   that prevents ~1 overfit LB burn per session.
+- **A binary class-k head on the SAME feature basis as the 3-class
+  anchor cannot lift the anchor at fixed bias, regardless of AUC
+  quality.** W3 confirmed the binhigh pattern generalises beyond the
+  rare class: binary-Medium head (OOF AUC 0.99767) on the full
+  443-feature recipe set swept into LB-best 3-way at fixed bias —
+  all three parameterisations (`prob_mix`, `geo_mix`, `logit_add`)
+  peaked at weight 0 with monotone-negative deltas in both
+  directions. The binary head is information-redundant with the
+  3-class anchor's class-k column; positive weight only shifts the
+  operating point off the macro-recall optimum. Diagnostic: raw
+  error count DROPS monotonically as the binary weight grows
+  (pushing rows toward the target class) while balanced accuracy
+  DROPS in lockstep — the rare class's recall is sacrificed first
+  because its prior is 12× smaller. Rule: for a binary head to add
+  signal, it MUST see a DIFFERENT feature basis than the anchor
+  (e.g. `xgb_nonrule`'s 13-feature rule-blind set did lift greedy
+  by +0.00056 because it ignored rule features entirely).
 - **Real LB delta ≈ 1/3 OOF delta when stacking tuned blends on
   tuned baselines.** Compounding OOF-selection biases: blend weight
   sweep + log-bias retune + component-picking. Each layer adds
