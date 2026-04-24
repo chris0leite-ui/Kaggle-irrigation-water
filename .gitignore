@@ -250,5 +250,15 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_em_uniform.npy
 !scripts/artifacts/test_em_testprior.npy
 
+# Cleanlab DROP variant: recipe_full_te retrained with 2,035 flagged
+# training rows removed per fold. Tuned OOF 0.97965 (ties recipe; −0.00046
+# vs LB-best). Has +336 more errors than LB-best + Jaccard 0.796 — fails
+# blend heuristic (needs fewer errors AND Jaccard<0.80). Cleanlab lever
+# CLOSED as null — flagged rows are deterministic NN-flip signal, not
+# stochastic noise; removing them hurts model experience without gain.
+# Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_recipe_full_te_cldrop.npy
+!scripts/artifacts/test_recipe_full_te_cldrop.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
