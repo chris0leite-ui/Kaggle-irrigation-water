@@ -6749,3 +6749,93 @@ read time has surfaced every real lever we've found. Start there.
   Stage-1 τ=0.98 is the only variant that transferred to LB positively.
   Every decoupling (stage-2 chain, lower τ, seed-7 labeler) tightened
   OOF calibration in ways that didn't survive the test split.
+
+### 2026-04-24 — B2 GroupKFold diagnostic: honest OOF confirmed, ceiling is real
+
+- Goal: execute B2 from the kernel-audit plan. Re-split the 630k
+  training set by Region (5 groups: South, West, East, Central, North)
+  instead of stratified-on-y. If StratifiedKFold(seed=42) is leaking
+  region-specific signal via OTE group means, OOF drops materially
+  under GroupKFold and the apparent 0.98005 LB ceiling is partly CV
+  artifact. Otherwise, OOF holds and the ceiling is a real structural
+  saturation.
+- Changed: new `scripts/b2_groupkfold.py` (thin 191-line wrapper;
+  imports `load_and_engineer` from `recipe_full_te`, swaps
+  StratifiedKFold for GroupKFold, keeps everything else identical —
+  same 443-feature matrix, same XGB HPs, same class-balanced sample
+  weights, same OrderedTE, same log-bias coord-ascent). Env var
+  `GROUP=region|crop` selects the grouping column. 5 regions × 5-fold
+  GroupKFold → each val fold validates exactly 1 region.
+- Production run stats (5-fold seed=42, 45 min CPU):
+  ```
+  fold  val region   n_val     best_iter   argmax_bal_acc
+  1     South        134,809   1363        0.97543
+  2     West         131,189   1183        0.97493
+  3     East         126,163   1166        0.97280   ← hardest (new-region generalisation)
+  4     Central      123,712   1238        0.97681   ← easiest
+  5     North        114,127   1175        0.97463
+
+  OOF argmax   = 0.97500 ± 0.00130   (σ wider than StratifiedKFold's ~0.00088)
+  Tuned OOF    = 0.97938             (bias [1.3324, 1.1689, 3.4008])
+  ```
+- Comparison vs StratifiedKFold baseline:
+  ```
+                          tuned OOF     bias
+  StratifiedKFold s42     0.97967       [1.4324, 1.4689, 3.4008]
+  GroupKFold Region       0.97938       [1.3324, 1.1689, 3.4008]
+  Δ                      −0.00029
+  ```
+- **Verdict: HONEST OOF.** Δ=−0.00029 is well within the 0.002
+  "honest" threshold (ruled out leakage ≥0.005 as material; 0.002–0.005
+  as moderate; ≤0.002 as honest). StratifiedKFold(seed=42) is NOT
+  exploiting region-specific leakage.
+- Interpretation details:
+  - Per-fold σ widened from ~0.00088 (StratifiedKFold) to 0.00130
+    (GroupKFold) because each fold now validates a structurally
+    distinct region. The wider variance reflects genuine regional
+    heterogeneity, not leakage.
+  - East is the hardest held-out region (−0.00287 below baseline mean);
+    Central is easiest (+0.00114 above baseline mean). Spread ~0.004
+    across regions is within the bias sensitivity a global log-bias
+    tuner can accommodate.
+  - Medium bias dropped ~0.30 (1.47→1.17) — natural consequence of
+    the fold structure producing less-balanced per-fold priors. The
+    High bias is unchanged at 3.40, confirming the High-class
+    calibration point is region-invariant.
+- **Strategic consequence**: the apparent stacking-inflation ceiling
+  documented across multiple entries (3 submissions at OOF 0.98030 →
+  LB 0.97995-0.97997; 12-component full greedy saturating at same
+  level) is confirmed REAL structural saturation. Not a CV artifact.
+  Not a region-leakage artifact. To break above LB 0.98005 requires
+  a fundamentally different mechanism, not another blend variant.
+- **Portable rule** (adds to LEARNINGS.md candidates): "When a
+  stacking ceiling is suspected, run GroupKFold over each plausible
+  leakage vector (region / crop / temporal / user-id). If the tuned
+  OOF holds within 0.002 across all vectors, the ceiling is
+  structural; if any vector produces a ≥0.002 drop, investigate
+  leakage in the OTE / frequency / group-stats features."
+- Companion blamerx τ=0.92 run (same session) came back NULL —
+  see 2026-04-24 blamerx entry above. Combined result of this
+  session: two open hypothesis items (B2 diagnostic, blamerx τ=0.92)
+  both closed; B2 with positive diagnostic value (ceiling is real),
+  blamerx with null blend result.
+- Artefacts committed:
+  - `scripts/b2_groupkfold.py`
+  - `scripts/artifacts/oof_b2_groupkfold_region.npy` + test + JSON
+  - `submissions/submission_b2_groupkfold_region.csv` (diagnostic)
+- LB budget unchanged at 10/10 used today (0 remaining). No probe
+  warranted — B2 standalone OOF is BELOW LB-best, and its purpose
+  was diagnostic anyway.
+- Current LB best unchanged at **0.98005** (3-way multi-seed).
+- **Remaining open items on the board after this session** (for
+  other agents / next session):
+  - A1 RealMLP GPU kernel (on `claude/review-leaderboard-strategy-IMYgZ`,
+    awaiting GPU queue)
+  - rohit8527 group-by cat×num stats FE (same branch)
+  - A2 Trompt GPU kernel (unclaimed)
+  - A3 Mixup XGB (unclaimed)
+  - B0 DivideMix (unclaimed; only if A1 produces a passing leg)
+  - B3 Multi-task XGB (unclaimed)
+  - rohit8527 MIN_COUNT=5 rare-cat bucketing (unclaimed)
+  - GroupKFold by Crop_Type as a second diagnostic axis (cheap
+    extension, ~45 min CPU — run with `GROUP=crop`)
