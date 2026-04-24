@@ -5315,3 +5315,80 @@ Closed the two open paths from the argmax-equivalence theorem:
 - Status as of writing: stage 1 in progress (FE complete, fold 1
   starting). Will document outcome + blend analysis after both stages
   complete.
+
+### 2026-04-24 — Cleanlab confident-learning A0 closed as NULL
+
+- Goal: execute recommendation #1 from the 3-tier research plan. Use
+  cleanlab.filter.find_label_issues to flag likely-flipped TRAINING
+  rows using the LB-best 2-way blend as teacher, then test three
+  interventions (drop/downweight/relabel) via a CLEANLAB_TREATMENT env
+  var in recipe_full_te.py.
+- Changed: scripts/cleanlab_diagnose.py (diagnostic),
+  scripts/recipe_full_te.py (+79 lines for 3-variant intervention
+  plumbing), gitignore whitelist for the mask.
+- Diagnostic (run time: ~4 s):
+  - Teacher = 50/50 log-blend of recipe_full_te × recipe_pseudolabel
+    (reproduces LB-best OOF 0.98012 exactly).
+  - prune_by_noise_rate flagged 2,035 rows (0.323% of 630k).
+  - 98.4% precision vs known rule-mismatch rows (10,304 NN-flip rows).
+  - 19.4% recall of the 10,304 known flips.
+  - Flagged rows skew to boundary scores {3,4,7,8} and to rare High
+    class (1.24% flagged vs 0.22% Low / 0.40% Medium).
+  - Mean teacher self-confidence: flagged=0.012 vs unflagged=0.981.
+  - Zero flagged rows where teacher agrees with observed label.
+- DROP production (55 min wall, 5-fold seed=42):
+  - Per-fold argmax vs recipe baseline:
+      fold 1: 0.97534 vs 0.97544  Δ = −0.00010
+      fold 2: 0.97669 vs 0.97659  Δ = +0.00010
+      fold 3: 0.97787 vs 0.97721  Δ = +0.00066
+      fold 4: 0.97619 vs 0.97465  Δ = +0.00154
+      fold 5: 0.97628 vs 0.97557  Δ = +0.00071
+    Mean fold-level lift = +0.00058 (promising).
+  - Overall argmax = 0.97648 (Δ = +0.00059 vs recipe baseline 0.97589).
+  - Tuned log-bias OOF = **0.97965** (Δ = −0.00002 vs recipe 0.97967;
+    Δ = −0.00046 vs LB-best 0.98013).
+  - Tuned bias = [1.03, 1.07, 2.90] vs recipe's [1.43, 1.47, 3.40] —
+    sharper raw probs needed less bias correction.
+  - best_iter per fold: 660 / 679 / 847 / 562 / 683 (vs recipe's
+    ~1200-1400). Model converged faster without ambiguous flip rows.
+- Error-geometry diagnostic (fixed recipe bias):
+  - DROP errors = 10,187 vs LB-best 9,851 → DROP has +336 more errors.
+  - Jaccard = 0.7962 (below 0.80 novelty threshold) BUT magnitude
+    condition FAILS per our 2026-04-22 blend heuristic.
+  - Per-class recall vs LB-best: Low −0.0004, Medium −0.0007, High
+    −0.0006 (worse on ALL three classes).
+- Blend sweep (fixed recipe bias):
+  - vs LB-best: peak α_drop=0.40 → OOF 0.98021 (Δ = **+0.00009**)
+    — below +0.0002 LB-transfer threshold. NULL.
+  - vs recipe alone: peak α_drop=0.50 → OOF 0.97995 (Δ = +0.00029)
+    — above threshold, but recipe is a weaker anchor than LB-best.
+- Diagnosis: dropping the 2,035 flagged rows removes signal the
+  model needs for the calibration sharpening that log-bias exploits.
+  Per-fold argmax improves because each fold's training distribution
+  is easier (fewer ambiguous rows), but the GLOBAL decision rule
+  (log-bias tune) already compensates for that via its macro-recall
+  operating point. Net OOF is flat.
+- Implication: the 2,035 flagged rows are NOT stochastic label noise —
+  they are DETERMINISTIC NN-flip signal. Cleanlab's "label error"
+  interpretation is wrong for this problem (the 2026-04-21 DGP
+  residuals EDA already established the labels are deterministic,
+  not a Bernoulli flip process). Cleanlab found the hardest-to-learn
+  flip rows; removing them trades "model confidence on clean rows"
+  for "model experience with flip rows" — net zero.
+- Downweight / relabel variants NOT executed:
+  - Downweight is a softer drop; given drop gives zero lift AND has
+    more errors, downweight unlikely to help.
+  - Relabel replaces observed labels with teacher's rule-consistent
+    argmax on 98.4% of flagged rows — effectively removes the flip
+    signal from those rows. Expected LB regression.
+- LB delta: n/a. No LB probe (below +0.0002 threshold).
+- Budget unchanged. Current LB best unchanged at 0.97998.
+- Lesson to LEARNINGS.md: "Cleanlab confident learning is designed
+  for stochastic label noise. For DETERMINISTIC label transformations
+  (synthetic-data competitions where labels come from a known or
+  inferred function), cleanlab's 'label error' signal identifies
+  hard-to-learn signal rows, not noise. Interventions that modify or
+  remove those rows degrade the model's ability to learn the
+  transformation. Before applying cleanlab, first confirm the label
+  noise model matches (stochastic Bernoulli flip vs deterministic
+  function): if the latter, skip to mixup/co-training instead."
