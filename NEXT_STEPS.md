@@ -131,6 +131,105 @@ Cost: **~3 h**.
   Multi-step compounds without per-step validation = stacking
   inflation.
 
+### Parallel-work todos — claim one, don't duplicate
+
+These are independently executable in a parallel session/container.
+Before starting, **claim it** by pushing an empty commit to main with
+message `CLAIM: <todo-id> <branch-name>` so other instances skip it.
+Output artefacts follow the listed naming convention so cross-branch
+greedy blending works out of the box.
+
+**P1. A2 Denoising Autoencoder on Kaggle GPU** — highest EV, label-
+unaware 128-d embedding feeding recipe XGB. Porto Seguro winner's
+mechanism. Architecturally novel vs every prior NN null (all label-
+supervised). ~2 h GPU.
+- Branch: `claude/dae-swapnoise-embeddings`
+- Scaffold: `kaggle_kernel/kernel_dae/` (mirror of
+  `kernel_catboost_recipe` / `kernel_ftt`).
+- SwapNoise corruption ~15% on train+test+orig jointly; bottleneck
+  128-d. Encoder-decoder MLP ~1M params; AdamW + cosine schedule.
+- Outputs: `scripts/artifacts/oof_dae_embed.npy` (630000, 128),
+  `scripts/artifacts/test_dae_embed.npy` (270000, 128),
+  `scripts/artifacts/dae_embed_results.json`.
+- Follow-up (same branch): feed 128 DAE cols as numerics to
+  `recipe_full_te.py` via a new env var `DAE_EMBED_PATH`, rerun
+  5-fold seed=42 → `oof_recipe_dae.npy`, `test_recipe_dae.npy`.
+- Ref: github.com/ryancheunggit/tabular_dae, Porto Seguro 1st-place.
+
+**P2. D2 L1 zoo expansion (KNN / SVR / Ridge / RF)** — 4 cheap CPU
+legs for the Deotte-style 8-10-family L2 stack we're missing. ~3 h
+total, **separate CPU container** (will compete with any recipe
+training on main container).
+- Branch: `claude/l1-zoo-knn-svr-ridge-rf`
+- Same 5-fold `StratifiedKFold(seed=42, shuffle=True)` split (required
+  for OOF alignment with the bank).
+- KNN (~20-30 min): `scripts/l1_knn.py`, K=50, cosine distance on
+  scaled numerics + one-hot cats. Subsample if >200k rows /fold.
+- SVR (~30-45 min): `scripts/l1_svr.py`, `sklearn.svm.SVR(kernel='rbf')`
+  on 10% stratified subsample per fold, one-vs-rest for 3-class.
+- Ridge (~10 min): `scripts/l1_ridge.py`, multinomial LR with
+  `class_weight='balanced'` on scaled numerics + OHE cats.
+- RF (~45 min): `scripts/l1_rf.py`, 500 trees `class_weight='balanced'`,
+  depth 12, on dist features.
+- Outputs per leg: `oof_<leg>.npy`, `test_<leg>.npy`,
+  `<leg>_results.json`, `submission_<leg>.csv` (diagnostic, not for LB).
+
+**P3. D0 TabM on Kaggle GPU** — ICLR 2025 BatchEnsemble-style MLP,
+K=32 parallel heads sharing most weights. First NN family consistently
+matching GBDT on TabArena. Different from v5-v9 single-head MLPs.
+~1.5 h GPU.
+- Branch: `claude/tabm-icl2025`
+- Scaffold: `kaggle_kernel/kernel_tabm/` mirroring existing NN kernels.
+- Trained on recipe 443-feature matrix OR (cheaper) on 43-dist + 66
+  digit features. Balanced-softmax loss, 5-fold seed=42.
+- Fold-1 Jaccard gate vs LB-best OOF: abort at ≥ 0.90, warn 0.85-0.90.
+- Outputs: `oof_tabm.npy`, `test_tabm.npy`, `tabm_results.json`.
+- Ref: github.com/yandex-research/tabm, arXiv:2410.24210.
+
+**P4. D1 ModernNCA on GPU** — differentiable KNN with learned
+embedding metric, uses full 630k pool (vs TabPFN's 1.5k context
+cap). Error geometry distinct from tree splits. ~2 h GPU.
+- Branch: `claude/modern-nca`
+- Ref: arXiv:2407.03257, LAMDA TALENT toolkit.
+- Outputs: `oof_modern_nca.npy`, `test_modern_nca.npy`.
+
+**P5. C0 Isotonic per-class calibration on existing OOFs** — 10 min
+CPU, no new training needed. Can run in any container with numpy +
+sklearn. Fixes the CatBoost-in-blend calibration-mismatch null.
+- Branch: `claude/isotonic-calibration`
+- Fit `IsotonicRegression(out_of_bounds='clip')` per class per
+  component on OOF, apply to test probs, save calibrated variants
+  for each of the ~20 bank OOFs.
+- Outputs: `oof_<name>_iso.npy`, `test_<name>_iso.npy` for each.
+- Greedy re-run over calibrated bank may pick a different weight vector
+  than uncalibrated.
+
+**P6. B0 DivideMix-for-tabular** — iterative mutual co-divide with GMM
+gating. Heavy (~3 h compute, CPU). Fix to stage-2 pseudo-label null
+via 2-network disagreement. Mostly worth it IF P1 or P2 reveal a leg
+with Jaccard < 0.80 AND errors ≤ LB-best.
+- Branch: `claude/dividemix-tabular`
+- Defer until a Tier-A/D result gates it.
+- Ref: Li et al. ICLR 2020 (arXiv:2002.07394).
+
+**P7. D3 proper L2 + L3 stack** — consolidation step, run ONLY after
+at least 2 new legs from P1-P3 complete. Multinomial LR
+(`class_weight='balanced'`) AND small GBDT on concatenated L1 OOF
+probs; differential-evolution hill-climb on L2 OOFs. Strict trust-CV
+gate (reject any step where OOF→LB gap proxy grows).
+- Branch: `claude/l2-meta-stack`
+
+### Already-running (do NOT duplicate)
+
+- **DROP cleanlab variant** — `claude/improve-balanced-accuracy-7Au6Y`,
+  PID 12104 on main container, folds 1-4 done
+  (deltas −0.00010, +0.00010, +0.00066, +0.00154), fold 5 running.
+  Next: blend analysis + LB-probe decision.
+- **Multi-seed pseudo-label chain** — started on main by the
+  `claude/leaderboard-optimization-plan-DNN4w` branch (see 2026-04-24
+  CLAUDE.md entry). FOLD_SEED=7 recipe → FOLD_SEED=42 pseudo with
+  seed=7 labeler. Output will be `oof_recipe_pseudolabel_seed7labeler.npy`.
+
 ---
 
 **Current LB best**: `submission_greedy_nonrule_blend.csv`
