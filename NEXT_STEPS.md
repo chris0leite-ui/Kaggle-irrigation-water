@@ -1,24 +1,34 @@
 # Next steps
 
-## 🚧 Work in flight (as of 2026-04-24 ~11:55 UTC)
+## 🚧 Work in flight (as of 2026-04-24 ~15:05 UTC)
 
 Other agents: check here FIRST before starting a Tier-A/B item — these
 are actively running or recently scaffolded on feature branches.
 
 | Branch | Task | Status |
 |---|---|---|
-| `claude/review-leaderboard-strategy-IMYgZ` | **A1 RealMLP kernel** | ✅ PUSHED TO KAGGLE, v1 queued at https://www.kaggle.com/code/chrisleitescha/irrigation-realmlp-pytabkit — awaiting GPU queue (~45 min run). Check via `kaggle kernels status chrisleitescha/irrigation-realmlp-pytabkit`. Then pull outputs to `scripts/artifacts/oof_realmlp.npy` + `test_realmlp.npy` and run `python scripts/blend_realmlp.py`. |
-| `claude/review-leaderboard-strategy-IMYgZ` | **rohit8527 group-by cat×num stats FE** | 🔜 starting next — scaffolding `GBY` env var on `recipe_full_te.py` for per-cat-group `mean/std` on the synthetic 630k pool (we currently only have ORIG_mean/std from 10k). ~55 min CPU. Cheapest remaining untried FE lever. |
-| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain + 5 decimal-fraction) | ✅ COMPLETE — **NULL**. OOF 0.97955 (Δ=−0.00012), blend peaks +0.00001 to +0.00006. Jaccard 0.83-0.87 (redundant with anchors). See CLAUDE.md 2026-04-24 entry. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **A1 RealMLP kernel v3** | 🟢 RUNNING on Kaggle GPU (v1 CUDA error, v2 missing-lightning, v3 fixed both with torch+torchvision cu121 pin + explicit `pip install lightning`). Awaiting completion. When done: pull outputs + `python scripts/blend_realmlp.py`. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **GBY rohit8527 group-by cat×num stats** | ✅ COMPLETE — **NULL**. Tuned OOF 0.97959 (Δ=−0.00008 vs recipe). Jaccard 0.83-0.87, blend peaks +0.00001-+0.00014. Same pattern as A4 (FE adds real signal at prob level but redundant with recipe OTE). See CLAUDE.md 2026-04-24 entry. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain + 5 decimal-fraction) | ✅ COMPLETE — **NULL**. OOF 0.97955 (Δ=−0.00012), blend peaks +0.00001-+0.00006. Jaccard 0.83-0.87. See CLAUDE.md 2026-04-24 entry. |
 | `claude/review-leaderboard-strategy-IMYgZ` | **B1 kernel audit round 2** (10 high-vote kernels) | ✅ COMPLETE — findings in CLAUDE.md. |
+
+**Two-experiment pattern (A4 + GBY)**: any derived numeric FE on top
+of the recipe hits Jaccard 0.83-0.87 vs LB-best 3-way — recipe OTE +
+digit + ORIG_stats already encode what ratios, decimals, and per-cat
+group stats describe. **Further numeric FE on recipe is architecturally
+capped.** Skip more FE experiments unless the mechanism is genuinely
+novel (e.g. learned embeddings from a NN, or a new cat generation
+like rare-category bucketing before OTE).
 
 **Open / untriggered Tier-A/B items** (other agents, claim via empty
 commit before starting):
-- **A1 RealMLP monitor + blend-gate** — kernel pushed, awaiting GPU
-  queue. When it finishes, pull outputs + run blend analysis. Don't
-  duplicate the run; watch for OOF `oof_realmlp.npy` landing.
+- **A1 RealMLP monitor + blend-gate** — v3 RUNNING on Kaggle; when
+  done, pull outputs + run blend analysis. Don't duplicate the run;
+  watch for OOF `oof_realmlp.npy` landing.
 - **A2 Trompt via pytorch_frame** on Kaggle GPU. ~1h GPU.
-- **A3 Mixup re-run of recipe XGB** on CPU. ~1h.
+- **A3 Mixup re-run of recipe XGB** on CPU. ~1h. But the A4+GBY
+  pattern suggests FE-level interventions plateau; mixup is a
+  training-distribution intervention, different axis — may survive.
 - **B0 DivideMix** on CPU (~3h). Only pursue if A1 produces a
   Jaccard<0.80 + errs≤anchor component worth compounding.
 - **B2 GroupKFold diagnostic** (~1h CPU). OOF-honesty check.
@@ -26,7 +36,7 @@ commit before starting):
 - **blamerx τ=0.92 + full-train refit at pooled best_iter** (from B1,
   ~1h CPU). Distinct pseudo-label mechanism.
 - **rohit8527 MIN_COUNT=5 rare-cat bucketing before OTE** (from B1,
-  ~10 min CPU). Cheap to port.
+  ~10 min CPU). Cheap to port but likely null per A4+GBY pattern.
 
 **LB budget status**: 4/10 used today, 6 remaining. Resets 00:00 UTC 04-25.
 
