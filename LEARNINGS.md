@@ -696,6 +696,26 @@ all of them on the same model.
   components. Use greedy first; only invest in meta-stack when your
   component pool is diverse or you're pairing it with stacking
   features the components don't already see.
+- **Greedy forward-select needs an EXCLUDE_GREEDY_ADD guardrail
+  once you have ≥3 LB-probed regressors in the pool.** On single-CV-
+  split OOFs, greedy's "pick the highest-Δ candidate at each step"
+  keeps rediscovering components that OOF-overfit against any
+  baseline trained on the same folds. Four such components on this
+  problem kept getting proposed: `stage-2 pseudo-label`,
+  `seed7labeler 2-way`, `seed123labeler`, `soft_distill`. Each had
+  OOF +0.00020 to +0.00060 lift but LB regression (−0.00029 to
+  −0.00148). Rule: maintain two exclusion sets — `EXCLUDE_FROM_POOL`
+  for components whose LB was directly probed as regressive or whose
+  output breaks log-blend semantics (sparse carriers), and
+  `EXCLUDE_GREEDY_ADD` for components that are valid anchor
+  INGREDIENTS (so must stay in pool) but are OOF-overfit
+  greedy-adds. Verify the guardrail isn't manufacturing signal by
+  running both unguarded and guarded greedy; `guarded_OOF ≤
+  unguarded_OOF` must hold (the guardrail can only strip manufactured
+  lift, never add it). Concrete: on this competition, guarded
+  greedy from `recipe_full_te` anchor dropped OOF 0.98047 → 0.98032
+  (lost the +0.00015 that `seed7labeler` would have added as step 2)
+  — the guardrail correctly traded OOF for LB-transfer.
 - **Log-space blend α around 0.15–0.50 matches the intuition that
   "mix the best model with one other for bias-variance correction".**
   Across 6 pairs on this problem, the α picked by the sweep always
