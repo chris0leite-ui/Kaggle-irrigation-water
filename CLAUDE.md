@@ -5809,3 +5809,39 @@ Closed the two open paths from the argmax-equivalence theorem:
 - **LB budget**: 4/10 used today, 6 remaining.
 - **LB best unchanged**: `submission_3way_recipe025_s1035_s7040.csv`
   at LB 0.98005.
+
+### 2026-04-24 — c0_v3 greedy (stage-2 excluded) + TTA production + P2 symbolic launched
+
+**c0_v3 results** (EXCLUDE = {soft_distill, xgb_spec_678, pseudolabel_stage2}):
+
+Anchor recipe_full_te:
+  step1: + recipe_full_te_seed7                α=0.50  OOF=0.98019  Δ=+0.00053
+  step2: + recipe_pseudolabel_seed7labeler     α=0.20  OOF=0.98035  Δ=+0.00016
+  step3: + xgb_nonrule__iso                    α=0.15  OOF=0.98047  Δ=+0.00012
+  step4: + em_uniform                          α=0.075 OOF=0.98055  Δ=+0.00008 (stop)
+  Final: 0.98047 (Δ vs LB-best 3-way = +0.00018)
+
+Anchor lb_best_3way:
+  step1: + recipe_allpairs__iso                α=0.20  OOF=0.98041  Δ=+0.00013 (stop)
+  Final: 0.98041
+
+- **Concern**: recipe-anchor 4-way picked `recipe_pseudolabel_seed7labeler` at
+  step 2. This component is the seed=7 labeler whose 2-way with recipe
+  gave LB 0.97969 (gap +0.00043, worse than stage-2's +0.00038). It is
+  ALSO an OOF-overfit LB-regressor. Adding it (even at α=0.20) likely
+  pulls LB down the same way stage-2 did in c0_v2.
+- Both 4-way candidates (OOF 0.98047 recipe-anchor, 0.98041 lb_best_3way-
+  anchor) are below the +0.00020 LB-transfer threshold AND contain
+  overfit-risk components. **Not worth an LB probe.**
+- **Lesson**: greedy forward-selection keeps rediscovering the same
+  OOF-overfit components (stage-2 → seed7labeler → allpairs_iso). The
+  OOF gain from each is real CV-fit signal but doesn't transfer because
+  these components fit fold-specific calibration noise.
+- Next: pivoting to mechanism-novel experiments instead of more blend
+  variants. Launched P2 symbolic regression (gplearn on cells 3 and 6,
+  ~60 min CPU) and TTA production (σ ∈ {0.01, 0.02, 0.03}, fold 1
+  already showed −0.002 to −0.006 per sigma, likely null but runs to
+  completion for full OOF).
+
+- **LB budget**: 4/10 used today, 6 remaining.
+- **LB best unchanged**: 0.98005.
