@@ -6374,3 +6374,171 @@ pipeline ceiling. Pack 0.98114 (+0.00109), Leader 0.98219 (+0.00214).
   - `scripts/artifacts/blend_4way_multiseed_results.json`
   - `submissions/submission_multiseed_4way_{axis,grid}.csv` (OOF 0.98029
     and 0.98029 — not recommended for LB probe, emitted for reference)
+
+### Next steps: kernel-audit-derived plan (2026-04-24)
+
+Context: after every own-pipeline NN/FE/blend/calibration lever was
+exhausted, a fresh audit of the top-25 public kernels surfaced three
+untried NN architectures and two FE deltas, AND confirmed the 0.9812+
+ceiling exists only as public-CSV blending (banned by the top-of-file
+rule). Public audit findings:
+
+- **`beraterolelk/defeating-synthetic-noise-0-981`** (2026-04-21):
+  pure weighted hard-vote over `submission_god_tier_098120.csv` +
+  `nina2025/0.98117/0.98116/0.98114.csv` rival submissions. Confirms
+  the 0.98120 score exists as a CSV in public datasets but is NOT
+  reached via any own-pipeline mechanism.
+- **`yekenot/ps-s6-e4-realmlp-pytabkit`** (27 votes, 2026-04-20):
+  RealMLP via PyTabKit with PBLD periodic embeddings, n_ens=8 inside
+  one model, label smoothing schedule, robust_scale+smooth_clip
+  transforms. Claimed CV 0.97802 standalone. **Not tested by us.**
+- **`yekenot/ps-s6-e4-trompt-pytorch-frame`** (18 votes, 2026-04-18):
+  Trompt (2023 tabular architecture, prompt-based column attention)
+  via pytorch_frame. **Unrepresented in our 11 prior NN nulls.**
+- **`include4eto/ps6e4-tab-transformer-claude-vibe-coding`**
+  (64 votes, 2026-04-20): TabTransformer + **mixup augmentation** for
+  tabular (V5 revision). Different from FT-Transformer we tested.
+  **Mixup mechanism never tested on this problem.**
+- **FE deltas not fully covered by recipe**: yekenot uses
+  `Soil_Moisture / Temperature_C` ratio (we have products, not this
+  ratio), `(col % 1).round(2)` decimal-fraction features for 5
+  numerics (structurally distinct from our `floor(v·10^k) % 10`
+  digit extraction), and 6 specific hand-picked important_combos
+  (may not exactly match our 28 cat-pair OTE keys).
+
+**Realistic LB upside calibration**: +0.005 is NOT reachable in own-
+pipeline (would exceed leader 0.98219). Public-kernel own-pipeline
+ceiling floats at ~0.978–0.980 standalone, ~0.981 blended. Our 0.98005
+is already at that frontier. Realistic further upside: **+0.0005 to
++0.002 LB**, via an architecturally-novel blend leg that passes the
+Jaccard < 0.80 AND errs ≤ anchor gate, OR via a feature transplant
+that adds material signal the recipe misses.
+
+**Tier A — concrete kernel-anchored experiments (highest EV/cost):**
+
+  **A1. RealMLP leg via PyTabKit** (Kaggle GPU kernel, ~45 min wall).
+  Port yekenot's exact config: `pytabkit.RealMLP_TD_Classifier` with
+  `n_ens=8, hidden_sizes=[512,256,128], plr_hidden_{1,2}={16,8},
+  plr_sigma=2.33, ls_eps=0.01, lr=0.05, wd=0.0236, tfms=['one_hot',
+  'median_center', 'robust_scale', 'smooth_clip', 'embedding',
+  'l2_normalize']`. 5-fold StratifiedKFold(seed=42) aligned with every
+  saved OOF. Per-fold TargetEncoder(cv=5, smooth='auto') over
+  6 important_combos. Gate: fold-1 Jaccard vs LB-best 3-way (0.98005)
+  AND vs recipe_full_te. If ≥ 0.90 abort; if in 0.85–0.90 cap blend
+  expectation at +0.00015; if < 0.85 run all 5 folds then blend-gate.
+  Expected: +0.0005–0.0015 LB if blend passes. This is the 12th NN
+  attempt on the problem but the first with a production-tuned
+  tabular-specific NN, not a from-scratch MLP.
+
+  **A2. Trompt leg via pytorch_frame** (Kaggle GPU kernel, ~1h wall).
+  Port yekenot's `ps-s6-e4-trompt-pytorch-frame` kernel. Same 5-fold
+  alignment, same blend-gate discipline. Higher variance than RealMLP
+  but genuinely architecturally orthogonal — column-level attention
+  with learnable prompts, unrepresented in our log. Run only after A1
+  lands to avoid double-GPU-kernel queue wait.
+
+  **A3. Mixup re-run of recipe XGB** (CPU, ~1h). Implement per-row
+  mixup: for each training row, sample a partner, mix numerics via
+  β(0.4, 0.4) convex combination, sample categorical values from the
+  two parents weighted by the mix coefficient, sample target via the
+  mixed soft-distribution. Train XGB `multi:softprob` with this as
+  augmented training pool (original rows kept, +1× mixup rows added).
+  Gate: standalone OOF tuned ≥ 0.979 AND errs ≤ recipe; else null.
+
+  **A4. FE transplant from yekenot** (CPU, 30 min). Add to recipe:
+  `Soil_Moisture/Temperature_C` ratio, `(col % 1).round(2)` decimals
+  for `{Temperature_C, Organic_Carbon, Soil_Moisture, Soil_pH,
+  Sunlight_Hours}`, and any of the 6 important_combos not already in
+  our 28-pair OTE key set. Retrain recipe XGB. Gate: OOF Δ ≥ +0.0002
+  before considering an LB probe. Lowest EV of Tier A but cheapest.
+
+**Tier B — mechanism-novel (medium EV, speculative):**
+
+  **B1. Finish the kernel audit on 10 remaining high-vote kernels**
+  (~30 min read time). Every kernel read this comp has surfaced at
+  least one lever (recipe itself was +0.00457 from kernel reads).
+  Unread at ≥ 30 votes: Aryan Kaisth EDA (60), Kashifalikhan's
+  "simplest XGB" (31), Rohit Kumar's LGBM+group-stats (39, recent),
+  Ravi's TunedBlend (39), Manasi's ensemble-voting-analysis (48,
+  2026-04-22), sarcasmos baseline (83), sakuno's combination-FE-CAT
+  (41, 2026-04-23 — very recent), Akos Pinter's ensemble baseline
+  (37), saamhm's blend (43), djenkivanov's minimal-XGB (36). Cheap,
+  high information-per-minute. Do this FIRST.
+
+  **B2. GroupKFold diagnostic** (CPU, 1h). Re-split by Region or
+  Crop_Type instead of stratified. If our recipe OOF drops materially
+  under GroupKFold, we've been OOF-overestimating via region/crop
+  leakage in the OTE means, and the real frontier is LOWER than we
+  think (closes the apparent stacking-inflation ceiling). If it holds,
+  confirms OOF is honest. Either outcome is informative.
+
+  **B3. Multi-task XGB** (CPU, ~1h). Replace recipe's single 3-class
+  head with 4 joint heads: `y`, `dgp_score`, `rule_pred`, `cell_id`.
+  Train via custom gradient averaging. Untested; shared-representation
+  learning may help trees generalize where single-task saturates.
+
+  **B4. SMOTE-NC for rare-High class** (CPU, 45 min). Synthesize ~10k
+  additional High rows via SMOTE-NC (handles mixed numeric+cat).
+  Retrain recipe XGB. Different lever than sample-weight — changes
+  the training distribution. May interact with class-balanced weights
+  in either direction.
+
+**Tier C — infrastructure/scale (high cost, bounded upside):**
+
+  **C1. 100+ XGB variant stack + LR meta-stacker** (GPU, ~8h).
+  Per NVIDIA Kaggle-grandmaster playbook (March 2026 winning
+  solution was 150 models from 850 candidates). Sweep: HPs × fold
+  seeds × feature subsets × loss weights → 100+ OOFs → class-balanced
+  LR meta-stacker. Bounded by our ~0.98030 stacking-inflation ceiling
+  but may break it at scale (prior greedy with 12 components was
+  saturated at 6-component ceiling).
+
+  **C2. End-to-end Optuna on recipe pipeline** (GPU, ~3h). 40 trials
+  on the full V10 recipe as a monolith with tuned-bias OOF as
+  objective. Per-component Optuna LB-regressed (2026-04-22) but
+  end-to-end avoids per-component compounding overfit.
+
+**Tier D — final-selection strategy (zero LB spend, variance-
+capture):**
+
+  **D1. Lock two finals**: primary = 3-way multi-seed (LB 0.98005),
+  hedge = `submission_recipe_full_te.csv` (LB 0.97939). Reasoning:
+  the 2-way (LB 0.97998) shares too much overfit surface with the
+  3-way primary; recipe standalone provides genuine variance
+  protection on private LB.
+
+  **D2. Private-LB variance estimate**: per Session B, the fold-seed
+  spread on LB-best was ±0.00036 across 3 seeds. Private-LB spread
+  likely ±0.0005 around public. The +0.00007 delta between our 3-way
+  and 2-way is sub-noise for private ranking. Either could win.
+
+**Execution order (6 days to deadline, budget resets at 10/day):**
+
+  - Day 1 (now): B1 (kernel audit, 30 min) + A1 (RealMLP scaffold, no
+    GPU queue yet) in parallel. No LB spend. Plus Edit / scaffold A4
+    locally while kernel queues.
+  - Day 2: A1 finishes → blend-gate → optional LB probe if +0.0005
+    passes. Launch A2 (Trompt). Run A4 (FE transplant) locally and
+    A3 (mixup) if A1 looks promising.
+  - Day 3: A2 finishes → blend-gate. Launch C1 (100+ stack) if best
+    of A1/A2/A3/A4 has left us below 0.98050 OOF. Run B2 (GroupKFold)
+    diagnostic as background.
+  - Days 4–5: consolidate winners, final-select per D1, reserve 2 LB
+    probes for last-day variance check.
+  - Day 6 (submission deadline): final selection locked.
+
+**Highest-EV single experiment**: B1 (kernel audit) — 30 minutes of
+read time has surfaced every real lever we've found. Start there.
+
+**Skip on principled grounds**:
+  - Any variant of public-CSV blending — banned, mechanism is
+    demonstrably what 0.98114+ kernels actually do.
+  - Further multi-seed pseudo-label extensions — saturated at 2
+    labelers (s42+s7 gave +0.00007 LB; s123 added +0.00001 OOF, not
+    worth a slot).
+  - Further NN-from-scratch MLP retries — 11 NN nulls with consistent
+    blend-null pattern; only production-tuned tabular NNs (Tier A)
+    have a shot.
+  - Further HP tuning on recipe components — LB-regressed twice
+    (per-component 2026-04-22, seed-bag 2026-04-22).
+
