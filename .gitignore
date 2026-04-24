@@ -392,5 +392,25 @@ kernel_audit*/
 !scripts/artifacts/oof_missed_high.npy
 !scripts/artifacts/test_missed_high.npy
 
+# Focal-loss XGB (#3 from 2026-04-24 plan): custom multi-class
+# focal-weighted CE objective on the 443-feature recipe matrix.
+# gamma=2, alpha=(1,1,3) — rare-class-focused training-time mechanism.
+# Different error geometry than recipe's sample_weight='balanced'.
+# Early-stops on bal_acc directly (maximize).
+!scripts/artifacts/oof_recipe_focal_g2h3.npy
+!scripts/artifacts/test_recipe_focal_g2h3.npy
+
+# Score=6 Medium-vs-High binary specialist (#4 from 2026-04-24 plan).
+# v1: 43-dist + 7 nonrule numerics, OOF AUC 0.862 on 38,416 spec rows.
+# v2: v1 + LB-best 3-way teacher probs + mh_margin/mh_ratio,
+#     OOF AUC 0.938 — teacher meta-features carry most of the signal.
+# Deploy as hard override: teacher_pred=Medium on score=6 rows →
+# High where P_H > theta. v2 peak theta=0.15 gives 28% precision
+# (3.2x break-even 8.8%), OOF delta +0.00009.
+!scripts/artifacts/oof_spec6_mh.npy
+!scripts/artifacts/test_spec6_mh.npy
+!scripts/artifacts/oof_spec6_mh_v2.npy
+!scripts/artifacts/test_spec6_mh_v2.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
