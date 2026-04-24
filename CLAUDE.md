@@ -6711,3 +6711,90 @@ read time has surfaced every real lever we've found. Start there.
 - LB best unchanged at **0.98005**.
 - Companion work: A1 RealMLP v3 RUNNING on Kaggle GPU (v1 CUDA
   error, v2 lightning-missing, v3 fixed both). Status check pending.
+### 2026-04-24 — blamerx τ=0.92 pseudo-label executed: NULL (blend-redundant)
+
+- Goal: execute blamerx's "lower τ + many-pseudo" mechanism from the B1
+  kernel audit. Our stage-1 pseudo uses τ=0.98 (keep 84% of test rows);
+  blamerx's suggestion was τ=0.92 (keep ~94%, +28k lower-confidence
+  rows). Hypothesis: more pseudo training signal, especially on
+  boundary rows where the labeler is only 0.92-0.98 confident, may
+  produce orthogonal signal the stage-1 pseudo misses.
+- Changed: no new script — reuses `recipe_pseudolabel.py` with
+  `PSEUDO_TAU=0.92 PSEUDO_SUFFIX=tau092`. Phase 2 (full-train no-CV
+  refit) was scaffolded as a contingent follow-up if Phase 1 passed
+  the blend gate; cancelled when Phase 1 came back null.
+- Pseudo subset stats:
+  - keep_rate = 0.9417 (254,269 / 270,000 test rows) vs stage-1's
+    84%. +28k lower-confidence pseudo rows added.
+  - Label dist [Low 151,301 / Medium 93,989 / High 8,979] matches
+    prior distribution (Low 58.6% / Medium 36.8% / High 3.5% vs
+    train prior 58.7 / 37.9 / 3.3%). No confidence bias at class
+    level.
+  - Max-prob percentiles on kept rows: p25=0.9936, p50=0.9986, p99=1.0
+    — most kept rows are still very confident; the new rows are in
+    the 0.92-0.98 band (boundary-adjacent).
+- Production run stats (5-fold seed=42, 758k training pool):
+  - Per-fold argmax: 0.97707, 0.97652, 0.97870, 0.97683, 0.97706
+  - Overall argmax = **0.97724 ± 0.00076**
+  - **Tuned OOF = 0.98004** (bias [1.4324, 1.4689, 3.4008] matches
+    recipe's exactly — the prob scale is similar to stage-1's)
+  - 5 folds × ~520s wall = ~45 min total CPU
+- Standalone comparison vs baselines:
+  ```
+                        tuned OOF   errors   Jaccard vs recipe   Jaccard vs stage-1
+  recipe                0.97967      8,367       1.00               0.78
+  stage-1 τ=0.98        0.97993      8,430       0.78               1.00
+  blamerx τ=0.92        0.98004      8,484       0.85               0.87
+  LB-best 2-way         0.98012         -          -                  -
+  ```
+- Fixed-bias log-blend sweeps:
+  - vs recipe (base 0.97967): peak α=0.40 → 0.98019 (Δ=+0.00052).
+    Above +0.0002 threshold but recipe is a weaker anchor than
+    LB-best.
+  - vs LB-best 2-way (base 0.98012): peak α=0.25 → 0.98023
+    (**Δ=+0.00010**, BELOW +0.00020 LB-transfer threshold). All
+    α ∈ [0, 0.5]: Δ ≤ +0.00010.
+- **Verdict: NULL.** Two independent reasons predict LB null:
+  1. Blend vs LB-best caps at +0.00010 (below threshold).
+  2. Error count 8,484 > stage-1's 8,430 > recipe's 8,367 — fails
+     the "errs ≤ anchor" half of the blend heuristic.
+  3. Jaccards 0.85 (recipe) / 0.87 (stage-1) both exceed 0.80
+     redundancy threshold.
+- **Mechanism — why "more pseudo" hurt the blend**: the extra 28k
+  lower-confidence pseudo rows encode the labeler's own boundary-
+  band decisions (where max-prob 0.92-0.98). These are the rows
+  where the labeler is most uncertain, and including them as
+  confident training labels causes blamerx's decision surface to
+  track the labeler MORE closely on those boundary rows. That's
+  the opposite of what we want for orthogonal blend signal —
+  higher Jaccard with recipe/stage-1 is the direct consequence.
+- **Portable rule** (adds to LEARNINGS.md candidates): "For
+  pseudo-label augmentation, τ controls a tradeoff between
+  training-signal volume and blend-orthogonality. Very high τ
+  (0.98+) keeps blend signal intact because only rule-aligned
+  rows get labels; lower τ bleeds labeler decisions into boundary
+  rows where the labeler itself is uncertain, which collapses
+  orthogonality. The sweet spot for this problem is τ=0.98
+  (stage-1), not lower."
+- Phase 2 of the plan (blamerx's full-train refit without CV,
+  pooled best_iter ≈ 1147) cancelled: Phase 1's blend-null result
+  predicts the full-refit LB would also null, and LB budget is
+  scarce (0/10 remaining today).
+- Artefacts committed:
+  - `scripts/artifacts/oof_recipe_pseudolabel_tau092.npy` + test
+  - `scripts/artifacts/recipe_pseudolabel_tau092_results.json`
+  - `submissions/submission_recipe_pseudolabel_tau092.csv`
+    (diagnostic — OOF 0.98004, below LB-best 2-way's 0.98012)
+- LB budget unchanged: 10/10 used today (0 remaining until reset).
+  LB best unchanged at **0.98005** (3-way multi-seed).
+- **Consequence for the broader pseudo-label lever**: we now have
+  three empirical data points in our pseudo-label ladder:
+  ```
+  stage-1 τ=0.98 (recipe labeler, s42)   → LB 0.97998 (gap +0.00014)
+  stage-2 τ=0.98 (LB-best labeler, s42)   → LB 0.97989 (gap +0.00038)
+  blamerx τ=0.92 (recipe labeler, s42)    → OOF +0.00010 vs LB-best (null)
+  seed-7 labeler τ=0.98                   → LB 0.97969 (gap +0.00043)
+  ```
+  Stage-1 τ=0.98 is the only variant that transferred to LB positively.
+  Every decoupling (stage-2 chain, lower τ, seed-7 labeler) tightened
+  OOF calibration in ways that didn't survive the test split.

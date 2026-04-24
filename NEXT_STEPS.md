@@ -10,6 +10,11 @@ are actively running or recently scaffolded on feature branches.
 | `claude/review-leaderboard-strategy-IMYgZ` | **A1 RealMLP kernel v3** | 🟢 RUNNING on Kaggle GPU (v1 CUDA error, v2 missing-lightning, v3 fixed both with torch+torchvision cu121 pin + explicit `pip install lightning`). Awaiting completion. When done: pull outputs + `python scripts/blend_realmlp.py`. |
 | `claude/review-leaderboard-strategy-IMYgZ` | **GBY rohit8527 group-by cat×num stats** | ✅ COMPLETE — **NULL**. Tuned OOF 0.97959 (Δ=−0.00008 vs recipe). Jaccard 0.83-0.87, blend peaks +0.00001-+0.00014. Same pattern as A4 (FE adds real signal at prob level but redundant with recipe OTE). See CLAUDE.md 2026-04-24 entry. |
 | `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain + 5 decimal-fraction) | ✅ COMPLETE — **NULL**. OOF 0.97955 (Δ=−0.00012), blend peaks +0.00001-+0.00006. Jaccard 0.83-0.87. See CLAUDE.md 2026-04-24 entry. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **A1 RealMLP kernel** | ✅ PUSHED TO KAGGLE, v1 queued at https://www.kaggle.com/code/chrisleitescha/irrigation-realmlp-pytabkit — awaiting GPU queue (~45 min run). Check via `kaggle kernels status chrisleitescha/irrigation-realmlp-pytabkit`. Then pull outputs to `scripts/artifacts/oof_realmlp.npy` + `test_realmlp.npy` and run `python scripts/blend_realmlp.py`. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **rohit8527 group-by cat×num stats FE** | 🔜 starting next — scaffolding `GBY` env var on `recipe_full_te.py` for per-cat-group `mean/std` on the synthetic 630k pool (we currently only have ORIG_mean/std from 10k). ~55 min CPU. Cheapest remaining untried FE lever. |
+| `claude/optimize-marginal-gains-qR1jt` | **blamerx τ=0.92 pseudo-label** | ✅ COMPLETE 2026-04-24 — **NULL**. Tuned OOF 0.98004 (Δ=+0.00037 vs recipe, +0.00011 vs stage-1). Errors 8,484 (MORE than stage-1's 8,430 and recipe's 8,367). Jaccard vs recipe=0.85, vs stage-1=0.87 (redundant). Blend vs LB-best 2-way peak α=0.25 → Δ=+0.00010, below +0.00020 LB-transfer threshold. Phase 2 (full-train no-CV refit) cancelled — Phase 1 blend-null + errors > anchor + Jaccards ≥ 0.85 all predict LB-null. "Many-pseudo" hypothesis fails on this anchor; lower τ adds boundary-band noise rather than orthogonal signal. |
+| `claude/optimize-marginal-gains-qR1jt` | **B2 GroupKFold diagnostic** | 🚧 CLAIMED 2026-04-24 — new script `scripts/b2_groupkfold.py` re-splits recipe_full_te by Region. Tests OOF-honesty under leakage-safe split. If OOF drops materially vs StratifiedKFold, our entire ladder is overstated; if it holds, ceiling is honest. ~50 min CPU. |
+| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain + 5 decimal-fraction) | ✅ COMPLETE — **NULL**. OOF 0.97955 (Δ=−0.00012), blend peaks +0.00001 to +0.00006. Jaccard 0.83-0.87 (redundant with anchors). See CLAUDE.md 2026-04-24 entry. |
 | `claude/review-leaderboard-strategy-IMYgZ` | **B1 kernel audit round 2** (10 high-vote kernels) | ✅ COMPLETE — findings in CLAUDE.md. |
 
 **Two-experiment pattern (A4 + GBY)**: any derived numeric FE on top
@@ -31,10 +36,7 @@ commit before starting):
   training-distribution intervention, different axis — may survive.
 - **B0 DivideMix** on CPU (~3h). Only pursue if A1 produces a
   Jaccard<0.80 + errs≤anchor component worth compounding.
-- **B2 GroupKFold diagnostic** (~1h CPU). OOF-honesty check.
 - **B3 Multi-task XGB** (~1h CPU).
-- **blamerx τ=0.92 + full-train refit at pooled best_iter** (from B1,
-  ~1h CPU). Distinct pseudo-label mechanism.
 - **rohit8527 MIN_COUNT=5 rare-cat bucketing before OTE** (from B1,
   ~10 min CPU). Cheap to port but likely null per A4+GBY pattern.
 
