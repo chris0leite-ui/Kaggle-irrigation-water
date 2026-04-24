@@ -86,6 +86,10 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/test_xgb_corn.npy
 !scripts/artifacts/oof_tabpfn.npy
 !scripts/artifacts/test_tabpfn.npy
+# P3 transductive label-propagation (null vs recipe and LB-best but
+# Jaccard 0.65 — kept for cross-branch diversity experiments)
+!scripts/artifacts/oof_p3_embed_propagate.npy
+!scripts/artifacts/test_p3_embed_propagate.npy
 # Session B (multi-seed fold bagging): keep per-seed LB-best OOF/test so
 # any branch can reproduce the bag without re-running the 8-min pipeline.
 !scripts/artifacts/oof_lb_best_fs7.npy
