@@ -7084,6 +7084,186 @@ read time has surfaced every real lever we've found. Start there.
 - LB best unchanged at **0.98005**. Own-pipeline lever count still
   converging on "ceiling is structural" per B2 GroupKFold confirmation
   (OOF honest) + 15+ other nulls.
+
+### 2026-04-24 — RealMLP retry (careful, n_ens=1): blend LB 0.97991 — Jaccard 0.62 real but magnitude trap dominates (12th NN lever closed)
+
+- Goal: careful retry of the A1 RealMLP lever after yesterday's 3h34min
+  preprocessing kill. Three config fixes applied:
+  1. `n_ens=1` explicit (was pytabkit default 8; removed 8× BatchEnsemble
+     internal preprocess multiplier that caused the hang)
+  2. `n_epochs=40` explicit (was pytabkit default ~256)
+  3. `TargetEncoder(cv=2)` (was cv=5; cuts internal TE passes 60%)
+  Plus two safety nets: fold-1 t+20min kill + total-wall t+55min kill,
+  both with graceful partial-output save on kernel side.
+- Pipeline: SMOKE-first discipline enforced via `IS_SMOKE=True` top-level
+  toggle. Kaggle SMOKE v5 confirmed end-to-end on 20k × 2 folds × 3 epochs
+  in ~5 min wall (2.6s + 2.0s per-fold GPU training, tuned OOF 0.87958 —
+  structurally clean). Downstream `np.bincount` dtype bug (y was float64
+  from pd.Series.map) fixed before production push.
+- Production (v6): 5/5 folds completed in 57.1 min kernel-internal. The
+  `TOTAL_KILL_SEC=55*60` fired at fold 5 END exactly as designed — final
+  save executed normally, all outputs written. Total Kaggle wall from
+  push ~62 min including pip installs.
+- Per-fold argmax: 0.97042 / 0.96820 / 0.97270 / 0.97053 / 0.97090
+  (σ=0.00144). **OOF argmax 0.97055, tuned 0.97636** with bias
+  [1.2324, 1.4689, 3.4008]. Feature set: 30 base cols (8 cats + 11
+  raw float nums + 11 factorized dupes of the same nums) + 9 pair
+  combos (6 pairs dropped as `nunique > N/2`) + 27 TE cols (9 combos
+  × 3 classes) = ~66 features fed to RealMLP_TD_Classifier.
+- Blend-gate analysis (`scripts/blend_realmlp.py`, fixed recipe bias
+  [1.4324, 1.4689, 3.4008]):
+  ```
+  standalone @ recipe bias:   0.97633  errs=10472  (+358 vs recipe 10114)
+  tuned (own bias):           0.97636
+
+  Jaccards:
+    vs recipe_full_te         0.6171   ← LOWEST NN Jaccard in comp log
+    vs LB-best 2-way           0.6251
+    vs LB-best 3-way           0.6206
+  ```
+- Blend sweeps (fixed recipe bias, α ∈ {0..0.50}):
+  ```
+  vs recipe   peak α=0.275  OOF 0.97991  Δ=+0.00024
+  vs LB2      peak α=0.375  OOF 0.98039  Δ=+0.00027   ← selected for LB probe
+  vs LB3      peak α=0.200  OOF 0.98047  Δ=+0.00019   (1e-5 below +0.0002 gate)
+  ```
+- **LB probe (submitted 18:32 UTC with user approval):**
+  `submission_lb2_realmlp_a0375.csv` → **LB public = 0.97991**.
+  Δ vs LB-best (0.98005) = **−0.00014**.
+  Gap OOF→LB = +0.00048 (anchor LB2's historical gap was +0.00014 →
+  inflated by +0.00034 when RealMLP added to the blend). Classic
+  magnitude-trap behavior at the LB-transfer level: the 358 extra
+  RealMLP errors translated to ~+0.00034 LB degradation despite
+  novel Jaccard.
+- Read-out: this is the **12th NN null** on this problem but of a
+  NEW flavor. Prior 11 nulls (v5-v9 MLP, FT-T, TabPFN, pretrain-FT,
+  NN-on-orig, soft-distill, DAE) all had BOTH Jaccard≥0.80 AND
+  err-magnitude issues. RealMLP uniquely satisfied the orthogonality
+  half (Jaccard 0.62 — best of any NN ever tested here) but still
+  failed the magnitude half (+3.5% more errors than anchor). New
+  rule for LEARNINGS: **Jaccard 0.62 with 0.000 err-count margin IS
+  already LB-negative** — errs ≤ anchor is tighter than just +3.5%
+  for LB transfer. Informal threshold: errs ≤ `1.005 × anchor` for
+  positive LB Δ, not `1.04 × anchor`.
+- Lever status: RealMLP at **n_ens=1** is closed. Open follow-ups:
+  1. n_ens=4 retry (~45 min expected, requires careful wall-time
+     budget; expected standalone OOF ~0.9770, same Jaccard pattern,
+     potentially lower error count if ensembling reduces per-row
+     noise).
+  2. Frozen RealMLP OOF + test are committed to the artifact bank
+     as a real diversity leg — future greedy-stacking experiments
+     on expanded OOF pools MAY still find a local optimum that
+     includes it (just not at 0.375 α on LB2 anchor).
+- LB budget: **1/10 spent today**, 9 remaining. LB best unchanged
+  at **0.98005**.
+- Artefacts:
+  - `scripts/artifacts/oof_realmlp.npy` (5.4 MB)
+  - `scripts/artifacts/test_realmlp.npy` (3.1 MB)
+  - `scripts/artifacts/realmlp_results.json`
+  - `scripts/artifacts/blend_realmlp_results.json`
+  - `submissions/submission_lb2_realmlp_a0375.csv` (submitted, LB 0.97991)
+  - `submissions/submission_lb3_realmlp_a020.csv` (not submitted)
+
+### 2026-04-24 — greedy refit + RealMLP 3-stack: NEW LB BEST 0.98008 (+0.00003)
+
+- Goal: after the RealMLP n_ens=1 blend hit LB 0.97991 (-0.00014 from
+  magnitude trap despite Jaccard 0.62), user asked how to build on
+  the result. Diagnostic: run greedy forward-selection with RealMLP
+  added to the 38-component OOF bank, from two anchors (recipe and
+  LB-best 3-way), to see whether a better blend configuration than
+  the hand-picked α=0.375 exists in the pool.
+- Changed: `scripts/greedy_realmlp_refit.py` (mirrors c0_safe_greedy_v3
+  pattern with realmlp added to CANDIDATES, fixed recipe bias,
+  EXCLUDE = {soft_distill, xgb_spec_678, pseudo_stage2}); 17 min wall
+  on CPU. `scripts/emit_realmlp_3stack.py` emits the greedy-chosen
+  submission.
+- Greedy results:
+  ```
+  Anchor: recipe_full_te  (starts OOF 0.97967)
+    step1: + recipe_full_te_seed7          α=0.500  +0.00053
+    step2: + recipe_pseudolabel_seed7lab   α=0.200  +0.00016
+    step3: + xgb_nonrule__iso              α=0.150  +0.00012
+    step4: + em_uniform                    α=0.075  +0.00008 (stop, <1e-4)
+    final 0.98047 — RealMLP NOT picked
+  Anchor: lb_best_3way  (starts OOF 0.98029)
+    step1: + realmlp                       α=0.200  +0.00019  ← TOP PICK
+    step2: + xgb_nonrule__iso              α=0.075  +0.00014
+    step3: + recipe_full_te_a10            α=0.200  +0.00006 (stop, <1e-4)
+    final 0.98061 (Δ+0.00032 vs LB3 0.98029)
+  ```
+- **Anchor dependency is the key insight:** from recipe (weaker anchor),
+  greedy prefers same-family additions (seed7 recipe/pseudo). From
+  LB-best 3-way (stronger anchor, already exhausted within-family
+  lifts), greedy picks RealMLP FIRST — its cross-family orthogonality
+  only becomes the top pick after the anchor has consumed the easy
+  tree-family gains.
+- Structural comparison (3-stack vs first RealMLP blend):
+  ```
+  metric          submission_lb2_realmlp_a0375  submission_lb3_realmlp_nonruleiso
+  OOF             0.98039 (+0.00027)            0.98061 (+0.00032)
+  errs vs anchor  +358 (10472 vs 10114)  TRAP   -301 (9572 vs 9873)  PASS
+  Jaccard vs LB3  0.62                          0.92
+  High recall     similar                       0.9774
+  LB              0.97991 (-0.00014)            0.98008 (+0.00003)
+  ```
+- **LB probe (user-approved, submitted 19:28 UTC):**
+  `submission_lb3_realmlp_nonruleiso.csv` → **LB public = 0.98008**.
+  Δ vs prior LB-best (0.98005 from 3-way multi-seed) = **+0.00003**.
+  OOF→LB gap = **+0.00053** (wider than multi-seed's +0.00024,
+  tighter than first RealMLP blend's +0.00048).
+- Updated calibration ladder:
+  ```
+  greedy + nonrule α=0.15       0.97421 → 0.97352  gap +0.00069
+  digit-XGB standalone          0.97449 → 0.97468  gap -0.00019
+  digits-OTE × digit-XGB α=0.40 0.97477 → 0.97482  gap -0.00005
+  recipe_full_te                0.97967 → 0.97939  gap +0.00028
+  recipe × pseudo 2-way         0.98012 → 0.97998  gap +0.00014
+  3-way multi-seed              0.98029 → 0.98005  gap +0.00024
+  lb2 + realmlp α=0.375 (trap)  0.98039 → 0.97991  gap +0.00048
+  **lb3 + realmlp + nonrule_iso 0.98061 → 0.98008  gap +0.00053**  ← NEW LB BEST
+  ```
+  Gap to pack 0.98114: +0.00106 (was +0.00109).
+  Gap to leader 0.98219: +0.00211 (was +0.00214).
+- Validates THREE previously stated rules:
+  1. **Refined blend-magnitude rule (errs ≤ 1.005 × anchor)**: first
+     blend +3.5% errs → LB -0.00014; this blend -3.0% errs → LB +0.00003.
+     Sign of the LB delta tracks sign of the err-count delta.
+  2. **Greedy forward-selection beats hand-picked α**: the hand-picked
+     α=0.375 on LB2 produced a worse blend (OOF and LB) than the
+     greedy-picked α=0.200 on LB3 with xgb_nonrule_iso stacked on.
+  3. **RealMLP transfers as a blend leg** when paired correctly with
+     an LB-proven anchor + an LB-proven secondary leg (xgb_nonrule
+     was itself an LB +0.00056 lift earlier; its isotonic-calibrated
+     version on top of RealMLP addition stacks cleanly).
+- Per-class recall breakdown (stack vs LB3 anchor):
+  Low 0.9955 (vs 0.9951, +0.0004); Medium 0.9689 (vs 0.9675, +0.0014);
+  High 0.9774 (vs 0.9782, -0.0008). Net: macro-recall trade favors
+  LB transfer — larger Medium+Low gains slightly outweigh small High
+  drop under macro-recall's equal-class-weight aggregation.
+- LB budget: **2/10 spent today**, 8 remaining.
+- Artefacts:
+  - `scripts/greedy_realmlp_refit.py`, `scripts/emit_realmlp_3stack.py`
+  - `scripts/artifacts/greedy_realmlp_refit_results.json`
+  - `submissions/submission_lb3_realmlp_nonruleiso.csv` (LB 0.98008, new best)
+- **Updated final-selection candidates**:
+  1. **Primary (new LB best)**: `submission_lb3_realmlp_nonruleiso.csv`
+     → LB 0.98008, OOF 0.98061, gap +0.00053
+  2. **Safe fallback (prior LB best)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → LB 0.98005, OOF 0.98029, gap +0.00024 (tighter calibration,
+     lower variance surface — good hedge for private LB)
+- Next bets:
+  1. **n_ens=4 RealMLP retry** (~45 min GPU) — a lower-error RealMLP
+     should stack even cleaner. Expected OOF floor ~0.9770+ (+0.00060
+     vs n_ens=1), potentially pushing 3-stack OOF to 0.9808-0.9810.
+  2. **4-step greedy** trying step 3 (recipe_full_te_a10) — risky
+     since step 3 Δ=+0.00006 is below both LB-transfer threshold
+     (+0.0002) and fold noise (~0.00088). Likely OOF-overfit.
+  3. **RealMLP + other NN family** (Trompt / TabM) — test if another
+     architecturally orthogonal leg stacks cleanly with RealMLP.
+  4. **Greedy with finer α grid** around α=0.200 for RealMLP step —
+     5-min diagnostic to check if {0.175, 0.225} give materially
+     different OOF.
+
 ### 2026-04-24 — Missed-High detector: AUC 0.9711 but deploy precision 6.5% << break-even 8.8% → NULL closes Pareto-frontier via explicit High route
 
 - Goal: execute the #1 candidate proposed after the disagree+router
@@ -7336,3 +7516,238 @@ read time has surfaced every real lever we've found. Start there.
      that exclude row i (not just one). Expensive — requires
      retraining each teacher component 5×. But it directly fixes
      the overfit mechanism rather than mitigating it via capacity.
+
+### 2026-04-24 — W2/W3/W5 weaknesses-audit session (3 experiments: 2 nulls, 1 guardrail shipped)
+
+- **Context**: branch `claude/identify-ml-weaknesses-RJbG4` session
+  driven by a plan-mode audit identifying five specific weaknesses
+  (W1 = RealMLP completion, W2 = boundary-cell specialist,
+  W3 = binary Medium head, W4 = stranded NN OOFs, W5 = greedy
+  guardrail). Executed W2 / W3 / W5 locally this session (W1 and W4
+  require Kaggle GPU push, deferred). None broke LB 0.98005 but
+  two portable rules + one tooling guardrail landed.
+- **W2 — xgb_specialist_36 (boundary cells {3,6}) closed NULL**:
+  43-feature dist set, 5-fold seed=42, spec domain 140,573 rows
+  (Low 69.2% / Medium 29.7% / High 1.1%). Specialist standalone
+  spec-domain bal_acc 0.666 vs rule 0.628 (+0.038 real lift), but
+  LB-best 3-way scored **0.878 on the same rows** (21 pp higher).
+  Override (α=1) on spec rows: Δ=−0.00846 OOF. Softmix sweep
+  monotone-neg past α=0.05 on all three routing widths (score-3,
+  score-6, combined). Root cause: bi-modal domain (score 3 is 95/5
+  Low/Med, score 6 is 96/4 Med/High) + 43-dist features ≺ 443-
+  recipe. Spec has 750 fewer raw errors but 21 pp lower bal_acc
+  because High recall craters (12% vs 97.74%). Two rules landed:
+  (a) bi-modal aggregates can mask the 20-80% minority heuristic —
+  check at sub-domain granularity, and (b) specialist feature set
+  must match the anchor's feature richness.
+- **W3 — binary_medium_head closed NULL**: 443-feature recipe set,
+  XGBoost binary:logistic on `y == 1`, 5-fold seed=42. OOF AUC
+  **0.99767** (per-fold 0.9975-0.9978). Fixed-bias sweeps on LB-
+  best 3-way (NO log-bias retune, per 2026-04-21 binhigh rule):
+  prob_mix and geo_mix peaks at g=0 (monotone-neg past 0);
+  logit_add peak at g=0 (monotone-neg both sides). Raw error count
+  DROPS with positive weight (logit_add +1.0: 8,420 errs vs
+  baseline 9,873 — 1,453 fewer wrong rows) but bal_acc DROPS in
+  lockstep because High recall is sacrificed first (prior 3.3% →
+  12× per-row leverage under macro-recall). Rule extends binhigh:
+  a binary class-k head on the SAME feature basis as the 3-class
+  anchor cannot lift at fixed bias regardless of AUC quality —
+  binary-Medium head is a reparameterisation of information
+  already in the 3-class Medium column.
+- **W5 — EXCLUDE_GREEDY_ADD guardrail shipped** in
+  `scripts/c0_safe_greedy_v3.py`. Two-level exclusion:
+  `EXCLUDE_FROM_POOL` = `{soft_distill, xgb_spec_678,
+  recipe_pseudolabel_stage2}` (never loaded) and
+  `EXCLUDE_GREEDY_ADD` = pool-excludes ∪ `{recipe_pseudolabel_
+  seed7labeler, recipe_pseudolabel_seed123labeler}` (valid anchor
+  ingredients, cannot be greedy-added). Diagnostic validated on a
+  side-by-side unguarded-vs-guarded run:
+  ```
+  anchor               unguarded  guarded    Δ
+  recipe_full_te       0.98047    0.98032   -0.00015  ← guardrail strips seed7labeler
+  lb_best_3way         0.98041    0.98041   +0.00000  ← seed7labeler already in anchor
+  ```
+  Invariant `guarded_OOF ≤ unguarded_OOF` holds in both cases. The
+  guardrail correctly prevents greedy from re-picking the
+  `seed7labeler` 2-way (documented LB regressor −0.00029) as a
+  new addition. For future greedy experiments on any branch that
+  inherits this script, adding new LB-regressors to the
+  EXCLUDE_GREEDY_ADD set is the cheapest insurance against
+  burning an LB slot on the same regression pattern twice.
+- LB budget unchanged: 0 probes spent this session. Current LB-
+  best still `submission_3way_recipe025_s1035_s7040.csv` at
+  **LB 0.98005**.
+- Three LEARNINGS.md rules landed (see LEARNINGS.md Modelling +
+  Ensembling sections):
+  1. Bi-modal sub-domains can mask 20-80% minority heuristic.
+  2. Specialist feature set must match anchor's feature richness.
+  3. Binary class-k head on same basis as anchor ≈ null at fixed
+     bias regardless of AUC.
+  4. `EXCLUDE_GREEDY_ADD` two-level exclusion for greedy
+     forward-select once ≥3 LB-regressors are in the pool.
+- Remaining W1/W4 require Kaggle GPU push (RealMLP completion +
+  stranded NN OOF backfill); skipped for next session.
+
+### 2026-04-24 — #3 focal-loss XGB + #4 score=6 M-vs-H specialist: both NULL, but v2 is first precision-beating override
+
+- Goal: execute candidates #3 (focal-loss XGB on recipe features) and
+  #4 (per-cell score=6 Medium↔High specialist) from the remaining
+  recommendation list after the Pareto-frontier closure. Both target
+  the High-recall weakness but via different mechanisms: #3 at training
+  time, #4 at deploy time.
+
+- **#3 focal-loss XGB** — `scripts/focal_common.py` +
+  `scripts/recipe_focal.py` + `scripts/blend_focal.py`.
+  Custom multi-class focal-weighted CE objective:
+  ```
+  w_sample = alpha_y * (1 - p_y)^gamma
+  grad     = w * (softmax(z) - one_hot(y))
+  hess     = w * p * (1 - p)   + eps     (diagonal softmax approx)
+  ```
+  Outer-weight approximation (treats w as constant in grad step; exact
+  focal gradient has extra terms from chain rule through (1-p_y)^gamma
+  but the approximation is indistinguishable at gamma ≤ 3 and keeps
+  hess PSD). Production run with gamma=2, alpha=(1,1,3) on the 443-
+  feature recipe matrix, xgb.train native API, custom_metric=bal_acc
+  (maximize), NO sample_weight='balanced' (focal alpha already
+  upweights rare class). 29 min wall on CPU.
+  - Per-fold timings:
+    ```
+    fold 1  best_iter=200  best_score=0.97472  argmax=0.97327  wall=433s
+    fold 2  best_iter=135  best_score=0.97512  argmax=0.97313  wall=326s
+    fold 3  best_iter=61   best_score=0.97682  argmax=0.97477  wall=242s
+    fold 4  best_iter=59   best_score=0.97422  argmax=0.97344  wall=240s
+    fold 5  argmax ~0.97384 (inferred from mean 0.97369 ± 0.00059)
+    OOF argmax = 0.97369  tuned = 0.97846  bias=[1.73, 1.77, 2.60]
+    ```
+  - Tuned bias insight: High bias 2.60 vs recipe's 3.40 — focal's
+    alpha_H=3 already pushes High probs up at training time, so
+    post-hoc log-bias correction is smaller. Test dist
+    [159674 / 100201 / 10125] = 3.75 % High (above train prior 3.33 %).
+  - Blend-gate vs LB-best 3-way (0.98029):
+    ```
+                    errs   Jaccard vs recipe   Jaccard vs 3-way
+    recipe         10,114         1.00              0.79
+    LB-best 3-way   9,983         -                 1.00
+    focal          10,450       0.779             0.739
+    peak alpha vs recipe       = 0.000  delta = +0.00000
+    peak alpha vs 2-way LB-best= 0.025  delta = +0.00002
+    peak alpha vs 3-way LB-best= 0.000  delta = +0.00000
+    ```
+  - **Jaccard 0.74 PASSES the orthogonality gate (< 0.80)** —
+    focal's errors ARE genuinely different. But errs 10,450 > 9,983
+    → +467 more errors than 3-way fails magnitude gate. Classic
+    magnitude-trap null.
+  - Per-class recall at own tuned bias:
+    ```
+               recL      recM      recH
+    recipe    0.9950    0.9675    0.9765
+    3-way     0.9941    0.9694    0.9774
+    focal     0.9950    0.9663    0.9741   ← LOWER High than recipe
+    ```
+  - **Counter-intuitive finding**: focal with High-class upweight
+    produces LOWER High recall than baseline recipe. Mechanism:
+    gamma=2 + alpha_H=3 + no sample_weight='balanced' over-concentrates
+    gradient on rare-class rows, shifting the Medium-vs-High decision
+    surface TOWARD High predictions. But the shift is DISCRETE
+    (threshold changes) not PROBABILISTIC (calibration changes). Some
+    previously-correct Medium rows flip to High (wrong); some
+    previously-missed-High rows get caught (right); net per-class
+    recall is LOWER on High because the threshold overshoot loses
+    ~30 True-Medium rows per ~15 True-High captured. log-bias
+    coord-ascent at tuned bias=2.6 tries to compensate but plateau
+    is structural.
+  - **Portable rule** (LEARNINGS.md candidate): **"Focal loss with
+    aggressive per-class alpha on imbalanced tabular problems can
+    REDUCE rare-class recall"** when the alpha upweight is not
+    paired with a matching increase in early-stopping patience.
+    Focal's best_iter dropped from recipe's 1200+ to 59-200 rounds;
+    training stops while the rare-class decision surface is still
+    overshooting. Either (a) use milder alpha (2.0 instead of 3.0),
+    (b) remove focal gamma (plain weighted-CE), or (c) extend
+    early_stopping_rounds 3-5× to let the overshoot self-correct.
+  - LB delta: n/a (both gates fail below +0.00020 LB-transfer
+    threshold). Submission at alpha=0.00 emitted as diagnostic
+    (identical to LB-best 3-way standalone).
+
+- **#4 score=6 Medium-vs-High binary specialist** —
+  `scripts/spec6_mh.py` (v1) + `scripts/spec6_mh_v2.py` (v2) +
+  `scripts/spec6_deploy.py` + `scripts/spec6_deploy_v2.py`.
+  - Score=6 band (38,416 rows, 4.03 % High prevalence, rule always
+    predicts Medium) concentrates 70 % of all missed-High signal per
+    the 2026-04-24 error analysis. Binary P(y=High | features,
+    score=6) trained only on score=6 train-fold rows, 5-fold
+    StratifiedKFold(seed=42) aligned with every saved OOF.
+  - **v1 features (35)**: 28 dist-features (sm/rf/tc/ws dist+abs +
+    rule flags + score + boundary distances + pairwise products)
+    + 7 nonrule numerics (`Humidity, Previous_Irrigation_mm,
+    Electrical_Conductivity, Soil_pH, Organic_Carbon, Sunlight_Hours,
+    Field_Area_hectare`). OOF AUC = **0.862**.
+  - **v2 features (40)**: v1 + 5 teacher meta-features
+    (`teacher_PL, teacher_PM, teacher_PH, teacher_mh_margin,
+    teacher_mh_ratio`). Teacher = LB-best 3-way log-blend
+    (0.25 recipe + 0.35 pseudo_s1 + 0.40 pseudo_s7), OOF-leakfree
+    by construction. OOF AUC = **0.938** (+0.076 vs v1). best_iter
+    dropped 352-544 → 34-128 rounds — teacher probs carry most of
+    the signal; XGB converges fast on residual.
+  - **Deploy mechanism**: hard-override teacher_pred=Medium rows on
+    score=6 → High where P_spec > theta. Under macro-recall break-
+    even precision = H_count / M_count = 21009/239074 = 8.8 %
+    (or 8.1 % in the ratio form). Override space: 35,180 rows
+    (score=6 ∩ teacher-Medium), of which 331 are truly-High.
+  - **v1 peak at theta=0.50**: 41 overrides, 4 correct → 9.8 %
+    precision. Delta = +0.00001. Marginal.
+  - **v2 peak at theta=0.15**: 25 overrides, 7 correct →
+    **28.0 % precision** (3.2× break-even). Delta = +0.00009.
+    Rank-based top-N=50: 14 % precision, delta +0.00005.
+  - Test-side deploy: v1 at theta=0.50 → 15 overrides;
+    **v2 at theta=0.15 → only 2 overrides**. Test distribution
+    has sharper high-confidence cutoffs than OOF (expected).
+  - **Significance**: v2 is the FIRST experiment on this problem
+    to cleanly BEAT break-even precision on a High-class override
+    (28 % >> 8.8 %). The 2026-04-24 Pareto-frontier closure noted
+    that no candidate in the 7-model bank could predict High
+    correctly on teacher-miss rows, even at high candidate
+    confidence. v2 with teacher meta-features partially breaks
+    that — but only on the tiny score=6 override space, where
+    absolute counts are too small to move LB.
+  - **Portable rule** (LEARNINGS.md candidate):
+    **"Teacher posteriors (especially boundary-margin features
+    like `P_M - P_H` or `log(P_H/P_M)`) are the strongest signal
+    source for boundary-specialists."** v1→v2 went from AUC 0.862
+    to 0.938 purely by adding 5 teacher-derived features to 35
+    raw/dist features. Mechanism: boundary uncertainty is what
+    the rare-class override should target, and teacher's
+    calibrated margins directly measure that uncertainty. Raw
+    features force the specialist to re-discover the boundary;
+    teacher features hand it over pre-computed. Use this pattern
+    whenever training a specialist to complement a strong
+    base-model's decisions.
+  - LB delta: n/a. Both variants below +0.00020 LB-transfer
+    threshold; test override count (2 rows at v2 peak) too small
+    to shift LB.
+
+- **Combined session read-out** (both #3 and #4 NULL for LB):
+  - Focal-loss: magnitude-trap null (Jaccard passes, errs fails).
+    The orthogonality-is-necessary-not-sufficient rule confirmed
+    yet again. Reinforces the 2026-04-24 Pareto-frontier closure.
+  - Score=6 specialist v2: first precision-beating override
+    mechanism on this problem; lever EXISTS (28 % precision) but
+    prevalence-bounded to ~10 override rows. Proof-of-concept that
+    teacher meta-features unlock signal hiding in raw features,
+    but insufficient magnitude to move LB.
+  - Still remaining untried (from the strategic shortlist):
+    RealMLP smoke-first retry (only NN family untested); SMOTE-NC
+    synthetic High rows; B0 DivideMix. Current LB best unchanged
+    at **0.98005** (3-way multi-seed).
+
+- Artefacts committed for cross-branch reuse (gitignore whitelist):
+  - `scripts/artifacts/oof_recipe_focal_g2h3.npy` + test + JSON
+  - `scripts/artifacts/oof_spec6_mh.npy` + test + JSON (v1, AUC 0.862)
+  - `scripts/artifacts/oof_spec6_mh_v2.npy` + test + JSON (v2, AUC 0.938)
+  - `scripts/artifacts/spec6_deploy_v2_results.json` (theta sweeps + rank)
+  - `scripts/artifacts/blend_focal_g2h3_results.json` (full blend-gate output)
+  - `submissions/submission_recipe_focal_g2h3.csv` (diagnostic)
+  - `submissions/submission_focal_blend_a000.csv` (diagnostic, = 3-way)
+  - `submissions/submission_spec6_override_th50.csv` (v1 hard-override test)
+  - `submissions/submission_spec6_override_v2_th15.csv` (v2 hard-override test)

@@ -39,9 +39,17 @@ Fold-1 early-gate on error Jaccard vs recipe_full_te + LB-best 2-way:
   0.85 <= Jaccard < 0.90 → warn (blend lift capped ~+0.00015)
   Jaccard < 0.85 → run all folds + flag as fresh blend component.
 
-ETA: ~45 min on P100 GPU.
+Careful-retry config (2026-04-25, after 2026-04-24 3h34min kill):
+  - n_ens=1 explicit (kills the n_ens=8 default — source of the
+    preprocessing hang).
+  - n_epochs=40 explicit (pytabkit default ~256).
+  - TargetEncoder cv=2 (half the internal k-fold passes vs cv=5).
+  - Fold-1 wall-time safety (20 min) + total wall-time safety (55 min).
+  - SMOKE path enforced as a separate Kaggle push BEFORE production.
 
-SMOKE=1 env var runs a 2-fold 20k-row smoke (~3 min) for debugging.
+ETA: 30–50 min on P100 GPU at n_ens=1 / n_epochs=40 / 5 folds.
+
+SMOKE=1 env var runs a 2-fold 20k-row smoke (~5 min) for debugging.
 """
 from __future__ import annotations
 
@@ -118,10 +126,20 @@ CLS_MAP = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS_MAP.items()}
 
 KAGGLE_INPUT = Path("/kaggle/input")
-OUT_DIR = Path("/kaggle/working")
+# /kaggle/working on Kaggle; fall back to a local dir for structural
+# smoke runs outside Kaggle.
+_DEFAULT_OUT = Path("/kaggle/working")
+if _DEFAULT_OUT.exists() or _DEFAULT_OUT.parent.exists():
+    OUT_DIR = _DEFAULT_OUT
+else:
+    OUT_DIR = Path(os.environ.get("SMOKE_OUTPUT_DIR", "./realmlp_local_out"))
 OUT_DIR.mkdir(exist_ok=True, parents=True)
 
-SMOKE = os.environ.get("SMOKE") == "1"
+# IS_SMOKE: top-level override for Kaggle pushes (env vars aren't
+# settable at push time). Flip to False for production push AFTER
+# the SMOKE kernel has completed successfully.
+IS_SMOKE = False
+SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
 
@@ -226,6 +244,12 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
     oof = np.zeros((n_train, 3), dtype=np.float32)
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
     fold_ba = []
+    folds_completed = 0
+    # Wall-time safety net: fold 1 ≥ 20 min → kill. Whole run ≥ 55 min
+    # → kill. Both honored per CLAUDE.md 1-hour GPU cap rule.
+    t_start = time.time()
+    FOLD1_KILL_SEC = 20 * 60 if not SMOKE else 10 * 60
+    TOTAL_KILL_SEC = 55 * 60 if not SMOKE else 15 * 60
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
@@ -237,8 +261,11 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
 
         # Per-fold multiclass TargetEncoder on combo cols (sklearn
         # 1.5+, fit on train only = leak-free for OOF alignment).
+        # cv=2 (not 5) — cuts internal TE passes 60% under the 1h
+        # GPU cap. Per-fold TE variance slightly higher; acceptable at
+        # 5-fold outer level.
         log(f"  fitting TargetEncoder on {len(te_cols)} combos")
-        te = TargetEncoder(target_type="multiclass", cv=5,
+        te = TargetEncoder(target_type="multiclass", cv=2,
                            random_state=SEED)
         te_tr = te.fit_transform(X_tr[te_cols], y_tr)
         te_va = te.transform(X_va[te_cols])
@@ -271,11 +298,16 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         log(f"  fitting RealMLP_TD on {tr_frame.shape[1]} features, "
             f"{len(tr_frame):,} rows")
         t0 = time.time()
+        # n_ens=1 explicit (default is 8; 8 internal BatchEnsemble heads
+        # × per-head preprocess = the preprocessing hang that killed
+        # the 2026-04-24 production run).
+        # n_epochs=40 explicit (default ~256; enough for convergence at
+        # n_ens=1 on 630k rows). SMOKE uses 3 for structural verification.
         model = RealMLP_TD_Classifier(
-            n_cv=1, n_refit=0,
+            n_cv=1, n_refit=0, n_ens=1,
             device="cuda",
             val_metric_name="class_error",
-            n_epochs=(3 if SMOKE else None),  # pytabkit default if None
+            n_epochs=(3 if SMOKE else 40),
             random_state=SEED,
             verbosity=1,
         )
@@ -292,16 +324,47 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         pred_va = proba_va.argmax(axis=1)
         ba = balanced_accuracy_score(y_va, pred_va)
         fold_ba.append(float(ba))
-        log(f"  fold {fold} argmax bal_acc = {ba:.5f}")
+        folds_completed = fold
+        elapsed = time.time() - t_start
+        log(f"  fold {fold} argmax bal_acc = {ba:.5f}  "
+            f"(elapsed {elapsed/60:.1f}m)")
 
-    overall_argmax = balanced_accuracy_score(y, oof.argmax(axis=1))
+        # Hard safety-net kills — save partial outputs, stop early.
+        if fold == 1 and elapsed > FOLD1_KILL_SEC:
+            log(f"!! FOLD-1 WALL-TIME KILL: {elapsed/60:.1f}m > "
+                f"{FOLD1_KILL_SEC/60:.0f}m. Saving partial and exiting.")
+            break
+        if elapsed > TOTAL_KILL_SEC:
+            log(f"!! TOTAL WALL-TIME KILL: {elapsed/60:.1f}m > "
+                f"{TOTAL_KILL_SEC/60:.0f}m. {fold}/{N_FOLDS} folds done.")
+            break
+
+    # Rescale test_pred if we stopped early (divisor was N_FOLDS).
+    if folds_completed and folds_completed < N_FOLDS:
+        test_pred *= N_FOLDS / folds_completed
+
+    # Compute OOF argmax only over folds that actually produced output.
+    if folds_completed > 0:
+        # Val rows from completed folds have nonzero probs; others are 0.
+        nonzero_mask = oof.sum(axis=1) > 0
+        if nonzero_mask.sum() > 0:
+            overall_argmax = balanced_accuracy_score(
+                y[nonzero_mask], oof[nonzero_mask].argmax(axis=1),
+            )
+        else:
+            overall_argmax = 0.0
+    else:
+        overall_argmax = 0.0
     log(f"=== OOF argmax = {overall_argmax:.5f} "
-        f"(mean fold {np.mean(fold_ba):.5f} ± {np.std(fold_ba):.5f})")
+        f"({folds_completed}/{N_FOLDS} folds, "
+        f"mean fold {np.mean(fold_ba) if fold_ba else 0:.5f} ± "
+        f"{np.std(fold_ba) if fold_ba else 0:.5f})")
     return dict(
         oof=oof,
         test=test_pred,
         overall_argmax=float(overall_argmax),
         fold_ba=fold_ba,
+        folds_completed=folds_completed,
     )
 
 
@@ -347,15 +410,25 @@ def main():
     train, test, orig, NUMS, CATS, combo_cols = build_features(
         train, test, orig,
     )
-    y = train[TARGET].to_numpy()
+    # map -> pandas Series is float64 if any NaN; cast to int64 so
+    # np.bincount works. fails loudly if any class label was unmapped.
+    y = train[TARGET].to_numpy().astype(np.int64)
 
     result = run_cv(train, test, orig, NUMS, CATS, combo_cols)
     oof = result["oof"]
     test_pred = result["test"]
+    folds_completed = result["folds_completed"]
 
+    # Bias-tune only over rows the CV actually scored; otherwise the
+    # tune operates on zero-rows and produces garbage bias.
     prior = np.bincount(y, minlength=3) / len(y)
-    bias, tuned = tune_log_bias(oof, y, prior)
-    log(f"tuned OOF bal_acc = {tuned:.5f}  bias={bias.round(4).tolist()}")
+    nonzero_mask = oof.sum(axis=1) > 0
+    if nonzero_mask.sum() > 0:
+        bias, tuned = tune_log_bias(oof[nonzero_mask], y[nonzero_mask], prior)
+    else:
+        bias, tuned = -np.log(prior), 0.0
+    log(f"tuned OOF bal_acc = {tuned:.5f}  bias={bias.round(4).tolist()}  "
+        f"({folds_completed}/{N_FOLDS} folds scored)")
 
     np.save(OUT_DIR / "oof_realmlp.npy", oof)
     np.save(OUT_DIR / "test_realmlp.npy", test_pred)
@@ -374,7 +447,9 @@ def main():
         "log_bias": bias.tolist(),
         "fold_ba": result["fold_ba"],
         "n_folds": N_FOLDS,
+        "folds_completed": folds_completed,
         "seed": SEED,
+        "smoke": bool(SMOKE),
         "feature_counts": {
             "base_cols": len(CATS) + len(NUMS) + len(NUMS),
             "combo_cols": len(combo_cols),

@@ -1,0 +1,41 @@
+{
+  "standalone": {
+    "bal_at_recipe_bias": 0.97633486185358,
+    "tuned_bal": 0.9763588437750976,
+    "errs_at_recipe_bias": 10472,
+    "tuned_bias": [
+      1.2324411632360972,
+      1.468946691946548,
+      3.400768902044088
+    ]
+  },
+  "jaccards": {
+    "vs_recipe": 0.6171249018067557,
+    "vs_LB2": 0.6250599712138174,
+    "vs_LB3": 0.6205990122670065
+  },
+  "blend_gate_verdict": "pass \u2014 proceed with fixed-bias sweep",
+  "sweeps": [
+    {
+      "target": "recipe",
+      "peak_alpha": 0.275,
+      "peak_bal": 0.9799078247653058,
+      "base_bal": 0.9796650350078755,
+      "delta": 0.00024278975743030617
+    },
+    {
+      "target": "LB2",
+      "peak_alpha": 0.375,
+      "peak_bal": 0.9803895825850386,
+      "base_bal": 0.9801231679332877,
+      "delta": 0.0002664146517509236
+    },
+    {
+      "target": "LB3",
+      "peak_alpha": 0.2,
+      "peak_bal": 0.9804738323726396,
+      "base_bal": 0.9802863771805209,
+      "delta": 0.00018745519211871287
+    }
+  ]
+}

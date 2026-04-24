@@ -216,13 +216,23 @@ concat(P_hv3, P_routed, P_dgp, P_xgbdist) with class_weight=balanced
 gave 0.97348 — underperformed the simple greedy blend because the
 component probs are too correlated for 12-feature logistic to add signal.
 
-## 4. Strategy and next steps (updated end-of-day 2026-04-21)
+## 4. Strategy and next steps (updated 2026-04-24, LB 0.98008)
 
-Current best: **greedy log-blend OOF 0.97375 / LB 0.97296**
-(+0.00025 LB vs prior hybrid-v3 best 0.97271, −0.00818 below the
-0.98114 tied pack, −0.00923 below the 0.98219 leader). The pack
-ceiling is now known to be a public-notebook CSV-blend artifact,
-not a modeling breakthrough available through our own pipelines.
+Current best: **LB3-anchor + RealMLP + xgb_nonrule_iso log-blend,
+OOF 0.98061 / LB 0.98008** (+0.00003 LB vs prior best 0.98005
+multi-seed 3-way). Gap to 0.98114 tied pack: +0.00106.
+Gap to 0.98219 leader: +0.00211. The pack's LB is known to be a
+public-notebook CSV-blend artifact (banned per repo rule), not a
+modeling breakthrough available through our own pipelines.
+
+The 2026-04-24 session yielded three validated portable rules and
+the first successful NN-leg blend in 12 attempts. See §4.2 for
+the end-of-day update with the next-bet roadmap; this §4 block
+preserves the 2026-04-21 strategy snapshot for historical context.
+
+**2026-04-21 snapshot follows:** greedy log-blend OOF 0.97375 / LB
+0.97296 (+0.00025 LB vs prior hybrid-v3 best 0.97271, −0.00818 below
+the 0.98114 tied pack).
 
 Since the morning session, a broad sweep of tree-family + blending
 + training-data-quality levers converged on an OOF ceiling of
@@ -289,13 +299,33 @@ Ranked by expected ROI / effort:
    deterministic and approximated by (1) above. No independent
    payoff to further archaeology.
 
-### Final-selection candidates (pick 2 for Kaggle's final lock)
+### Final-selection candidates (updated 2026-04-24, LB 0.98008)
 
-- **Primary**: `submission_blend_greedy_w045_040_015.csv`
-  (OOF 0.97375 / LB 0.97296). Verified best.
-- **Safe fallback**: `submission_xgb_hybrid_v3_routed012_spec678.csv`
-  (OOF 0.97352 / LB 0.97271). Single-pipeline, minimal variance,
-  private-LB robust.
+Candidates listed in order of LB public. Final-selection decision
+should weigh public LB, OOF→LB gap (calibration robustness), and
+model-family variance for private-LB risk mitigation.
+
+- **Primary (new LB best)**: `submission_lb3_realmlp_nonruleiso.csv`
+  → OOF 0.98061 / **LB 0.98008** / gap +0.00053. Greedy-refit 3-stack:
+  LB-best 3-way anchor + RealMLP-TD (n_ens=1, GPU) @ α=0.200 +
+  xgb_nonrule (isotonic-calibrated) @ α=0.075. First NN-leg blend that
+  passed BOTH Jaccard gate (0.62) AND magnitude gate (errs −301 vs
+  anchor). Wider OOF→LB gap reflects RealMLP's inherent OOF-overfit
+  surcharge but still LB-positive.
+- **Safe fallback (prior LB best)**:
+  `submission_3way_recipe025_s1035_s7040.csv`
+  → OOF 0.98029 / LB 0.98005 / gap +0.00024. 3-way multi-seed log-blend
+  of recipe × pseudo_s1 × pseudo_s7. Tight calibration (lowest gap we
+  have), pure tree-family pipeline, minimal variance surface. Good
+  hedge against private-LB fold drift.
+- **Ultra-safe single-model baseline**: `submission_recipe_full_te.csv`
+  → OOF 0.97967 / LB 0.97939 / gap +0.00028. Zero blend overfit risk,
+  ceiling-confirmed structural baseline.
+
+Gap to pack (0.98114): +0.00106. Gap to leader (0.98219): +0.00211.
+The pack's LB is known to be public-CSV-blend (banned per CLAUDE.md);
+own-pipeline frontier is now at the 0.98008 LB mark confirmed by this
+session's 3-stack probe.
 
 If (1) lands a verified LB lift before close, swap the fallback for
 the NN-augmented blend.

@@ -76,6 +76,8 @@ kernel_audit*/
 !scripts/artifacts/test_xgb_spec_678.npy
 !scripts/artifacts/oof_xgb_spec_36.npy
 !scripts/artifacts/test_xgb_spec_36.npy
+!scripts/artifacts/oof_xgb_bin_medium.npy
+!scripts/artifacts/test_xgb_bin_medium.npy
 !scripts/artifacts/oof_xgb_vanilla_dist.npy
 !scripts/artifacts/test_xgb_vanilla_dist.npy
 !scripts/artifacts/oof_lgbm_te_orig.npy
@@ -392,13 +394,42 @@ kernel_audit*/
 !scripts/artifacts/oof_missed_high.npy
 !scripts/artifacts/test_missed_high.npy
 
-# 2026-04-24 U0OEQ session — focal-loss + capacity-reduced soft-distill
-# (both diagnostic, kept for cross-branch reuse):
-#   * recipe_focal (gamma=2, alpha=invfreq): NULL. Tuned OOF 0.97683.
-#     Jaccard 0.61-0.66 (best orthogonality of any tree candidate) but
-#     per-class recall WORSE on every class (H 0.9701 vs recipe 0.9765).
-#     Closes focal as direct-replacement lever — alpha=17.6 on High +
-#     gamma=2 on boundary rows compounds to weaker model, not balanced.
+# RealMLP-TD via pytabkit (careful n_ens=1 retry, 2026-04-24). First NN
+# leg in 12 attempts to pass the Jaccard gate (0.62 vs LB-best 3-way).
+# Blend submission landed LB 0.97991 (−0.00014 vs best 0.98005) —
+# magnitude-trap dominated (errs +358 vs anchor). Retained as the only
+# Jaccard-<0.65 NN OOF for future stacking experiments.
+!scripts/artifacts/oof_realmlp.npy
+!scripts/artifacts/test_realmlp.npy
+
+# Focal-loss XGB (#3 from 2026-04-24 plan): custom multi-class
+# focal-weighted CE objective on the 443-feature recipe matrix.
+# gamma=2, alpha=(1,1,3) — rare-class-focused training-time mechanism.
+# Different error geometry than recipe's sample_weight='balanced'.
+# Early-stops on bal_acc directly (maximize).
+!scripts/artifacts/oof_recipe_focal_g2h3.npy
+!scripts/artifacts/test_recipe_focal_g2h3.npy
+
+# Score=6 Medium-vs-High binary specialist (#4 from 2026-04-24 plan).
+# v1: 43-dist + 7 nonrule numerics, OOF AUC 0.862 on 38,416 spec rows.
+# v2: v1 + LB-best 3-way teacher probs + mh_margin/mh_ratio,
+#     OOF AUC 0.938 — teacher meta-features carry most of the signal.
+# Deploy as hard override: teacher_pred=Medium on score=6 rows →
+# High where P_H > theta. v2 peak theta=0.15 gives 28% precision
+# (3.2x break-even 8.8%), OOF delta +0.00009.
+!scripts/artifacts/oof_spec6_mh.npy
+!scripts/artifacts/test_spec6_mh.npy
+!scripts/artifacts/oof_spec6_mh_v2.npy
+!scripts/artifacts/test_spec6_mh_v2.npy
+
+# 2026-04-24 U0OEQ session — alternate focal-loss variant + capacity-
+# reduced soft-distill (both diagnostic, kept for cross-branch reuse):
+#   * recipe_focal_invfreq.py (gamma=2, alpha=invfreq≈[1,1.55,17.6]):
+#     NULL. Tuned OOF 0.97683. Jaccard 0.61-0.66 (best orthogonality
+#     of any tree candidate) but per-class recall WORSE on every class
+#     (H 0.9701 vs recipe 0.9765). Distinct from parallel session's
+#     g2h3 variant (alpha=[1,1,3]) — heavier-alpha version. Closes
+#     focal-heavy-alpha as a direct-replacement lever.
 #   * soft_distill_small (depth=3, max_leaves=15, nround=1500): OOF
 #     0.98066 standalone (first ever above LB-best 3-way 0.98029),
 #     PASSES all 3 blend gates on OOF. But LB probe = 0.97865

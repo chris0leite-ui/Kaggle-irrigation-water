@@ -696,6 +696,26 @@ all of them on the same model.
   components. Use greedy first; only invest in meta-stack when your
   component pool is diverse or you're pairing it with stacking
   features the components don't already see.
+- **Greedy forward-select needs an EXCLUDE_GREEDY_ADD guardrail
+  once you have ≥3 LB-probed regressors in the pool.** On single-CV-
+  split OOFs, greedy's "pick the highest-Δ candidate at each step"
+  keeps rediscovering components that OOF-overfit against any
+  baseline trained on the same folds. Four such components on this
+  problem kept getting proposed: `stage-2 pseudo-label`,
+  `seed7labeler 2-way`, `seed123labeler`, `soft_distill`. Each had
+  OOF +0.00020 to +0.00060 lift but LB regression (−0.00029 to
+  −0.00148). Rule: maintain two exclusion sets — `EXCLUDE_FROM_POOL`
+  for components whose LB was directly probed as regressive or whose
+  output breaks log-blend semantics (sparse carriers), and
+  `EXCLUDE_GREEDY_ADD` for components that are valid anchor
+  INGREDIENTS (so must stay in pool) but are OOF-overfit
+  greedy-adds. Verify the guardrail isn't manufacturing signal by
+  running both unguarded and guarded greedy; `guarded_OOF ≤
+  unguarded_OOF` must hold (the guardrail can only strip manufactured
+  lift, never add it). Concrete: on this competition, guarded
+  greedy from `recipe_full_te` anchor dropped OOF 0.98047 → 0.98032
+  (lost the +0.00015 that `seed7labeler` would have added as step 2)
+  — the guardrail correctly traded OOF for LB-transfer.
 - **Log-space blend α around 0.15–0.50 matches the intuition that
   "mix the best model with one other for bias-variance correction".**
   Across 6 pairs on this problem, the α picked by the sweep always
@@ -812,6 +832,23 @@ all of them on the same model.
   (gap blew up from 0.00079 to 0.00186, 2.4×). Same component
   swept at fixed bias → monotonic negative from λ=0. Cost-free rule
   that prevents ~1 overfit LB burn per session.
+- **A binary class-k head on the SAME feature basis as the 3-class
+  anchor cannot lift the anchor at fixed bias, regardless of AUC
+  quality.** W3 confirmed the binhigh pattern generalises beyond the
+  rare class: binary-Medium head (OOF AUC 0.99767) on the full
+  443-feature recipe set swept into LB-best 3-way at fixed bias —
+  all three parameterisations (`prob_mix`, `geo_mix`, `logit_add`)
+  peaked at weight 0 with monotone-negative deltas in both
+  directions. The binary head is information-redundant with the
+  3-class anchor's class-k column; positive weight only shifts the
+  operating point off the macro-recall optimum. Diagnostic: raw
+  error count DROPS monotonically as the binary weight grows
+  (pushing rows toward the target class) while balanced accuracy
+  DROPS in lockstep — the rare class's recall is sacrificed first
+  because its prior is 12× smaller. Rule: for a binary head to add
+  signal, it MUST see a DIFFERENT feature basis than the anchor
+  (e.g. `xgb_nonrule`'s 13-feature rule-blind set did lift greedy
+  by +0.00056 because it ignored rule features entirely).
 - **Real LB delta ≈ 1/3 OOF delta when stacking tuned blends on
   tuned baselines.** Compounding OOF-selection biases: blend weight
   sweep + log-bias retune + component-picking. Each layer adds
@@ -862,3 +899,96 @@ all of them on the same model.
   but overshoots into over-prediction of flips. Direct-y 3-class
   on the same features is better behaved — forces per-row
   discrimination across all rows.
+- **Focal loss with aggressive per-class alpha can REDUCE rare-class
+  recall on imbalanced tabular problems.** (PS6e4 2026-04-24) Custom
+  multi-class focal (gamma=2, alpha=(1,1,3), no class-balanced
+  sample_weight) on recipe features produced High recall 0.9741,
+  LOWER than recipe's 0.9765 baseline at each model's own tuned
+  log-bias. Mechanism: focal gradient concentrates on rare-class
+  rows AND on low-confidence rows simultaneously, shifting the
+  Med-vs-High threshold toward High predictions. The shift is
+  DISCRETE (threshold crossings) not PROBABILISTIC (calibration
+  refinement) — previously-correct Medium rows flip to High faster
+  than previously-missed-High rows get caught. Best_iter collapses
+  (59-200 for focal vs 1200+ for plain recipe), which stops training
+  while the rare-class decision surface is still overshooting.
+  Remedies: (a) milder alpha (2.0 not 3.0); (b) drop focal gamma and
+  use plain weighted-CE; (c) extend early_stopping_rounds 3-5× to
+  let the overshoot self-correct; (d) maintain class-balanced
+  sample_weight (stacks multiplicatively with focal's per-row weight).
+  Blend math is still trapped: Jaccard 0.74 (genuinely orthogonal)
+  but errs +467 vs anchor → magnitude-trap null.
+- **Teacher posteriors are the strongest signal source for boundary-
+  specialist training.** (PS6e4 2026-04-24 spec6_mh v1→v2) A binary
+  specialist on the ~10% minority class within a boundary score band
+  went from AUC 0.862 (35 raw+dist+nonrule features) to 0.938 (+5
+  teacher meta-features: `teacher_P[L|M|H]`, `teacher_mh_margin =
+  P_M - P_H`, `teacher_mh_ratio = log(P_H/P_M)`). Mechanism: boundary
+  uncertainty is exactly what the rare-class override should target,
+  and the teacher's calibrated margins measure that uncertainty
+  directly. Raw features force the specialist to re-discover the
+  boundary; teacher features hand it over pre-computed. best_iter
+  dropped 352-544 → 34-128 rounds, confirming teacher probs carry
+  most of the signal. **Use whenever training a specialist on top
+  of a strong base model.** Note: this unlocks precision but NOT
+  absolute count — hard-override at 28% precision (3.2× break-even
+  8.8%) only fires on 25 rows OOF / 2 rows test. Prevalence-bound
+  the LB impact to noise floor.
+- **Hard-override deploy break-even under macro-recall:**
+  `precision_required = n_positive_class / n_negative_pool` where
+  negative_pool is the set of rows the override can misfire on.
+  Each correct override contributes `+1/n_pos_class` to that class's
+  recall (and thus `+1/(3·n_pos_class)` to macro-recall); each wrong
+  override subtracts `-1/n_neg_class` from the negative class's
+  recall. For rare-class boundary overrides (e.g. rare-High in a
+  largely-Medium score band), the break-even precision is set by the
+  WHOLE-dataset class sizes, not the in-band ratios. On PS6e4 this
+  was 21009/239074 = 8.8%. Compute this first before scaffolding a
+  specialist — it tells you whether the specialist's achievable
+  precision is even in the usable range.
+- **Refined blend-magnitude rule: `errs ≤ 1.005 × anchor` is the
+  tighter LB-transfer threshold, not `1.04 × anchor`.** (PS6e4
+  2026-04-24, RealMLP A/B.) Two RealMLP blends on the same OOF,
+  same model, different anchor/α: (a) LB2 anchor + α=0.375, OOF
+  0.98039, errs 10472 (+3.5% vs anchor 10114) → LB 0.97991 (−0.00014).
+  (b) LB3 anchor + α=0.200 + xgb_nonrule_iso @0.075, OOF 0.98061,
+  errs 9572 (−3.0% vs anchor 9873) → LB 0.98008 (+0.00003). Sign of
+  the LB delta tracks sign of the err-count delta. The +3.5%
+  magnitude overhead in (a) translated to ~+0.00034 LB degradation
+  despite Jaccard 0.62 orthogonality — err-count gate trumps
+  Jaccard gate. Rule: a new blend leg MUST reduce total errs vs
+  its anchor (not just Jaccard < 0.80) for positive LB transfer.
+- **Greedy forward-selection beats hand-picked α.** (PS6e4
+  2026-04-24.) Same RealMLP OOF in pool; hand-picked (α=0.375 on
+  LB2) produced a worse blend OOF and LB than greedy-refit's
+  (α=0.200 on LB3 + nonrule_iso @0.075). Greedy iterated over
+  (component × α ∈ 10-point grid × fixed bias) per step and
+  correctly picked the better local optimum. Never hand-pick α
+  when the OOF bank has N≥10 components; 17-minute greedy run
+  beats manual intuition every time.
+- **Anchor dependency in greedy stacking: cross-family components
+  rank differently depending on anchor strength.** (PS6e4
+  2026-04-24.) Same 38-component OOF pool, two anchors: (a) from
+  recipe (weaker), greedy picks within-family seed7 recipe +
+  seed7 pseudolabeler (same FE block, different fold seeds).
+  RealMLP is NOT picked. (b) From LB-best 3-way (stronger, already
+  exhausted within-family gains), RealMLP is the TOP pick at step
+  1 (α=0.200, Δ+0.00019). Mechanism: the stronger anchor has
+  already absorbed the easy within-family signal, so the
+  information-per-blend-weight of a cross-family component (NN
+  vs tree) dominates. Rule: **when running greedy over an OOF
+  bank, always anchor on the strongest LB-verified blend (not
+  the best single-model baseline)** — you get the cross-family
+  orthogonality lifts that only surface once within-family
+  options are exhausted.
+- **RealMLP's OOF-overfit surcharge is ~2× the tree-family blend
+  gap.** (PS6e4 2026-04-24.) The 3-way multi-seed blend (tree-only
+  components) had OOF→LB gap +0.00024; adding RealMLP to the stack
+  widened it to +0.00053 (the new-LB-best 3-stack). The delta
+  +0.00029 is the RealMLP overfit surcharge — intrinsic to
+  gradient-fit neural networks on 630k rows. Rule: budget
+  +0.0002-0.0005 extra OOF→LB gap when adding any NN leg to a
+  tree-family stack, even one that passes err-count and Jaccard
+  gates. Translates to: require OOF lift > +0.0005 to have >50%
+  chance of positive LB transfer when adding a NN leg (vs the
+  usual +0.0002 threshold for tree-family components).
