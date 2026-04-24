@@ -85,9 +85,15 @@ def best_threshold_and_metrics(scores: np.ndarray, y: np.ndarray
 
 def evaluate_formula(program, X_tr, y_tr, X_va, y_va):
     """Run a gplearn program; report best threshold + CV precision/recall."""
-    sc_tr = program.predict(X_tr)
+    # gplearn's _Program uses .execute(), not .predict(). Wrap try/except
+    # so a single failing formula doesn't kill the whole evaluation loop.
+    try:
+        sc_tr = program.execute(X_tr)
+        sc_va = program.execute(X_va)
+    except Exception as e:
+        return dict(threshold=float("nan"), precision=0.0, recall=0.0,
+                    selected=0, error=str(e))
     t, _, _ = best_threshold_and_metrics(sc_tr, y_tr)
-    sc_va = program.predict(X_va)
     y_pred = (sc_va > t).astype(int)
     if y_pred.sum() == 0:
         return dict(threshold=float(t), precision=0.0, recall=0.0, selected=0)
