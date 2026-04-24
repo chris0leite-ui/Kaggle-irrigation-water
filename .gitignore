@@ -368,5 +368,13 @@ kernel_audit*/
 !scripts/artifacts/oof_tta_recipe_s030.npy
 !scripts/artifacts/test_tta_recipe_s030.npy
 
+# Option 3 (disagree meta-stack) + Option 1 (selective router) —
+# both NULL vs LB-best 3-way teacher (2026-04-24). Committed so the
+# per-class Pareto-frontier diagnostic is reproducible cross-branch.
+!scripts/artifacts/oof_disagree_meta.npy
+!scripts/artifacts/test_disagree_meta.npy
+!scripts/artifacts/oof_selective_router.npy
+!scripts/artifacts/test_selective_router.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
