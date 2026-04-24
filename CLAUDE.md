@@ -2,6 +2,34 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ GPU KERNEL RUNTIME CAP — 1 HOUR MAX
+
+**Never launch a Kaggle GPU kernel without a hard 1-hour wall-time
+budget.** If an estimate suggests >1h, shrink the config (fewer
+folds, smaller `n_ens`, reduced epochs, subsampled data) BEFORE
+pushing. If a running kernel exceeds 1h, kill it — don't wait for
+"just a bit more."
+
+Context: 2026-04-24 RealMLP-TD via pytabkit pushed with a naive
+"~45 min P100" estimate based on the public-kernel author's claim.
+v3 ran **3h 34min of CPU preprocessing before GPU training even
+started** (pytabkit's `n_ens=8` internal preprocessing × per-fold
+`TargetEncoder(cv=5)` compounding + sklearn / Lightning setup).
+Kernel killed at that point — zero output produced. Wasted the
+queued GPU slot and ~4h of session time waiting on monitors.
+
+Concrete rules for future GPU kernels:
+1. Estimate wall time by MULTIPLYING published single-fold claims
+   by `n_folds × n_ensemble × 2` (safety margin). If the product
+   exceeds 60 min, shrink the config.
+2. Always run `SMOKE=1` locally (or as a 5-min Kaggle variant)
+   BEFORE pushing production. The `n_ens` / `cv` multiplier bugs
+   show up immediately on 20k rows.
+3. If a kernel is still in preprocessing at t+30min with no fold
+   output, KILL IT — don't let it eat the budget.
+4. Prefer CPU pipelines. Most own-pipeline levers on this problem
+   worked fine on 12-16 core CPU in under 2h wall.
+
 ## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST
 
 **Never upload a submission CSV to Kaggle without explicit user
@@ -7019,3 +7047,40 @@ read time has surfaced every real lever we've found. Start there.
      class = teacher-correct rows (subsampled). If AUC > 0.9 on
      held-out rows, the signal exists and can be deployed as a
      hard-gated override (not a blend). Untested.
+
+### 2026-04-24 — RealMLP kernel killed at t+3.5h (wasted GPU budget)
+
+- Goal: A1 RealMLP-TD via pytabkit on Kaggle GPU. B1 kernel audit #1
+  ranked this as highest-EV remaining experiment (production-tuned
+  tabular NN, only NN family not yet nulled).
+- Changed: `kaggle_kernel/kernel_realmlp/` scaffold with
+  `RealMLP_TD_Classifier(n_ens=8)`, 11 raw nums (raw + factorized) +
+  8 cats + 15 pair combos of 6 rule-relevant features, per-fold
+  multiclass TargetEncoder(cv=5). 5-fold StratifiedKFold(seed=42).
+- Kernel iterations:
+  - v1: `torch.AcceleratorError: CUDA error: no kernel image` on P100
+    (sm_60). Classic pre-installed-torch-vs-Pascal mismatch.
+  - v2: `ModuleNotFoundError: No module named 'lightning'`. Fix: install
+    torch+torchvision cu121 pair explicitly + `pip install lightning`.
+  - v3: boot + GPU detection OK, training started, then stalled in
+    per-fold preprocessing.
+- v3 timeline on Kaggle P100:
+  - t+0 to t+52s: torch 2.5.1 cu121 install + pytabkit install.
+  - t+52s to t+3h34min: CPU preprocessing silent (no output).
+  - t+3h34min: Lightning Trainer.fit() engaged, GPU available msg.
+  - **Killed at that point by user** (0 fold results after 3.5h).
+- Estimated cause: `n_ens=8` × 5-fold × per-fold TargetEncoder(cv=5)
+  produces a 200× preprocessing multiplier inside pytabkit. Mahogany-
+  buttstrings' CV 0.97802 claim was likely a single-fold run with
+  simpler preprocessing; we didn't scale up the estimate.
+- **User instruction: hard 1h wall-time cap on GPU kernels going
+  forward.** See ⚠️ rule at top of CLAUDE.md.
+- Lever status: RealMLP via pytabkit is NOT closed, but re-attempt
+  requires a drastically smaller config:
+  - `SMOKE=1` first — single fold, n_ens=1, 3 epochs, 20k rows.
+  - If smoke succeeds + produces a sensible OOF, scale to n_folds=5
+    with n_ens=4 (not 8), epochs=50 (not pytabkit default 256).
+  - Hard budget: kill at t+60min.
+- LB best unchanged at **0.98005**. Own-pipeline lever count still
+  converging on "ceiling is structural" per B2 GroupKFold confirmation
+  (OOF honest) + 15+ other nulls.
