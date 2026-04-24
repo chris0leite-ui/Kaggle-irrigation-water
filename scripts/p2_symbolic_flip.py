@@ -93,6 +93,9 @@ def evaluate_formula(program, X_tr, y_tr, X_va, y_va):
     except Exception as e:
         return dict(threshold=float("nan"), precision=0.0, recall=0.0,
                     selected=0, error=str(e))
+    # Guard against NaN/Inf from div/log/sqrt domain violations.
+    sc_tr = np.nan_to_num(sc_tr, nan=0.0, posinf=0.0, neginf=0.0)
+    sc_va = np.nan_to_num(sc_va, nan=0.0, posinf=0.0, neginf=0.0)
     t, _, _ = best_threshold_and_metrics(sc_tr, y_tr)
     y_pred = (sc_va > t).astype(int)
     if y_pred.sum() == 0:
@@ -133,8 +136,13 @@ def run_symbolic_search(train: pd.DataFrame, score: np.ndarray,
     y_tr, y_va = y_cell[tr_idx], y_cell[va_idx]
 
     # SymbolicRegressor with a compact function set. Log/sqrt guarded
-    # against domain errors.
+    # against domain errors. Sample weights boost the rare positive class
+    # so GP's MSE fitness rewards detecting flips instead of defaulting
+    # to "predict the majority ~0.05 constant".
     function_set = ("add", "sub", "mul", "div", "sqrt", "log", "abs")
+    pos_weight = (1.0 - n_flip / n_cell) / (n_flip / n_cell)
+    sw = np.where(y_tr == 1, pos_weight, 1.0)
+    log(f"  pos_weight={pos_weight:.2f}  (rebalances rare-flip class)")
     sr = SymbolicRegressor(
         population_size=POPULATION_SIZE, generations=GENERATIONS,
         stopping_criteria=0.01, p_crossover=0.7, p_subtree_mutation=0.1,
@@ -143,7 +151,7 @@ def run_symbolic_search(train: pd.DataFrame, score: np.ndarray,
         function_set=function_set, random_state=SEED, n_jobs=1,
         feature_names=NONRULE_CONTINUOUS,
     )
-    sr.fit(X_tr, y_tr)
+    sr.fit(X_tr, y_tr, sample_weight=sw)
 
     top_formulas = []
     # gplearn exposes the winning program via sr._program; for Hall of
