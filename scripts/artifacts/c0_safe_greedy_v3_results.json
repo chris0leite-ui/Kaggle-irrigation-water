@@ -1,0 +1,33 @@
+{
+  "anchors": {
+    "recipe_full_te": {
+      "final_oof": 0.9804692814205563,
+      "delta_vs_3way": 0.0001792814205563431,
+      "chosen": [
+        [
+          "recipe_full_te_seed7",
+          0.5
+        ],
+        [
+          "recipe_pseudolabel_seed7labeler",
+          0.2
+        ],
+        [
+          "xgb_nonrule__iso",
+          0.15
+        ]
+      ]
+    },
+    "lb_best_3way": {
+      "final_oof": 0.9804133277189001,
+      "delta_vs_3way": 0.00012332771890011252,
+      "chosen": [
+        [
+          "recipe_allpairs__iso",
+          0.2
+        ]
+      ]
+    }
+  },
+  "elapsed_sec": 582.3303101062775
+}
