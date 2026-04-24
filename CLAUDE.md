@@ -5479,3 +5479,79 @@ Closed the two open paths from the argmax-equivalence theorem:
   transformation. Before applying cleanlab, first confirm the label
   noise model matches (stochastic Bernoulli flip vs deterministic
   function): if the latter, skip to mixup/co-training instead."
+
+### 2026-04-24 — C0 isotonic calibration + greedy forward-blend: NULL at stacking-inflation ceiling
+
+- Goal: P5 recommendation — after cleanlab A0 + Saerens A1 both nulled,
+  test whether per-class isotonic calibration on every saved OOF + a
+  greedy forward-selection over the expanded bank can break past the
+  LB-best OOF 0.98013. Motivation: isotonic normalizes each component's
+  prob-scale independently before log-blending, which is the textbook
+  fix for the "CatBoost in blend null" (High-class calibration mismatch).
+- Changed: `scripts/c0_isotonic_greedy.py` (38 components, both raw and
+  iso candidates, greedy from recipe anchor at fixed recipe bias
+  [1.43, 1.47, 3.40]), `scripts/c0_safe_greedy.py` (same but EXCLUDE
+  `{soft_distill, xgb_spec_678}` and use BOTH anchors: recipe alone
+  and LB-best 2-way blend).
+
+- **Per-component isotonic effect** (standalone @ recipe bias, selected):
+  ```
+  component                raw bal     iso bal    Δiso
+  recipe_full_te           0.97967     0.97968    +0.00001
+  recipe_pseudolabel       0.97987     0.97993    +0.00006
+  recipe_catboost          0.97739     0.97936    +0.00197  (High-class fix)
+  lgbm_te_orig             0.97038     0.97178    +0.00140  (weakest models gain most)
+  tabpfn                   0.96165     0.96209    +0.00044
+  soft_distill             0.98076     0.98049    −0.00027  (iso can't fix overfit)
+  ```
+  CatBoost got the biggest-ever isotonic lift (+0.00197) — confirms its
+  High-class sharpness was the calibration-mismatch source of prior
+  blend-null results.
+
+- **C0 full greedy (38 components incl. soft_distill)**:
+  - Step 1: + soft_distill__iso α=0.50 → OOF **0.98055** (Δ=+0.00042)
+  - Step 2: + em_uniform__iso α=0.50 → 0.97959 (Δ=−0.00096, rejected)
+  - **NOT A REAL LIFT**: the +0.00042 delta comes entirely from
+    soft_distill__iso, and soft_distill has a confirmed LB regression
+    (2026-04-24 entry: OOF 0.98096 → LB 0.97850, gap +0.00246).
+    Isotonic calibration is a monotone per-class remapping; it changes
+    prob scales but does not fix the underlying overfit ranking. A
+    50/50 log-blend of recipe_test with a calibrated version of an
+    already-overfit test posterior inherits the overfit.
+  - Decision: NOT an LB probe. Confirmed rule: "a component with a
+    verified LB gap ≥ +0.00246 cannot be rescued by OOF-level isotonic."
+
+- **C0 safe greedy (37 components, exclude soft_distill + spec_678)**:
+  - Anchor `recipe_full_te`: + recipe_pseudolabel_stage2 α=0.50 →
+    **0.98026** (Δ=+0.00013). Step 2 below threshold.
+  - Anchor `lb_best_2way` (recipe × pseudo_stage1): + recipe_allpairs__iso
+    α=0.30 → **0.98031** (Δ=+0.00018). Step 2 below threshold.
+  - Both final deltas below +0.00020 LB-transfer threshold. Expected
+    LB if probed: ~0.97998 ± noise. NOT worth a slot.
+
+- **Reconfirms the stacking-inflation ceiling at OOF ~0.98030**
+  already documented on 2026-04-23 (three separate 3+ component stacks
+  landing there with LB 0.97995-0.97997). Isotonic does not open new
+  ground at the blend level because:
+  1. Log-bias tune at the blend level already applies a global
+     recalibration that subsumes per-component isotonic.
+  2. The OOF ceiling is set by the information content of the 37
+     component OOFs, not by their calibration shape.
+  3. Soft_distill provides the only "apparent" lift beyond 0.98030,
+     but it's the single known LB-regressor.
+
+- Artefacts committed for cross-branch reuse:
+  - `scripts/artifacts/oof_c0_greedy.npy` + test (0.98055 OOF, risky)
+  - `scripts/artifacts/oof_c0_safe_recipe_full_te.npy` + test (0.98026)
+  - `scripts/artifacts/oof_c0_safe_lb_best_2way.npy` + test (0.98031)
+  - `scripts/artifacts/c0_isotonic_greedy_results.json`
+  - `scripts/artifacts/c0_safe_greedy_results.json`
+
+- **New portable rule** (logging to LEARNINGS.md): "Per-class isotonic
+  calibration on bank OOFs does NOT break stacking-inflation ceilings.
+  It's useful for individual weak components with calibration drift
+  (CatBoost's High-class sharpness got +0.00197), but at the blend
+  level, log-bias coord-ascent already occupies the operating point
+  isotonic would find."
+
+- **No LB probe.** LB-best unchanged at 0.97998. LB budget unchanged.

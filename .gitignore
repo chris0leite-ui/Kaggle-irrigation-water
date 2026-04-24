@@ -260,5 +260,19 @@ kaggle_kernel/ds_*/test_*.npy
 !scripts/artifacts/oof_recipe_full_te_cldrop.npy
 !scripts/artifacts/test_recipe_full_te_cldrop.npy
 
+# C0 isotonic greedy outputs. Full greedy (0.98055 OOF) is dominated
+# by soft_distill__iso which carries that component's +0.00246 LB
+# regression — NOT for LB probe. Safe greedy (excludes soft_distill)
+# lands at OOF 0.98026-0.98031 via recipe_pseudolabel_stage2 or
+# recipe_allpairs__iso, below +0.00020 LB-transfer threshold.
+# Reaffirms the 0.98030 stacking-inflation ceiling; kept for
+# cross-branch diagnostic.
+!scripts/artifacts/oof_c0_greedy.npy
+!scripts/artifacts/test_c0_greedy.npy
+!scripts/artifacts/oof_c0_safe_recipe_full_te.npy
+!scripts/artifacts/test_c0_safe_recipe_full_te.npy
+!scripts/artifacts/oof_c0_safe_lb_best_2way.npy
+!scripts/artifacts/test_c0_safe_lb_best_2way.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
