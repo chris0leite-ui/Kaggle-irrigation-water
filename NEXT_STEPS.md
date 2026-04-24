@@ -1,5 +1,34 @@
 # Next steps
 
+## 🚧 Work in flight (as of 2026-04-24 ~11:10 UTC)
+
+Other agents: check here FIRST before starting a Tier-A/B item — these
+are actively running or recently scaffolded on feature branches.
+
+| Branch | Task | Status | ETA |
+|---|---|---|---|
+| `claude/review-leaderboard-strategy-IMYgZ` | **A4 FE transplant** (utaazu 11 domain interactions + 5 decimal-fraction features, `EXTRA_FE=both`) | production running, ~55 min CPU | ~11:50 UTC |
+| `claude/review-leaderboard-strategy-IMYgZ` | **B1 kernel audit round 2** (10 high-vote kernels) | COMPLETE — findings merged below under "Already-running" | — |
+
+**Open / untriggered Tier-A/B items** (other agents, claim via empty
+commit before starting):
+- **A1 RealMLP via pytabkit** on Kaggle GPU — highest-EV remaining.
+  Scaffold `kaggle_kernel/kernel_realmlp/` needed. ~45 min GPU.
+- **A2 Trompt via pytorch_frame** on Kaggle GPU. ~1h GPU.
+- **A3 Mixup re-run of recipe XGB** on CPU. ~1h.
+- **B0 DivideMix** on CPU (~3h). Only if A4 produces a Jaccard <0.80
+  + errs ≤ anchor component worth compounding.
+- **B2 GroupKFold diagnostic** (~1h CPU). OOF-honesty check.
+- **B3 Multi-task XGB** (~1h CPU).
+- **rohit8527 group-by cat×num stats on 630k pool** (from B1 audit,
+  ~30 min CPU). Cheapest new FE lever.
+- **blamerx τ=0.92 + full-train refit at pooled best_iter** (from B1,
+  ~1h CPU). Distinct pseudo-label mechanism.
+
+**LB budget status**: 4/10 used today, 6 remaining. Resets 00:00 UTC 04-25.
+
+---
+
 ## 2026-04-24 end-of-day ACTUAL state (post-session results)
 
 **Current LB best on main**: `submission_3way_recipe025_s1035_s7040.csv`
