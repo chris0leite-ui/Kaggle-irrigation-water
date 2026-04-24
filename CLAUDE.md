@@ -5113,3 +5113,108 @@ Closed the two open paths from the argmax-equivalence theorem:
      representation (OTE, cell-partition specialists), or a model
      family that uses features differently (cumulative TE,
      attention tokens), not another tree variant.
+
+### 2026-04-23 — 171-pair binned GPU completion: NULL, with infrastructure learnings
+
+- Goal: revive the 171-pair lever (Ali Afzal "pairwise-TE magic") on
+  Kaggle GPU after CPU OOM'd twice. Goal #1: prove the binned 171-pair
+  pipeline can finish at all. Goal #2: assess as a blend leg.
+- Changed: `kaggle_kernel/kernel_171pair_gpu/` — single-file 545-line
+  GPU kernel with inlined recipe FE + OrderedTE + log-bias tuner +
+  quantile binning. Uses XGBoost 2.1+ `tree_method='hist', device='cuda'`
+  + aggressive per-fold cleanup (del + gc.collect) + `del orig` post-FE.
+  v1 SMOKE pass (20k/2-fold/200-iter, 30s wall on P100). v2 production
+  full 5-fold/3000-iter.
+- Production results (Kaggle P100, 37.7 min wall):
+  - Per-fold argmax: 0.97478 / 0.97605 / 0.97580 / 0.97428 / 0.97599
+  - Overall OOF argmax: 0.97538 (recipe baseline 0.97589, **−0.00051**)
+  - **Tuned OOF: 0.97946** (recipe 0.97967, **−0.00018**)
+  - Bias [1.23, 1.27, **3.30**] — High at 3.30 vs recipe's 3.40
+  - Total wall 37.7 min vs failed 2.5h CPU attempt
+  - 171 combos × 3 cls = 813 OTE cols, 1048 total features
+  - Peak RAM 1GB / **31GB Kaggle GPU kernel** (CPU OOM'd at 21GB local —
+    Kaggle GPU has 31GB, OOM was a local-container artefact)
+- Blend analysis (saved OOFs):
+  ```
+  recipe          OOF=0.97967  errs=10,114  Jaccard=1.0
+  LB-best 2-way   OOF=0.98012  errs= 9,851  Jaccard vs recipe=0.883
+  171pair         OOF=0.97946  errs= 9,991  Jaccard vs recipe=0.812
+  ```
+  - vs recipe: peak α=0.60 → Δ=+0.00012 (below +0.0002 LB-transfer)
+  - vs LB-best 2-way: peak α=0.025 → Δ=+0.00002 (noise)
+  - 3-way grid (recipe + pseudo_s1 + 171pair): 0.98011 at
+    (0.35, 0.45, 0.20), **Δ=−0.00002 vs LB-best** (doesn't even match)
+- Diagnosis: **the extra 55 num×num pairs (vs allpairs's 116-pair which
+  has cat×cat + cat×num only) are redundant with recipe's existing
+  numeric encodings.** Specifically:
+  - 16-bin quantile encoding on a numeric duplicates info already in
+    digit-position features (66 cols) and num_as_cat (11 cols, fully
+    factorized).
+  - 171pair standalone (0.97946) is WORSE than allpairs (0.97976) — the
+    extra 55 pair OTE columns add noise to feature_fraction=0.8 sampling
+    rather than new signal.
+  - Allpairs (cat×num pairs only) remains the right pair-expansion lever
+    on this feature set.
+- **Conclusion: the "literal 171-pair magic" lever does NOT apply to us.**
+  Ali Afzal's public kernel likely needs the 171-pair encoding because
+  their recipe doesn't have digit-extraction. Our V10 recipe has digits
+  + num_as_cat already; the 171-pair attempt duplicates rather than
+  complements. Lever closed.
+- LB delta: n/a (no probe warranted; OOF below LB-best).
+- LB budget unchanged at 8/10 used today, 2 remaining. LB best still
+  0.97998 (recipe × pseudolabel 50/50).
+- **Infrastructure learnings logged to LEARNINGS.md candidates:**
+  1. **Kaggle GPU kernels have 31 GB RAM**, not 13 GB — the OOM the CPU
+     attempts hit at 21 GB was specific to our local container's limit.
+     For any pipeline that fits in 31 GB, GPU kernels are the safer bet
+     for memory-heavy FE.
+  2. **Subprocess-per-fold isolation was unnecessary for THIS pipeline**
+     — aggressive `del + gc.collect()` per fold + freeing `orig` after
+     FE was sufficient. Document the subprocess approach as the next-
+     resort fix only when GC + cleanup don't suffice.
+  3. **GPU XGBoost is ~5x faster on this workload** (37.7 min for 5-fold
+     1048-feature production vs estimated 3-4h CPU). The prior
+     CatBoost CPU/GPU experience suggested 2-3x; XGB's hist algo
+     scales better to GPU.
+  4. **GPU kernel scaffolding from one model family ports cleanly**:
+     reused `kaggle_kernel/kernel_catboost_recipe/` patterns
+     (boot-up checks, _find_one rglob, /kaggle/input + /kaggle/working,
+     inlined functions, kernel-metadata.json structure). 30-min copy
+     job, smoke passed first try.
+  5. **Smoke + production split is critical**: v1 hardcoded SMOKE=True
+     to validate kernel-metadata.json + GPU access + memory peak in 30
+     seconds; v2 flipped SMOKE off for production. Avoids ~40 min wasted
+     compute on a misconfigured production kernel.
+
+### 2026-04-24 — multi-seed pseudo-label scaffold + run launched
+
+- Goal: bypass the stage-2 OOF-overfit failure mode by using a labeler
+  trained on a DIFFERENT 5-fold split (FOLD_SEED=7) than the target
+  model's split (FOLD_SEED=42). Stage-2 failed because labeler
+  (LB-best blend) and target both trained on seed=42 folds — pseudo-
+  labels encoded the seed=42 calibration biases. Seed=7 labeler
+  decouples the chain.
+- Changed:
+  - `scripts/recipe_full_te.py` — added FOLD_SEED env var (default 42).
+    When non-default, output paths get a `_seed<N>` suffix composable
+    with existing `_a01` / `_dart` suffixes.
+  - `scripts/recipe_pseudolabel.py` — same FOLD_SEED env var added.
+- Launched chain (CPU, ~1h45m wall expected):
+  1. `FOLD_SEED=7 python scripts/recipe_full_te.py` → outputs
+     `oof_recipe_full_te_seed7.npy`, `test_recipe_full_te_seed7.npy`,
+     `recipe_full_te_seed7_results.json`. Standard recipe pipeline at
+     a different fold split. ~55 min CPU.
+  2. Auto-chained: `LABELER_TEST_PATH=test_recipe_full_te_seed7.npy
+     LABELER_BIAS_JSON=recipe_full_te_seed7_results.json
+     PSEUDO_SUFFIX=seed7labeler python scripts/recipe_pseudolabel.py`
+     → outputs `oof_recipe_pseudolabel_seed7labeler.npy`. Target model
+     trained at FOLD_SEED=42 (default), pseudo-labels from seed=7
+     labeler. ~48 min CPU.
+- Hypothesis: blend at recipe(seed=42) × pseudo_seed7labeler should
+  preserve stage-1's structural lift (+0.00046 pairwise) AND avoid the
+  stage-2 OOF-overfit (gap +0.00038 vs stage-1's +0.00014). If the gap
+  stays at ~+0.00014 and the OOF beats stage-1's 0.98012, we have a
+  ceiling-breaker.
+- Status as of writing: stage 1 in progress (FE complete, fold 1
+  starting). Will document outcome + blend analysis after both stages
+  complete.
