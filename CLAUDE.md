@@ -5684,3 +5684,89 @@ Closed the two open paths from the argmax-equivalence theorem:
 
   Pack 0.98114 stays +0.00116 above; leader 0.98219 stays +0.00221
   above. Reachable only via public-CSV blending (banned).
+
+### 2026-04-24 — multi-seed pseudo-label LB probes: NEW LB BEST 0.98005 + A/B test ambiguity
+
+- Goal: after the OOF-level multi-seed analysis suggested "null" based
+  on per-fold sum identity, user pushed back on the OOF-heuristic
+  framing and asked for an LB probe to calibrate. Submitted TWO probes:
+
+- **Probe 1: 3-way (recipe 0.25 + pseudo_s1 0.35 + pseudo_s7 0.40)**
+  - OOF 0.98029 at recipe's bias, errors 9,873
+  - **LB = 0.98005 — NEW LB BEST (+0.00007 vs prior 0.97998)**
+  - Gap OOF→LB = +0.00024 (tighter than 3 prior 3+ blends which had
+    gap +0.00036 to +0.00038 → LB 0.97995-0.97997)
+  - Breaks the "stacking-inflation ceiling" pattern by ~2x tighter gap
+
+- **Probe 2: 2-way A/B (recipe 0.50 + pseudo_s7 0.50)** — controlled
+  replacement of pseudo_s1 with pseudo_s7 in LB-best 2-way structure.
+  - OOF 0.98012 at recipe's bias (EXACTLY matches LB-best 2-way's OOF)
+  - **LB = 0.97969 (−0.00029 vs LB-best 0.97998)**
+  - Gap OOF→LB = +0.00043 (vs LB-best 2-way's +0.00014)
+
+- **Summary table:**
+  ```
+  blend                              OOF      LB       gap      Δ vs LB-best
+  ─────────────────────────────────────────────────────────────────────────
+  LB-best 2-way (recipe × s1)       0.98012  0.97998  +0.00014  anchor
+  A/B 2-way (recipe × s7)           0.98012  0.97969  +0.00043  -0.00029
+  3-way (rec + s1 + s7)             0.98029  0.98005  +0.00024  +0.00007  ← new LB best
+  ```
+
+- **Observations (hedged, no conclusions):**
+  1. Two 2-way blends with **identical OOF** and identical weights differ
+     on LB by 0.00029. Gap inflates from +0.00014 to +0.00043 with only
+     the labeler seed changed. **OOF is not a reliable proxy for LB rank
+     at the sub-0.0003 resolution** on this feature set.
+  2. pseudo_s7 has 10,170 errors at recipe's bias vs pseudo_s1's 10,039
+     (131 more). At 2-way level the extra errors dominate.
+  3. pseudo_s7 and pseudo_s1 Jaccard 0.8157 — disagree on ~18% of error
+     rows. In the 3-way with recipe as tie-breaker, the disagreement
+     rows appear to get resolved favorably.
+  4. The +0.00007 LB win from the 3-way (probe 1) could be:
+     a. Genuine complementary-signal from multi-seed decoupling, OR
+     b. Noise-band lucky draw (the −0.00029 from probe 2 shows
+        pseudo_s7 alone is WORSE than pseudo_s1, so its "complementary
+        signal" is not obviously net-positive).
+  5. LB test set is 270k rows. A 30-row flip = 0.00011. The effects
+     we're chasing (±0.0001-0.0003 LB) are at the resolution limit
+     where test-fold draw matters.
+
+- **Updated calibration ladder:**
+  ```
+  recipe_full_te                       0.97967 → 0.97939  gap +0.00028
+  recipe × pseudo_s1 2-way (α=0.50)    0.98012 → 0.97998  gap +0.00014
+  **3-way (rec+s1+s7) (0.25/0.35/0.40) 0.98029 → 0.98005  gap +0.00024** ← NEW LB BEST
+    recipe × pseudo_s7 2-way (α=0.50)  0.98012 → 0.97969  gap +0.00043 (null)
+  ```
+
+- **LB budget: 10/10 used today. 0 remaining until reset.** Pack 0.98114
+  still +0.00109 above. Leader 0.98219 still +0.00214 above.
+
+- **Lessons learned / rules revisited:**
+  1. **"Per-fold sum identity" was wrong as a null-declaration
+     criterion.** pseudo_s1 and pseudo_s7 had near-identical per-fold
+     sums (4.88300 vs 4.88299) but produced materially different LB
+     results when used in 2-way blends (0.97998 vs 0.97969). The
+     aggregate lift was similar but the per-row test-set predictions
+     differed meaningfully.
+  2. **The "below +0.0002 OOF lift = can't transfer" rule held for the
+     3-way against the 2-way LB-best** — +0.00017 OOF → +0.00007 LB
+     (factor ~0.4). But it needed an LB probe to determine whether
+     that +0.00007 is real or noise.
+  3. **OOF-based ceiling declarations need LB confirmation.** I
+     prematurely declared the multi-seed mechanism null based on OOF
+     patterns. The LB probe revealed a 0.00036 LB spread between two
+     OOF-identical blends — OOF isn't fine-grained enough to predict
+     LB rank at this resolution.
+  4. **Candidate "final selection" primaries now available**:
+     - `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005, new best)
+     - `submission_recipe_greedy_recipe_pseudolabel.csv` (LB 0.97998,
+       prior best)
+     - `submission_recipe_full_te.csv` (LB 0.97939, safe single-model
+       baseline)
+     The +0.00007 lift of the 3-way over the 2-way is marginal
+     relative to private-LB fold variance; a ~1-probe confirmation
+     tomorrow (e.g. a different 3-way weighting or seed=123 labeler)
+     would strengthen the choice between 3-way and 2-way as primary
+     final.
