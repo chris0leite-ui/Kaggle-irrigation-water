@@ -5770,3 +5770,93 @@ Closed the two open paths from the argmax-equivalence theorem:
      tomorrow (e.g. a different 3-way weighting or seed=123 labeler)
      would strengthen the choice between 3-way and 2-way as primary
      final.
+
+### 2026-04-24 — 4-way multi-seed (seed=123 labeler) closed as OOF-null
+
+- Goal: after the 3-way (recipe + s1 + s7) landed LB 0.98005 (+0.00007
+  over the 2-way LB-best), extend to a 4-way by adding a third labeler
+  trained on a different fold split (FOLD_SEED=123). Hypothesis: if the
+  multi-seed mechanism is compositional (not a single lucky draw), a
+  third seed should either compound the lift or cleanly saturate it,
+  giving us calibration information about the lever's ceiling.
+- Changed: launched `FOLD_SEED=123 scripts/recipe_full_te.py` →
+  `LABELER_TEST_PATH=...seed123... scripts/recipe_pseudolabel.py` chain
+  (~1h45m total wall); `scripts/blend_4way_multiseed.py` for the
+  fixed-bias blend analysis. Whitelist exception added for 5 seed=123
+  artifacts.
+- Stage 1 (recipe at seed=123): tuned OOF **0.97895** with bias
+  [1.03, 1.17, 3.40]. ~0.0007 below s42 (0.97967) and s7 (0.97973) —
+  weaker labeler, but fold-std 0.00056 was the tightest of the three
+  seeds.
+- Stage 2 (pseudo with s123 labeler, target at FOLD_SEED=42):
+  - τ=0.98 keep rate 82.8% (223,619 rows, s7 was 82.6%, s1 was 83.8%)
+  - Tuned OOF **0.97992**, bias [1.43, 1.27, 3.40]
+  - Cross-seed pseudos now tied: s1 0.97993, s7 0.98002, s123 0.97992
+    (all within 0.00010). **Ideal "different signal, same strength"
+    pattern** — pseudo-label augmentation compensated for the weaker
+    stage-1 labeler (τ=0.98 only keeps rows all seeds agree on).
+- Blend analysis (fixed recipe bias, 4-way OOF vs 3-way LB-best 0.98029):
+  ```
+  standalone @ recipe bias:
+    recipe       0.97967  errs=10114
+    pseudo_s1    0.97987  errs=10039  Jaccard=0.7805
+    pseudo_s7    0.98002  errs=10170  Jaccard=0.7781
+    pseudo_s123  0.97973  errs=10049  Jaccard=0.7820  ← fewer errs than s7
+  pairwise recipe × s123 peak α=0.750 → 0.98002 (narrower than s1/s7)
+  4-way axis-scan (shrink 3-way, add s123): β=0.000 optimal — s123
+    gets ZERO weight when searching along this axis
+  4-way dense grid step=0.05: best = (0.25, 0.15, 0.35, 0.25) → 0.98029
+    (TIED with 3-way, different geometry)
+  4-way fine grid step=0.025: top-15 all at 0.98029-0.98030 (plateau);
+    best 0.98030 at (0.225, 0.300, 0.425, 0.050) — s123 only 5%
+  ```
+  **Best 4-way OOF = 0.98030** vs 3-way LB-best 0.98029 = **+0.00001**,
+  firmly inside fold noise.
+- Test-prediction-space diagnostic (best 4-way vs LB-best 3-way):
+  - 4-way top (s123=0.05): **22 test rows disagree** (0.008%)
+  - 4-way grid (s123=0.25): 82 test rows disagree (0.030%)
+  - At this test-flip magnitude, expected LB delta is ±0.00010 —
+    indistinguishable from private-fold draw variance.
+- **Verdict: s123 is cleanly falsified. The multi-seed pseudo-label
+  mechanism SATURATES at 2 labelers on this feature set.** The signal
+  s123 carries is already contained in the {recipe, s1, s7} span.
+  Adding the 3rd seed re-arranges blend weights without adding
+  information — classic "ridge of local optima" pattern.
+- LB budget: unchanged (10/10 used today, 0 remaining). **No LB probe
+  warranted** — expected LB delta ±0.00010 is pure gamble, not
+  experimental payoff.
+- **Multi-seed ceiling calibrated** (important for future
+  compositions):
+  - 2-way recipe × pseudo(s42) lifted LB by +0.00046 (LB-best 0.97998)
+  - 3-way adding pseudo(s7) lifted LB by +0.00007 (new best 0.98005)
+  - 4-way adding pseudo(s123): OOF +0.00001, predicted LB ±0.00010
+  Decay factor ~6x between each addition. Further labeler seeds
+  (s456, s789, etc.) predicted to add ≤ +0.00002 each — not worth
+  a slot.
+- Current LB best unchanged: `submission_3way_recipe025_s1035_s7040.csv`
+  at **LB 0.98005**.
+- **Strategic implication: breaking the 0.98005 ceiling requires a
+  fundamentally different lever, not more seeds.** Pack 0.98114 remains
+  +0.00109 above. Untried levers still on the hypothesis board:
+  1. **P1 — threshold-axis test-time augmentation** (cheap, no LB
+     spend to validate). Per-test-row Gaussian perturbation at rule
+     thresholds (Soil=25, Rain=300, Temp=30, Wind=10), K=5-10
+     perturbations, re-run recipe FE + OTE lookups, average
+     log-probs. Targets the axis-aligned-tree-vs-smooth-NN mismatch
+     at exactly the rows where flips concentrate.
+  2. **P2 — symbolic regression (PySR/gplearn) for within-cell flip
+     formula** (~1 evening). Binary flipped-vs-not on score=3 (n=5041)
+     and score=6 (n=4163) cells using the 7 non-rule continuous
+     features. Deploy any formula with ≥70% flip recall at <10% FP
+     as a hardcoded override — orthogonal to blending by construction.
+  3. **P3 — transductive k-NN label propagation in a learned embedding**
+     (~2h). Supervised contrastive MLP → embed train+test into ~32-d
+     → FAISS k-NN graph → sklearn LabelPropagation. Test-row
+     prediction depends on test-row-to-test-row geometry — a
+     modeling paradigm unrepresented in the log so far.
+- Artefacts committed for cross-branch reuse:
+  - `scripts/artifacts/oof_recipe_full_te_seed123.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_pseudolabel_seed123labeler.npy` + test + JSON
+  - `scripts/artifacts/blend_4way_multiseed_results.json`
+  - `submissions/submission_multiseed_4way_{axis,grid}.csv` (OOF 0.98029
+    and 0.98029 — not recommended for LB probe, emitted for reference)
