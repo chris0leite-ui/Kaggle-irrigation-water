@@ -4154,6 +4154,93 @@ all untried as of this entry, ranked by expected ROI:
   no-combos, no-ORIG) in parallel on separate runs → N5 greedy over
   the expanded bank. Budget: ~2-4h for the N1 family, 15 min for N5.
 
+### Next steps: outside-the-envelope perspectives (2026-04-24)
+
+Context: every tree family, NN variant, FE family (OTE/digit/pairs/
+binning/residual/TE-from-X), blending family (log/prob/rank/LR-stack/
+greedy), calibration family (global/per-score log-bias), training-
+data-engineering family (pseudo-label stage-1/2, routing, cleanlab,
+augmentation), and distillation family (hard pseudo, soft distill)
+has been tested on the recipe anchor. The own-pipeline blend stack
+appears structurally pinned at LB ~0.97998. These three perspectives
+are modeling paradigms that don't map onto any lever in the log.
+
+  **P1. Inference-time test-time augmentation on threshold axes**
+  (top pick: no retraining, cheapest, ~30 min smoke + 5–10 min per-σ
+  full run). Rationale: axis-aligned trees produce step-function
+  discontinuities exactly at the rule thresholds (Soil=25, Rain=300,
+  Temp=30, Wind=10) where flip signal concentrates; the host NN
+  produces a smooth decision surface. Per-test-row, perturb the 4
+  threshold-critical features with Gaussian noise σ ∈ {0.02, 0.05,
+  0.10} × feature IQR, K=5–10 times; recompute rule indicators /
+  distance features / digit cols / OTE lookups for each perturbation;
+  average per-class log-probs. Approximates smoothing at inference
+  without training a new model. Gate: fixed-bias OOF Δ ≥ +0.0003
+  AND error-magnitude ≤ anchor. Expected: +0.0005–0.002 LB if
+  within-cell smoothing is the missing piece; null if σ is
+  ineffective or walks rows into wrong cells. Pivot from σ=0.02
+  up if smaller settings are null.
+
+  **P2. Symbolic regression for within-cell flip formula**
+  (second pick: novel tool class, ~1 evening). Rationale: the 6-
+  feature base rule was reverse-engineered as a closed-form integer
+  expression; ~10k within-cell flips are a deterministic NN function
+  of 7 non-rule continuous features (per 2026-04-21 DGP residuals
+  EDA), but every attempt to *model* the flip (per-cell LR/MLP/EB,
+  TE-regression, cleanlab, soft distill) is a black-box fit that
+  plateaus at ~0.963 within-cell due to capacity/data tradeoff.
+  PySR/gplearn search the space of *analytic expressions*. Target
+  the 2 dominant error cells (score=3 Low→Medium n=5041; score=6
+  Medium→High n=4163). Within each cell, binary-label
+  flipped-vs-not and run PySR with 20–30 min budget on the 7 non-
+  rule continuous features. Deploy any formula hitting >70% flip
+  recall at <10% FP on clean rows as a hardcoded override on the
+  LB-best blend. Distinct from all tree FE: an override is a
+  deterministic replacement, not a probability blend, so it
+  stacks orthogonally regardless of Jaccard/magnitude. Upside
+  +0.001–0.003 LB if the NN has axis-aligned or polynomial-ish
+  seams; null if the NN is smooth-curved.
+
+  **P3. Transductive k-NN label propagation in a learned embedding**
+  (third pick: highest infrastructure cost, ~2h). Rationale: every
+  method tested is *inductive* — fit on train, query on test. Label
+  propagation on a k-NN graph over (train ∪ test) in a learned
+  embedding space is the one remaining modeling paradigm
+  unrepresented in the log. Test-row prediction depends on
+  nearby test-row geometry; failure modes are graph construction
+  / bandwidth, not tree-shape or NN-capacity. (a) Fit a supervised
+  contrastive embedding: small MLP on recipe 443-feature matrix
+  with same-label pull / different-label push + classification
+  head, freeze post-convergence. (b) Embed train+test into ~32-dim
+  space. (c) Build k-NN graph (k=30, Gaussian kernel) via FAISS.
+  (d) Run sklearn LabelPropagation/LabelSpreading (α=0.2).
+  (e) Standard fixed-bias blend-gate vs LB-best 2-way. Upside
+  +0.0005–0.002 LB if the embedding captures the NN-generator's
+  manifold; null if it collapses onto rule features.
+
+  **Parallelism**: P1 (TTA) reuses the existing recipe pipeline
+  and runs first as a single-threaded OOF sweep on CPU
+  (~30 min smoke + 1–2 hours full). P2 (symbolic regression)
+  and P3 (label-propagation-in-embedding) are independent of P1
+  and of each other — can launch in background on Kaggle GPU
+  kernels while P1 runs locally. Priority order if all three
+  null: revisit multi-seed pseudo-label chain (already scaffolded
+  with FOLD_SEED=7 labeler, ran 2026-04-24) or pivot to the
+  max_bin=10000 GPU-recipe as simplest remaining infrastructure
+  lever.
+
+  **Skipping on principled grounds:**
+  - Conformal / per-row blend weighting — sophisticated but
+    structurally a blend variant; prior global blend ceiling
+    (OOF 0.98033 → LB 0.97995) likely still applies.
+  - VAE/diffusion-augmented training — 10k-original augmentation
+    already LB-regressed at w=20 (2026-04-21 training-data-quality
+    experiment); synthesizing more rule-clean rows compounds that
+    bias.
+  - Adversarial / min-max training — requires retraining full
+    recipe pipeline; expected bounded by tree-family ceiling
+    already confirmed 4 times.
+
 ### Anchor-row ideas (from 2026-04-21 v6 null + refined routing heuristic)
 
 The v6 {0,1,2,5} null (−0.00012) revealed that single-class-pure rows
