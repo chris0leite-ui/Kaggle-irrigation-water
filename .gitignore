@@ -330,6 +330,10 @@ kaggle_kernel/ds_*/test_*.npy
 # Blend-unsuitable (+15-50% more errors than recipe). TTA lever CLOSED.
 !scripts/artifacts/oof_tta_recipe_baseline.npy
 !scripts/artifacts/test_tta_recipe_baseline.npy
+!scripts/artifacts/oof_tta_recipe_s001.npy
+!scripts/artifacts/test_tta_recipe_s001.npy
+!scripts/artifacts/oof_tta_recipe_s005.npy
+!scripts/artifacts/test_tta_recipe_s005.npy
 !scripts/artifacts/oof_tta_recipe_s010.npy
 !scripts/artifacts/test_tta_recipe_s010.npy
 !scripts/artifacts/oof_tta_recipe_s020.npy
