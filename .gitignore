@@ -392,5 +392,23 @@ kernel_audit*/
 !scripts/artifacts/oof_missed_high.npy
 !scripts/artifacts/test_missed_high.npy
 
+# 2026-04-24 U0OEQ session — focal-loss + capacity-reduced soft-distill
+# (both diagnostic, kept for cross-branch reuse):
+#   * recipe_focal (gamma=2, alpha=invfreq): NULL. Tuned OOF 0.97683.
+#     Jaccard 0.61-0.66 (best orthogonality of any tree candidate) but
+#     per-class recall WORSE on every class (H 0.9701 vs recipe 0.9765).
+#     Closes focal as direct-replacement lever — alpha=17.6 on High +
+#     gamma=2 on boundary rows compounds to weaker model, not balanced.
+#   * soft_distill_small (depth=3, max_leaves=15, nround=1500): OOF
+#     0.98066 standalone (first ever above LB-best 3-way 0.98029),
+#     PASSES all 3 blend gates on OOF. But LB probe = 0.97865
+#     (gap +0.00201, regression of 0.00143 vs LB-best). Capacity
+#     reduction narrowed the OOF->LB gap from prior soft_distill's
+#     +0.00246 to +0.00201 — real but insufficient fix.
+!scripts/artifacts/oof_recipe_focal_g2_invfreq.npy
+!scripts/artifacts/test_recipe_focal_g2_invfreq.npy
+!scripts/artifacts/oof_soft_distill_small.npy
+!scripts/artifacts/test_soft_distill_small.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/

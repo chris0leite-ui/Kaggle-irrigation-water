@@ -7192,3 +7192,147 @@ read time has surfaced every real lever we've found. Start there.
   3. **SMOTE-NC or CVAE for synthetic High rows** — training-data
      augmentation, not model architecture. Direct attack on the 21k
      High sample shortage.
+
+### 2026-04-24 — focal-loss recipe XGB + capacity-reduced soft-distill: both null with useful diagnostics
+
+- Goal: execute the top-2 untried own-pipeline levers from the
+  2026-04-24 brainstorm. (#1) Multi-class focal loss on the recipe
+  feature set with γ=2 and α=invfreq — training-time class-asymmetric
+  mechanism, not a post-hoc override. (#2) Capacity-reduced
+  soft-distillation from the LB-best 2-way teacher (depth 4→3,
+  max_leaves 30→15, n_round 3000→1500) — fixes the prior soft_distill
+  overfit (OOF 0.98096 → LB 0.97850, gap +0.00246) by halving student
+  memorization capacity.
+- Changed: `scripts/focal_loss_common.py` (multi-class focal-xent obj
+  factory, analytic grad + diagonal Hessian approx); `scripts/recipe_focal.py`
+  (orchestrator mirroring soft_distill_xgb pattern, native xgb.train
+  API, same FE+OTE pipeline, no sample_weight since alpha is baked
+  into loss); `scripts/soft_distill_xgb.py` parameterized via
+  `XGB_DEPTH`, `XGB_MAX_LEAVES`, `XGB_NROUND` env vars preserving
+  defaults; `scripts/blend_focal_distill.py` (joint blend-gate
+  analysis vs recipe / LB-best 2-way / LB-best 3-way anchors).
+
+- **#1 focal loss (γ=2, α=invfreq=[1.0, 1.55, 17.61])**: NULL,
+  structurally backwards.
+  - Per-fold argmax: 0.97342 / 0.97347 / 0.97327 / 0.97095 / 0.97208
+    (mean 0.97264 ± 0.00107; fold 4 hit 3000-iter cap). Recipe
+    per-fold argmax mean was 0.97589.
+  - OOF tuned 0.97683  (-0.00284 vs recipe 0.97967; -0.00346 vs
+    LB-best 3-way 0.98029). Bias [1.53, 1.47, 3.00] — High bias 3.00
+    < recipe's 3.40 (sharper raw High probs from α=17.6).
+  - Errors 12,082 (+19% vs recipe 10,114); Jaccard 0.66 vs recipe,
+    0.65 vs LB2, 0.61 vs LB3 — best error-orthogonality of any
+    tree candidate.
+  - Per-class recall (tuned): L 0.9944, M 0.9660, **H 0.9701**.
+    **All three classes WORSE than every anchor.** H 0.9701 vs
+    recipe 0.9765 / LB-best 2-way 0.9768 / LB-best 3-way 0.9774.
+  - Blend gate vs all 3 anchors: monotone-negative from α=0 →
+    strict null at every weight.
+  - **Failure mode**: α=17.6 on rare-class + γ=2 (1-p)^2 modulator
+    compound. γ=2 starves gradient on easy Low/Medium boundary
+    rows (many of which are informative); α=17.6 introduces gradient
+    noise on High rows that XGB at depth=4 can't exploit cleanly.
+    Net: weaker discrimination on every class, not a differently-
+    balanced one. Focal is closed as a direct-replacement lever on
+    this feature set with this alpha magnitude.
+
+- **#2 capacity-reduced soft-distill (depth=3, max_leaves=15,
+  n_round=1500)**: OOF PASS all 3 blend gates; LB regression.
+  - Per-fold argmax: 0.97541 / 0.97572 / 0.97618 / 0.97461 / 0.97550
+    (mean 0.97548 ± 0.00051; best_iter consistently hit 1499 cap —
+    student still learning at cutoff, regularization by budget).
+  - OOF tuned **0.98066** — first standalone to beat LB-best 3-way
+    0.98029 (+0.00037). Bias [0.83, 1.27, 3.20].
+  - Errors 9,678 (FEWER than every anchor: recipe 10,114, LB2 9,851,
+    LB3 9,983). Jaccard 0.79-0.81 vs anchors (below 0.80 novelty
+    threshold vs recipe and LB3, just above vs LB2).
+  - Per-class recall (tuned): L 0.9945, M 0.9698, **H 0.9777**.
+    Higher on every class than every anchor — first candidate ever
+    to achieve this AND have fewer errors.
+  - Blend gate: peak α=0.45-0.50, Δ=+0.00042 to +0.00067 on all 3
+    anchors. All PASS the +0.0002 LB-transfer threshold.
+  - **LB probe (user-approved)**: `submission_soft_distill_small.csv`
+    → **LB = 0.97865**. OOF→LB gap = **+0.00201**. Not enough
+    capacity reduction — student at depth=3 / 1500 rounds still
+    memorized teacher OOF noise.
+  - Comparison to prior soft_distill:
+    ```
+                        prior (d=4, r=3000)   small (d=3, r=1500)
+      OOF argmax         0.97557              0.97548
+      OOF tuned          0.98096              0.98066  (-0.00030)
+      errors             9,520                9,678    (+158, less memorize)
+      LB                 0.97850              0.97865  (+0.00015)
+      OOF->LB gap        +0.00246             +0.00201 (-0.00045)
+    ```
+  - Gap narrowed by 0.00045 (capacity reduction did something), but
+    only +0.00015 LB over prior. Standalone LB 0.97865 is 0.00143
+    BELOW new LB-best 0.98008 (achieved separately via RealMLP blend
+    on `claude/gpu-nn-implementation-mh7N0`, merged to main at 19:27
+    today).
+
+- **Updated calibration ladder:**
+  ```
+  prior soft_distill (d=4, r=3000)   0.98096 → 0.97850  gap +0.00246
+  **distill_small (d=3, r=1500)      0.98066 → 0.97865  gap +0.00201** (this session)
+  LB-best 2-way (recipe × pseudo_s1) 0.98012 → 0.97998  gap +0.00014
+  3-way multi-seed                   0.98029 → 0.98005  gap +0.00024
+  **RealMLP 3-stack (other branch)   0.98061 → 0.98008  gap +0.00053 ← NEW LB BEST**
+  focal-loss (this session)          0.97683 → (not probed, strict null)
+  ```
+- **Portable rules** (LEARNINGS.md candidates):
+  1. **Focal loss with heavy α on a tuned XGB REGRESSES rather than
+     balances.** The training-time gradient distortion at α=17.6
+     combined with γ=2 modulator produces a weaker model on every
+     class, not a rare-class-focused one. Rule: don't use focal
+     loss on top of a class-weighted recipe unless you're prepared
+     to reduce BOTH α AND γ well below Lin et al. defaults.
+  2. **Soft-target distillation from a bagged-OOF teacher is
+     structurally overfit-prone even at 2× capacity reduction.**
+     Going from depth=4/3000 rounds to depth=3/1500 rounds narrowed
+     the OOF→LB gap by 0.00045 (real effect) but the residual
+     +0.00201 gap still eats all the standalone OOF lift. Portable
+     fix requires either (a) 4×+ capacity reduction (depth=2,
+     rounds≤500 — speculative), or (b) row-wise teacher leak
+     elimination: hold row i out of ALL bagged components that
+     form the teacher, not just the single model that produced
+     teacher_oof[i]. The current 2× reduction is NOT sufficient.
+  3. **"First to satisfy all blend-gate heuristics on OOF" is NOT
+     a sufficient condition for LB transfer.** distill_small was
+     the first candidate with (a) standalone > every anchor,
+     (b) errors < every anchor, (c) per-class recall > every anchor,
+     (d) Jaccard < 0.80 vs the strongest anchor, AND (e) peak-α
+     blend Δ > +0.0002 on all 3 anchors. It still LB-regressed by
+     -0.00143. Rule: any candidate built from teacher-OOF inputs
+     (distillation, pseudo-label stage-2+) needs an independent
+     leak-elimination check before being trusted.
+
+- LB delta: -0.00143 vs LB-best (distill_small standalone submitted).
+  Budget: 6/10 used today (5 probes from other branches earlier
+  today + 1 this session), 4 remaining.
+- Current LB best: **0.98008** (`submission_lb3_realmlp_nonruleiso.csv`
+  on main, from RealMLP-TD blend on sibling branch).
+- Artefacts committed for cross-branch reuse (gitignore-whitelisted):
+  `scripts/artifacts/oof_recipe_focal_g2_invfreq.npy` + test + JSON,
+  `scripts/artifacts/oof_soft_distill_small.npy` + test + JSON,
+  `scripts/artifacts/blend_focal_distill_results.json`,
+  `submissions/submission_recipe_focal_g2_invfreq.csv` (diagnostic,
+  below all anchors, not for LB probe),
+  `submissions/submission_soft_distill_small.csv` (probed → 0.97865).
+
+- **Next bets** (post-session):
+  1. **Extreme capacity reduction distill** (depth=2, rounds=500) —
+     direct test of whether the fix is simply not-enough-reduction.
+     ~20 min wall. If OOF collapses below recipe, the lever is
+     dead; if OOF stays ≥ LB-best 3-way with Jaccard < 0.80, then
+     gap may finally narrow below +0.0005 for genuine LB lift.
+  2. **Port RealMLP as a blend leg into this branch's candidate
+     bank** — new LB best is a blend of LB-best 3-way + RealMLP +
+     xgb_nonrule_iso. Running our greedy + blend-gate analysis on
+     the expanded bank (now including distill_small as a potential
+     tiny-α addition) may surface configurations the other branch
+     didn't find.
+  3. **Leak-eliminated distillation**: build a teacher OOF where
+     for each row i, ALL bagged components were trained on folds
+     that exclude row i (not just one). Expensive — requires
+     retraining each teacher component 5×. But it directly fixes
+     the overfit mechanism rather than mitigating it via capacity.

@@ -41,6 +41,13 @@ if SMOKE:
 W_RECIPE = float(os.environ.get("W_RECIPE", "0.5"))  # teacher log-blend weight
 SUFFIX = os.environ.get("SOFT_SUFFIX", "")
 OUT_TAG = f"_{SUFFIX}" if SUFFIX else ""
+# Capacity knobs for the "capacity-reduced distillation" variant. Prior
+# soft_distill at (max_depth=4, n_est=3000) overfit teacher OOF noise
+# (LB -0.00148 vs OOF +0.00084). Smaller student can't memorize per-row
+# teacher mistakes but can still absorb calibrated discrimination signal.
+XGB_DEPTH = int(os.environ.get("XGB_DEPTH", "4"))
+XGB_MAX_LEAVES = int(os.environ.get("XGB_MAX_LEAVES", "30"))
+XGB_NROUND = int(os.environ.get("XGB_NROUND", "3000"))
 
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
@@ -67,7 +74,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
     # Native xgb.train API — sklearn wrapper's custom obj plumbing is fragile
     # with multi-class. We manage the DMatrix directly.
     base_params = dict(
-        max_depth=4, max_leaves=30,
+        max_depth=XGB_DEPTH, max_leaves=XGB_MAX_LEAVES,
         eta=0.1, subsample=0.8, colsample_bytree=0.8,
         min_child_weight=2, reg_alpha=5, reg_lambda=5,
         max_bin=256 if SMOKE else 1024,
@@ -75,7 +82,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         num_class=3,
         verbosity=0,
     )
-    num_round = 300 if SMOKE else 3000
+    num_round = 300 if SMOKE else XGB_NROUND
     esr = 50 if SMOKE else 200
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
@@ -140,7 +147,8 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
 
 def main():
-    log(f"config: W_RECIPE={W_RECIPE}  SUFFIX={OUT_TAG!r}  smoke={SMOKE}")
+    log(f"config: W_RECIPE={W_RECIPE}  SUFFIX={OUT_TAG!r}  smoke={SMOKE}  "
+        f"depth={XGB_DEPTH}  max_leaves={XGB_MAX_LEAVES}  nround={XGB_NROUND}")
     log("building teacher from saved OOFs + test probs")
     teacher_oof = build_teacher_oof(w_recipe=W_RECIPE)
     teacher_test = build_teacher_test(w_recipe=W_RECIPE)
@@ -191,6 +199,8 @@ def main():
     summary = dict(
         seed=SEED, n_folds=N_FOLDS, smoke=SMOKE, w_recipe=W_RECIPE,
         suffix=SUFFIX,
+        xgb_depth=XGB_DEPTH, xgb_max_leaves=XGB_MAX_LEAVES,
+        xgb_nround=XGB_NROUND,
         fold_scores_argmax=[float(s) for s in result["fold_scores"]],
         overall_argmax_bal_acc=result["overall_argmax"],
         tuned_log_bias_bal_acc=tuned, log_bias=bias.tolist(),
