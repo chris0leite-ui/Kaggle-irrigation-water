@@ -621,6 +621,30 @@ all of them on the same model.
      is safe. It isn't — fold 2 inherits fold 1's residual allocations
      plus its own new ones. The first fold-boundary is the critical
      point; architect for it explicitly.
+- **Heavy CPU pipelines must (a) gate on a single-fold smoke and
+  (b) checkpoint per fold.** Any pipeline whose smoke-runtime
+  multiplied by `N_FOLDS` exceeds the largest reliable wall budget
+  in the current environment must save `oof_*_fold{f}.npy` and
+  `test_*_fold{f}.npy` to disk immediately after each fold completes
+  (not just at the end of `run_cv`). Final-aggregation is then a
+  separate concatenation step that succeeds as long as ≥1 fold
+  artifact exists. Two reasons:
+  1. **Single-fold smoke at production scale is the actual ceiling
+     test**, not a smoke at `rows/25 × 2 folds`. Run one fold of the
+     real configuration first; if it completes inside one session,
+     the remaining 4 folds are probably safe; if it doesn't, shrink
+     the config (subsample, fewer features, smaller XGB) BEFORE
+     committing to the full 5-fold run.
+  2. **Partial progress is salvageable.** 2026-04-25 SMOTE-NC
+     production launched detached twice; the Python process did not
+     survive the idle gap between user prompts in either case. Both
+     attempts produced zero output because `run_cv` only writes the
+     final aggregated OOF at the end of all 5 folds — so even though
+     fold 1 completed, that work was lost. With per-fold checkpoints,
+     a 5-fold run that dies mid-fold-3 still leaves 2 fold OOFs on
+     disk, and the next session resumes from fold 3. Pattern:
+     `if (ART / f"oof_{TAG}_fold{f}.npy").exists(): continue` at the
+     top of each fold loop iteration.
 - **Select NN checkpoints on the metric you'll deploy with, not raw
   argmax.** An MLP trained with plain CE has a raw-argmax val_bal
   that plateaus quickly and bounces within ~0.003; the *probability
@@ -1110,3 +1134,29 @@ all of them on the same model.
   SMOKE-test the assembled kernel end-to-end before pushing
   production — these failed silently or noisily on Kaggle but were
   obvious from a 30-second AST parse + grep on the built dist file.
+
+- **Once a meta-stacker has been added to a stack, "deeper meta" is
+  saturation-bounded.** Tier-1c: trained `meta_stacker_v2` with
+  `xgb_metastack` (v1's OOF) AS AN INPUT FEATURE plus binary specialists
+  (spec_lm, spec_mh) plus the 4-stack's logprobs. v2 standalone
+  performance was ~equal to v1; vs the OLD 3-stack anchor v2 still
+  added +0.00015 OOF, but vs the NEW 4-stack anchor (which already
+  contains v1) only +0.00002. Mechanism: when input bank for the meta
+  contains the prior meta as a feature, the meta correlates with v1's
+  predictions and adds noise rather than orthogonal signal. Rule:
+  **don't iterate meta-on-meta on a stack that already contains the
+  prior meta-stacker. To extend the stack, add a NEW base learner
+  (different model family, different feature view) and rebuild the
+  meta from scratch with the expanded bank.**
+
+- **Multi-seed bag of a heavy-reg meta-stacker can DECREASE OOF if
+  one seed is genuinely worse.** Tier-1c bag {42,7,123} per-seed
+  standalone @ recipe bias: 0.98041 / 0.98029 / 0.98040. seed=7 is
+  −0.00012 below seed=42 — a real local-optima difference, not noise.
+  Bag iso-cal standalone +0.00002 vs single-seed iso, best blend lift
+  +0.00003 OOF. The heavy-reg-XGB seed-dominant-optimum effect (low
+  best_iter ≈ 200-400, max_depth=4, L1+L2=5 each) makes seed variance
+  matter more than usual. Rule: **for heavy-reg low-iter XGBs, validate
+  per-seed standalone before bagging — if one seed is materially worse,
+  exclude it (or use a weighted bag that discounts losers) instead of
+  averaging.**

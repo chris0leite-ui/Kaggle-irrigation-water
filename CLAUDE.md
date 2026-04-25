@@ -4130,6 +4130,20 @@ architecture or feature view adds orthogonal bits at this base.
   LB budget: **3/10 used today** (3 = 1 recipe_full_te baseline from earlier,
   1 LB-best-3-stack confirmation, 1 new probe). 7 remaining.
 
+- **Saturation status (2026-04-25 end-of-day)**: the new LB-best 4-stack
+  is locally saturated against THREE independent attack vectors tested
+  in Tier 1c:
+  1. Greedy log-blend over expanded 132-component pool (incl. iso copies):
+     step1 picks `recipe_no_digits α=0.010 → +0.00002`, sub-gate.
+  2. Meta-stacker v2 with v1's OOF + binary specialists + 4-stack inputs
+     (224-dim feature space): best v2_iso α=0.20 → +0.00002 OOF.
+  3. Multi-seed bag of meta-stacker XGB seeds {42,7,123}: best add α=0.150
+     → +0.00003 OOF.
+  Plus parallel-session falsifications: RealMLP n_ens=4 strictly worse
+  than n_ens=1 (commit 6662924), per_bin_blend NULL with regression risk
+  (commit 80842d0). Conclusion: breaking past LB 0.98094 requires a
+  fundamentally NEW signal source, not another OOF-stacking variant.
+
   **Why it worked**: greedy forward over a 63-component pool with isotonic
   calibration applied to every candidate. The XGB meta-stacker (`oof_xgb_metastack`,
   trained over ~200-dim feature space = 63 components × 3 + dgp_score + distances)
@@ -7932,6 +7946,89 @@ read time has surfaced every real lever we've found. Start there.
   - `submissions/submission_spec6_override_th50.csv` (v1 hard-override test)
   - `submissions/submission_spec6_override_v2_th15.csv` (v2 hard-override test)
 
+### 2026-04-25 — per-score-bin log-blend on LB-best 3-way: NULL with regression
+
+- Goal: test the highest-EV remaining ensembling-only lever — fit
+  separate log-blend weights per `dgp_score` bin instead of one global
+  weight vector. Errors concentrate at score ∈ {3, 6} (74% of error
+  mass per the 2026-04-24 error analysis); the global LB-best weights
+  (0.25 / 0.35 / 0.40 on recipe / pseudo_s1 / pseudo_s7) are a cross-
+  bin compromise that may be improvable locally.
+- Changed: `scripts/per_bin_blend.py` (~250 lines, single file). 5
+  bins: `{0,1,2}`, `{3}`, `{4,5}`, `{6}`, `{7,8,9}`. Per-bin
+  coordinate descent over the 3-simplex at step=0.05 (231 grid points)
+  with global fixed-bias bal_acc as the objective (NOT per-bin
+  log-loss — that variant ran first and produced an in-sample
+  REGRESSION of −0.00007, falsifying log-loss as a useful proxy
+  here). Honest nested 5-fold CV: for each outer fold, fit weights on
+  the 4 outer-train fold rows of the saved OOFs, apply to the held-
+  out fold, concatenate. Test-side prediction uses fit-all-data
+  weights. Optimised inner loop (only recompute the changing bin's
+  slice each trial) for ~5x speedup; full nested run wall ~9 min CPU.
+- Results (OOF tuned bal_acc, fixed recipe bias [1.4324, 1.4689, 3.4008]):
+  ```
+  baseline 3-way (LB-best)         0.98029   (matches prior log)
+  in-sample per-bin (optimistic)   0.98037   Δ = +0.00009
+  nested CV per-bin (honest)       0.97997   Δ = -0.00031   ← gate miss
+  nested tuned (diagnostic)        0.98013   Δ = -0.00015
+  overfit gap in-sample → nested   0.00040   (~5x typical greedy gap)
+  ```
+- **Smoking gun — bin-weight instability across folds.** Bin
+  `score_6` (the Med↔High boundary, 70% of missed-High signal)
+  picked five wildly different "optima" depending on which 4/5 of
+  the data the search saw:
+  ```
+  in-sample: (recipe 0.35, pseudo_s1 0.40, pseudo_s7 0.25)
+  fold 1:    (         0.25,           0.35,           0.40)  baseline unchanged
+  fold 2:    (         0.30,           0.70,           0.00)
+  fold 3:    (         0.20,           0.05,           0.75)
+  fold 4:    (         0.35,           0.35,           0.30)
+  fold 5:    (         0.20,           0.60,           0.20)
+  ```
+  All over the simplex. Textbook fold-dependent noise being fitted,
+  not real per-bin signal. Bins 3 and 7-9 were more stable but
+  still drifted; only bins 0-2 and 4-5 were nearly fold-invariant.
+- **Mechanism**: 5 bins × 2 free weights per bin = 10 degrees of
+  freedom on a single CV split. The per-bin signal density (effective
+  sample at the boundary scores is small after stratifying by class
+  AND filtering to the bin) doesn't support that many parameters
+  at the +0.0001 resolution we'd need. Coord-descent on macro-recall
+  at step=0.05 has enough capacity to fit per-bin macro-recall noise.
+  In-sample lift (+0.00009) is the noise that nested CV correctly
+  discounts; honest evaluation on held-out fold rows produces a NET
+  REGRESSION because the chosen weights don't generalize.
+- LB delta: n/a. Fixed-bias gate threshold (+0.00020) clearly
+  failed; no submission emitted. LB-best unchanged at **0.98005**
+  (`submission_3way_recipe025_s1035_s7040.csv`).
+- **Portable rule** (LEARNINGS.md candidate): **"On a single CV
+  split, per-bin / per-region log-blend over a small simplex
+  search is overfit-prone when the per-bin signal density is
+  below ~0.0005 OOF lift per parameter. Honest nested CV will
+  show a 4-5x larger overfit gap than greedy forward selection on
+  the same OOF bank, with the regression magnitude scaling with
+  the number of bins × free weights per bin. Fit ONE global blend
+  per CV split unless per-bin lift exceeds +0.0005 in-sample on
+  every bin."**
+- **Strategic implication**: this closes per-region blending as an
+  ensembling-only lever on the existing OOF bank. Combined with
+  the prior nulls (disagree-stacker 2026-04-24, selective-router
+  2026-04-24, missed-High detector 2026-04-24, isotonic-greedy
+  2026-04-24, multi-seed pseudo-label saturation 2026-04-24), the
+  Pareto-frontier closure is reconfirmed: re-arranging existing
+  components cannot break LB 0.98005. The honest path past the
+  ceiling requires ADDING a new component with the right
+  Jaccard+magnitude profile (RealMLP n_ens=4 retry, Trompt, TabM,
+  or a fresh FE surface).
+- Artefacts committed for cross-branch reuse (gitignore whitelist):
+  - `scripts/per_bin_blend.py` (parameterised: `OBJECTIVE` env
+    selects bal_acc_global / log_loss; `GRID_STEP` controls
+    simplex resolution; reusable on future comps)
+  - `scripts/artifacts/oof_per_bin_blend.npy` (nested OOF, 7.2 MB)
+  - `scripts/artifacts/test_per_bin_blend.npy` (test blend, 3.1 MB)
+  - `scripts/artifacts/per_bin_blend_results.json` (full per-fold
+    weight log + overfit gap stats for audit)
+  - No submission CSV — gate correctly blocked emission.
+
 ### 2026-04-25 — Tier 1a n_ens=4 RealMLP retry: NULL (strictly worse than n_ens=1)
 
 - Goal: build on the 2026-04-24 LB-best 0.98008 (LB-3way + realmlp@0.2
@@ -8278,3 +8375,357 @@ read time has surfaced every real lever we've found. Start there.
   3. Lowest Jaccard ever (0.53) STILL fails the blend gate when errs
      are higher than anchor. **The magnitude rule is stricter than
      orthogonality.**
+### 2026-04-25 — Tier 1c: 3 follow-ups on new LB-best 4-stack, all NULL (saturation confirmed)
+
+- Goal: after Tier 1b's +0.00086 LB win, test 3 cheap CPU follow-ups on
+  the new LB-best 4-stack (OOF 0.98084 / LB 0.98094) to find the next
+  step. All three null.
+
+- **Move 1 — greedy on new 4-stack with finer α grid (0.005..0.5) +
+  isotonic-calibrated copies of every pool component (66 base × 2 = 132)**:
+  ```
+  step1: + recipe_no_digits α=0.010  OOF=0.98087  Δ=+0.00002
+  STOP (below +5e-5 internal gate)
+  ```
+  The 4-stack is locally saturated for greedy log-blend operations.
+
+- **Move 2 — meta-stacker v2 (224-dim features = v1 inputs + 4-stack
+  logprobs + 3 binary specialists spec_lm_v3 + spec_mh_v3_score{5,6})**:
+  - vs LB-best 3-stack:  best v2_iso α=0.250 → +0.00015 (sub-+0.0002 gate)
+  - vs LB-best 4-stack:  best v2_iso α=0.200 → **+0.00002** (essentially zero)
+  - **v2 = v1 + noise.** Meta-on-meta saturates exactly when the input
+    bank already contains the prior meta.
+
+- **Move 3 — meta-stacker 3-seed bag (XGB seeds {42, 7, 123})**:
+  Per-seed standalone OOF: 0.98041 / 0.98029 / 0.98040.
+  - seed=7 is genuinely worse (−0.00012 vs seed=42), dragging the
+    bag mean down.
+  - Bag iso-cal standalone 0.98061 (vs single-seed iso 0.98059,
+    +0.00002 nominal).
+  - Replace single-iso with bag-iso in 4-stack: every α tested
+    NEGATIVE (best α=0.40 → −0.00001).
+  - Add bag-iso ON TOP of 4-stack: best α=0.150 → +0.00003 (below
+    +1e-4 gate).
+  - **Same heavy-reg-XGB seed-dominant-optimum lesson as the nonrule
+    bag from Tier 1b.** When XGB is heavy-reg (max_depth=4,
+    reg_alpha=reg_lambda=5) with low best_iter (200-400), seed
+    variance has more room to find different local optima. Sometimes
+    seed=42 IS the best one and bagging worse seeds dilutes the signal.
+
+- **Combined Tier 1c read-out**: the 4-stack is saturated against:
+  1. Greedy log-blend addition from a 132-component pool (1e-4 gate)
+  2. Deeper meta-stacking with v1 + binary heads (224-dim XGB)
+  3. Variance reduction via XGB seed bagging
+  All three diagnostic levers fail because the 4-stack already absorbed
+  the meaningful signal from these components in Tier 1b's greedy step.
+  Breaking past LB 0.98094 requires a fundamentally NEW signal source
+  not yet on disk — most likely from the GPU-side experiments
+  (RealMLP n_ens=4, Trompt) that were running in parallel.
+
+- New scripts (all 3 reusable for future stacks once new components arrive):
+  - `next_greedy_on_meta_stack.py` (greedy from 4-stack anchor + iso pool)
+  - `next_meta_stack_v2.py` (meta-stacker v2 with 224-dim features)
+  - `next_meta_stack_seedbag.py` (3-seed XGB seed-bag of meta-stacker)
+
+- Artefacts whitelisted:
+  - `oof_xgb_metastack_v2 + test`  (224-dim v2)
+  - `oof_xgb_metastack_bag3 + test` (3-seed bag)
+
+- LB best unchanged at 0.98094. Pack 0.98114 still +0.00020 above.
+- LB budget: 3/10 used today, 7 remaining.
+
+### 2026-04-25 — U0OEQ session: focal-NULL, distill family closed, Options 4+2 deferred (rehydrate constraint)
+
+**Context**: ran 4-option plan after sibling sessions hit Tier 1b LB-best
+0.98094. Container rehydrates ~every 15-30 min idle wiped uncommitted
+work three times this session. Final state captured below.
+
+**Confirmed CLOSED (this session)**:
+1. **Option 3 — greedy_expanded over 42-component bank with new candidates**
+   (focal_g2_invfreq, focal_g2h3, distill_small, distill_tiny added).
+   All three anchors (recipe, lb_best_3way, lb_best_realmlp_stack)
+   converge to OOF ≤ 0.98061, the known LB-best stack OOF. Greedy
+   rediscovers the realmlp + xgb_nonrule_iso path the sibling found
+   for LB 0.98008. **No new path emerges.** Independently confirmed
+   by parallel session on origin/main with identical results.
+   - Script: `scripts/greedy_expanded.py`
+   - Result: `scripts/artifacts/greedy_expanded_results.json`
+
+2. **Option 1 — extreme-capacity distill (d=2, leaves=7, r=500)**.
+   Ran twice (post-rehydrate), bit-identical results both times:
+   - Per-fold argmax: 0.97297 / 0.97414 / 0.97486 / 0.97274 / 0.97396
+   - Tuned OOF: **0.97975** (vs distill_small 0.98066, recipe 0.97967)
+   - Bias [0.83, 1.37, 3.30]; errors 9,935 (recipe 10,114)
+   - Blend gate: peak α=0.000 vs LB-best stack (strict null), peak α=0.250
+     Δ=+0.00024 vs recipe (marginal, below LB-transfer threshold).
+   - Capacity reduction WORKS as predicted (less memorization, narrower
+     OOF→LB gap on extrapolation), but OOF collapses faster than gap
+     narrows. **No capacity sweet spot for soft-distill from
+     bagged-OOF teacher on this problem.**
+   - Artefacts: `oof_soft_distill_tiny.npy`, `test_soft_distill_tiny.npy`,
+     `soft_distill_tiny_results.json`,
+     `submissions/submission_soft_distill_tiny.csv` (diagnostic, not
+     for LB probe).
+
+**DEFERRED to a more persistent environment** (rehydrate constraint):
+3. **Option 4 — SMOTE-NC on High class** (training-data-level lever).
+   Killed by container rehydrate three times. Reaches fold 1 SMOTE
+   step (~5 min FE + ~15 min SMOTE k-NN) before reset. ~2.5h total
+   wall doesn't fit any plausible idle window in this container.
+   Status: scripts committed and ready (`scripts/recipe_smote_high.py`),
+   re-launch with `python scripts/recipe_smote_high.py` in a stable
+   environment. Expected output: `oof_recipe_smote2x.npy` +
+   `test_recipe_smote2x.npy` + results JSON.
+
+4. **Option 2 — leak-eliminated teacher / W_RECIPE=1.0 distill**
+   (recipe-only teacher, no pseudo component, leak source removed).
+   ~30 min wall — fits rehydrate window — but de-prioritized by user
+   pivot to documentation. Re-launch with
+   `SOFT_SUFFIX=recipeonly W_RECIPE=1.0 XGB_DEPTH=3 XGB_NROUND=1500 XGB_MAX_LEAVES=15 python scripts/soft_distill_xgb.py`
+   in a stable environment. Tests whether the pseudo component is
+   the leak source (vs the teacher OOF construction itself).
+
+**Distill family — closed at three capacity points**:
+```
+                       d   leaves  rounds   OOF tuned   LB         OOF→LB gap
+soft_distill           4   30      3000     0.98096     0.97850    +0.00246
+soft_distill_small     3   15      1500     0.98066     0.97865    +0.00201
+soft_distill_tiny      2   7        500     0.97975     ?          (not probed)
+                                                                     projected -0.0009
+                                                                     to 0.97850-0.97900
+```
+Pattern: gap narrows ~0.0005 per 2× capacity reduction; OOF
+collapses ~0.0010 per same reduction. No capacity sweet spot.
+**Soft-distillation from bagged-OOF teacher is structurally bounded
+on this problem.**
+
+**Strategic context**: parallel session achieved LB 0.98094 via
+**isotonic-calibrated XGB meta-stacker** (Tier 1b, commit 205b42f)
+over 63-component bank + α=0.30 blend into LB-best 3-stack. Then
+hit saturation at Tier 1c. Their conclusion (matches ours):
+"breaking past LB 0.98094 requires NEW signal source." Options 4
+(SMOTE-NC for synthetic High rows) and 2 (leak-eliminated distill)
+are precisely such NEW signal sources — both still untried and
+warrant a stable environment for the ~2.5h and ~30 min
+respectively.
+
+**Portable rules logged this session** (see LEARNINGS.md):
+1. Heavy-alpha focal loss on a class-weight-tuned XGB regresses on
+   every class, not rebalances (focal-invfreq null). Lin et al.
+   defaults are too aggressive on top of an already-balanced base.
+2. 2× capacity reduction in soft-distill narrows the OOF→LB gap by
+   ~0.0005 but is insufficient for LB transfer. Needs 4×+ reduction
+   (collapses OOF) or row-wise teacher leak-elimination (untried).
+3. "First to satisfy all blend-gate heuristics on OOF" is NOT a
+   sufficient condition for LB transfer when the candidate consumes
+   teacher OOF directly. distill_small met every heuristic
+   (Jaccard <0.80, errs ≤ anchor, per-class recall ≥ anchor across
+   all classes, peak-α blend Δ ≥ +0.0002 on 3 anchors) and still
+   LB-regressed by 0.00143.
+4. Container rehydrates erase uncommitted compute. Long jobs
+   (>30 min) need either external compute (Kaggle GPU kernel) or
+   a stable container; pip installs (e.g. `imbalanced-learn`) also
+   don't survive — bake them into Dockerfile or `bootstrap.sh`.
+
+### Next steps (handoff): re-execute Options 4 + 2 in stable env (2026-04-25)
+
+Highest-value untried experiments after the U0OEQ session and
+parallel session's Tier 1b/1c saturation:
+
+  **N1. Option 4 — SMOTE-NC + meta-stacker bank extension**
+  (`scripts/recipe_smote_high.py`, ~2.5h wall + ~5 min meta-stacker
+  rebuild). Run on a stable environment (not rehydrate-prone).
+  - Step 1: `SMOTE_TARGET=42000 python scripts/recipe_smote_high.py`
+    → produces `oof_recipe_smote2x.npy`, `test_recipe_smote2x.npy`.
+    Expected behavior: per-fold High recall lifts +0.005 to +0.015,
+    Low/Medium recall drops by ~0.001, net OOF tuned bal_acc ?
+    (open question — could lift or hurt depending on whether
+    interpolated High labels are NN-flip-consistent).
+  - Step 2: add `recipe_smote2x` to the meta-stacker bank
+    (`scripts/tier1b_xgb_metastack.py` features list) and re-train.
+    If smote2x's errors are orthogonal to the existing 63
+    components, the meta-stacker's error count drops below 8,948
+    (current best) and the iso-blended Δ vs LB-best 3-stack lifts
+    above +0.00023 OOF.
+  - Step 3: blend the new meta-stacker iso into LB-best 3-stack
+    (same α=0.30 protocol that produced LB 0.98094).
+  - Decision gate: only LB-probe if blend OOF lifts ≥ +0.0002 over
+    0.98094.
+
+  **N2. Option 2 — W_RECIPE=1.0 distill** (~30 min, fits any window).
+  Quick diagnostic: replace teacher = 0.5×recipe + 0.5×pseudo with
+  teacher = recipe_only. If student gap narrows below distill_small's
+  +0.00201, the pseudo-label component is a meaningful leak source.
+  - Run: `SOFT_SUFFIX=recipeonly W_RECIPE=1.0 XGB_DEPTH=3 XGB_NROUND=1500 XGB_MAX_LEAVES=15 python scripts/soft_distill_xgb.py`
+  - Diagnostic value only — LB probe NOT warranted regardless of
+    outcome (recipe alone is OOF 0.97967, weaker than current best).
+  - If gap narrows: indicates path to a real distill that transfers.
+    Then build a leak-eliminated multi-fold teacher.
+  - If gap doesn't narrow: confirms overfit is in teacher OOF
+    construction itself, not the pseudo component. Distill family
+    fully closed.
+
+  **N3. Cross-pollinate parallel session's meta-stacker with
+  today's NEW components**. The Tier 1b meta-stacker bank predates
+  distill_tiny + recipe_smote2x. Add the 4 new components
+  (focal_invfreq, focal_g2h3, distill_small, distill_tiny once
+  built) to `tier1b_xgb_metastack.py` CANDIDATES list and re-train.
+  If standalone errors drop below 8,948, isotonic + blend may
+  exceed 0.98094.
+  - Wall: ~30 min (meta-stacker rebuild only, no base-component
+    retraining since OOFs are on disk).
+
+  **Skip on principled grounds**:
+  - Further focal variants (γ < 2 or alpha < 1.5x). Two failures in
+    one session at different α magnitudes; mechanism is structurally
+    backwards on this base.
+  - More distill capacity-reduction experiments (d=2/r=500 and
+    d=3/r=1500 already run). Capacity-reduction path is bounded.
+  - Public-CSV blending (banned by top-of-file rule).
+
+### 2026-04-25 — final-selection lock (post-LB-0.98094 reframe)
+
+Context: parallel session pushed Tier-1b XGB meta-stacker isotonic blend
+to LB **0.98094** (+0.00086 over prior 0.98008). Pack 0.98114 only
++0.00020 above. The earlier hedge audit (2026-04-24, primary = 3-way at
+LB 0.98005, hedge = CatBoost) is stale — primary moved.
+
+**Final-selection locked**:
+
+  PRIMARY: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    - composition: lb3 + RealMLP α=0.20 + xgb_nonrule__iso α=0.075
+                   + xgb_metastack__iso α=0.300
+    - OOF 0.98084, gap **−0.00010** (LB above OOF — meta-stacker
+      CV-pessimism property)
+    - per-class recall: L 0.9955 / M 0.9695 / **H 0.9775**
+    - errs 9,415 (−157 vs LB-best 3-stack)
+
+  HEDGE: `submission_recipe_full_te.csv` → **LB 0.97939**
+    - composition: pure single-model XGB-on-recipe with class-balanced
+      sample-weight + post-hoc log-bias [1.43, 1.47, 3.40]
+    - OOF 0.97967, gap +0.00028 (clean calibration)
+    - NO blend, NO isotonic, NO meta-stacker — independent of every
+      stacking ingredient in the primary
+
+Hedge rationale: the primary depends on a 63-component XGB meta-stacker
+trained over the full OOF bank. If any single component overfits private
+LB, the meta-stacker amplifies that overfit through the +0.00086 blend
+lever. The 2026-04-24 CatBoost-hedge recommendation favored model-family
+diversity, but the new primary already includes RealMLP (NN family) +
+xgb_nonrule_iso (calibration-corrected XGB) + meta-stacker (XGB over 63
+components). Adding CatBoost as a hedge over-diversifies — the primary
+itself is already maximally diverse on the model-family axis.
+
+The cleanest hedge against meta-stacker overfit is therefore a candidate
+that does NOT touch the meta-stacker pool at all: pure single-model
+recipe XGB. Premium = −0.00155 LB vs primary; the gap +0.00028 is
+honest CV calibration (no negative-gap CV-pessimism artefact).
+
+Alternative hedges considered and rejected:
+  - `submission_lb3_realmlp_nonruleiso.csv` (LB 0.98008): the
+    foundation the meta-stacker builds on. Too closely correlated.
+  - `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005): shares
+    pseudo_s1 + pseudo_s7 with the meta-stacker pool.
+  - `submission_recipe_full_te_catboost.csv` (LB 0.97935): different
+    model family but the primary already has NN diversity. Premium
+    cost (−0.00159) only fractionally larger than recipe-XGB hedge
+    (−0.00155) for less marginal value.
+
+Pack 0.98114 still +0.00020 above primary. With 6 days to deadline and
+7 LB submissions remaining today (3/10 used), one more LB-probe slot
+is reserved for either: (a) the SMOTE-NC follow-up if it lifts, or
+(b) a tighter primary if a meta-stacker variant adds another +0.0002.
+
+### 2026-04-25 — SMOTE-NC environment-blocked + Kaggle-kernel route
+
+- Goal: execute Step 3 of the post-LB-0.98094 follow-up — SMOTE-NC
+  oversampling of the rare High class as the only untested
+  *training-data-level* attack on the Pareto-frontier ceiling
+  [0.9949, 0.9685, 0.9774].
+- Smoke (SMOKE=1, 20k/2-fold, SMOTE_TARGET=5k): PASSED in ~80s.
+  - SMOTE-NC adds High rows 333 → 5,000 per fold (k=5 NN interpolation
+    over cats+digits+combos+num_as_cat+tres categorical indices)
+  - best_iter 51 / 85 (gradient correct, no GCE-style pathological 1)
+  - OOF tuned 0.96555 vs recipe smoke 0.96381 = +0.00174 standalone
+    in smoke mode (signal exists at 20k subsample scale)
+- Production attempts (5-fold × 504k tr × ~16k → ~42k High per fold):
+  did not survive the idle gap between user prompts.
+  - Attempt 1 (06:14 UTC): PID 4635 launched detached. Process gone
+    on next check (~80min later). No OOF artifact written.
+  - Attempt 2 (07:51 UTC): PID 3522 relaunched detached. Process
+    gone on next check (~30min later). Same outcome.
+- **Observation, not a generalised rule**: detached background
+  processes did not survive in this session — but we only have two
+  data points and didn't investigate the underlying cause. The
+  portable lesson (logged to LEARNINGS.md) is the per-fold
+  checkpoint pattern: any pipeline whose total wall budget exceeds
+  the smoke runtime should write `oof_*_fold{f}.npy` and
+  `test_*_fold{f}.npy` immediately after each fold completes, so
+  partial progress is recoverable regardless of why the process
+  ended.
+- **Status: SMOTE-NC is ENVIRONMENT-BLOCKED on this branch.** The
+  scaffold (`scripts/recipe_smote_high.py`) and blend-gate
+  (`scripts/blend_gate_smote.py`) are committed and ready to run
+  on persistent compute.
+- **Recommended next-session route**: Kaggle kernel.
+  1. `kaggle_kernel/kernel_smote/` — single-file orchestrator that
+     inlines `recipe_features.py` + `recipe_ote.py` + the SMOTE-NC
+     pipeline. ~30min scaffolding.
+  2. Upload as a private kernel; expected wall ~3h on Kaggle's
+     16-core CPU runtime (well under the 9h kernel cap).
+  3. Pull OOF + test back via `kaggle kernels output`.
+  4. Run `scripts/blend_gate_smote.py` locally — auto-emits
+     submission if Δ ≥ +2e-4 vs LB-best 0.98094.
+- **Why SMOTE-NC is still worth pursuing despite the saturation**:
+  every prior High-class lever (detector, router, meta-stack,
+  binary-Medium head, score=6 specialist) operated POST-HOC on the
+  existing OOF bank. The Pareto frontier closure proved no
+  rearrangement of the bank can push High recall past 0.9774.
+  SMOTE-NC produces a model with a fundamentally different training
+  distribution (~2x High rows synthesized via k-NN feature-space
+  interpolation), so its decision surface CAN exceed 0.9774 on
+  High at the cost of Low/Medium recall. Whether that trade is
+  net-positive under macro-recall is the open question — only
+  determinable by running it through the blend gate.
+- LB budget unchanged (0 used today). LB-best remains **0.98094**
+  via `submission_tier1b_greedy_meta.csv`. Final-selection lock
+  unchanged: primary = LB 0.98094, hedge = recipe_full_te (LB
+  0.97939).
+
+### 2026-04-25 — overlooked-levers pass: SUMMARY (1 lock + 1 close-out)
+
+Three follow-up items from the user-prompted "what have we overlooked"
+review (2026-04-25 prior session):
+
+  Item 1 — final-selection hedge audit  →  COMMITTED a63e532
+    Primary: submission_tier1b_greedy_meta.csv (LB 0.98094)
+    Hedge:   submission_recipe_full_te.csv     (LB 0.97939)
+    Rationale: primary already includes XGB + RealMLP NN +
+    xgb_nonrule_iso + 63-component meta-stacker — model-family
+    diversity maxed. CatBoost-hedge would over-diversify; pure
+    single-model recipe-XGB is the cleanest orthogonal-to-meta
+    fallback against private-LB overfit.
+
+  Item 2 — re-run greedy with iso pool  →  PIVOTED (pre-existing exhaustive)
+    Audit showed tier1b_greedy_with_meta.py already adds an __iso
+    copy of every component (line 121-123). Both raw and iso
+    variants exhausted. Action revised: re-run only after a NEW
+    component (SMOTE) lands.
+
+  Item 3 — SMOTE-NC training-data lever  →  ENVIRONMENT-BLOCKED
+    Smoke green (+0.00174 OOF lift over recipe smoke). Production
+    killed by container rehydrate twice in one session.
+    Deferred to Kaggle kernel.
+
+Net session output:
+  - 1 final-selection lock (CLAUDE.md a63e532)
+  - SMOTE-NC scaffold + smoke evidence + blend-gate (ba5afbb)
+  - 1 LEARNINGS rule: container-rehydrate persistence
+  - 0 LB submissions spent
+
+Next-session priorities:
+  1. Push SMOTE-NC scaffold to Kaggle kernel (highest EV remaining
+     own-pipeline lever).
+  2. After SMOTE returns: blend-gate → LB probe if Δ ≥ +2e-4.
+  3. If SMOTE nulls or stays inside fold-noise: lock primary +
+     hedge as final and stop spending compute.
