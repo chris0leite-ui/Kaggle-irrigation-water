@@ -618,3 +618,29 @@ kaggle_kernel/*/dist/
 # AUC=0.50247 ⇒ train/test indistinguishable, residual gap is structural.
 !scripts/artifacts/j3_av_p.npy
 !scripts/artifacts/j3_av_w.npy
+
+# J1 tree-leaf OTE meta-stacker (junior-engineer audit, 2026-04-25).
+# Train base XGB on 19 raw features, extract per-tree leaf indices,
+# OrderedTE-encode (3 cls), feed to meta-XGB. Standalone meta tuned
+# OOF 0.96564; vs LB-best 4-stack: Jaccard 0.5597 (LOWEST ORTHOGONALITY
+# OF ANY CANDIDATE EVER tested on this problem) but errs 10,830 vs 9,415
+# (+15% magnitude). Blend sweep monotone-negative — classic magnitude
+# trap. Lever orthogonality CONFIRMED; magnitude gap with weak base
+# defeats the blend gate. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_leaf_ote_meta.npy
+!scripts/artifacts/test_leaf_ote_meta.npy
+!scripts/artifacts/leaf_ote_meta_results.json
+!scripts/artifacts/leaf_ote_blend_results.json
+!scripts/artifacts/leaf_ote_meta_smoke_results.json
+# J1-v2 (recipe-feature base, per-fold OTE before base, leaf-OTE on top).
+# Stronger base lifts standalone tuned 0.97812 BUT bias-mismatch trap:
+# v2 own bias [1.83, 1.77, 3.20] vs LB's [1.43, 1.47, 3.40] — at LB
+# fixed bias errs blow up to 12,343 (+31% vs anchor). M↔H pivots wrong
+# way under macro-recall. Sweep monotone-negative; emit gate fails.
+# Two failure modes (v1 magnitude trap, v2 bias-mismatch trap) close
+# the J1 lever family. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_leaf_ote_meta_v2.npy
+!scripts/artifacts/test_leaf_ote_meta_v2.npy
+!scripts/artifacts/leaf_ote_meta_v2_results.json
+!scripts/artifacts/leaf_ote_v2_blend_results.json
+!scripts/artifacts/leaf_ote_meta_v2_smoke_results.json

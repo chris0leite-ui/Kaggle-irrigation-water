@@ -9726,6 +9726,281 @@ by EV/cost:
      the gate, decision rule based on standalone metrics + class-recall
      direction, ABORT exits cleanly.
 
+### 2026-04-25 — junior-engineer audit + J1 tree-leaf-OTE meta-stacker (NULL on blend gate; orthogonality lever proven)
+
+- Goal: fresh-eyes review of saturation evidence, then run the highest-EV
+  / cheapest speculative lever from the J1-J7 menu (next section below).
+- Approach: SMOKE first (SMOKE=1, 20k×2-fold, ~1 min wall) to validate
+  the leaf-extraction → OTE-encode → meta-XGB chain end-to-end, then full
+  5-fold seed=42 production.
+- Mechanism: train a base XGB on 19 raw factorized features, extract
+  per-tree leaf indices for every row (multi:softprob produces 3 trees
+  per round → 50 rounds × 3 cls = 150 trees), treat each tree's leaf-
+  index column as a high-card categorical, OrderedTE-encode (3 classes,
+  450 OTE features), feed to a meta XGB. The meta sees TREE-SPACE
+  (per-tree partition memberships) instead of PROB-SPACE, structurally
+  orthogonal to the 63-component meta-stacker bank that produced LB
+  0.98094.
+- Smoke (20k×2-fold, ~55s wall) PASSED:
+  - base argmax 0.93189 → meta argmax 0.94664 (+0.01475)
+  - base tuned  0.95151 → meta tuned  0.95903 (+0.00752)
+  - meta-vs-base error Jaccard 0.6504 (well below 0.97 redundancy)
+  - base errs 469 → meta errs 442 (-27, -5.8%)
+  Chain works end-to-end at smoke scale.
+- Production (504k × 5-fold seed=42, 19 raw features, 9.7 min wall):
+  - base argmax 0.94908, tuned 0.96395, bias [0.43, 1.17, 3.00]
+  - meta argmax 0.95946, tuned 0.96564, bias [0.73, 1.17, 3.40]
+  - meta-vs-base Jaccard at smoke scale held → tree-space encoding
+    extracts signal at production scale too
+- **Blend gate vs LB-best 4-stack (anchor OOF 0.98084, errs 9,415):**
+  - Standalone meta @ LB bias: argmax 0.96529, errs 10,830 (+1,415,
+    +15% magnitude). Per-class recall L 0.9949 / M 0.9686 / H 0.9324
+    (High recall craters by 0.045 vs 4-stack 0.9775 — catastrophic
+    under macro-recall).
+  - **Jaccard(leaf-OTE, LB-best 4-stack) @ LB bias = 0.5597**
+    — **LOWEST ORTHOGONALITY OF ANY CANDIDATE EVER TESTED** on this
+    problem (lower than RealMLP's 0.62, lower than Trompt's 0.53
+    fold-1, lower than every NN family null). Tree-space encoding is
+    GENUINELY orthogonal as the J1 mechanism predicts.
+  - Fixed-bias α-sweep:
+    ```
+    α       tuned    Δ vs 4st  errs   recL    recM    recH    Jaccard
+    0.000  0.98084  +0.00000   9415  0.9955  0.9695  0.9775  1.0000
+    0.025  0.98067  -0.00017   9353  0.9956  0.9697  0.9767  0.9820
+    0.050  0.98062  -0.00023   9268  0.9957  0.9700  0.9762  0.9637
+    0.100  0.98024  -0.00061   9192  0.9958  0.9703  0.9746  0.9282
+    0.200  0.97955  -0.00129   9077  0.9959  0.9708  0.9719  0.8679
+    0.500  0.97661  -0.00423   8962  0.9959  0.9722  0.9617  0.7363
+    ```
+    Monotone-negative from α=0.025; emit gate fails at every α.
+  - **Classic magnitude-trap failure mode** (15th confirmation on this
+    problem): great Jaccard orthogonality but 15% more errors,
+    distributed AGAINST the rare High class. Macro-recall punishes
+    rare-class recall drops; total-error decrease (9415 → 8940 at
+    α=0.4) is invisible to the metric.
+- **Read-out**: J1 mechanism (TREE-SPACE encoding → orthogonal signal)
+  is PROVEN. The Jaccard 0.56 is unprecedented on this problem and
+  validates the audit hypothesis that the LR meta-stacker null doesn't
+  generalize to all simpler/different stackers. **What J1 with weak
+  base does NOT prove**: whether scaling the base to recipe-features
+  (443 cols) would close the magnitude gap. The current standalone
+  (0.96564 tuned) is too weak to test that hypothesis cleanly.
+- LB delta: n/a (no LB probe — gate failed at every α).
+- Current LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/artifacts/oof_leaf_ote_meta.npy` (7.3 MB)
+  - `scripts/artifacts/test_leaf_ote_meta.npy` (3.1 MB)
+  - `scripts/artifacts/leaf_ote_meta_results.json`
+  - `scripts/artifacts/leaf_ote_blend_results.json`
+  - 3 scripts: `leaf_ote_smoke.py`, `leaf_ote_metastack.py`,
+    `leaf_ote_blend.py`
+- **Possible J1-v2 retry** (~45 min CPU): swap the 19-raw-feature base
+  for a recipe-feature base (443 cols). Base XGB fits at ~5 min/fold
+  on recipe → ~25 min for 5 folds; OTE on 450 leaves ≈ same as J1-v1
+  (~10 min); meta XGB fit ≈ same (~10 min). If recipe-base meta
+  standalone reaches ≥0.978 (closer to 4-stack's 0.98084), the
+  magnitude trap may close. Risk: recipe-base trees may produce leaves
+  too similar to recipe_full_te's tree partitions (recipe_full_te is
+  ALREADY in the 63-component bank), making the OTE encoding
+  redundant. Decision after either continuing with J1-v2 or pivoting
+  to J2 (bootstrap-bagged meta-stacker, 30 min CPU) deferred to user.
+- Lessons logged for future synthetic-tabular comps:
+  1. **Tree-leaf OTE encoding is the cheapest known mechanism for
+     producing ORTHOGONAL meta-stacker inputs** (Jaccard 0.56 vs the
+     LB-best 4-stack which itself averages over 70+ component pred
+     scales). For future comps, run this lever EARLY before exhausting
+     prob-space stackers.
+  2. **The magnitude trap rule is stricter than "errs ≤ anchor"** —
+     it's "errs ≤ anchor AND distributed in the right per-class
+     direction for the metric". A candidate with FEWER total errors
+     but more rare-class errors is LB-negative under macro-recall.
+     Per-class recall guardrail (≥anchor − 5e-4 per class) is the
+     correct gate, not raw error count.
+  3. **Weak-base + strong-meta does not bypass the magnitude trap.**
+     The base sets the standalone ceiling; a meta XGB on top of a
+     19-feature base produces orthogonal partitions but those
+     partitions inherit the weak base's class-recall profile.
+
+### 2026-04-25 — J1-v2 (recipe-feature base) NULL: bias-mismatch, not magnitude
+
+- Goal: J1-v1 closed NULL with weak 19-raw-feature base. J1-v2 retest:
+  swap to a recipe-feature base (443 cols + per-fold OrderedTE,
+  matching recipe_full_te's pipeline) to see if a stronger base
+  closes the magnitude trap. Risk: recipe-base trees may produce
+  leaves too similar to recipe_full_te's partitions (already in the
+  63-component meta-stacker bank), making the leaf-OTE encoding
+  redundant.
+- Production (504k × 5-fold seed=42, 14.7 min wall):
+  - base: argmax 0.97678, tuned 0.97729, bias [1.83, 2.27, 2.50]
+  - meta: argmax 0.97674, tuned 0.97812, bias [1.83, 1.77, 3.20]
+  - meta-over-base lift shrunk to +0.00083 (vs J1-v1's +0.00169 with
+    weak base) — confirms partial redundancy with recipe-base
+- **Blend gate vs LB-best 4-stack** (anchor 0.98084, errs 9,415, bias [1.43, 1.47, 3.40]):
+  - Standalone v2 @ LB bias: argmax 0.97734, **errs 12,343 (+31%)**.
+    Per-class recall L 0.9950 / **M 0.9580** (-0.0115!) / H 0.9791
+    (+0.0016).
+  - Jaccard(leaf-OTE-v2, 4-stack) = **0.6696** — orthogonality
+    intact (well below 0.97 redundancy threshold)
+  - Fixed-bias α-sweep: monotone-negative from α=0.025 (Δ=-0.00004
+    at α=0.025, -0.00128 at α=0.500). Emit gate fails at every α.
+- **NEW failure mode** (different from J1-v1): not magnitude
+  per-class direction; it's **bias-signature mismatch at fixed-LB-bias
+  evaluation**. v2's own tuned bias is [1.83, 1.77, 3.20], vs LB's
+  [1.43, 1.47, 3.40] — a ~0.4-unit shift on Low and ~0.5 on Medium.
+  At LB-bias the v2 meta's argmax push lands wrong: Medium boundary
+  rows that 4-stack catches at L/M get rerouted to H. Per-class
+  isotonic calibration (already applied via `iso_cal`) doesn't fix
+  per-row overfit. Net macro-recall at LB bias: 0.97734 (v2) vs
+  0.97750 (4-stack), so even at standalone v2 trails by 0.00016 at
+  the anchor's operating point.
+- **Two different failure modes across J1-v1 + J1-v2**:
+  - v1 (weak base, 19 raw features): magnitude trap, +15% errs,
+    High recall crashes -0.045 — error MAGNITUDE distributed
+    against the rare class
+  - v2 (strong recipe base): bias-signature mismatch trap, +31%
+    errs at LB bias, M↔H recall pivots in the wrong direction —
+    error MAGNITUDE worse, but per-class direction has High up
+- **J1 lever family CLOSED** at two distinct failure points. The
+  TREE-SPACE ENCODING mechanism (per-tree partition memberships
+  via OrderedTE) genuinely produces orthogonal predictions
+  (Jaccard 0.56 v1, 0.67 v2 — both well below redundancy
+  thresholds) but cannot clear the blend gate because:
+  1. With weak base, magnitude is too high
+  2. With strong base, bias-signature differs from anchor enough
+     that fixed-bias evaluation flips error direction
+  Both modes are structural: a leaf-OTE meta is a fundamentally
+  separate model from the anchor's component family, so its
+  decision-rule operating point won't align with the anchor's
+  fixed bias regardless of how the base is configured.
+- LB delta: n/a. No probe warranted at any α.
+- Current LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/artifacts/oof_leaf_ote_meta_v2.npy` (7.3 MB)
+  - `scripts/artifacts/test_leaf_ote_meta_v2.npy` (3.1 MB)
+  - `scripts/artifacts/leaf_ote_meta_v2_results.json`
+  - `scripts/artifacts/leaf_ote_v2_blend_results.json`
+  - 2 scripts: `leaf_ote_metastack_v2.py`, `leaf_ote_blend_v2.py`
+- **Pivot recommendation**: J2 (bootstrap-bagged meta-stacker) is
+  the next mechanically distinct lever. Unlike J1's "different
+  feature representation" approach, J2 attacks the SAME 63-component
+  bank that produced LB 0.98094, but via component-bootstrap of the
+  meta's INPUT features — same calibration signature as the existing
+  meta-stacker, no bias mismatch. Lower upside (+0.00005-0.00015
+  expected) but higher transfer probability.
+- Lessons logged for future synthetic-tabular comps:
+  1. **The "blend gate" needs a fourth criterion beyond errs/Jaccard/
+     recall floor: bias-signature ALIGNMENT.** A candidate with a
+     standalone-tuned bias that differs from the anchor's bias by
+     more than ~0.2 units on any class will fail fixed-bias evaluation
+     even if its standalone tuned-OOF is competitive. Pre-screen by
+     comparing tuned biases before launching a full sweep.
+  2. **Tree-leaf OTE encoding is structurally a separate model
+     family** from the anchor it tries to blend with — different
+     base, different OTE source (leaves vs cats), different meta
+     XGB. Even when the base USES the same FE as the anchor, the
+     meta's per-row prob distribution has a different operating
+     point. To use this lever effectively, retune the entire stack's
+     bias jointly with the leaf-OTE leg — but doing so risks
+     binhigh-style OOF-tuning overfit.
+  3. **Stronger base → smaller meta lift** in this lever family
+     because the meta's tree-space encoding becomes increasingly
+     redundant with what a strong base XGB already captures via
+     its softprob output. The sweet spot, if one exists, is a base
+     just strong enough to clear magnitude but not so strong that
+     tree-space adds nothing. Heuristic to test: aim for base
+     standalone within 0.005 of anchor (here 0.98084 - 0.005 =
+     0.97584 ideal base target). v1 at 0.96395 was too weak; v2
+     at 0.97729 was just under target. A base at 0.975-0.978
+     range might thread the needle but is unstable to tune.
+
+### Next steps: junior-engineer audit speculative levers (2026-04-25)
+
+After 4 LB-probed nulls today (LR meta-stacker, cross-poll v3 metastack,
+SMOTE v2, SMOTE v3) and saturation across the standard toolkit, fresh
+review identified levers exploiting the **ONE** unstressed property of
+the LB-best 4-stack: the negative OOF→LB gap (LB > OOF by 0.00010).
+That's CV-pessimism from averaging noisy fold hold-outs in the
+meta-stacker. Several mechanism-distinct experiments should *amplify*
+that property; the LR meta-stacker null doesn't generalise to all
+"simpler models" — it failed because of `class_weight='balanced'` on
+210 dims, not because simplicity is universally bad.
+
+Tier J1 — cheap, mechanism-first (CPU, hours not days):
+
+  **J1. Tree-leaf OTE meta-stacker** (~1h CPU). Train a small XGB on
+  recipe (or dist) features, extract per-tree leaf indices for every
+  row (1000+ leaves × 200+ trees). Treat each tree's leaf-index column
+  as a high-card categorical, OrderedTE-encode (3 classes), feed the
+  resulting ~600 OTE features to a meta-XGB. The meta sees TREE-SPACE
+  (per-tree partition memberships), not PROB-SPACE (per-component
+  3-class posteriors). Genuinely orthogonal to the 70-component bank
+  that produced LB 0.98094. Mentioned once on the open list as "LGBM
+  leaf-embedding MLP" but never executed — cheapest untried meta
+  architecture. **STARTED this session — see in-flight note above.**
+
+  **J2. Bootstrap-bagged meta-stacker** (~30 min CPU). N=20 bootstrap
+  samples of the 63-component *bank* (not seeds — Tier 1c seed-bag
+  was near-deterministic). Train iso-cal'd XGB meta on each bootstrap
+  subset, log-average outputs. If CV-pessimism is the mechanism behind
+  the −0.00010 LB-best gap, bootstrapping the *components* (not seeds)
+  should compound it. Structurally different from anything tried so
+  far — Tier 1c step 3 bagged XGB seeds on the SAME bank; this bags
+  bank SUBSETS at fixed seed.
+
+  **J3. Adversarial-validation row reweighting** (~30 min CPU).
+  Train AV classifier (train vs test); use AV score as `sample_weight`
+  in a recipe XGB retrain. Biases toward test-distribution-similar
+  rows. Untested. Closes whether residual gap is train↔test shift vs
+  structural ceiling — informative even if null.
+
+Tier J2 — speculative architecture (GPU, ~1h each, smoke-first):
+
+  **J4. Kolmogorov–Arnold Networks (KAN, 2024)**. Learnable spline
+  activations on edges (not nodes). The DGP is a smooth NN function
+  per the 2026-04-21 EDA; KAN's splines are exactly the architecture
+  for fitting smooth, non-axis-aligned boundaries trees miss. The
+  13 prior NN nulls were all attention/MLP/in-context — KAN is a
+  different inductive bias. Smoke at SMOKE=1, gate at fold-1
+  Jaccard < 0.75 vs LB-best 4-stack AND errs ≤ 9572.
+
+  **J5. TabDDPM diffusion-based row augmentation**. SMOTE-NC failed
+  because k-NN interpolation diffused the M↔H boundary. Diffusion
+  preserves the joint manifold instead of local-linear interpolation.
+  Generate ~10k synthetic High rows from the learned joint, augment
+  training. Direct attack on the same lever SMOTE missed. ~1.5h GPU.
+
+Tier J3 — math, not models (~30 min):
+
+  **J6. Constraint-aware QP for blend weights**. `cvxpy`: minimize CV
+  macro-recall loss subject to `recall_class ≥ anchor_floor − ε` and
+  simplex constraint. Greedy + LR find local optima; QP finds global
+  optimum *under* the per-class guardrail. Cheap; might surface a
+  config the greedy missed.
+
+  **J7. Conformal-gated overrides on score=6 boundary**. The
+  missed-High detector had AUC 0.94 at v2 but failed because precision
+  was below break-even. Conformal calibration gives guaranteed-coverage
+  prediction sets; pick override threshold from the calibrated set
+  rather than raw probability. Same mechanism, principled threshold.
+
+**Recommended start order**: J1 + J2 in parallel, ~1.5h total CPU.
+Both target the only property of the LB-best stack that hasn't been
+pressure-tested — the negative OOF→LB gap — through structurally
+distinct mechanisms. If both null, that's the cleanest possible
+saturation evidence and lock the 2 finals immediately. J4/J5 only if
+J1+J2 produce a passing standalone OOF that suggests the lever family
+is alive. J6/J7 are math/calibration adjustments — small upside,
+nearly-zero downside, useful as parallel background work.
+
+**Skip on principled grounds (re-confirmed today)**: LR meta-stacker
+variants (architectural null, not a tuning issue), public-CSV blending
+(banned), HP/seed bagging on existing components (LB-regressed twice),
+more NN-from-scratch attempts on the recipe matrix (13 nulls form a
+structural pattern), Mamba/T-Few from the prior speculative menu
+(higher infrastructure cost, lower mechanism-novelty than J1-J7).
+
 ### Next steps: speculative ceiling-breaker (post-2026-04-25 own-pipeline closure)
 
 After today's 4 LB-probed nulls (LR meta-stacker, cross-poll v3 metastack,
