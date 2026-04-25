@@ -9601,6 +9601,103 @@ by EV/cost:
   rehydrate; needs Kaggle CPU kernel (~30 min scaffolding +
   ~3h queue+run).
 
+### 2026-04-25 — N3 K=2 5-shuffle OTE concat: NULL (Jaccard 0.84 + magnitude trap)
+
+- Goal: execute N3 without Kaggle compute via per-fold execution
+  (`RUN_FOLD=N` env var), each fold ~18 min wall fits inside container-
+  rehydrate-active interval if user keeps polling.
+- Compute config: K=2 (vs published K=5), MAX_ROUNDS=1500, ES=100.
+  Reduced from full to fit per-fold time budget.
+- Per-fold timeline (each ~17-19 min wall on 504k × K=2 = 1.01M aug rows):
+  ```
+  fold | val argmax | recipe baseline | Δ
+  -----|------------|-----------------|--------
+   1   | 0.97601    | 0.97544         | +0.00057
+   2   | 0.97599    | 0.97659         | -0.00060
+   3   | 0.97759    | 0.97721         | +0.00038
+   4   | 0.97554    | 0.97465         | +0.00089
+   5   | 0.97578    | 0.97557         | +0.00021
+  ```
+  Mean fold delta = +0.00029 (4/5 positive). Cumulative net +0.00145.
+- **Aggregated standalone OOF (5-fold sum)**:
+  - Argmax 0.97618 (recipe 0.97589, **+0.00029**)
+  - Tuned 0.98004 (recipe 0.97967, **+0.00037** — below +0.0005
+    LB-transfer threshold for direct blend; signals real but bounded)
+  - iso-cal tuned 0.98001
+- **Blend gate vs LB-best 4-stack (0.98084, fixed bias)**:
+  - **Jaccard 0.8417** — above 0.80 redundancy threshold (FAIL diversity)
+  - **Errors 9591 vs anchor 9415 = +176** (FAIL magnitude)
+  - **Per-class recall trade**: Low ~tied, Medium −0.0004, **High −0.0020**
+    (FAIL — wrong direction under macro-recall; same pattern as v4 bank
+    addition + LR meta-stacker)
+  - Blend sweep: every α > 0 hurts; peak at α=0 (no blend). Strict null.
+  ```
+  α       OOF       Δ
+  0.000  0.98084  +0.00000   ← peak
+  0.025  0.98082  -0.00002
+  0.300  0.98050  -0.00034
+  0.500  0.98049  -0.00036
+  ```
+- **Direct blend lever DEAD.** Per the v4 lesson (saturation rule),
+  adding N3 to the 77-component meta-stacker bank is also unlikely
+  to help — bank-add causes meta-stacker to OOF-overfit on new
+  components even when they pass surface gates.
+- **Why K=2 may have hurt**: published recipe uses K=5 shuffles; we used
+  K=2 to fit per-fold time budget. Less augmentation = less
+  regularisation = closer to vanilla recipe pipeline. K=5 might lift
+  the standalone OOF +0.0001-0.0002, but Jaccard 0.84 + magnitude trap
+  are structural — they wouldn't change with more K. The OTE-concat
+  augmentation lever is fundamentally too similar to recipe's existing
+  OTE+digit features to add orthogonal signal on this feature set.
+- **Combined N1 + N2 + N3 closure**: kernel-audit-round-4 plan FULLY
+  complete. All three nominated levers null. LB best unchanged at
+  **0.98094**. LB budget: 2/10 used today.
+
+### 2026-04-25 — Session close-out: 3 LB-confirmed nulls + lever bank exhausted
+
+- **Today's experiments** (all kernel-audit-round-4 follow-ups):
+  1. N1 LR meta-stacker — LB 0.97991, Δ −0.00103, gap +0.00176
+  2. N2 v4 metastack with ET+kNN — LB 0.97992, Δ −0.00102, gap +0.00129
+  3. N3 K=2 5-shuffle OTE — direct blend null (Jaccard 0.84, magnitude
+     trap, wrong-direction PCR)
+- **All three confirmed via fixed-bias blend gate at LB or OOF +
+  structural diversity check. No surprises remain in the kernel-audit-
+  round-4 plan.**
+- **Saturation at LB 0.98094 confirmed across FIVE independent attacks**:
+  Tier 1c greedy + meta-on-meta + seed-bag, cross-poll v3 metastack,
+  SMOTE-NC v2/v3, N2 v4 bank-extension, N3 5-shuffle OTE training-
+  augmentation.
+- **Final-selection LOCKED**:
+  - **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    (gap −0.00010, anchor for blend-gate threshold). Composition:
+    LB-best 3-stack + xgb_metastack_iso × α=0.30.
+  - **HEDGE**: `submission_recipe_full_te.csv` → **LB 0.97939**
+    (gap +0.00028, single-model XGB on V10 recipe, no blend stacking).
+    Premium = -0.00155 LB; protects against meta-stacker overfit on
+    private LB.
+- **5 days to deadline (2026-04-30), 8 LB submissions remaining today.**
+  Reserve remainder for end-of-comp variance check (one final-selection
+  re-validation per day until close).
+- **Portable rules added this session** (LEARNINGS.md candidates):
+  1. **Linear OOF→LB gap projection**: once a single overfit blend
+     component shows >2x gap inflation per α at one operating point,
+     project linearly across all α and skip conservative-dilution
+     probes — they will null too.
+  2. **"Errors decrease + per-class guardrail PASS" is NOT sufficient
+     for LB transfer** when the new component is itself a meta-stacker
+     output trained on the same fold structure as the anchor.
+  3. **Wguesdon's "weak helps stacker" pattern is bank-size dependent**
+     — only helps far from saturation. On a 75+ component bank with a
+     prior negative OOF→LB gap, adding weak components (lr_ote /
+     et_ote / knn_ote analogs) overfits OOF.
+  4. **Container-rehydrate-resistant compute pattern**: per-fold
+     execution via `RUN_FOLD=N` env var + per-fold `.npy` checkpoints
+     committed to git, foreground bash invocation per fold,
+     interactive polling to keep container alive.
+  5. **OTE training-augmentation (yunsuxiaozi 5-shuffle concat) is
+     structurally redundant with recipe's existing OTE on this feature
+     set** — Jaccard 0.84 + magnitude trap regardless of K.
+
 ### 2026-04-25 — cross-poll v3 + SMOTE-NC kernel: 3 NULLs, own-pipeline closed
 
 - Goal: extend the 63-component Tier-1b meta-stacker with new candidates

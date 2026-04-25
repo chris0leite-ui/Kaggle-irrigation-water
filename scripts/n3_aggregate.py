@@ -32,20 +32,28 @@ def main():
     y = train[TARGET].map(CLS2IDX).to_numpy().astype(np.int32)
     test_ids = test["id"].values
 
-    # Load the last fold's checkpoint (which contains all folds' contributions
-    # since each per-fold save writes the running OOF + test arrays).
-    last_fold_oof = ART / "oof_recipe_2shuffle_fold5.npy"
-    last_fold_test = ART / "test_recipe_2shuffle_fold5.npy"
-    if not last_fold_oof.exists():
-        log(f"FATAL: {last_fold_oof} missing — run all 5 folds first")
-        return
-    oof = np.load(last_fold_oof).astype(np.float32)
-    test_pred = np.load(last_fold_test).astype(np.float32)
-    log(f"loaded fold-5 checkpoint: oof shape {oof.shape}, test shape {test_pred.shape}")
+    # Per-fold execution (RUN_FOLD=N mode): each per-fold .npy contains ONLY
+    # that fold's val rows (OOF) and that fold's test contribution scaled by
+    # 1/N_FOLDS. Sum all 5 to get the final OOF (val folds are disjoint) +
+    # test (5 × 1/5 contributions).
+    oof = np.zeros((len(train), 3), dtype=np.float32)
+    test_pred = np.zeros((len(test), 3), dtype=np.float32)
+    for f in range(1, 6):
+        oof_p = ART / f"oof_recipe_2shuffle_fold{f}.npy"
+        test_p = ART / f"test_recipe_2shuffle_fold{f}.npy"
+        if not oof_p.exists():
+            log(f"FATAL: {oof_p} missing — run all 5 folds first")
+            return
+        oof += np.load(oof_p).astype(np.float32)
+        test_pred += np.load(test_p).astype(np.float32)
+    log(f"summed 5 per-fold checkpoints: oof shape {oof.shape}, test shape {test_pred.shape}")
 
-    # Sanity: every row of OOF should have probs > 0 (each row is in exactly one val fold).
+    # Sanity: every row of OOF should have probs > 0 (each row is in exactly
+    # one val fold, summed across folds the row appears once).
     n_zero = (oof.sum(1) < 1e-6).sum()
     log(f"  n_zero_rows = {n_zero} (expect 0 if all 5 folds completed)")
+    n_double = (oof.sum(1) > 1.5).sum()
+    log(f"  n_double_assigned_rows = {n_double} (expect 0)")
 
     # Save final aggregated arrays
     final_oof = ART / "oof_recipe_2shuffle.npy"
