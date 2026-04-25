@@ -814,3 +814,18 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n3_gpu_validate_output/test_n3_gpu_validate_fold1.npy
 !scripts/artifacts/n3_gpu_validate_output/n3_gpu_validate_results.json
 !scripts/artifacts/n3_gpu_validate_output/irrigation-n3-gpu-validate.log
+
+# 2026-04-25 J4 KAN PROBE (efficient-kan, single fold on Kaggle P100):
+# 15th NN-family attempt; Kolmogorov-Arnold Networks via efficient-kan.
+# Architecture [43, 192, 96, 48, 3], 314k params, B-spline activations
+# on edges (grid_size=5, spline_order=3). Fold-1 OOF tuned 0.93868
+# (anchor 4-stack ~0.98 — KAN much weaker standalone).
+# RECORD-LOW Jaccard 0.1267 with LB-best 3-stack (vs Mamba's prior
+# record 0.49 and Trompt's 0.53) — KAN's spline-on-edge IB genuinely
+# produces a different decision surface. But errs 6.28x anchor causes
+# magnitude-trap blend null (monotone-negative from α=0.025).
+# Kept as cross-branch diagnostic — the Jaccard 0.13 may be useful
+# from a different / weaker anchor in future stacking experiments.
+!scripts/artifacts/oof_kan_probe.npy
+!scripts/artifacts/test_kan_probe.npy
+!scripts/artifacts/blend_kan_results.json

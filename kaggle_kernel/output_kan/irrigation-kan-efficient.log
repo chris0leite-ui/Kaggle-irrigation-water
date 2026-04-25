@@ -1,0 +1,95 @@
+[{"stream_name":"stdout","time":0.92751682,"data":"[boot] gpu compute_cap = ['6.0']\n"}
+,{"stream_name":"stdout","time":0.927614302,"data":"[boot] sm_60/61 detected - pinning torch+torchvision cu121\n"}
+,{"stream_name":"stdout","time":12.490038906,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":18.225944973,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 2.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":73.678966486,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 4.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":73.874795017,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 83.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":74.200484454,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 51.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":74.239422093,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 39.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":82.6689552,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":84.721056073,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 7.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":85.416320991,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 31.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":87.05652161,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 14.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":90.551411181,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 5.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":92.775553246,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.7/188.7 MB 9.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":92.805736368,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 7.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":92.890395876,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 97.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":100.347993151,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.6/209.6 MB 1.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stderr","time":189.104625284,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":189.104682028,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.5.1+cu121 which is incompatible.\n"}
+,{"stream_name":"stdout","time":189.616510446,"data":"[boot] installed efficient-kan\n"}
+,{"stream_name":"stdout","time":194.947536305,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
+,{"stream_name":"stdout","time":194.947598839,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
+,{"stream_name":"stdout","time":194.975526107,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":194.975563423,"data":"[main] SMOKE=False PROBE=True N_FOLDS=5 MAX_FOLDS=1 N_EPOCHS=12\n"}
+,{"stream_name":"stdout","time":194.975571445,"data":"[data] loading train / test / orig\n"}
+,{"stream_name":"stdout","time":198.113812531,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
+,{"stream_name":"stdout","time":198.277312307,"data":"[fe] cat Soil_Type: card=4\n"}
+,{"stream_name":"stdout","time":198.448905769,"data":"[fe] cat Crop_Type: card=6\n"}
+,{"stream_name":"stdout","time":198.617633728,"data":"[fe] cat Crop_Growth_Stage: card=4\n"}
+,{"stream_name":"stdout","time":198.777461737,"data":"[fe] cat Season: card=3\n"}
+,{"stream_name":"stdout","time":198.948718727,"data":"[fe] cat Irrigation_Type: card=4\n"}
+,{"stream_name":"stdout","time":199.110619372,"data":"[fe] cat Water_Source: card=4\n"}
+,{"stream_name":"stdout","time":199.284420633,"data":"[fe] cat Mulching_Used: card=2\n"}
+,{"stream_name":"stdout","time":200.22566704,"data":"[fe] cat Region: card=5\n"}
+,{"stream_name":"stdout","time":200.225689306,"data":"[fe] feat_dim=43  X_train=(630000, 43) X_test=(270000, 43) X_orig=(10000, 43)\n"}
+,{"stream_name":"stdout","time":200.22569541,"data":"=== fold 1/5 ===\n"}
+,{"stream_name":"stdout","time":200.225700942,"data":"      build KAN [43, 192, 96, 48, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":200.25592047,"data":"      params=314,400\n"}
+,{"stream_name":"stdout","time":205.527363779,"data":"      epoch 1/12 loss=0.46672 lr=9.83e-04 wall=3.6s\n"}
+,{"stream_name":"stdout","time":208.936423737,"data":"      epoch 2/12 loss=0.29653 lr=9.33e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":212.361786131,"data":"      epoch 3/12 loss=0.27428 lr=8.54e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":215.809216786,"data":"      epoch 4/12 loss=0.26623 lr=7.50e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":219.208774945,"data":"      epoch 5/12 loss=0.25909 lr=6.29e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":222.623472791,"data":"      epoch 6/12 loss=0.25409 lr=5.00e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":226.02663225,"data":"      epoch 7/12 loss=0.25128 lr=3.71e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":229.4438494,"data":"      epoch 8/12 loss=0.24739 lr=2.50e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":232.877387507,"data":"      epoch 9/12 loss=0.24671 lr=1.46e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":236.289134821,"data":"      epoch 10/12 loss=0.24368 lr=6.70e-05 wall=3.4s\n"}
+,{"stream_name":"stdout","time":239.687479677,"data":"      epoch 11/12 loss=0.24203 lr=1.70e-05 wall=3.4s\n"}
+,{"stream_name":"stdout","time":243.111659713,"data":"      epoch 12/12 loss=0.24049 lr=0.00e+00 wall=3.4s\n"}
+,{"stream_name":"stdout","time":243.860395635,"data":"  fold 1 argmax bal_acc = 0.93786 (elapsed 0.7m)\n"}
+,{"stream_name":"stdout","time":243.860428357,"data":"!! MAX_FOLDS reached (1)\n"}
+,{"stream_name":"stdout","time":247.372041701,"data":"tuned OOF bal_acc = 0.93868 bias=[2.0324, 1.9689, 2.2008] (1/5 folds, covered=126,000/630,000)\n"}
+,{"stream_name":"stdout","time":247.70392949,"data":"wrote oof_kan_probe.npy / test_kan_probe.npy / submission_kan_probe_tuned.csv / kan_probe_results.json\n"}
+,{"stream_name":"stdout","time":247.721787294,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
+,{"stream_name":"stdout","time":247.721824312,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
+,{"stream_name":"stdout","time":247.747585937,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":247.747621462,"data":"[main] SMOKE=False PROBE=True N_FOLDS=5 MAX_FOLDS=1 N_EPOCHS=12\n"}
+,{"stream_name":"stdout","time":247.747628884,"data":"[data] loading train / test / orig\n"}
+,{"stream_name":"stdout","time":250.043878614,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
+,{"stream_name":"stdout","time":250.201287805,"data":"[fe] cat Soil_Type: card=4\n"}
+,{"stream_name":"stdout","time":250.364906353,"data":"[fe] cat Crop_Type: card=6\n"}
+,{"stream_name":"stdout","time":250.528846698,"data":"[fe] cat Crop_Growth_Stage: card=4\n"}
+,{"stream_name":"stdout","time":250.686899172,"data":"[fe] cat Season: card=3\n"}
+,{"stream_name":"stdout","time":250.851794869,"data":"[fe] cat Irrigation_Type: card=4\n"}
+,{"stream_name":"stdout","time":251.005502969,"data":"[fe] cat Water_Source: card=4\n"}
+,{"stream_name":"stdout","time":251.169033961,"data":"[fe] cat Mulching_Used: card=2\n"}
+,{"stream_name":"stdout","time":251.375631713,"data":"[fe] cat Region: card=5\n"}
+,{"stream_name":"stdout","time":251.825227538,"data":"[fe] feat_dim=43  X_train=(630000, 43) X_test=(270000, 43) X_orig=(10000, 43)\n"}
+,{"stream_name":"stdout","time":251.904607423,"data":"=== fold 1/5 ===\n"}
+,{"stream_name":"stdout","time":251.989261409,"data":"      build KAN [43, 192, 96, 48, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":252.013306978,"data":"      params=314,400\n"}
+,{"stream_name":"stdout","time":255.441508561,"data":"      epoch 1/12 loss=0.47380 lr=9.83e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":258.850470303,"data":"      epoch 2/12 loss=0.29251 lr=9.33e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":262.281736382,"data":"      epoch 3/12 loss=0.27183 lr=8.54e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":265.665414386,"data":"      epoch 4/12 loss=0.26517 lr=7.50e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":269.06116072,"data":"      epoch 5/12 loss=0.26292 lr=6.29e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":272.47625993,"data":"      epoch 6/12 loss=0.26036 lr=5.00e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":275.879335768,"data":"      epoch 7/12 loss=0.25533 lr=3.71e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":279.285971055,"data":"      epoch 8/12 loss=0.25563 lr=2.50e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":282.715230338,"data":"      epoch 9/12 loss=0.25185 lr=1.46e-04 wall=3.4s\n"}
+,{"stream_name":"stdout","time":286.083842228,"data":"      epoch 10/12 loss=0.25110 lr=6.70e-05 wall=3.4s\n"}
+,{"stream_name":"stdout","time":289.475518092,"data":"      epoch 11/12 loss=0.25193 lr=1.70e-05 wall=3.4s\n"}
+,{"stream_name":"stdout","time":292.883382887,"data":"      epoch 12/12 loss=0.25168 lr=0.00e+00 wall=3.4s\n"}
+,{"stream_name":"stdout","time":293.625808542,"data":"  fold 1 argmax bal_acc = 0.93286 (elapsed 0.7m)\n"}
+,{"stream_name":"stdout","time":293.625861089,"data":"!! MAX_FOLDS reached (1)\n"}
+,{"stream_name":"stdout","time":296.973932066,"data":"tuned OOF bal_acc = 0.93359 bias=[2.1324, 1.9689, 2.0008] (1/5 folds, covered=126,000/630,000)\n"}
+,{"stream_name":"stdout","time":297.316450823,"data":"wrote oof_kan_probe.npy / test_kan_probe.npy / submission_kan_probe_tuned.csv / kan_probe_results.json\n"}
+,{"stream_name":"stderr","time":300.581207946,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":300.581276967,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":300.830852341,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":300.830880655,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":301.845001178,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":303.296028941,"data":"[NbConvertApp] Writing 378759 bytes to __results__.html\n"}
+]
