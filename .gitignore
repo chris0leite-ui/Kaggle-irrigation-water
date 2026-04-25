@@ -591,3 +591,15 @@ kaggle_kernel/*/dist/
 # 0.9514 vs Kaggle 0.9502. Both ABORT.
 !scripts/artifacts/oof_smote_v2_fold1.npy
 !scripts/artifacts/test_smote_v2_fold1.npy
+
+# 2026-04-25 N2 diversity-leg components for the meta-stacker bank
+# (per kernel audit round 4 — wguesdon's "weak individually, help
+# stacker" pattern). Direct blend gate vs LB-best 4-stack: NULL on
+# both (every α > 0 hurts macro-recall via High recall trade-down).
+# Retained as meta-stacker bank inputs — added to tier1c_metastack_v4.
+# ET on 35-dist features: OOF tuned 0.96667, Jaccard 0.589 vs LB4.
+# kNN(k=50, 80k subsample) on 35-dist: OOF tuned 0.96308, Jaccard 0.548.
+!scripts/artifacts/oof_n2_extratrees.npy
+!scripts/artifacts/test_n2_extratrees.npy
+!scripts/artifacts/oof_n2_knn.npy
+!scripts/artifacts/test_n2_knn.npy
