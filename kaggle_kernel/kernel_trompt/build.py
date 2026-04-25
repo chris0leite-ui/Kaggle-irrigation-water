@@ -53,15 +53,16 @@ def strip_siblings(text: str) -> str:
 
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    parts: list[str] = [HEADER]
+    # Drop ALL module docstrings + __future__ imports from sources, then
+    # hoist a single `from __future__ import annotations` to the top
+    # right after the header docstring (Python requires it before any
+    # other import / non-docstring code).
+    parts: list[str] = [HEADER, "from __future__ import annotations\n"]
     for mod in MODULES:
         src = (HERE / f"{mod}.py").read_text()
-        # Drop the module's own docstring + __future__ after the first
-        # occurrence to avoid duplicates in the flattened file.
-        if parts != [HEADER]:
-            src = re.sub(r'^"""[\s\S]*?"""\s*\n?', "", src, count=1)
-            src = re.sub(r"^from __future__ import.*\n?", "",
-                         src, count=1, flags=re.MULTILINE)
+        src = re.sub(r'^"""[\s\S]*?"""\s*\n?', "", src, count=1)
+        src = re.sub(r"^from __future__ import.*\n?", "",
+                     src, flags=re.MULTILINE)
         parts.append(f"\n# ===== {mod}.py =====\n")
         parts.append(strip_siblings(src))
     parts.append('\nif __name__ == "__main__":\n    main()\n')
