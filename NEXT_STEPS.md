@@ -9,8 +9,9 @@ the full W1-W8 menu and EV ranking.
 
 | Branch | Task | Status |
 |---|---|---|
-| `claude/improve-predictions-with-dgp-d0ADN` | **W1 distill-the-host MLP sweep** | 🟡 EXECUTING — sklearn MLPClassifier sweep over depth ∈ {2,3} × hidden ∈ {64,128,256} × activation ∈ {relu,tanh} × dropout/alpha grid on (6 rule + 7 non-rule continuous) features. Smoke first (1 fold × 5 configs), then 5-fold on top configs. ~2h CPU expected. |
-| `claude/improve-predictions-with-dgp-d0ADN` | **W8 LLM-driven FE at scale** | 🟡 EXECUTING — 50+ FE ideas brainstormed in-session, each tested as binary/numeric column add to recipe XGB on 1-fold smoke. Top survivors → 5-fold + meta-stacker bank addition. ~3h CPU. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W1 distill-the-host MLP sweep** | ✅ COMPLETE — **NULL (14th NN-family)**. 3 narrow tanh MLPs in production 5-fold seed=42 on raw nums + cats + DGP score. All magnitude-trap (tuned 0.96207-0.96273, errs 10,951-12,460 vs anchor 9,415, +16-32% magnitude). But Jaccards **0.51-0.56** are **LOWEST orthogonality of any NN ever** (RealMLP 0.62, Trompt 0.53). Kept as cross-branch diagnostic. The "host used a small standard tabular MLP" hypothesis is FALSIFIED — sklearn MLP at this feature set + capacity can't break 0.97 OOF gate. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W8 LLM-FE-at-scale (smoke grader)** | ✅ COMPLETE — 21 FE-idea bundles tested on 250k subsample × 1-fold. **5 PASS** (Δ ≥ +0.0005): I11 decimal_fractions (+0.00090), I12 floor_round (+0.00087), I9 soil_chemistry (+0.00071), I6 humidity_water (+0.00066), I21 prev_irrig_z_in_score (+0.00050). I11/I12 likely redundant with recipe digit extraction (A4 was NULL); I6/I9/I20/I21/I16/I18 novel-on-recipe subset (15 cols) bundled as `EXTRA_FE='w8'`. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W8 EXTRA_FE='w8' on FULL recipe** | 🟡 EXECUTING — full 5-fold seed=42 recipe pipeline with 458 features (+15 W8 cols). Smoke (20k×2-fold) PASSED structurally. Production wall ~50 min. Blend-gate vs LB-best 4-stack ready (`scripts/w8_blend_gate.py`); auto-emits submission if Δ ≥ +0.0002 + per-class guardrail passes. |
 
 ## Wild-step brainstorm (2026-04-25, post-LB 0.98094 saturation)
 
