@@ -10508,3 +10508,148 @@ model wave**:
   - `scripts/artifacts/test_j6_qp_blend.npy` (variant 1 test side)
   - `scripts/artifacts/j6_qp_blend_results.json` (weights + deltas)
 
+
+### 2026-04-25 — J2 bootstrap-bagged meta-stacker: NULL (5th saturation confirmation at LB 0.98094)
+
+- Goal: cheapest mechanism-distinct lever from the J3-J7 brainstorm.
+  Bag SUBSETS of the meta-stacker bank (without replacement,
+  fraction=0.5), train an iso-cal'd XGB meta on each, log-average.
+  Targets the negative OOF→LB gap (CV-pessimism) on the LB-best
+  4-stack via a different decorrelation than Tier-1c step-3
+  XGB-seed bag (which was near-deterministic and null).
+- Changed: `scripts/j2_bootstrap_metastack.py` (~210 lines) +
+  `scripts/j2_analyze.py` (post-result calibration projector).
+  Pool composition: starts from `tier1b_helpers.load_pool()` (88
+  components on disk now) then drops 19 J2-specific entries:
+  - **Circular meta outputs**: `xgb_metastack_v3/v4/varB/varC`,
+    `xgb_metastack_v3_iso`, `lr_metastack` (all prior meta-stacker
+    outputs would feed back into a new meta).
+  - **Submission-derived OOFs**: `primary_sub_tau{095,097,099}`
+    (these are subs of the LB-best primary itself = circular leak).
+  - **Derived blends**: `j6_qp_blend`, `greedy_blend`,
+    `ovo_boundary_blend`.
+  - **LB-confirmed regressors**: `soft_distill` family.
+  - **Borderline τ-sweeps**: `recipe_pseudolabel_tau{095,097,099}`
+    (circular w.r.t. pseudo_s1 in the LB stack).
+  - **Bias-mismatched**: `recipe_smote_v3` (cannot blend at recipe
+    bias).
+  Final clean pool: **69 components** (62 from v1 minus 4
+  derivatives, plus 11 legit new since the LB-validated v1:
+  `realmlp_ens4`, `leaf_ote_meta` v1+v2, `n2_extratrees`,
+  `n2_knn`, `recipe_2shuffle`, 4 focal variants, 2 OvR XGB).
+- SMOKE (N=2 × bag_size=12, ~3 min): pipeline end-to-end clean,
+  bag-mean OOF 0.98092, peak Strategy A α=0.50 → +0.00006.
+- Production: N=10 bags × bag_size=34 (fraction=0.493), wall **34
+  min** on 16-core CPU.
+- Per-bag iso OOF results (5-fold seed=42, fixed recipe bias):
+  ```
+  bag    iso_oof   wall
+   0    0.98029   205s
+   1    0.98035   204s
+   2    0.98059   185s
+   3    0.98011   183s
+   4    0.98042   198s
+   5    0.98020   211s
+   6    0.98048   208s
+   7    0.98039   215s
+   8    0.98042   203s
+   9    0.98048   209s
+  ```
+  Per-bag spread σ=0.00015 — bagging produced near-identical
+  metas, **low variance to reduce**. The fraction=0.5 sub-pools
+  share ~17 components on average (overlap 50%×34 = ~17), so
+  each bag's meta-XGB sees largely the same dominant signal
+  channels and converges to similar per-row decisions.
+- **Bag-mean meta_iso standalone @ recipe bias**: **0.98050**
+  (vs LB-best 4-stack 0.98084, **Δ = −0.00034 BELOW anchor**).
+  Errors 8,964 (vs anchor 9,415 — 451 fewer total errs but
+  distributed against the rare class, which kills macro-recall).
+  Jaccard vs LB-best 4-stack = **0.9187** (high redundancy).
+- Strategy A — log-blend bag_iso onto LB-best 4-stack (fixed bias):
+  ```
+  α       OOF       Δ          errs   recL    recM    recH
+  0.025  0.98081  -0.00004   9410  0.9955  0.9695  0.9773
+  0.050  0.98081  -0.00003   9396  0.9955  0.9696  0.9773
+  0.075  0.98083  -0.00001   9380  0.9955  0.9697  0.9773
+  0.100  0.98082  -0.00002   9366  0.9955  0.9697  0.9772
+  0.150  0.98087  +0.00003   9330  0.9955  0.9699  0.9772   ← peak
+  0.200  0.98082  -0.00003   9318  0.9955  0.9699  0.9770
+  0.300  0.98075  -0.00010   9284  0.9956  0.9701  0.9766
+  0.500  0.98067  -0.00017   9210  0.9956  0.9704  0.9760
+  ```
+  Peak at α=0.15 with Δ=+0.00003 — within fold noise, far below
+  the +2e-4 internal gate and the +5e-4 LB-probe threshold.
+  Per-class recall: High drops 0.9775→0.9772 at peak (-0.0003);
+  same magnitude-trap pattern as every prior LB-best 4-stack
+  add (tiny rare-class drop dominates macro-recall).
+- Strategy B — replace meta_iso with bag_iso at α=0.30:
+  Δ = **−0.00006**. Strict null.
+- **Calibration projection** (using LR/V4 prior gap-inflation rate
+  ~0.0038 per unit α observed when meta-output is blended into the
+  4-stack):
+  ```
+  best gated α=0.150 → OOF Δ=+0.00003
+  projected gap inflation at α=0.15 ≈ +0.00057
+  projected LB Δ vs primary = -0.00054
+  projected LB ≈ 0.98040 (REGRESSION)
+  ```
+  Linear projection rules out the conservative dilution probe
+  (per the 2026-04-25 LR meta-stacker closure rule).
+- **No LB submission warranted.** Gate FAILED, projection negative.
+- **5th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                         peak OOF Δ   LB Δ (if probed)
+  ---------------------------------------- -----------  -----------------
+  1. Tier 1c greedy expanded pool (132c)  +0.00002     n/a
+  2. Tier 1c meta-stacker v2 (224-dim)    +0.00002     n/a
+  3. Tier 1c meta-stacker XGB seed-bag    +0.00003     n/a
+  4. Tier 1b cross-poll metastack v3      +0.00015     -0.00034 (LB 0.98060)
+  5. **J2 bootstrap-bagged metastack       +0.00003     not probed (proj -0.00054)**
+  ```
+- **Mechanism diagnosis**: with bag_size=34 (fraction=0.5 of 69),
+  each bag covers half the bank — enough that the meta-XGB on
+  any bag sees most of the dominant signal channels and
+  converges to a similar decision surface. Bagging only
+  decorrelates effectively when bags see DIFFERENT signals; here
+  they don't. Could retry at fraction=0.2-0.3 to force more
+  decorrelation, but at that point each bag is too weak to
+  contribute meaningful signal. The 0.5 trade-off was the
+  reasonable middle ground.
+- **Three structural reasons J2 nulled** (now LB-validated rule
+  pattern):
+  1. **CV-pessimism amplification through bagging only works when
+     individual bags have decorrelated OOF noise.** At
+     fraction=0.5, bags share 50% of components → correlated
+     noise → averaging produces ≈ single-bag.
+  2. **The LB-best 4-stack already absorbs the dominant
+     meta-stacker signal channel.** Any new meta variant (LR, v3,
+     v4, J2 bagged) lands at +0.0001-0.0006 OOF over the 4-stack
+     anchor, reflecting saturated information in the bank.
+  3. **Bag-mean's −0.00034 BELOW anchor on standalone OOF means
+     the new components in the larger pool (RealMLP n_ens=4,
+     leaf_ote v1+v2, ET, kNN, focal variants) inject NOISE
+     rather than signal when filtered through bagged metas.**
+- Combined with the 14+ prior nulls (LR meta, v4 meta, soft_distill,
+  SMOTE-NC v2/v3, multi-seed pseudo s123, AV J3, QP J6, leaf_ote
+  v1+v2, Mamba PROBE, Trompt PROBE, RealMLP n_ens=4, focal
+  variants, distill_tiny, N3 5-shuffle K=2): **own-pipeline LB
+  ceiling is structurally bounded at 0.98094 within the standard
+  tabular ML toolkit on this feature set.** No remaining lever
+  has plausible LB-positive transfer probability.
+- Artefacts committed:
+  - `scripts/j2_bootstrap_metastack.py`,
+    `scripts/j2_analyze.py`
+  - `scripts/artifacts/oof_xgb_metastack_j2bag.npy` +
+    `test_xgb_metastack_j2bag.npy` (whitelist via gitignore)
+  - `scripts/artifacts/j2_bootstrap_metastack_results.json`
+  - `scripts/artifacts/j2_bootstrap_metastack_smoke.json`
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- **Recommendation reaffirmed (audit F1)**: swap hedge from
+  `submission_recipe_full_te.csv` (LB 0.97939, premium -0.00155,
+  shares full FE pipeline with primary, 484/270k disagreement)
+  to `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005,
+  premium -0.00089, structurally sidesteps the meta-stacker layer
+  — the most-tuned and most-likely public-LB-overfit element of
+  the primary). Half the premium, materially better insurance
+  against meta-stacker overfit on private LB.

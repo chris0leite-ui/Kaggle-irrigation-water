@@ -714,3 +714,19 @@ kaggle_kernel/*/dist/
 # didn't transfer.
 !scripts/artifacts/oof_mamba_probe.npy
 !scripts/artifacts/test_mamba_probe.npy
+
+# 2026-04-25 J2 bootstrap-bagged meta-stacker — 5th saturation
+# confirmation at LB 0.98094. N=10 bags, fraction=0.5 (bag_size=34),
+# clean 69-component pool (drops 19 circular meta outputs / submission
+# subs / LB regressors / pseudo τ-sweep variants). Per-bag iso OOF
+# spread 0.98011-0.98059 (std 0.00015 — bagging produced consistent
+# metas, low variance to reduce). Bag-mean iso standalone OOF 0.98050
+# vs LB-best 4-stack 0.98084 (Δ -0.00034, BELOW anchor). Jaccard 0.92
+# vs anchor (high redundancy). Strategy A peak α=0.15 → +0.00003 OOF
+# (calibration-projected LB ~0.98040, regression -0.00054). Strategy
+# B (replace meta_iso) Δ -0.00006. Gate FAILED. NULL — saturation
+# confirmed: bigger pool with new components (RealMLP n_ens=4,
+# leaf_ote v1+v2, ET, kNN, recipe_2shuffle, focal x4, OvR x2) does
+# NOT lift; bagging produces near-identical metas at fraction=0.5.
+!scripts/artifacts/oof_xgb_metastack_j2bag.npy
+!scripts/artifacts/test_xgb_metastack_j2bag.npy
