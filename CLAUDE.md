@@ -10035,6 +10035,149 @@ more NN-from-scratch attempts on the recipe matrix (13 nulls form a
 structural pattern), Mamba/T-Few from the prior speculative menu
 (higher infrastructure cost, lower mechanism-novelty than J1-J7).
 
+### 2026-04-25 — S1 Tabular-Mamba (mambular SSM) PROBE: 14th NN null with record-low Jaccard 0.491
+
+- Goal: execute the speculative S1 ceiling-breaker from the prior
+  brainstorm — Tabular-Mamba via mambular (BASF SSM library, sklearn
+  API). Rationale: state-space architecture with selective scan is
+  structurally distinct from every prior NN tested
+  (MLP/FT-T/TabPFN/DAE/RealMLP/Trompt all use attention or pure
+  feed-forward). Bayesian prior <20% it breaks the pattern, but it's
+  the last untested NN architecture family.
+- Changed: new `kaggle_kernel/kernel_mamba/` mirroring kernel_trompt
+  modular pattern (boot/config/features/model/cv/main + build.py
+  concatenator). 19 raw features (8 cats + 11 nums) for apples-to-
+  apples Jaccard vs RealMLP/Trompt. mambular 1.5.0 with d_model=64,
+  n_layers=4, d_state=16, batch_size=512, 8 epochs.
+  `scripts/blend_mamba.py` — PROBE-aware gate that reconstructs LB-
+  best 4-stack from saved components and computes Jaccard + magnitude
+  on filled rows only.
+- Three iterations to land:
+  1. **Slug rejected**: "irrigation-mamba" returned "Notebook not
+     found" from Kaggle API — likely reserved-word collision (mamba
+     conda package). Renamed to "irrigation-mambular-ssm" → pushed.
+  2. **SMOKE v1 OOM**: pure-PyTorch `selective_scan_seq` fallback at
+     batch=1024 hit CUDA OOM (1.19 GB allocation, 879 MB free).
+     Mambular's pure-PyTorch fallback is O(L²·d_model·d_state) memory.
+     Fix: cut SMOKE batch to 256, halve d_state to 16. SMOKE v2 GREEN
+     (per-fold argmax 0.9565/0.9461, tuned 0.9561, ~15 min wall).
+  3. **PROBE wheel install**: SMOKE log confirmed `pip install
+     mamba-ssm` + `causal-conv1d` failed (no nvcc on Kaggle for source
+     build). Tried direct GitHub-release URL install for cu122/torch2.5/
+     cp312 wheels — also failed (URL doesn't match Kaggle's exact
+     stack: torch is cu121 not cu122, and the cp312 wheels for those
+     specific package versions don't exist on the release page). Source
+     build retry also failed. Mambular fell back to pure-PyTorch.
+- PROBE config: 1-fold × 100k subsample × 8 epochs (subsample fallback
+  to fit pure-PyTorch into the 1h GPU cap; full data would have been
+  ~170 min/fold).
+- Wall: 79 min total kernel time (Kaggle script-kernel re-runs main()
+  via nbconvert). First fold: 450s start → 2508s done = ~34 min/fold
+  pure-PyTorch. Second nbconvert run added another ~34 min.
+- Standalone results (fold 1 = 126,000 val rows):
+  - argmax bal_acc = 0.9574
+  - **tuned bal_acc = 0.9632**, bias = [1.13, 1.07, 3.80]
+  - errors = 2,432
+- Anchor comparison on same 126k val rows:
+  - LB-best 3-stack: bal=0.9793, errs=2014
+  - LB-best 4-stack: bal=0.9799, errs=1914
+  - Mamba: bal=0.9632 (Δ −0.017), errs=2432 (**+27% over anchor**)
+- **Jaccards (the headline finding)**:
+  - vs LB-best 3-stack: **0.4781**
+  - vs LB-best 4-stack: **0.4914** ← LOWEST EVER for an NN family on
+    this problem (prior best Trompt 0.5340, RealMLP n_ens=1 0.6206)
+  - vs RealMLP: 0.5175
+- Fixed-bias α-sweep vs LB-best 4-stack (filled rows): **monotone
+  negative from α=0.05** (Δ −0.00036 to −0.00241 across α∈[0.05, 0.35]).
+  Peak at α=0.000 (no blend).
+- **Verdict: NULL — magnitude-trap.** Same failure mode that closed
+  all 13 prior NNs: orthogonality is necessary but not sufficient.
+  Even at the best Jaccard ever (0.49), the +27% extra error count
+  drowns the unique-correct contributions in unique-wrong noise.
+- LB delta: n/a — no LB probe warranted (every α below LB-best).
+  LB best unchanged at **0.98094**. LB budget unchanged.
+- Pattern reinforced (now 14 consecutive NN-family nulls):
+  ```
+  NN family            Jaccard vs anchor    errs vs anchor    LB outcome
+  ----------          ------------------- ------------------ --------------------
+  MLP v5-v9            0.62-0.85           +1500-15000       NULL
+  FT-Transformer       0.61                +12000            NULL
+  TabPFN               0.81                +1485             NULL
+  Pretrain-FT MLP      0.65                +3615             NULL
+  DAE SwapNoise        0.84                similar           NULL
+  RealMLP n_ens=1      0.62                +358              LB +0.00003 (3-stack)
+  RealMLP n_ens=4      0.62                +485              NULL
+  Trompt               0.53                +169              NULL
+  **Mambular SSM       0.49 (record low)   +518 (+27%)       NULL**
+  ```
+  Only RealMLP n_ens=1 has ever cleared the magnitude bar (+358 errs =
+  +3.7% over anchor) AND produced an LB lift (when blended into a
+  3-stack with xgb_nonrule_iso). Every other NN family is permanently
+  closed at this feature set.
+
+- **Portable rules** (LEARNINGS.md candidates):
+  1. **Mambular installs require pre-built CUDA wheels — no fallback
+     path on managed kernel platforms (Kaggle, Colab) without nvcc.**
+     The pure-PyTorch fallback is functional but ~30x slower
+     (1 min/epoch on 20k rows pure-PyTorch vs ~2 sec/epoch with CUDA
+     kernel). For 100k+ rows × 8+ epochs, expect ~30 min/fold pure-
+     PyTorch — barely fits the 1h GPU cap with 1 fold.
+  2. **GitHub release wheels for niche CUDA libraries (mamba_ssm,
+     causal_conv1d) have strict version triples (CUDA × torch ×
+     cpython)**. The wheel naming convention is
+     `<pkg>-<ver>+cu<XYZ>torch<V.M>cxx11abi<bool>-cp<XY>-...whl`
+     and a mismatch on any axis breaks the install. Kaggle's torch
+     2.5.1+cu121 + cp312 needs the EXACT cu121 wheel (cu122 is NOT
+     ABI-compatible at the wheel level even though CUDA runtime is).
+     Verify wheel availability from the release page BEFORE coding
+     the install URL.
+  3. **Mamba/SSM error orthogonality is genuinely different from
+     attention-based and feed-forward NNs on tabular data** — Jaccard
+     0.49 is a step-change vs the 0.55-0.85 range of all prior NNs.
+     But this orthogonality alone doesn't transfer to LB lift unless
+     paired with error-magnitude ≤ ~1.05x anchor. For the next
+     synthetic-tabular comp where the anchor stack is weaker, an SSM
+     leg may unlock the magnitude bar — keep mambular in the toolkit
+     even though it failed here.
+
+- Artefacts committed for cross-branch reuse (gitignore whitelist):
+  - `scripts/artifacts/oof_mamba_probe.npy` (7.2 MB, fold 1 only)
+  - `scripts/artifacts/test_mamba_probe.npy` (3.1 MB)
+  - `scripts/artifacts/mamba_probe_results.json` + `blend_mamba_probe_results.json`
+  - 7 source files under `kaggle_kernel/kernel_mamba/` (boot/config/
+    features/model/cv/main + build.py + kernel-metadata.json)
+  - `scripts/blend_mamba.py`
+
+- **All 4 candidates from the post-Tier-1c "ceiling-breaker shortlist"
+  are now closed** (this branch + parallel sessions):
+  ```
+  Candidate                              Result
+  ────────────────────────────────────────────────
+  Soft-target distillation               LB 0.97850 (-0.00148, regression)
+  171-pair binned (cat+num quantile)     OOF 0.97946 (NULL)
+  Stage-2 with LB-blend labeler          LB 0.97989 (-0.00009, NULL)
+  Multi-seed pseudo (seed=7 labeler)     OOF 0.98017 (NULL)
+  ──── plus Tier 1c saturation triple ───
+  Greedy expanded pool (132 components)  +0.00002 (sub-gate)
+  Meta-stacker v2 (224-dim)              +0.00002 (sub-gate)
+  Meta-stacker XGB seed-bag              +0.00003 (sub-gate)
+  ──── plus today's NN closure ───
+  Tabular-Mamba (mambular SSM)           PROBE NULL (magnitude trap)
+  ```
+
+- **Final-selection lock recommendation unchanged** (5 days to
+  deadline):
+  1. **Primary**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+     (gap −0.00010, anomalous LB > OOF). Composition:
+     lb3 + RealMLP α=0.20 + xgb_nonrule_iso α=0.075 + xgb_metastack_iso α=0.30.
+  2. **Hedge**: `submission_recipe_full_te.csv` → **LB 0.97939**
+     (gap +0.00028, single-model XGB-recipe — no blend overfit risk).
+     Premium = -0.00155 LB. Genuinely orthogonal to primary's
+     63-component meta-stacker pool.
+  Pack 0.98114 stays +0.00020 above primary. Leader 0.98219 stays
+  +0.00125 above. Reachable only via public-CSV blending (banned
+  by top-of-file rule).
+
 ### Next steps: speculative ceiling-breaker (post-2026-04-25 own-pipeline closure)
 
 After today's 4 LB-probed nulls (LR meta-stacker, cross-poll v3 metastack,

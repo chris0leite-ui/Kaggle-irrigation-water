@@ -703,3 +703,14 @@ kaggle_kernel/*/dist/
 # is insufficient when meta-stack already captures the signal channel.
 !scripts/artifacts/oof_recipe_focal_effnum.npy
 !scripts/artifacts/test_recipe_focal_effnum.npy
+
+# 2026-04-25 Mamba (mambular tabular SSM) PROBE — 14th NN-family null.
+# 100k subsample fold 1 (pure-PyTorch fallback because mamba_ssm CUDA
+# wheels failed to install on Kaggle). Standalone tuned 0.9632 vs LB-4
+# 0.9799 = -0.017 BUT Jaccard 0.491 vs LB-4 (LOWEST EVER for any NN
+# family on this problem). Magnitude trap: errs 2432 > 1.05x anchor
+# 1914 (+27%). Blend monotone-negative from a=0.05. Kept for cross-
+# branch diagnostic — record-low NN Jaccard is unique even though it
+# didn't transfer.
+!scripts/artifacts/oof_mamba_probe.npy
+!scripts/artifacts/test_mamba_probe.npy
