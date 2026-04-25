@@ -543,3 +543,20 @@ kaggle_kernel/*/dist/
 # teacher 9,873 (3.7x magnitude trap). Null — production skipped.
 !scripts/artifacts/oof_recipe_focal_g2_aH1.npy
 !scripts/artifacts/test_recipe_focal_g2_aH1.npy
+
+# 2026-04-25 N1 OvR-XGB on V10 recipe: 3 binary heads with
+# scale_pos_weight=neg/pos + per-class iso-cal + softmax-renormalize.
+# Standalone tuned 0.97927 (third-highest standalone seen, errs 9327
+# = -88 vs LB-best meta-stack), but blend NULL across all 5 anchors
+# (Jaccard 0.83 vs meta — meta-stacker already absorbs OvR signal via
+# xgb_nonrule_iso). Kept for cross-branch diagnostic reuse + raw
+# 3-channel head outputs for future meta-stacker variants.
+!scripts/artifacts/oof_xgb_ovr_recipe.npy
+!scripts/artifacts/test_xgb_ovr_recipe.npy
+!scripts/artifacts/oof_xgb_ovr_recipe_raw.npy
+!scripts/artifacts/test_xgb_ovr_recipe_raw.npy
+# 2026-04-25 N2 effective-number focal (Cui CVPR 2019): alpha via
+# (1-beta)/(1-beta^n_c) with beta=0.99999 → [1.0, 1.07, 5.15] (3.4x
+# milder than invfreq), gamma=1, esr=400. Production results pending.
+!scripts/artifacts/oof_recipe_focal_effnum.npy
+!scripts/artifacts/test_recipe_focal_effnum.npy
