@@ -814,3 +814,14 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n3_gpu_validate_output/test_n3_gpu_validate_fold1.npy
 !scripts/artifacts/n3_gpu_validate_output/n3_gpu_validate_results.json
 !scripts/artifacts/n3_gpu_validate_output/irrigation-n3-gpu-validate.log
+
+# N3 5-shuffle GPU production (full 5-fold, K=5, P100, 83min wall):
+# standalone tuned OOF 0.97997 (matches yunsuxiaozi claim) but blend
+# NULL on both ADD (peak Δ +2e-5) and SUB (Δ -1e-5) gates. Same
+# Pareto-frontier failure as A1 — substitution moves error mass off
+# High recall. Kept for cross-branch greedy experiments.
+!scripts/artifacts/oof_recipe_5shuffle.npy
+!scripts/artifacts/test_recipe_5shuffle.npy
+!scripts/artifacts/n3_gpu_output/recipe_5shuffle_gpu_results.json
+!scripts/artifacts/n3_gpu_output/irrigation-n3-5shuffle-gpu.log
+!scripts/artifacts/n3_blend_gate_results.json
