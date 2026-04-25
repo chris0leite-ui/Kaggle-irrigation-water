@@ -11,6 +11,24 @@ at <https://github.com/chris0leite-ui/kaggle-claude-code-setup>.
 
 ## Modelling
 
+- **The "distill-the-host" hypothesis can be falsified by a narrow MLP
+  sweep at small capacity.** (2026-04-25 W1 sweep: 12 sklearn MLPs
+  spanning depth ∈ {2,3} × width ∈ {64,128,256} × activation ∈
+  {relu,tanh,logistic} on raw nums + cats + DGP-score features. Best
+  smoke config = tanh, hidden=(128,64). Production 5-fold seed=42 on
+  full 504k: tuned 0.96207-0.96273 across 3 best smoke configs, all
+  far below 0.97 gate. But Jaccards 0.51-0.56 vs LB-best 4-stack —
+  **lowest orthogonality of any NN ever tested on this problem**
+  (RealMLP n_ens=1 was 0.62, Trompt 0.53). Magnitude trap +16-32%
+  errs. Conclusion: "host used a small standard tabular MLP" is a
+  reasonable hypothesis to test cheaply, but on this synthetic-tabular
+  problem narrow MLPs at sklearn capacity sit in the same magnitude-
+  trap regime as kitchen-sink architectures. The unprecedented Jaccard
+  is real signal but not enough to clear the blend gate without ALSO
+  reducing absolute error count. Lever-existence test concluded; no
+  follow-up worth running.)
+
+
 - (e.g. which families extrapolated well, which leaned on spurious
   correlations, what CV scheme matched LB)
 - **Post-hoc log-bias coord-ascent subsumes per-tree majority
@@ -539,6 +557,20 @@ all of them on the same model.
 
 ## Process
 
+- **Smoke-grader bases must MATCH the production base** when testing
+  FE additions. (2026-04-25 W8 LLM-FE-at-scale: 21 FE-idea bundles
+  tested as additions to a moderately-rich XGB on `raw + dist + cats`,
+  250k subsample, 1-fold smoke. **5 PASS** at Δ +0.0005 to +0.0009 OOF.
+  Promoted top 6 novel-on-recipe bundle to full recipe production:
+  fold-1 Δ +0.00003 — flat in noise. Same A4 + GBY pattern: any
+  numeric/binary FE that wins on a weaker base evaporates against the
+  V10 recipe's 117 OTE features over (cats + pairs + digits +
+  num_as_cat + tres). **Rule**: test FE ideas on the FINAL anchor's
+  feature set, not a stripped-down smoke. A smoke pass of +0.0009 OOF
+  on a 34-feature base predicts ~0 lift on a 443-feature recipe base.
+  The smoke is useful only for ranking ideas (top vs bottom) and
+  killing trivially weak ones; it cannot calibrate true production
+  lift.)
 - (e.g. what stop-conditions worked, how to budget LB submissions,
   signs that CV–LB divergence is diagnostic)
 - **Before killing a hung Kaggle kernel, download its logs first.**
