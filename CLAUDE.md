@@ -9557,6 +9557,105 @@ by EV/cost:
      the gate, decision rule based on standalone metrics + class-recall
      direction, ABORT exits cleanly.
 
+### 2026-04-25 — junior-engineer audit + tree-leaf-OTE meta-stacker IN PROGRESS
+
+- Goal: fresh-eyes review of the saturation evidence, then start the
+  highest-EV / cheapest speculative lever from the new menu below.
+- **Currently in flight on `claude/ml-optimization-ideas-rD6N3`**:
+  J1 below — tree-leaf-OTE meta-stacker. Smoke first (SMOKE=1, 20k rows,
+  2 folds, ~5 min) to validate the leaf-extraction → OTE-encode → meta-XGB
+  chain end-to-end before any production wall spend.
+- Decision gate: if smoke OOF beats recipe-smoke baseline (0.96381 from
+  the 2026-04-23 entry) by any margin AND meta has Jaccard < 0.97 vs
+  recipe smoke OOF, run full 5-fold (~1h CPU). Otherwise mark closed
+  and pivot to J2 / J3.
+
+### Next steps: junior-engineer audit speculative levers (2026-04-25)
+
+After 4 LB-probed nulls today (LR meta-stacker, cross-poll v3 metastack,
+SMOTE v2, SMOTE v3) and saturation across the standard toolkit, fresh
+review identified levers exploiting the **ONE** unstressed property of
+the LB-best 4-stack: the negative OOF→LB gap (LB > OOF by 0.00010).
+That's CV-pessimism from averaging noisy fold hold-outs in the
+meta-stacker. Several mechanism-distinct experiments should *amplify*
+that property; the LR meta-stacker null doesn't generalise to all
+"simpler models" — it failed because of `class_weight='balanced'` on
+210 dims, not because simplicity is universally bad.
+
+Tier J1 — cheap, mechanism-first (CPU, hours not days):
+
+  **J1. Tree-leaf OTE meta-stacker** (~1h CPU). Train a small XGB on
+  recipe (or dist) features, extract per-tree leaf indices for every
+  row (1000+ leaves × 200+ trees). Treat each tree's leaf-index column
+  as a high-card categorical, OrderedTE-encode (3 classes), feed the
+  resulting ~600 OTE features to a meta-XGB. The meta sees TREE-SPACE
+  (per-tree partition memberships), not PROB-SPACE (per-component
+  3-class posteriors). Genuinely orthogonal to the 70-component bank
+  that produced LB 0.98094. Mentioned once on the open list as "LGBM
+  leaf-embedding MLP" but never executed — cheapest untried meta
+  architecture. **STARTED this session — see in-flight note above.**
+
+  **J2. Bootstrap-bagged meta-stacker** (~30 min CPU). N=20 bootstrap
+  samples of the 63-component *bank* (not seeds — Tier 1c seed-bag
+  was near-deterministic). Train iso-cal'd XGB meta on each bootstrap
+  subset, log-average outputs. If CV-pessimism is the mechanism behind
+  the −0.00010 LB-best gap, bootstrapping the *components* (not seeds)
+  should compound it. Structurally different from anything tried so
+  far — Tier 1c step 3 bagged XGB seeds on the SAME bank; this bags
+  bank SUBSETS at fixed seed.
+
+  **J3. Adversarial-validation row reweighting** (~30 min CPU).
+  Train AV classifier (train vs test); use AV score as `sample_weight`
+  in a recipe XGB retrain. Biases toward test-distribution-similar
+  rows. Untested. Closes whether residual gap is train↔test shift vs
+  structural ceiling — informative even if null.
+
+Tier J2 — speculative architecture (GPU, ~1h each, smoke-first):
+
+  **J4. Kolmogorov–Arnold Networks (KAN, 2024)**. Learnable spline
+  activations on edges (not nodes). The DGP is a smooth NN function
+  per the 2026-04-21 EDA; KAN's splines are exactly the architecture
+  for fitting smooth, non-axis-aligned boundaries trees miss. The
+  13 prior NN nulls were all attention/MLP/in-context — KAN is a
+  different inductive bias. Smoke at SMOKE=1, gate at fold-1
+  Jaccard < 0.75 vs LB-best 4-stack AND errs ≤ 9572.
+
+  **J5. TabDDPM diffusion-based row augmentation**. SMOTE-NC failed
+  because k-NN interpolation diffused the M↔H boundary. Diffusion
+  preserves the joint manifold instead of local-linear interpolation.
+  Generate ~10k synthetic High rows from the learned joint, augment
+  training. Direct attack on the same lever SMOTE missed. ~1.5h GPU.
+
+Tier J3 — math, not models (~30 min):
+
+  **J6. Constraint-aware QP for blend weights**. `cvxpy`: minimize CV
+  macro-recall loss subject to `recall_class ≥ anchor_floor − ε` and
+  simplex constraint. Greedy + LR find local optima; QP finds global
+  optimum *under* the per-class guardrail. Cheap; might surface a
+  config the greedy missed.
+
+  **J7. Conformal-gated overrides on score=6 boundary**. The
+  missed-High detector had AUC 0.94 at v2 but failed because precision
+  was below break-even. Conformal calibration gives guaranteed-coverage
+  prediction sets; pick override threshold from the calibrated set
+  rather than raw probability. Same mechanism, principled threshold.
+
+**Recommended start order**: J1 + J2 in parallel, ~1.5h total CPU.
+Both target the only property of the LB-best stack that hasn't been
+pressure-tested — the negative OOF→LB gap — through structurally
+distinct mechanisms. If both null, that's the cleanest possible
+saturation evidence and lock the 2 finals immediately. J4/J5 only if
+J1+J2 produce a passing standalone OOF that suggests the lever family
+is alive. J6/J7 are math/calibration adjustments — small upside,
+nearly-zero downside, useful as parallel background work.
+
+**Skip on principled grounds (re-confirmed today)**: LR meta-stacker
+variants (architectural null, not a tuning issue), public-CSV blending
+(banned), HP/seed bagging on existing components (LB-regressed twice),
+more NN-from-scratch attempts on the recipe matrix (13 nulls form a
+structural pattern), Mamba/T-Few from the prior speculative menu
+(higher infrastructure cost, lower mechanism-novelty than J1-J7).
+
 ### Next steps: speculative ceiling-breaker (post-2026-04-25 own-pipeline closure)
 
 After today's 4 LB-probed nulls (LR meta-stacker, cross-poll v3 metastack,
