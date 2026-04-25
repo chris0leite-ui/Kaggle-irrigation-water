@@ -10653,3 +10653,43 @@ model wave**:
   — the most-tuned and most-likely public-LB-overfit element of
   the primary). Half the premium, materially better insurance
   against meta-stacker overfit on private LB.
+
+### 2026-04-25 — leaderboard push session: hedge ACCEPTED + LR v2 retry launched
+
+- User directive ("get us on top of the leaderboard") with full LB
+  budget remaining (8/10 today). Three parallel actions executed on
+  branch `claude/leaderboard-optimization-RbhqA`.
+
+- **Action 1 — HEDGE SWAP ACCEPTED (zero compute, recorded here)**:
+  - Final-selection PRIMARY: `submission_tier1b_greedy_meta.csv`
+    → LB 0.98094 (gap −0.00010). Unchanged.
+  - Final-selection HEDGE: **swap from
+    `submission_recipe_full_te.csv` (LB 0.97939, premium −0.00155)
+    TO `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005,
+    premium −0.00089)**. Sidesteps the meta-stacker layer — the
+    most-tuned, most-likely-private-LB-overfit element of primary.
+    Half the insurance premium, materially better protection.
+  - User must lock the swap on Kaggle's final-selection UI before
+    deadline 2026-04-30.
+
+- **Action 2 — LR meta-stacker v2 launched** (`scripts/tier1c_lr_metastack_v2.py`):
+  - Mirrors v1 EXCEPT: `class_weight=None`, `C=0.1`, `max_iter=2000`.
+  - Diagnosis from v1's 2026-04-25 LB null (0.97991, gap +0.00176)
+    explicitly flagged these two HPs as the structural overfit
+    source on a 210-dim input (class_weight='balanced' upweights
+    rare-High at training time, C=1.0 under-regularizes).
+  - Pipeline mirror: same 5-fold StratifiedKFold(seed=42), same
+    63-component pool from `tier1b_helpers.load_pool()`, same
+    StandardScaler, same iso-cal + fixed-bias blend gate.
+  - Strict gate added: emit submission ONLY if Δ ≥ +2e-4 AND
+    per-class recall guardrail PASS (each class ≥ anchor − 5e-4).
+  - Wall ETA ~5 min CPU.
+  - LB submission requires explicit user confirmation (CLAUDE.md rule).
+
+- **Action 3 — kernel audit (deferred)**: Kaggle CLI not yet
+  available in this container; data still rehydrating via
+  `bootstrap.sh`. Will run `kaggle kernels list -c playground-
+  series-s6e4 --sort-by dateRun` once bootstrap completes,
+  filtering to kernels ≥20 votes posted after 2026-04-23 (the
+  date of the last full audit). Targets: novel mechanisms not in
+  any prior round 1-4 reads.
