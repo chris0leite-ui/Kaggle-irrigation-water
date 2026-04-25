@@ -102,8 +102,13 @@ SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
 
-SMOTE_TARGET = int(os.environ.get("SMOTE_TARGET", "42000"))
-SMOTE_K = int(os.environ.get("SMOTE_K", "5"))
+# Variant 2: smaller TARGET (1.5x vs 2x) + smoother K=10 NN. Hypothesis:
+# v1 default (42k, K=5) hurt High recall by 2.7pp via decision-boundary
+# diffusion (synthetic Highs from k=5 NN included real Mediums). Smaller
+# TARGET reduces synthesis volume; larger K averages over more neighbors
+# → smoother interpolation that's less likely to bleed into M-territory.
+SMOTE_TARGET = int(os.environ.get("SMOTE_TARGET", "25000"))
+SMOTE_K = int(os.environ.get("SMOTE_K", "10"))
 
 # Promise-gate (after fold 1, before continuing folds 2-5)
 GATE_ARGMAX_FLOOR = 0.97500
