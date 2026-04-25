@@ -606,3 +606,11 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/leaf_ote_meta_results.json
 !scripts/artifacts/leaf_ote_blend_results.json
 !scripts/artifacts/leaf_ote_meta_smoke_results.json
+# J1-v2 (recipe-feature base, per-fold OTE before base, leaf-OTE on top).
+# Test of "stronger base closes the magnitude gap" hypothesis after J1-v1
+# proved orthogonality (Jaccard 0.56) but failed magnitude gate.
+!scripts/artifacts/oof_leaf_ote_meta_v2.npy
+!scripts/artifacts/test_leaf_ote_meta_v2.npy
+!scripts/artifacts/leaf_ote_meta_v2_results.json
+!scripts/artifacts/leaf_ote_v2_blend_results.json
+!scripts/artifacts/leaf_ote_meta_v2_smoke_results.json
