@@ -10,8 +10,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-IS_SMOKE = True   # SMOKE first per CLAUDE.md "SMOKE-test before long runs"
-IS_PROBE = False  # flip to True for the production probe push
+IS_SMOKE = False   # SMOKE green (v2) — flipping to PROBE
+IS_PROBE = True    # 1-fold full-or-subsample PROBE for Jaccard gate
+
+# PROBE_SUBSAMPLE: cap train rows per fold. Pure-PyTorch selective_scan
+# fallback is ~30x slower than the CUDA kernel; SMOKE v2 measured 1
+# min/epoch on 20k rows. If mamba_ssm CUDA wheel fails to install,
+# 400k * 8 epochs would be ~160 min per fold (way over the 1h GPU cap).
+# Subsample to 100k => 5x SMOKE => ~25 min per fold * 8 epochs ~~ 50
+# min, fits with install. CUDA-kernel install reduces this by ~30x.
+PROBE_SUBSAMPLE = 100_000
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 

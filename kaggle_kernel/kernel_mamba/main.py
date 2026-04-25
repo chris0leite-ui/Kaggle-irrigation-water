@@ -12,7 +12,7 @@ from config import (
     SMOKE, PROBE, N_FOLDS, MAX_FOLDS, N_EPOCHS,
     BATCH_SIZE, LR, WEIGHT_DECAY,
     D_MODEL, N_LAYERS, D_STATE, D_CONV, EXPAND, DROPOUT,
-    FOLD1_KILL_SEC, TOTAL_KILL_SEC,
+    FOLD1_KILL_SEC, TOTAL_KILL_SEC, PROBE_SUBSAMPLE,
     KAGGLE_INPUT, OUT_DIR,
 )
 from features import load_data, build_frame
@@ -34,6 +34,7 @@ def main() -> None:
         d_conv=D_CONV, expand=EXPAND, dropout=DROPOUT,
         fold1_kill_s=FOLD1_KILL_SEC, total_kill_s=TOTAL_KILL_SEC,
         out_dir=OUT_DIR, suffix=suffix,
+        probe_subsample=PROBE_SUBSAMPLE if PROBE else 0,
     )
     save_outputs(OUT_DIR, oof, test_pred, test_ids, fold_ba,
                  folds_done, N_FOLDS, y, suffix=suffix)

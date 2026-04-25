@@ -58,7 +58,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame,
            lr: float, weight_decay: float, d_model: int, n_layers: int,
            d_state: int, d_conv: int, expand: int, dropout: float,
            fold1_kill_s: int, total_kill_s: int, out_dir: Path,
-           suffix: str):
+           suffix: str, probe_subsample: int = 0):
     y = train[TARGET].to_numpy().astype(np.int64)
     oof = np.zeros((len(train), 3), dtype=np.float32)
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
@@ -72,6 +72,11 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame,
         print(f"=== fold {fold}/{n_folds} ===", flush=True)
         fold_tr = pd.concat([train.iloc[tr_idx], orig], axis=0,
                             ignore_index=True)
+        if probe_subsample > 0 and len(fold_tr) > probe_subsample:
+            fold_tr = fold_tr.sample(n=probe_subsample, random_state=SEED)
+            fold_tr = fold_tr.reset_index(drop=True)
+            print(f"  PROBE_SUBSAMPLE: capped fold train to "
+                  f"{len(fold_tr):,}", flush=True)
         X_tr = fold_tr[CATS + NUMS]
         y_tr = fold_tr[TARGET].to_numpy().astype(np.int64)
         X_va = train.iloc[va_idx][CATS + NUMS].copy()

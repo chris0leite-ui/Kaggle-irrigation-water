@@ -38,12 +38,42 @@ def install_torch_if_pascal() -> None:
 
 def install_mambular() -> None:
     # mambular: BASF tabular Mamba (sklearn-style API). Has a
-    # pure-PyTorch fallback for selective scan (no nvcc required) but
-    # the fallback is O(L^2) memory which OOMs the P100 16GB at
-    # batch=1024. Install mamba_ssm + causal_conv1d FIRST so mambular
-    # picks up the O(L) CUDA kernel path. Pre-built wheels for cu121
-    # are available as of late 2024.
-    for pkg in ("causal-conv1d", "mamba-ssm", "mambular", "lightning"):
+    # pure-PyTorch fallback for selective scan but it's O(L^2) memory
+    # AND ~30x slower than the CUDA kernel - PROBE wall budget needs
+    # the CUDA path. SMOKE v2 confirmed `pip install mamba-ssm` fails
+    # to build (no nvcc on Kaggle); install pre-built wheels by URL.
+    # Wheel naming convention from state-spaces/mamba + Dao-AILab/causal-conv1d
+    # releases: <pkg>-<ver>+cu<XYZ>torch<V.M>cxx11abi<bool>-cp<XY>-cp<XY>-...whl
+    cc = (
+        "https://github.com/Dao-AILab/causal-conv1d/releases/download/"
+        "v1.4.0/causal_conv1d-1.4.0+cu122torch2.5cxx11abiFALSE-"
+        "cp312-cp312-linux_x86_64.whl"
+    )
+    ms = (
+        "https://github.com/state-spaces/mamba/releases/download/"
+        "v2.2.4/mamba_ssm-2.2.4+cu122torch2.5cxx11abiFALSE-"
+        "cp312-cp312-linux_x86_64.whl"
+    )
+    for label, url in (("causal-conv1d", cc), ("mamba-ssm", ms)):
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install", "--quiet",
+                "--no-deps", url,
+            ])
+            print(f"[boot] installed {label} via wheel URL", flush=True)
+        except subprocess.CalledProcessError as e:
+            print(f"[boot] {label} wheel install failed ({e}); "
+                  "falling back to source build (likely fails too)",
+                  flush=True)
+            try:
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", "--quiet", label,
+                ])
+            except subprocess.CalledProcessError:
+                print(f"[boot] {label} source build also failed; "
+                      "mambular will use pure-PyTorch fallback",
+                      flush=True)
+    for pkg in ("mambular", "lightning"):
         try:
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install", "--quiet", pkg,
