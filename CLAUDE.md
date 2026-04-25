@@ -9127,3 +9127,274 @@ by EV/cost:
   N1 lands. N3 last (highest wall time, lowest confidence on transfer).
 
 - LB budget unchanged (0 probes spent on the audit). LB-best still 0.98094.
+
+### 2026-04-25 — N1 EXECUTED: LR meta-stacker, biggest OOF lift since Tier 1b (+0.00098 vs LB-best 4-stack), AWAITING LB PROBE
+
+- Goal: execute N1 — multinomial LR meta-stacker on the same 70-component
+  bank that produced our LB-best XGB meta-stacker. Test whether a
+  structurally simpler model class (no tree depth) finds a different
+  operating point than depth-4 XGB on the same bank.
+- Changed: `scripts/tier1c_lr_metastack.py` (mirrors `tier1b_xgb_metastack.py`
+  exactly except for the model: `LogisticRegression(C=1.0, class_weight=
+  'balanced', solver='lbfgs', max_iter=1000)` over standardized features);
+  `scripts/tier1c_lr_extend.py` (extended α∈[0,1] sweep + per-class recall
+  + LB-best 4-stack anchor + LR×XGB compound grid);
+  `scripts/tier1c_lr_emit.py` (4-stack-anchored submission emission at three
+  α candidates).
+- Wall: 5 min total (5 folds × ~60s LR fit + 0.3s test predict).
+
+- **Standalone diagnostic** (LR_iso vs prior anchors, OOF tuned bal_acc):
+  ```
+  model                      OOF       errs     PCR [L, M, H]
+  LB-best 3-stack            0.98061   9572    [0.9955, 0.9689, 0.9774]
+  LB-best 4-stack (LB-best   0.98084   9415    [0.9955, 0.9695, 0.9775]
+                  PRIMARY)
+  XGB metastack_iso          0.98059   9044    (basis of 4-stack via α=0.30)
+  **LR  metastack_iso        0.98183   9806    [0.9942, 0.9696, 0.9817]**
+  ```
+  LR_iso is the **first standalone to BEAT the LB-best 4-stack** by
+  +0.00099 OOF — net positive macro-recall via +0.0042 High at the cost
+  of -0.0013 Low. Errs increase (+391 vs 4-stack) but the per-class
+  rebalance favors macro-recall.
+
+- **Cross-stacker Jaccards** (post log-bias):
+  - Jaccard(LR_iso, LB-best 3-stack) = **0.7054** (strong orthogonality)
+  - Jaccard(LR_iso, XGB_iso meta) = **0.7166** (LR + XGB are non-redundant
+    even though both consume the same 70-component bank)
+
+- **Blend sweep, fixed-bias log-blend, LR_iso × LB-best 4-stack**
+  (the actual primary, OOF 0.98084 / LB 0.98094):
+  ```
+  alpha    OOF     Δ        errs   recL    recM    recH    guardrail
+  0.30   0.98152  +0.00068  9232  0.9954  0.9703  0.9788   PASS (Low -0.0001)
+  0.40   0.98160  +0.00075  9275  0.9953  0.9703  0.9792   PASS (Low -0.0002)
+  0.50   0.98167  +0.00083  9287  0.9952  0.9703  0.9794   PASS (Low -0.0003)
+  0.60   0.98175  +0.00091  9341  0.9951  0.9703  0.9799   PASS (Low -0.0004)
+  0.65   0.98182  +0.00098  9387  0.9950  0.9702  0.9802   BORDER (Low -0.0005)
+  0.75   0.98186  +0.00101  9475  0.9948  0.9702  0.9806   FAIL (Low -0.0007)
+  0.90   0.98191  +0.00107  9709  0.9943  0.9699  0.9816   FAIL (Low -0.0012)
+  ```
+  - Magnitude trap analysis: errors actually DECREASE from 9415 (anchor)
+    to 9232 at α=0.30 (-183 errs), then stay below anchor through
+    α=0.65 (9387 vs 9415). The "magnitude trap" rule (LB-regress when
+    errs > anchor) doesn't trigger until α≥0.75 where errors climb
+    past the anchor.
+  - Per-class recall preservation: Low drops from 0.9955 → 0.9942 over
+    the sweep; the -0.0005 guardrail catches it at α=0.65 (right at the
+    edge). Conservative α=0.30-0.50 candidates all pass cleanly.
+
+- **Compound (3-stack + α_xgb·XGB + α_lr·LR) grid**: best is
+  (a_xgb=0.20, a_lr=0.50) at OOF 0.98168 (Δ +0.00107 vs 3-stack /
+  +0.00084 vs 4-stack). Effectively ties the LR-only blend at α=0.50
+  on the 4-stack anchor — XGB stacker's incremental signal already
+  captured in the 4-stack itself.
+
+- **Test-side disagreement vs primary** (`submission_tier1b_greedy_meta.csv`,
+  LB 0.98094):
+  - α=0.30: 265 rows differ (0.10%)
+  - α=0.50: 477 rows differ (0.18%)
+  - α=0.65: 611 rows differ (0.23%)
+  Magnitudes large enough to move LB by ±0.001-0.002 if signal transfers.
+
+- **Three submission candidates emitted, AWAITING USER APPROVAL** for LB probe:
+  ```
+  submission_tier1c_lr_iso_4stack_a030.csv  OOF 0.98152  proj LB ~0.9817 (gap -0.0001)
+  submission_tier1c_lr_iso_4stack_a050.csv  OOF 0.98167  proj LB ~0.9818
+  submission_tier1c_lr_iso_4stack_a065.csv  OOF 0.98182  proj LB ~0.9819
+  ```
+  The OOF→LB gap on prior meta-stacker stack went NEGATIVE (-0.00010,
+  LB above OOF). If the same calibration property holds for LR, the
+  α=0.65 variant projects LB ~0.98192 — within +0.00027 of the leader
+  0.98219.
+
+- **Why this is real signal, not OOF overfit** (key audit thinking):
+  1. The fixed-bias decision rule is held constant across the sweep
+     (no per-α bias retune → no binhigh-style selection inflation).
+  2. The LR meta-stacker doesn't share the XGB stacker's tree-depth
+     knob — different overfit failure modes.
+  3. The lift compounds with the XGB stacker (compound grid shows
+     LR adds signal even on top of the 4-stack which already includes
+     XGB stacker).
+  4. The per-class trade is SAFE (Low recall preserved within
+     guardrail at α≤0.65).
+  5. Errors DECREASE over the safe α range — opposite of the
+     magnitude-trap pattern that has killed every prior candidate.
+  6. wguesdon's published 30-model kernel explicitly demonstrates that
+     a SIMPLER stacker (his choice was LGB) can beat greedy on LB even
+     when greedy has higher CV. Our LB-best (XGB stacker + greedy
+     forward) sits in the OPPOSITE corner of the simplicity spectrum.
+
+- **Recommended LB probe order if approved**:
+  1. **α=0.50** (`submission_tier1c_lr_iso_4stack_a050.csv`) — middle
+     of the safe range, cleanest per-class profile, OOF +0.00083 vs
+     primary. Low risk of regression, moderate upside.
+  2. If a050 lifts ≥+0.0005, follow with α=0.65 to test whether the
+     additional OOF Δ +0.00015 transfers (rare-class guardrail right
+     at the edge — riskier but higher upside).
+  3. If a050 nulls, do NOT probe α=0.65 (LR lever doesn't transfer).
+
+- LB budget: unchanged at this point (0 spent today). 10 available.
+
+### 2026-04-25 — N1 LB RESULT: LR meta-stacker NULL (LB 0.97991, Δ −0.00103, OOF→LB gap +0.00176)
+
+- LB probe (`submission_tier1c_lr_iso_4stack_a050.csv` at α=0.50,
+  user-approved): **LB public = 0.97991**.
+  Δ vs LB-best primary (0.98094) = **−0.00103** (clear regression).
+  OOF→LB gap = 0.98167 − 0.97991 = **+0.00176** — much wider than the
+  −0.00010 negative gap that the prior meta-stacker family showed.
+- **LR meta-stacker is OOF-overfit on this 70-component bank.**
+  Per the original recommendation conditional ("if a050 nulls, do NOT
+  probe α=0.65"), the α=0.65 candidate WILL NOT be probed. N1 lever
+  is closed.
+
+- **Calibration ladder update:**
+  ```
+  3-way multi-seed                  0.98029 → 0.98005   gap +0.00024
+  LB-best 3-stack (lb3+rmlp+nonruleiso) 0.98061 → 0.98008  gap +0.00053
+  LB-best 4-stack (PRIMARY)         0.98084 → 0.98094   gap −0.00010
+  **LR meta-stacker × 4-stack a050  0.98167 → 0.97991   gap +0.00176**  ← REGRESSION
+  ```
+
+- **Diagnosis — three structural reasons LR overfit OOF where XGB didn't:**
+  1. **StandardScaler + LR(C=1.0) is less regularized than XGB(depth=4,
+     reg_alpha=5, reg_lambda=5) on a 227-dim feature space**. XGB's tree
+     constraints + L1 regularization actively prune weak component
+     contributions; LR with C=1.0 distributes weights across all 210
+     log-probability features. Effectively higher capacity per
+     informative dimension.
+  2. **`class_weight='balanced'` doubles the rare-High loss weight at
+     training time**. This pushes LR to over-emphasize High discrimination
+     on the OOF folds (each fold's High distribution matches training).
+     On the test set with the same prior but slightly different per-row
+     features, the over-emphasis flips boundary rows the wrong way.
+     Visible in standalone PCR: LR_iso pushed High to 0.9817 (vs primary
+     0.9775) BUT errors went UP (+391). The OOF score thinks High +0.0042
+     × 1/3 weight = +0.0014 macro-recall lift, more than offsetting
+     Low −0.0013 × 1/3 weight = −0.0004; on test, the "High recall
+     gain" disappears because the actual flipped rows aren't High.
+  3. **70-component bank contains weak components LR can't down-weight**.
+     XGB's tree splits naturally ignore weak components (they don't
+     improve gain); LR's coefficient regularization just shrinks them
+     all uniformly toward zero, leaving residual noise contributions.
+
+- **Portable rule** (LEARNINGS.md candidate): **"On a wide
+  meta-stacker bank (≥50 components × 3 classes = ≥150 features),
+  multinomial Logistic Regression with `class_weight='balanced'` is
+  systematically more OOF-overfit than a heavy-regularized depth-4
+  XGB on the same bank — even though LR has fewer architectural
+  knobs to tune. The 'simpler model = lower overfit' heuristic
+  inverts at this feature-dim / sample-size ratio (210 features /
+  504k rows) when the simpler model has class_weight upweighting
+  the rare class. Drop class_weight + use stronger L2 (C ≤ 0.1) if
+  you want to retry; otherwise prefer XGB or LGB stackers with
+  explicit tree-depth caps."**
+
+- **Reconciles with wguesdon's published 30-model kernel**: he chose
+  LGB-stacker (NOT LR-stacker) over greedy. LGB's tree splits behave
+  similarly to XGB's depth-4 — they also actively down-weight weak
+  components. LR was never on his shortlist; we shouldn't have
+  assumed it would behave like LGB just because both are "simpler
+  than greedy".
+
+- **LB budget**: **1/10 used today**, 9 remaining. LB best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Next bet (re-prioritized after N1 null)**:
+  - N2 (weak diversity learners as meta-stacker bank inputs) is now
+    PARTIALLY PRE-FALSIFIED: if LR doesn't work as a meta-stacker
+    output, then `lr_ote` as a meta-stacker INPUT also has a low
+    probability of helping (the meta-stacker would just learn to
+    down-weight it, which the existing 70-component bank's diversity
+    already does). kNN-ote and ET-ote retain their independent EV
+    since they're tree/distance models, not LR.
+  - N3 (yunsuxiaozi 5-shuffle OTE concat) is unchanged in priority —
+    it's a feature-level lever, orthogonal to N1's failure mode.
+  - **Recommended next action**: pivot to **N3** as the highest-EV
+    untried lever. N2's kNN+ET sub-experiments can be done in parallel
+    if compute allows.
+
+### 2026-04-25 — N1 closed across all α (linear gap-projection on the OOF-overfit signal)
+
+- Question: should we submit the conservative α=0.30 candidate
+  (`submission_tier1c_lr_iso_4stack_a030.csv`, OOF 0.98152, Δ +0.00068)?
+- Answer: **NO.** The LR meta-stacker's contribution to the OOF→LB gap
+  is structurally linear in α (a single overfit component blended at
+  fixed bias contributes ~constant per-α gap inflation). Project:
+  ```
+  α     OOF Δ      proj gap infl.   proj LB Δ vs primary
+  0.05  +0.00012   +0.00019         -0.00007
+  0.10  +0.00026   +0.00037         -0.00011
+  0.30  +0.00068   +0.00112         -0.00044
+  0.50  +0.00083   +0.00186         -0.00103   ← observed
+  0.65  +0.00098   +0.00242         -0.00144   (would have been worse)
+  ```
+  - Conservative α=0.30 projects to **LB ~0.98050** (regression).
+  - Even α=0.05 projects to LB ~0.98087 (regression).
+  - **No α threads the needle**: the LR signal is OOF-overfit at every
+    weight, so dilution doesn't help — it just reduces the magnitude
+    of a known LB-negative contribution proportionally to its OOF "lift".
+
+- **Mechanism — why dilution can't fix overfit**:
+  At α=0.50, the LR contribution at fixed bias is decomposable as:
+  ```
+  log P_blend = 0.5 · log P_4stack + 0.5 · log P_LR_iso
+  ```
+  Each LR row whose OOF favored the wrong class also favors the wrong
+  class on test (same model, same training distribution). Cutting the
+  weight to 0.30 reduces the magnitude of those wrong votes but does
+  not change their SIGN. The signed gap inflation per unit α stays
+  approximately constant. This is the mathematical consequence of "LR
+  overfits SAME components on test as on OOF" — the failure mode is
+  in the model, not in the blend weight.
+- Practical rule (LEARNINGS.md candidate): **"Once a meta-stacker is
+  shown to have a >2x OOF→LB gap inflation per α at one operating
+  point, expect roughly linear gap inflation across all α and SKIP
+  the conservative dilution probe — it will null at LB even if OOF
+  shows a smaller positive Δ. Spend the LB slot on a different lever
+  family instead."**
+
+- **N1 lever fully closed** (α=0.50 LB-confirmed null, α=0.30 + α=0.65
+  projected null without spending LB slots).
+
+- **Final-selection candidates UNCHANGED**:
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+  2. **HEDGE**: `submission_recipe_full_te.csv` → LB 0.97939
+
+- **Recommended next steps (5 days to deadline, 9 LB slots today)**:
+
+  **N3 (top — 1.5-2h CPU): yunsuxiaozi 5-shuffle OTE concat**.
+  Feature-level lever, structurally orthogonal to the N1 OOF-overfit
+  failure mode. Implement as `recipe_ote_5shuffle_concat` variant —
+  the recipe pipeline runs OrderedTE 5× with different shuffle seeds,
+  concatenates all 5 fits as augmented training rows (5x training
+  pool per fold), then trains XGB on the augmented pool. Standalone
+  OOF gate first; if Jaccard < 0.85 vs LB-best AND errs ≤ 10,114
+  (recipe baseline), add to meta-stacker bank as a new component.
+  Cost: ~1.5-2h CPU per fold × 5 folds = ~10h wall serial, ~3h with
+  fold parallelism. Skip if not finishable in current session.
+
+  **N2-restricted (medium, parallel): kNN-ote + ET-ote ONLY**
+  (drop lr_ote per N1 falsification). Build 2 new OOFs on the recipe
+  feature set:
+    `KNeighborsClassifier(n_neighbors=50)` (subsampled 50k stratified
+    fit for compute feasibility — full 504k k-NN is impractical)
+    `ExtraTreesClassifier(n_estimators=500, class_weight='balanced')`
+  Add to the meta-stacker bank → re-train XGB metastack v4 → re-blend.
+  Decision gate: meta-stacker errs drop below 8,948 AND Jaccard <
+  0.97 vs primary → blend into 4-stack at fixed bias, gate at +0.0002
+  OOF. ET takes ~30 min, kNN takes ~45 min. Cheap in parallel.
+
+  **N4 (lock + stop)**: if N2 + N3 both null, lock primary + hedge as
+  final and stop spending compute. With current +0.00020 gap to
+  pack 0.98114 and ±0.0005 private-LB variance, the marginal LB-probe
+  EV is below the cost of variance noise.
+
+- **Skip on principled grounds (re-confirmed)**:
+  - LR meta-stacker variants (HP-tuned, different scaler, different
+    weight scheme) — N1 is a definitive ARCHITECTURAL null, not a
+    tuning issue.
+  - All public-CSV blending (banned).
+  - Further fine-tuning of the 4-stack composition (Tier 1c saturation
+    confirmed three independent ways already).
+  - More NN-family attempts beyond TabM (RealMLP n_ens=4 was the 13th
+    NN null; magnitude trap pattern is structural at this feature set).
