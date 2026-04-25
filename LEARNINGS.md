@@ -557,6 +557,29 @@ all of them on the same model.
 
 ## Process
 
+- **Meta-stacker bank-extension produces CV inflation that does NOT
+  transfer, even when the candidate passes every pre-LB guardrail.**
+  (4 LB-confirmed regressions on this problem, all attempting to
+  break LB 0.98094 by expanding the 70-component meta-stacker bank
+  with new orthogonal components: Tier-1c v4 ET+kNN, Tier-1c LR
+  meta-stacker, cross-poll v3, W1+W4 MLPs+score-reg. All 4 produced
+  +0.00035 to +0.00083 OOF lift with errors-decrease-monotonically,
+  per-class guardrail pass, AND same XGB model class as the LB-winner.
+  Every one regressed LB by −0.00034 to −0.00103 with gap inflation
+  +0.00039 to +0.00176.) **Mechanism**: meta-stacker XGB at depth=4
+  on a wider feature space finds spurious training-fold patterns that
+  the test fold lacks. The "errors decrease monotonically" signal is
+  meaningless because the model is reducing errors on ROWS the
+  validation fold has already seen versions of via the bank's
+  per-fold OOFs — not on out-of-distribution rows. The +0.00038
+  standalone meta lift on the wider bank is a CV artifact even
+  though it appears mechanistically identical to the LB-winning
+  +0.00043 standalone lift the original meta achieved. Rule:
+  **"meta-stacker bank-extension" is a STRUCTURALLY broken lever on
+  this problem; do not try more variants.** Path past LB 0.98094
+  requires either (a) a fundamentally different stacking architecture
+  (not XGB-on-OOF-probs), (b) a feature-level addition that
+  bypasses the meta-stacker entirely, or (c) accepting the ceiling.
 - **Smoke-grader bases must MATCH the production base** when testing
   FE additions. (2026-04-25 W8 LLM-FE-at-scale: 21 FE-idea bundles
   tested as additions to a moderately-rich XGB on `raw + dist + cats`,
