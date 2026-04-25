@@ -16,6 +16,7 @@ submissions/*
 !submissions/submission_recipe_pseudolabel.csv
 !submissions/submission_recipe_greedy_recipe_pseudolabel.csv
 !submissions/submission_recipe_pseudolabel_blend.csv
+!submissions/submission_recipe_pseudolabel_stage2.csv
 
 # Python
 __pycache__/

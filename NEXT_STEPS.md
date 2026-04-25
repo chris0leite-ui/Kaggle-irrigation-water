@@ -51,11 +51,42 @@ through that lens:
    ladder taught us: we kept treating ~0.0003 deltas as real. Calibrate
    the noise floor, then only chase >1.5σ moves.
 
-## Doing now: idea #1
+## Idea #1 result: null at +0.10σ
 
-`scripts/recipe_pseudolabel_stage2.py` — pseudo-augmented retrain whose
-labeler is the recipe + pseudo 50/50 blend rather than recipe alone.
-Output: `oof_recipe_pseudolabel_stage2.npy`, `test_recipe_pseudolabel_stage2.npy`,
-`submission_recipe_pseudolabel_stage2.csv`. Reuse `build_pseudo_subset`
-and `run_cv` from `recipe_pseudolabel.py` so no FE / training code is
-duplicated.
+Ran 2026-04-25. Full chain timings: recipe ≈41 min, stage-1 ≈51 min,
+stage-2 ≈49 min, blend <5 s.
+
+| Step                                  | OOF tuned | Δ vs prior | σ-equiv |
+|---------------------------------------|-----------|-----------:|--------:|
+| Stage 1: recipe_full_te               | 0.97967   | —          | —       |
+| Stage 2: stage-1 pseudo (recipe lblr) | 0.97993   | +0.00026   | +0.30σ  |
+| Stage 3: stage-2 pseudo (2-way lblr)  | 0.98002   | +0.00009   | +0.10σ  |
+
+Mechanism worked exactly as predicted — 2-way labeler passed
+**+3,145 more rows** through τ=0.98 (84.93% vs 83.76%) — but the OOF
+moved by 0.10σ, indistinguishable from fold noise. Stage-2's
+fold-std halved (0.00128 → 0.00063), so the model is *more stable* of
+equivalent quality, not better.
+
+Test predictions diverge on only **371 / 270,000 rows (0.137%)** vs
+stage-1: net +133 High, −46 Low, −87 Medium. Whether those flips
+land favourably on private LB is a coin-flip at this magnitude.
+
+**Verdict: idea #1 ladder is exhausted.** Self-training on this
+particular DGP saturates at the stage-1 labeler. The +0.00026 stage-1
+gain stays the cheap+real lever; iterating further produces sub-σ
+churn.
+
+Verification side-effect: rebuilt `submission_recipe_pseudolabel_blend.csv`
+is **byte-identical** to the LB-confirmed reference
+`submission_recipe_greedy_recipe_pseudolabel.csv`. The simplified
+pipeline reproduces LB 0.97998 to the exact bit.
+
+## Next: idea #2 (5-input meta-stacker)
+
+Heavy-reg XGB stacker on
+`[recipe_oof, pseudo_oof, dgp_score, sm_dist, rf_dist]` — 5 features in,
+3 probs out, 5-fold StratifiedKFold(seed=42). Target the +0.00086 LB
+that the original 62-component meta-stacker captured. ~50 lines, single
+new script, no new training data needed (we now have all required
+OOF arrays on disk).
