@@ -477,6 +477,14 @@ kernel_audit*/
 !scripts/artifacts/oof_xgb_metastack_v2.npy
 !scripts/artifacts/test_xgb_metastack_v2.npy
 
+# meta-stacker 3-seed bag {42, 7, 123}. Per-seed: 0.98041 / 0.98029 /
+# 0.98040 — seed=7 is genuinely worse, dragging the bag mean down.
+# Bag-iso standalone 0.98061 (vs single-iso 0.98059, +0.00002). Best
+# blend lift +0.00003 OOF on top of 4-stack (sub-+1e-4 gate). NULL.
+# Same heavy-reg-XGB seed-dominant-optimum lesson as nonrule_bag.
+!scripts/artifacts/oof_xgb_metastack_bag3.npy
+!scripts/artifacts/test_xgb_metastack_bag3.npy
+
 # xgb_nonrule 3-seed bag {42,7,123}. Null as drop-in replacement in
 # LB-best stack (-0.00005) — bag prob-scale differs from single-seed
 # isotonic calibration anchor. Kept for future stacking experiments.
