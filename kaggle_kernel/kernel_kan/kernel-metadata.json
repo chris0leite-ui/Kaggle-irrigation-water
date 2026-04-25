@@ -1,0 +1,19 @@
+{
+  "id": "chrisleitescha/irrigation-kan-efficient",
+  "title": "irrigation-kan-efficient",
+  "code_file": "dist/kan_kernel.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "chrisleitescha/irrigation-prediction-original"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}
