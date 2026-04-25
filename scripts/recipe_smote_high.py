@@ -47,6 +47,10 @@ N_FOLDS = 5
 SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
+# Cap the actual training loop count (e.g. 1 for true single-fold smoke).
+# We still split via StratifiedKFold with N_FOLDS (≥ 2 required by sklearn)
+# but only train on the first MAX_FOLDS folds.
+MAX_FOLDS = int(os.environ.get("MAX_FOLDS", str(N_FOLDS)))
 
 SMOTE_TARGET = int(os.environ.get("SMOTE_TARGET", "42000"))
 SMOTE_K = int(os.environ.get("SMOTE_K", "5"))
@@ -92,7 +96,10 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict) -> dict:
                           + info["num_as_cat"] + info["tres"])
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
-        log(f"=== fold {fold}/{N_FOLDS} ===")
+        if fold > MAX_FOLDS:
+            log(f"  reached MAX_FOLDS={MAX_FOLDS}, stopping early")
+            break
+        log(f"=== fold {fold}/{N_FOLDS} (MAX={MAX_FOLDS}) ===")
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)

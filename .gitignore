@@ -521,6 +521,15 @@ kernel_audit*/
 !scripts/artifacts/oof_xgb_metastack_varC.npy
 !scripts/artifacts/test_xgb_metastack_varC.npy
 
+# Meta-stacker v3 (cross-pollinated bank, +recipe_focal_g2_invfreq +
+# xgb_nonrule_bag3, stricter EXCLUDE drops LB-known regressors). Null
+# vs LB-best 4-stack: iso-blend Δ=+0.00015 below +2e-4 gate. Saturation
+# confirmed — meta-stacker has absorbed all available bank diversity.
+!scripts/artifacts/oof_xgb_metastack_v3.npy
+!scripts/artifacts/test_xgb_metastack_v3.npy
+!scripts/artifacts/oof_xgb_metastack_v3_iso.npy
+!scripts/artifacts/test_xgb_metastack_v3_iso.npy
+
 # xgb_nonrule 3-seed bag {42,7,123}. Null as drop-in replacement in
 # LB-best stack (-0.00005) — bag prob-scale differs from single-seed
 # isotonic calibration anchor. Kept for future stacking experiments.
