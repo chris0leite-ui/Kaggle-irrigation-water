@@ -788,3 +788,19 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_xgb_metastack_narrow.npy
 !scripts/artifacts/test_xgb_metastack_narrow.npy
 !scripts/artifacts/tier1c_narrow_metastack_results.json
+
+# 2026-04-25 LR meta-stacker v2 (C=0.1, class_weight=None): retry of
+# the v1 LB-null diagnosis. v1 was OOF-overfit (LB 0.97991, gap
+# +0.00176) on rare-High class via class_weight='balanced' + C=1.0 on
+# 210 dims. v2 explicitly fixes both axes. Standalone iso OOF 0.98063,
+# errs 8548 (-867 vs LB-best 4-stack 9415, fewest errors of ANY
+# meta-stacker output). Jaccard 0.78 vs LB-best 4-stack (genuinely
+# orthogonal). Per-class trade balanced (L +0.0003, M +0.0042, H
+# -0.0044) — opposite direction of v1's rare-class bias. Best
+# guardrail-PASS blend α=0.30 vs 3-stack: OOF 0.98107 (Δ +0.00046 vs
+# 3-stack baseline, +0.00023 vs LB-best 4-stack 0.98084).
+# Submitted at α=0.30 as `submission_lr_v2_iso_3stack_a300.csv` →
+# LB 0.98052 (gap +0.00055, regression -0.00042). LR family family
+# fully closed: v1 LB 0.97991, v2 LB 0.98052, v2+iso-after NULL.
+!scripts/artifacts/oof_lr_metastack_v2.npy
+!scripts/artifacts/test_lr_metastack_v2.npy
