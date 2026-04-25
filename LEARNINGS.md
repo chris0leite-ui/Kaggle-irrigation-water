@@ -992,6 +992,31 @@ all of them on the same model.
   gates. Translates to: require OOF lift > +0.0005 to have >50%
   chance of positive LB transfer when adding a NN leg (vs the
   usual +0.0002 threshold for tree-family components).
+- **BatchEnsemble n_ens scaling has a "variance floor" — going
+  past it adds bias not signal.** (PS6e4 2026-04-25.) RealMLP at
+  n_ens=1 / n_epochs=40: OOF tuned 0.97636, errs 10472, 3-stack
+  OOF 0.98061. Same model at n_ens=4 / n_epochs=25 (cut to fit a
+  1h cap with 4× internal heads): OOF tuned 0.97631 (essentially
+  tied), errs **10597 (+125)**, 3-stack OOF 0.98050 **(−0.00011)**.
+  Per-fold σ tightened from 0.00144 to 0.00115 (variance reduction
+  worked at the per-fold level), but the variance reduction came
+  with a calibration shift toward the tree-blend's prediction
+  surface (Jaccard vs LB-best 3-way crept from 0.6206 to 0.6243 —
+  MORE redundant, not more orthogonal). Two plausible mechanisms:
+  (a) under-converged heads: at n_epochs=25 each shared-weight
+  pass saw less gradient than the n_ens=1 baseline at n_epochs=40,
+  so the heads averaged into a smoothed but biased prediction;
+  (b) variance floor: RealMLP at n_ens=1 was already near the
+  irreducible per-row variance for this problem, so further heads
+  produce mode-collapse rather than incremental error reduction.
+  Rule: **BatchEnsemble is not a free lunch — n_ens scaling needs
+  per-head epochs at parity with n_ens=1, otherwise the heads
+  under-converge and the ensemble is strictly worse than the base.**
+  When time-budget-bound, prefer one fully-converged head to four
+  half-converged ones. To validate the lever cleanly: hold
+  per-head epochs constant (i.e. let `n_ens × n_epochs` scale with
+  total compute budget), or test n_ens=2 at n_epochs=40 first as
+  the cheapest "is ensembling itself the lever?" diagnostic.
 
 - **Isotonic-calibrate meta-stacker outputs before blending into a
   fixed-bias stack.** Raw multi-class probs from a heavy-reg meta-XGB
