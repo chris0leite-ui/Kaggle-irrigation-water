@@ -9783,3 +9783,75 @@ model wave**:
   experiments, low-probability-of-lift compute spend has diminishing
   EV.
 
+### 2026-04-25 — J3 AV classifier closes train↔test shift hypothesis (AUC 0.50247, residual gap is structural)
+
+- Goal: cheapest definitive answer to "is the residual OOF→LB gap
+  caused by train/test distribution shift?" — proposed in the
+  2026-04-25 J3-J7 junior-engineer audit on
+  `claude/ml-optimization-ideas-rD6N3` as Tier J1 (~30 min CPU,
+  diagnostic value high regardless of outcome).
+- Mechanism: binary `is_test` XGB on combined `train ∪ test`,
+  5-fold StratifiedKFold(seed=42), target-FREE features only
+  (8 cats factorized + 11 raw nums + 4 DGP rule indicators + 11
+  decimal-fraction `(col % 1).round(2)` features = 34 cols total).
+  No OTE / FREQ / ORIG_* — those would be target-leaky for `is_test`
+  since the AV target is `is_test`, not `Irrigation_Need`, and
+  recipe's target-encoded features were built using
+  `Irrigation_Need` labels which test rows don't have at training
+  time anyway.
+- Changed: `scripts/j3_av_classifier.py` (140 lines, modular per
+  CLAUDE.md ≤150L rule). Saves per-train-row OOF P(is_test) +
+  importance weights w = p / (1 − p) for downstream consumers.
+- Results (full 630k train + 270k test, 5-fold, ~13 s wall):
+  ```
+  fold  AUC
+  1     0.50440
+  2     0.50192
+  3     0.49902   ← best_iter=0 (no signal at all on this split)
+  4     0.50219
+  5     0.50292
+
+  OVERALL AV AUC = 0.50247  σ=0.00176
+  Per-train-row P(is_test) percentiles: p1=0.278 p50=0.300 p99=0.324
+  Importance weights w=p/(1-p):         p1=0.385 p50=0.428 p99=0.478
+  ```
+  Per-train-row P(is_test) is essentially constant at the marginal
+  prior (270k / (630k + 270k) = 0.30). Importance weights span
+  a tiny range [0.385, 0.478] — effectively a uniform multiplier.
+- **Definitive verdict: train and test ARE statistically
+  indistinguishable** at the 34-feature target-free granularity.
+  AUC 0.50247 is within 1.5σ of pure chance (0.50000); fold 3 hit
+  best_iter=0 (no signal at all on that split).
+- **Skipped the planned ~50-min recipe-with-AV-weights retrain.**
+  Multiplied into the existing class-balanced sample weights, AV
+  weights span a 0.09 range against per-row variation — XGB sees
+  the same gradient ratios and produces near-identical OOF.
+  Guaranteed waste of compute.
+- **What this closes:**
+  1. Train↔test distribution shift is **NOT** the OOF→LB gap source.
+     The residual ceiling at LB 0.98094 is **fully structural**
+     (model capacity / feature manifold limit). Settles a question
+     that's been speculative throughout the session log.
+  2. The negative OOF→LB gap (−0.00010) on the LB-best 4-stack is
+     **NOT** distribution-shift correction by the meta-stacker —
+     it's CV-pessimism per the prior diagnosis (meta averaging over
+     noisy fold hold-outs of its 63-component bank).
+  3. Active levers on other branches (J1 tree-leaf OTE, N3
+     5-shuffle, Mamba SMOKE) all target structural ceiling, not
+     shift correction — correct framing.
+- **Portable rule** (LEARNINGS.md candidate): "For Kaggle synthetic
+  Playground competitions where train and test are released as a
+  single CSV pair, run a 30-second AV classifier first. If
+  AUC < 0.55, the residual OOF→LB gap is structural; skip every
+  distribution-shift-correction lever (AV reweighting, importance
+  weighting, test-time-only FE). If AUC > 0.65, AV reweighting +
+  test-distribution-targeted FE are first-line levers."
+- LB delta: n/a (no submission warranted; AV reweighting cannot
+  produce a model materially different from the recipe baseline).
+  LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. LB budget unchanged.
+- Artefacts (gitignore-whitelisted for cross-branch reuse):
+  - `scripts/artifacts/j3_av_p.npy` (per-train-row OOF P(is_test))
+  - `scripts/artifacts/j3_av_w.npy` (importance weights p/(1-p))
+  - `scripts/artifacts/j3_av_results.json` (per-fold AUC + percentiles)
+
