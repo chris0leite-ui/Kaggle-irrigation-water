@@ -441,5 +441,15 @@ kernel_audit*/
 !scripts/artifacts/oof_soft_distill_small.npy
 !scripts/artifacts/test_soft_distill_small.npy
 
+# 2026-04-25 ensemble-methods-optimization session — per-score-bin
+# log-blend over the LB-best 3-way (recipe + pseudo_s1 + pseudo_s7).
+# Honest nested 5-fold CV with global-bal_acc coord-descent objective
+# at simplex step=0.05. NULL with regression: nested fixed-bias OOF
+# 0.97997 (Δ=-0.00031 vs baseline 0.98029). Smoking gun: bin score_6
+# weights swing across the simplex per fold (5 different optima).
+# Stranded artefacts kept for cross-branch reuse / future audit.
+!scripts/artifacts/oof_per_bin_blend.npy
+!scripts/artifacts/test_per_bin_blend.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
