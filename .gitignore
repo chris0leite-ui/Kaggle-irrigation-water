@@ -841,3 +841,25 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n3_gpu_output/recipe_5shuffle_gpu_results.json
 !scripts/artifacts/n3_gpu_output/irrigation-n3-5shuffle-gpu.log
 !scripts/artifacts/n3_blend_gate_results.json
+
+# 2026-04-25 P3 perturbed-OOF meta-stacker (data-science-perspectives)
+# Mechanism: train meta-XGB on 111-component bank with Gaussian noise
+# on log-prob features at training time (eval on clean OOF/test).
+# Hypothesis: noise robustness amplifies the negative OOF→LB gap
+# property of the original meta. K=3 bag for stability. Both variants
+# peak at iso α=0.500 onto LB-best 3-stack: v1 OOF 0.98132 Δ=+0.00071,
+# v2 OOF 0.98123 Δ=+0.00062. v1 LB-probed → 0.97955 (Δ -0.00139, gap
+# +0.00177). 9th saturation confirmation.
+!scripts/artifacts/oof_meta_perturbed_v1_noise03_csb09_k3.npy
+!scripts/artifacts/test_meta_perturbed_v1_noise03_csb09_k3.npy
+!scripts/artifacts/oof_meta_perturbed_v2_noise05_csb05_k3.npy
+!scripts/artifacts/test_meta_perturbed_v2_noise05_csb05_k3.npy
+# A/B at fixed 62-component bank (LB-best primary's bank).
+# Result: standalone 0.98033 / iso 0.98049, peak blend Δ=+0.00007 raw
+# α=0.35 — STRICTLY WORSE than original meta (no perturbation, same
+# bank): standalone 0.98041 / iso 0.98059 / blend Δ=+0.00023 iso α=0.30.
+# Confirms: 100% of +0.00071 OOF lift in the 111-component variant was
+# bank-extension OOF overfit from 49 new components. Perturbation
+# mechanism contributes ZERO signal at fixed bank size.
+!scripts/artifacts/oof_meta_perturbed_62_v1.npy
+!scripts/artifacts/test_meta_perturbed_62_v1.npy

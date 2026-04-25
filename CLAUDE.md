@@ -11063,3 +11063,130 @@ model wave**:
     recall + best_iters)
   - `scripts/artifacts/j7_conformal_spec6_results.json` (Wilson CI +
     train override stats + test override count + gate decision)
+
+### 2026-04-25 — fresh-perspectives session (P1 test-prior, P2 quotas, P3 perturbed meta): 3 nulls + 9th saturation confirmation
+
+- Goal: senior-DS-style fresh review attacking the LB 0.98094 ceiling
+  via three structurally distinct levers: (P1) test-prior recalibration,
+  (P2) hard class quotas instead of log-bias, (P3) perturbed-OOF
+  meta-stacker. Hypotheses focus on the unstressed property of the
+  LB-best primary — its negative OOF→LB gap of −0.00010.
+- Branch: `claude/data-science-perspectives-jZCc3`. All artifacts
+  whitelisted via .gitignore for cross-branch reuse.
+
+- **P1 test-prior characterization** (`scripts/p1_test_prior.py`, ~75s CPU):
+  - Train y prior:        Low 0.5872 / Med 0.3795 / High 0.0333
+  - Test rule_pred prior: Low 0.5923 / Med 0.3742 / High 0.0335
+  - Predicted test y prior (via P(y|rule) on train + rule_test counts):
+    Low 0.5865 / Med 0.3800 / High 0.0336 — diff vs train = ±0.001.
+    **No prior shift exists.** Train and test are drawn from the same
+    class distribution within 0.07pp on every class.
+  - Sanity unweighted bias retune found bias [1.04, 1.45, 3.40] giving
+    OOF 0.98094 (+0.00010 vs original [1.43, 1.47, 3.40] which gives
+    0.98084). That's the 2026-04-21 binhigh trap (post-hoc bias retune
+    on a tuned stack — caused -0.00084 LB regression last time). Skip.
+  - **Verdict**: NULL — no test-side prior shift to exploit.
+
+- **P2 hard class quotas** (`scripts/p2_quota_decision.py`, ~6s CPU):
+  - Tested 12 quota×order configurations on the LB-best 4-stack OOF.
+    Quota sources: train y prior (Q1), test rule_pred prior (Q2), P1
+    predicted test y prior (Q3). Orders: HML, MHL, HLM, greedy-Hungarian.
+  - Best non-fitted: Q2_test_rule/HML at OOF 0.97702 (Δ=**-0.00383** vs
+    log-bias baseline 0.98084). All 12 configs strictly negative;
+    range [-0.00383, -0.01065].
+  - **Diagnostic**: log-bias predicts 23,132 OOF Highs vs train prior
+    21,009 — that **10% over-prediction of High is informative signal**,
+    not an arbitrary tuning choice. Quota rules force-cap High at the
+    prior, sacrificing 385 true-Highs for 1,570 extra Mediums (wrong
+    direction under macro-recall — High has ~12× per-row leverage).
+  - **Verdict**: NULL — log-bias's per-row joint comparison structurally
+    beats per-class rank-only ordering. The decision rule is not the
+    bottleneck.
+  - **Portable rule** (LEARNINGS.md candidate): "Hard class quotas
+    that force-cap to known/predicted class priors will LOSE macro-
+    recall when the underlying model's argmax distribution intentionally
+    over-predicts the rare class. The over-prediction at log-bias's
+    optimal operating point IS the signal — capping it removes signal,
+    not noise."
+
+- **P3 perturbed-OOF meta-stacker** (`scripts/p3_perturbed_meta.py`,
+  ~37 min CPU). Two configs × K=3 bag × 5-fold = 30 fits.
+  Mechanism: per-fold per-bag rng → add Gaussian noise to log-prob
+  features at training time, eval on UNNOISED OOF/test. Hypothesis:
+  amplifies the negative OOF→LB gap by forcing meta-XGB to use
+  noise-robust signal channels rather than fitting fold-OOF noise.
+
+  ```
+  variant            standalone   iso     best blend Δ vs LB-3-stack
+  v1 (σ=0.3, csb=0.9)  0.98093    0.98098   +0.00071 iso α=0.50
+  v2 (σ=0.5, csb=0.5)  0.98109    0.98100   +0.00062 iso α=0.50
+  ```
+  Both peak at same α=0.500 (robust to HP). All 6 blend gates pass
+  for v1: errs 9028 (-544 vs 3-stack), per-class L 0.9957/M 0.9709/
+  H 0.9774, Jaccard 0.9015. Vs LB-best 4-stack PRIMARY: errs -387,
+  per-class L +0.0002, M +0.0014, H -0.0001 (clean rare-class trade).
+
+- **P3 v1 LB probe**: `submission_p3_perturbed_v1_noise03_csb09_k3_iso_a500.csv`
+  → **LB public = 0.97955**. Δ vs LB-best 0.98094 = **-0.00139**
+  (regression). OOF→LB gap = **+0.00177** (typical OOF-overfit
+  failure mode). Same magnitude as prior LR meta-stacker v1 null
+  (LB 0.97991, gap +0.00176) and meta-stacker v4 bank-extension
+  null (LB 0.97992, gap +0.00129).
+
+- **P3 A/B clean baseline at fixed bank** (`scripts/p3_perturbed_62.py`,
+  ~13 min CPU): same perturbed-meta pipeline RESTRICTED to the exact
+  62-component bank used by the LB-best primary's xgb_metastack. Same
+  XGB HPs, same K=3 bag, same noise σ=0.3.
+  ```
+                     standalone   iso     best blend Δ vs LB-3-stack
+  ORIGINAL meta-62   0.98041     0.98059   +0.00023 iso α=0.30 ← LB-best signal
+  PERTURBED-62       0.98033     0.98049   +0.00007 raw α=0.35 ← below emit gate
+  PERTURBED-111      0.98093     0.98098   +0.00071 iso α=0.50 ← LB null
+  ```
+  **Definitive falsification**: at fixed bank, perturbation makes the
+  meta SLIGHTLY WORSE (-0.00008 standalone, -0.00016 blend). 100% of
+  the +0.00071 OOF lift in the 111-component variant was bank-extension
+  OOF overfit from the 49 new components added since LB-best built.
+
+- **9th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                            best LB        Δ vs primary
+  ----------------------------------------- -------------- --------------
+  1. Tier 1c greedy expanded (132c)         (sub-gate)     n/a
+  2. Tier 1c meta-stacker v2 (224-dim)      (sub-gate)     n/a
+  3. Tier 1c meta-stacker XGB seed-bag      (sub-gate)     n/a
+  4. Cross-poll metastack v3                0.98060        -0.00034
+  5. J2 bootstrap-bagged metastack          (proj null)    n/a
+  6. LR meta-stacker v2 (C=0.1, none)       0.98052        -0.00042
+  7. LR v2 + iso-after-blend                (sub-gate)     n/a
+  8. v4 ET+kNN bank-extension               0.97992        -0.00102
+  9. **P3 perturbed meta v1 (this entry)    0.97955        -0.00139**
+  ```
+
+- **Three portable rules logged** (candidates for LEARNINGS.md):
+  1. **Train/test prior characterization is a 30-second sanity probe**
+     before optimizing log-bias. On synthetic-Playground problems where
+     train+test are released together, AV-passing features ⇒ priors
+     are statistically identical ⇒ no recalibration possible. Skip
+     test-prior-driven bias optimization.
+  2. **Log-bias decision rule is structurally optimal under macro-recall**
+     when the model's argmax confidence carries class-specific
+     calibration information. Hard quota rules that force class counts
+     to match the prior LOSE macro-recall on the rare class because
+     they discard the model's "I'm confident this row is High even
+     though that overshoots the prior" signal.
+  3. **Per-row Gaussian noise on meta-stacker log-prob inputs is NOT a
+     valid lever** for amplifying CV-pessimism at fixed bank size.
+     Noise injection during meta training does not pick up additional
+     signal channels; it just adds gradient variance the meta-XGB
+     ignores via heavy-reg early stopping. Bank size, not training
+     stochasticity, is what changes the meta's OOF.
+
+- LB budget: **4/10 used today** (1 P3 v1 probe + 3 from prior session).
+  6 remaining.
+- **Final-selection lock unchanged** (5 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+  2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → **LB 0.98005** (premium -0.00089, sidesteps meta-stacker layer)
+- Pack 0.98114 still +0.00020 above primary; leader 0.98219 still
+  +0.00125 above. Reachable only via public-CSV blending (banned).
