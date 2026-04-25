@@ -399,6 +399,16 @@ kernel_audit*/
 !scripts/artifacts/test_recipe_pseudolabel_tau099.npy
 !scripts/artifacts/recipe_pseudolabel_tau099_results.json
 
+# A1 blend gate diagnostic + τ-substituted primary candidates (all NULL on
+# G4: substituted primary OOF < current primary 0.98084 for every τ).
+!scripts/artifacts/a1_tau_blend_gate_results.json
+!scripts/artifacts/oof_primary_sub_tau095.npy
+!scripts/artifacts/test_primary_sub_tau095.npy
+!scripts/artifacts/oof_primary_sub_tau097.npy
+!scripts/artifacts/test_primary_sub_tau097.npy
+!scripts/artifacts/oof_primary_sub_tau099.npy
+!scripts/artifacts/test_primary_sub_tau099.npy
+
 # Missed-High detector (binary XGB, P(y=H ∧ teacher_pred ∈ {L,M})) —
 # AUC 0.9711 (ranking signal real) but deploy precision 6.5% at N=200
 # vs 8.8% break-even → override strictly net-negative. Closes the
