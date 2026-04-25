@@ -53,7 +53,9 @@ def tune_log_bias(oof: np.ndarray, y: np.ndarray, prior: np.ndarray,
 
 def run_cv(train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame,
            device, n_folds: int, n_epochs: int, fold1_kill_s: int,
-           total_kill_s: int):
+           total_kill_s: int, max_folds: int = None):
+    """If `max_folds` is set, break after that many folds — used for
+    PROBE mode (fold-1 only at full data + full capacity)."""
     y = train[TARGET].to_numpy().astype(np.int64)
     oof = np.zeros((len(train), 3), dtype=np.float32)
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
@@ -91,13 +93,17 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame,
             print(f"!! TOTAL WALL-TIME KILL {el/60:.1f}m > "
                   f"{total_kill_s/60:.0f}m", flush=True)
             break
+        if max_folds is not None and fold >= max_folds:
+            print(f"!! MAX_FOLDS reached ({max_folds}) - PROBE mode",
+                  flush=True)
+            break
     if folds_done and folds_done < n_folds:
         test_pred *= n_folds / folds_done
     return oof, test_pred, fold_ba, folds_done, y
 
 
 def save_outputs(out_dir: Path, oof, test_pred, test_ids, fold_ba,
-                 folds_done, n_folds, y):
+                 folds_done, n_folds, y, suffix: str = ""):
     prior = np.bincount(y, minlength=3) / len(y)
     nz = oof.sum(axis=1) > 0
     if nz.sum() > 0:
@@ -109,14 +115,14 @@ def save_outputs(out_dir: Path, oof, test_pred, test_ids, fold_ba,
     print(f"tuned OOF bal_acc = {tuned:.5f} "
           f"bias={bias.round(4).tolist()} "
           f"({folds_done}/{n_folds} folds)", flush=True)
-    np.save(out_dir / "oof_trompt.npy", oof)
-    np.save(out_dir / "test_trompt.npy", test_pred)
+    np.save(out_dir / f"oof_trompt{suffix}.npy", oof)
+    np.save(out_dir / f"test_trompt{suffix}.npy", test_pred)
     pred = (np.log(np.clip(test_pred, 1e-9, 1.0)) + bias).argmax(axis=1)
     sub = pd.DataFrame({
         "id": test_ids, TARGET: [IDX2CLS[i] for i in pred],
     })
-    sub.to_csv(out_dir / "submission_trompt_tuned.csv", index=False)
-    (out_dir / "trompt_results.json").write_text(json.dumps({
+    sub.to_csv(out_dir / f"submission_trompt{suffix}_tuned.csv", index=False)
+    (out_dir / f"trompt{suffix}_results.json").write_text(json.dumps({
         "overall_argmax_bal_acc": float(overall),
         "tuned_log_bias_bal_acc": float(tuned),
         "log_bias": bias.tolist(),
@@ -125,5 +131,6 @@ def save_outputs(out_dir: Path, oof, test_pred, test_ids, fold_ba,
         "folds_completed": folds_done,
         "seed": SEED,
     }, indent=2))
-    print("wrote oof_trompt.npy / test_trompt.npy / "
-          "submission_trompt_tuned.csv / trompt_results.json", flush=True)
+    print(f"wrote oof_trompt{suffix}.npy / test_trompt{suffix}.npy / "
+          f"submission_trompt{suffix}_tuned.csv / "
+          f"trompt{suffix}_results.json", flush=True)

@@ -110,15 +110,32 @@ push n_ens=4 with longer wall (e.g. local CPU overnight, ~3h).
 
 Expected upside: +0.0001 to +0.0005 LB.
 
-### B3. Trompt push (~1h Kaggle GPU)
+### B3. Trompt push — CLOSED NULL (commit 87726f0 on main)
 
-Scaffolded but never pushed (`kaggle_kernel/kernel_trompt/`).
-Architecturally distinct from RealMLP (column attention vs MLP).
-The Pareto-frontier closure showed no rearrangement of existing
-components can lift High recall — but a NEW component with different
-error geometry might.
+Sibling session pushed Trompt as a 1-fold full-data probe; result was
+**13th NN null**: lowest Jaccard ever (0.53) with the LB-best stack
+but errors +169 vs anchor. Magnitude trap defeated the orthogonality.
+Don't retry as a full 5-fold run.
 
-Expected upside: +0.0001 to +0.0005 LB. Higher variance than B2.
+Replacement candidate: **TabM (ICLR 2025 BatchEnsemble MLP via
+pytorch_frame)** flagged in the parallel session's Tier-1b cross-
+pollinate write-up as the only architecturally novel NN family
+remaining. Reuses Trompt kernel scaffold with a single-line model swap.
+~1h GPU. Same magnitude-trap risk; gate at fold-1 errs ≤ +5% over
+LB-best 4-stack.
+
+### B4. OvR-XGB on V10 recipe (~80 min CPU)
+
+From parallel session's kernel audit round 3: include4eto's
+OvR-XGB recipe — 3 binary:logistic XGB heads on the FULL V10
+feature set, concat → softmax-renormalize → multiplicative class-
+weight Optuna (200-trial, bounds [0.5, 3.0]³). Different gradient
+than multi-class softmax CE; different boundary geometry. Adds a
+genuinely new component to the meta-stacker bank.
+
+Expected upside: +0.00010 to +0.00030 OOF if binary CE produces
+materially different boundary geometry. Magnitude-trap rule applies
+(Jaccard < 0.80 AND errs ≤ anchor required for blend transfer).
 
 ---
 
@@ -173,6 +190,8 @@ If you have ~2h CPU now:
 
 If overnight Kaggle GPU available:
 3. Push **B1** (SMOTE-NC) — highest single EV remaining.
+4. Run **B4** (OvR-XGB) on the 16-core box (~80 min CPU); doesn't
+   compete with GPU jobs.
 
 If A1/A2 produce a candidate:
 4. Single LB probe (≤1 of remaining 7), only if blend OOF Δ ≥ +0.0002

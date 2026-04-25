@@ -1090,6 +1090,50 @@ all of them on the same model.
   options: (a) re-fit isotonic on the bag's OOF, (b) sweep α at the
   bag step (it might prefer higher α), (c) skip the bag and rely on
   the meta-stacker level for variance reduction.
+- **Lowest Jaccard ever (0.53) still fails the blend gate when errs
+  are higher than anchor. The magnitude rule is stricter than
+  orthogonality.** (PS6e4 2026-04-25, Trompt PROBE.) Trompt
+  (column-attention tabular NN, architecturally distinct from
+  RealMLP's BatchEnsemble + PBLD periodic embedding) delivered
+  fold-1 Jaccard 0.5340 vs LB-best 3-way — the strongest
+  orthogonality signal in the entire competition log (RealMLP was
+  0.62, prior NNs 0.61-0.85, trees 0.78-0.92). But errs at recipe-bias
+  on fold 1 = 2,183, vs LB3's 2,014 (+169 extra). Blend sweep maxed
+  at α=0.05 with errs −42 but bal_acc TIED with LB3 alone — every
+  α > 0.05 strictly hurt. The +169 extra errors lived
+  disproportionately in the rare-High class, so the small per-fold
+  gain in total-correct didn't translate to macro-recall. Rule
+  (firmer than the prior 1.005×anchor threshold): **a model that
+  adds even a small number of extra errors than a strong anchor at
+  fixed bias will fail the blend gate, regardless of how orthogonal
+  those errors are.** The orthogonality bound on Jaccard < 0.80 is
+  necessary but the err-count gate (errs ≤ anchor strictly) is the
+  tighter binding constraint. Don't celebrate low Jaccard alone —
+  verify the magnitude condition holds at the EXACT anchor + bias
+  you'll deploy. This rule closes the NN-family lever on this
+  problem after 13 attempts (MLP v5-v9, FT-Transformer, TabPFN,
+  pretrain-FT MLP, DAE SwapNoise, RealMLP n_ens=1, RealMLP n_ens=4,
+  Trompt) — every one produced orthogonal errors but more of them.
+- **Build-script gotchas for sibling-module Kaggle kernels.** When
+  concatenating multiple short modules into a single Kaggle
+  code_file via build.py, watch for: (a) Multi-line
+  `from x import (...)` continuations — single-line regex strip
+  leaves orphan body; use a DOTALL multi-line regex matching the
+  full `(...)` block before the single-line one; (b)
+  `from __future__ import annotations` placement — Python requires
+  it before any non-docstring, non-comment code; with header
+  docstring + module separator comments + each module's own
+  docstring, __future__ from any sibling won't qualify as "top".
+  Strip ALL module __future__ imports and hoist a single one to
+  the top of the dist after the header docstring; (c) module-level
+  imports of installed-at-runtime packages — downstream modules'
+  module-level `import torch_frame` runs at dist-file import time,
+  BEFORE main() can call boot(). Pip-install logic must run at
+  boot.py's module body (not inside boot()), so installs complete
+  before the next sibling module's section runs. Always
+  SMOKE-test the assembled kernel end-to-end before pushing
+  production — these failed silently or noisily on Kaggle but were
+  obvious from a 30-second AST parse + grep on the built dist file.
 
 - **Once a meta-stacker has been added to a stack, "deeper meta" is
   saturation-bounded.** Tier-1c: trained `meta_stacker_v2` with

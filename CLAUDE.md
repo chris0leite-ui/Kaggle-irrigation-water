@@ -8268,6 +8268,113 @@ read time has surfaced every real lever we've found. Start there.
   submissions/submission_tier1b_greedy_meta.csv  (LB 0.98094)
   ```
 
+### 2026-04-25 — Trompt PROBE: lowest NN Jaccard ever (0.5340) but magnitude-trap NULL
+
+- Goal: 13th NN-family lever-existence test. Trompt (column-attention
+  tabular NN, Chen et al. 2023) via pytorch_frame. Architecturally
+  distinct from RealMLP (BatchEnsemble + PBLD) — column-attention with
+  learnable prompts. The yekenot/ps-s6e4-trompt-pytorch-frame public
+  kernel claimed CV ~0.97-0.98 standalone, so Trompt had a chance to
+  clear the bar even with the +0.0003 NN OOF→LB surcharge.
+- Build path: modular kernel `kaggle_kernel/kernel_trompt/` (boot.py,
+  config.py, features.py, model.py, cv.py, main.py + build.py
+  concatenator) per the CLAUDE.md "short files" rule. Took 4 SMOKE
+  iterations to land cleanly:
+  - **v1 ERRORED** (IndentationError): build.py multi-line `from
+    config import (...)` strip left orphan body lines. Fix: separate
+    DOTALL regex MULTI_RE before SINGLE_RE.
+  - **v2 ERRORED** (`from __future__` placement): assembled dist had
+    header docstring → boot's docstring → __future__, violating
+    Python's "must be at top". Fix: hoist single
+    `from __future__ import annotations` to top after header docstring;
+    strip ALL module __future__ imports from siblings.
+  - **v3 ERRORED** (`ModuleNotFoundError: torch_frame`): model.py's
+    module-level `from torch_frame import ...` ran at dist-file import
+    time, BEFORE boot()'s install logic. Fix: hoist
+    `install_torch_if_pascal()` + `install_pytorch_frame()` to boot.py
+    module body so they execute as soon as boot.py's section runs
+    (line 79-80 in dist), before model.py's torch_frame imports
+    (line 179+).
+  - **v4 PASSED** structurally (2 folds × 20k × 2 epochs in <1 min
+    training; per-fold bal_acc 0.51/0.55, low because under-converged
+    smoke config).
+- PROBE config (after SMOKE pass): `IS_PROBE=True`, full 504k train,
+  full Trompt capacity (channels=128, num_prompts=128, num_layers=3),
+  N_EPOCHS=8, MAX_FOLDS=1 (StratifiedKFold(5) split structure preserved
+  for fold-1 alignment). Outputs suffixed `_probe`.
+- PROBE wall: ~70 min total kernel time. Kaggle script-kernel
+  re-imported the module at kernel-time 1684s for nbconvert HTML
+  compilation, triggering main() a SECOND TIME — saw boot logs reset,
+  fold 1 start again. Both runs completed cleanly (the second run is
+  the one whose outputs we kept, identical to the first).
+- **Fold-1 results** (only va0 = 126,000 rows populated):
+  - argmax bal_acc = **0.96092** (vs RealMLP fold-1 0.96978, −0.009)
+  - tuned 1-fold OOF = 0.96633, bias [1.43, 1.17, 3.40]
+  - errs at recipe bias = **2,183** (RealMLP fold-1 2069, LB3 fold-1 2014)
+- **Jaccards (fold-1)**:
+  - Trompt vs RealMLP n_ens=1 = **0.5696** (lower than RealMLP vs LB3 0.6222)
+  - Trompt vs LB-best 3-way = **0.5340** ← LOWEST NN ORTHOGONALITY EVER
+  - RealMLP vs LB3 = 0.6222
+- **Blend gate (fold-1, LB3 + Trompt @ α, fixed bias)**:
+  ```
+  α=0.00  bal=0.97926  errs=2014  ← peak (LB3 standalone)
+  α=0.05  bal=0.97926  errs=1972  (tied; errs −42 but bal_acc unchanged)
+  α=0.10  bal=0.97901  errs=1954
+  α=0.20  bal=0.97899  errs=1922
+  α=0.50  bal=0.97748  errs=1873
+  ```
+  Classic magnitude-trap. Trompt has the lowest Jaccard of any NN
+  tested AND drops total errors at small α, but the rare-class trade
+  is unfavorable for macro-recall. No α > 0.05 lifts above LB3 alone.
+- **Decision: skip 5-fold push.** Three reasons:
+  1. **Compute budget**: production wall = 8 epochs × 5 min × 5 folds =
+     ~3.3h, exceeds the 1h GPU cap by 3×. Would need multi-kernel
+     splits or a halved-capacity config.
+  2. **Magnitude trap**: even at the best Jaccard ever, +169 extra
+     errors per fold predicts a 5-fold OOF that doesn't beat LB3
+     alone. Adding to the LB-best 0.98094 meta-stacker stack would
+     compound the surcharge unfavorably.
+  3. **Compounding NN OOF→LB surcharge**: +0.0003 per NN leg. With
+     Trompt's predicted standalone OOF tuned at ~0.97 (extrapolated
+     from fold-1 0.966) and the meta-stacker at OOF 0.98084 / LB
+     0.98094, Trompt's blend lift needs OOF Δ > +0.0005 to net-positive.
+     Fold-1 sweep tops at Δ +0.00000 vs LB3 (let alone the meta-stacker
+     stack).
+- **Lever closes**. 13th NN-family null; pattern is now structural at
+  this feature set. Summary table:
+  ```
+  NN family       Jaccard vs anchor   errs vs anchor   LB outcome
+  ----------     ------------------- ---------------- --------------------
+  MLP v5-v9       0.62-0.85           +1500-15000     NULL
+  FT-Transformer  0.61                +12000          NULL
+  TabPFN          0.81                +1485           NULL
+  Pretrain-FT MLP 0.65                +3615           NULL
+  DAE SwapNoise   0.84                similar         NULL
+  RealMLP n_ens=1 0.62                +358            LB +0.00003 (3-stack)
+  RealMLP n_ens=4 0.62                +485            NULL (worse than n_ens=1)
+  Trompt          **0.53**            +169 (lowest)   NULL (magnitude-trap)
+  ```
+  Trompt's +169 errs at the BEST Jaccard ever seen still failed the
+  blend gate. Structural rule firmer than ever: NN architectures on
+  this feature set produce orthogonal errors but in larger absolute
+  numbers, and macro-recall at fixed-bias cares about total per-class
+  accuracy → the magnitude tax dominates.
+- LB delta: n/a — no LB probe warranted.
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts:
+  - `kaggle_kernel/kernel_trompt/` (modular kernel + 4 build fixes)
+  - `scripts/artifacts/oof_trompt_probe.npy` + test (fold-1 only,
+    other 4 fold rows = 0). Whitelisted for cross-branch diagnostic —
+    Trompt's 0.53 Jaccard is unique in our OOF bank.
+  - `scripts/artifacts/trompt_probe_results.json`
+- Lessons logged to LEARNINGS.md:
+  1. Build-script gotchas for sibling-module Kaggle kernels.
+  2. Trompt at full capacity is ~12× more compute-heavy per row than
+     RealMLP; needs PROBE-first before 5-fold on the 1h cap.
+  3. Lowest Jaccard ever (0.53) STILL fails the blend gate when errs
+     are higher than anchor. **The magnitude rule is stricter than
+     orthogonality.**
 ### 2026-04-25 — Tier 1c: 3 follow-ups on new LB-best 4-stack, all NULL (saturation confirmed)
 
 - Goal: after Tier 1b's +0.00086 LB win, test 3 cheap CPU follow-ups on
@@ -8736,3 +8843,177 @@ NN-from-scratch MLPs, public-CSV blending. All structurally null.
 Pack 0.98114 is +0.00020 above primary. Leader 0.98219 is +0.00125
 above. Both reachable via ANY of A1-A3 + B1 if signals stack. We're
 not done.
+
+### 2026-04-25 — Tier 1b cross-pollinate + ensemble: third saturation confirmation at LB 0.98094
+
+- Goal: after Tier 1c saturation (greedy + meta-v2 + meta-bag all null on
+  the LB-best 4-stack), test two adjacent levers from the post-1c
+  brainstorm: (#4) **cross-pollinate** the Tier-1b meta-stacker with
+  components that didn't exist at v1's run-time (recipe_focal_g2_aH1,
+  recipe_focal_g2_invfreq, soft_distill_small, soft_distill_tiny,
+  realmlp_ens4); (#2) **ensemble of meta-stackers** with varying
+  hyperparameters (depth, XGB seed, colsample, max-rounds) to gather
+  meta-level diversity. Both run on top of the LB-best 0.98094 4-stack.
+- Changed: `scripts/tier1b_helpers.py` (shared loaders + iso_cal +
+  build_lbbest_stack — extracted from tier1b_xgb_metastack.py),
+  `scripts/tier1b_metastack_v3.py` (cross-pollinate, depth=4 seed=42
+  same HPs as v1, expanded EXCLUDE for derived/circular components),
+  `scripts/tier1b_metastack_variant.py` (env-var parameterised runner;
+  VARIANT, DEPTH, XGB_SEED, COLSAMPLE, MAX_ROUNDS),
+  `scripts/tier1b_final_blend.py` (Strategy 1 single-replace, Strategy
+  2 equal-weight ensemble, Strategy 3 greedy forward; per-class recall
+  guardrail at -0.0005, fixed-bias decision rule, +2e-4 LB-transfer
+  emit gate).
+- Smoke: helpers reproduce LB-best 3-stack OOF=0.98061 exactly. Pool
+  size = 66 (62 prior + 5 new − 1 dropped via stricter EXCLUDE). All
+  5 new candidates loaded.
+- v3 results (5 folds × 215-feature XGB, 6 min wall):
+  ```
+  fold     it    val_argmax_bal_acc
+  1       471        0.97475
+  2       585        0.97363
+  3       735        0.97508
+  4       738        0.97297
+  5       655        0.97407
+  OOF argmax = 0.97410   tuned = 0.98073
+  errs vs LB-best 3-stack = 8915 (LB-best = 9572)
+  Jaccard vs LB-best 3-stack = 0.8308   (v1 was 0.8743 — MORE orthogonal)
+  iso(v3) standalone = 0.98121
+  ```
+  Standalone +0.00032 vs v1 (0.98041) and +33 fewer errors. The 5
+  added components changed the disagreement pattern materially.
+- Variant B (depth=3, seed=7, colsample=0.7, 5000-cap, 8 min wall) and
+  variant C (depth=5, seed=123, colsample=0.5, 2500-cap, 8 min wall):
+  ```
+                  argmax    tuned     iso(standalone)
+  v1 (existing)   0.96995   0.98041   0.98059
+  v3              0.97410   0.98073   0.98121
+  B               0.97418   0.98053   0.98137  ← highest iso of any meta
+  C               0.97411   0.98034   0.98037
+  ```
+  Both B and C trained on a pool of 67 (their pool included v3 since
+  it was on disk by then) — leak-free since fold structure is preserved
+  across the chain.
+- Final blend gate (3 strategies × per-class guardrail, 28s wall):
+  ```
+  STRATEGY 1: single-meta replace v1 in LB-best 4-stack (anchor 0.98084)
+    replace_v3_a030    Δ=+0.00004  J=0.961  recH=0.9771   PASS class-gate, FAIL Δ
+    replace_B_a030     Δ=+0.00003  J=0.955  recH=0.9771
+    replace_C_a030     Δ=-0.00001  J=0.956  recH=0.9768
+
+  STRATEGY 2: equal-weight log-ensemble of metas → α-sweep into LB-3-stack
+    ens_v1_v3_a400              Δ=+0.00004
+    ens_v1_v3_B_a350            Δ=+0.00006
+    ens_v1_v3_B_C_a350          Δ=+0.00009  ← Strategy 2 best, still below gate
+
+  STRATEGY 3: greedy forward over iso metas
+    step1: + v3 α=0.400  OOF=0.98093
+    step2: + C  α=0.200  OOF=0.98101
+    step3: + v1 α=0.300  OOF=0.98102   (4th candidate B can't improve)
+    final greedy_v3_C_v1: Δ=+0.00018  J=0.9385  recH=0.9764
+
+  Strategy 3 closest to gate: Δ +0.00018 (just shy of +2e-4 threshold)
+  but recH drops 0.0011 vs anchor's 0.9775 — violates per-class guardrail.
+  ```
+- **No submission emitted.** Three independent attacks (greedy
+  expanded pool, meta-stacker pool extension, meta-stacker ensemble)
+  all land within ±0.0002 of OOF 0.98084. Saturation at the LB-best
+  4-stack is now triple-confirmed.
+- Read-out: cross-pollinating with new components DOES add real
+  signal at the standalone meta level (v3 +0.00032 OOF, B's iso
+  reaches 0.98137 — highest iso of any meta tested). But the LB-best
+  4-stack absorbs almost all of it through the existing v1 channel.
+  The +0.00018 Strategy 3 OOF lift trades High recall for Medium
+  recall, which is the wrong direction under macro-recall and
+  systematically fails to transfer.
+- **Rule reconfirmed**: meta-stacker ensembling at fixed pool size
+  is bounded by what the v1 meta already extracts. Path past the
+  ceiling requires NEW components — not new metas on the same
+  components.
+- Companion work this session: kernel audit round 3 (16 unread
+  kernels at ≥20 votes inspected). 2 actionable Tier-A findings:
+  1. **OvR-XGB** (include4eto, 31 votes, 2026-04-25) — 3 binary:logistic
+     XGB heads on the FULL V10 recipe feature set, concat → softmax-
+     renormalize → multiplicative class-weight Optuna (200-trial,
+     bounds [0.5, 3.0]³). Genuinely new mechanism: never sees the
+     multi-class CE gradient; multiplicative rather than additive
+     post-hoc bias. ~80 min CPU. Highest-EV next bet.
+  2. **TabM** (wguesdon, 33 votes; ICLR 2025 BatchEnsemble MLP via
+     pytorch_frame) — only architecturally novel NN family remaining
+     after the 13 NN nulls. Reuses Trompt kernel scaffold; ~1h GPU.
+- LB budget unchanged (0 spent). LB-best stays
+  `submission_tier1b_greedy_meta.csv` at **0.98094** with hedge
+  `submission_recipe_full_te.csv` at LB 0.97939.
+
+### 2026-04-25 — recommended next-step priority list (5 days to deadline)
+
+The own-pipeline ceiling at LB 0.98094 is now confirmed against:
+- 12-component greedy expanded pool (Tier 1c step 1)
+- Meta-stacker v2 with binary specialists (Tier 1c step 2)
+- Meta-stacker XGB seed-bag (Tier 1c step 3)
+- 5-component cross-pollinate (this session, Tier 1b v3)
+- 4-meta isotonic ensemble (this session, Strategy 2)
+- 4-meta greedy forward selection (this session, Strategy 3)
+
+To break LB 0.98094 we need to ADD a fundamentally new component to
+the OOF bank — not another meta on the existing components. Ranked
+by EV/cost:
+
+  **N1. OvR-XGB on V10 recipe** (Tier-A audit finding, ~80 min CPU).
+  Three independent binary:logistic XGB heads against the full V10
+  recipe feature set. SMOKE first (1 fold × 50k rows × 2 binary
+  heads → ~5 min). Production: 5-fold × 3 heads × ~25 min/fold ≈
+  6h serial OR ~2h with 3 heads in parallel on the 16-core box
+  (each head only uses ~5 cores at hist tree_method).
+  - Save oof/test_xgb_ovr_recipe.npy after softmax-renormalize.
+  - Add to tier1b_metastack_v3 candidate pool (a NEW component
+    that didn't exist when v3 ran).
+  - Re-run tier1b_final_blend.py — if v3+OvR meta-stacker clears
+    +2e-4 + per-class gate, LB probe.
+  - Expected: +0.00010 to +0.00030 OOF if the binary CE gradient
+    produces materially different boundary geometry than softmax
+    CE; the magnitude-trap rule applies (Jaccard < 0.80 AND errs ≤
+    anchor required).
+
+  **N2. TabM via pytorch_frame** (GPU, ~1h smoke + ~1h production).
+  Only architecturally novel NN family remaining after 13 NN nulls.
+  Reuses Trompt kernel scaffold (`kaggle_kernel/kernel_trompt/`)
+  with a single-line model swap. SMOKE-first under the 1h GPU cap.
+  - Gate at fold-1 errs vs LB-best 4-stack ≤ +5% (stricter than
+    prior NN gates because we know the magnitude-trap pattern).
+  - If passes: full 5-fold, add to meta-stacker bank.
+  - Expected null based on 13 prior NN failures, but worth one
+    GPU slot since it's the last unexplored architecture.
+
+  **N3. SMOTE-NC** (deferred from prior session, blocked by container
+  rehydrate). Push to Kaggle CPU kernel (~3h wall, well under 9h
+  cap). Smoke evidence already showed +0.00174 OOF lift on a 20k
+  subsample. Real test: does that signal survive at full scale + the
+  meta-stacker bank gate?
+  - Run via `kaggle_kernel/kernel_smote/` (needs 30 min scaffold
+    using existing `scripts/recipe_smote_high.py` as base).
+  - Output: oof/test_recipe_smote_high.npy.
+  - Add to meta-stacker bank, re-run final blend gate.
+
+  **N4. Decision: lock current finals if N1+N2+N3 all null.**
+  Primary `submission_tier1b_greedy_meta.csv` (LB 0.98094) +
+  hedge `submission_recipe_full_te.csv` (LB 0.97939) is locked.
+  Stop spending compute. With 5 days to deadline and the current
+  +0.00020 gap to pack, private-LB variance (±0.0005) makes
+  another LB-probe cycle low EV.
+
+  **Skip on principled grounds:**
+  - Further meta-stacker variants (depth/seed/HP sweeps) — three
+    saturation confirmations document this is exhausted.
+  - Public-CSV blending (banned by top-of-file rule).
+  - HP tuning on existing components (LB regressed twice, see
+    2026-04-22 entry).
+  - More NN-family attempts beyond TabM — RealMLP n_ens=4 was the
+    13th null; the magnitude-trap pattern is structural at this
+    feature set.
+
+  **Execution order**: N1 first (highest EV, all-CPU, 1 evening of
+  wall time). If N1 yields a passing OOF, push to LB and skip N2/N3
+  unless deadline pressure allows. Otherwise N3 (SMOTE on Kaggle
+  kernel as low-attention background work) and N2 (TabM) in parallel
+  on day 2-3.

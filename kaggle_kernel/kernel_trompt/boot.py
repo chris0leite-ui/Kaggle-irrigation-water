@@ -46,8 +46,13 @@ def install_pytorch_frame() -> None:
 
 
 def boot() -> None:
-    install_torch_if_pascal()
-    install_pytorch_frame()
+    """Re-import + log torch / torch_frame versions. The actual installs
+    happen at MODULE LEVEL below — by the time anything calls boot(),
+    pip work is already done. This split is necessary because downstream
+    modules (model.py) have module-level `from torch_frame import ...`
+    that fires when the assembled dist file is imported, before any
+    function call. So pip-installs MUST run at boot.py's module body.
+    """
     import torch
     import torch_frame
     print(f"[boot] torch={torch.__version__} "
@@ -63,3 +68,9 @@ def boot() -> None:
         print(f"[boot] GPU info: {info}", flush=True)
     except Exception:
         pass
+
+
+# === module-level install: must run before any other sibling module's
+# imports execute (they happen top-to-bottom in the assembled dist) ===
+install_torch_if_pascal()
+install_pytorch_frame()

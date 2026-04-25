@@ -31,29 +31,38 @@ to regenerate.
 '''
 
 # Strip lines that import from this package's modules (they become
-# local-namespace references after concatenation).
-SIBLING_RE = re.compile(
+# local-namespace references after concatenation). Handles both
+# single-line `from x import a, b` and multi-line
+# `from x import (\n    a,\n    b,\n)` forms.
+SINGLE_RE = re.compile(
     r"^\s*from\s+(" + "|".join(MODULES) + r")\s+import\s+.*$|"
     r"^\s*import\s+(" + "|".join(MODULES) + r")\s*$",
     re.MULTILINE,
 )
+MULTI_RE = re.compile(
+    r"^\s*from\s+(" + "|".join(MODULES) + r")\s+import\s+\([^)]*\)\s*$",
+    re.MULTILINE | re.DOTALL,
+)
 
 
 def strip_siblings(text: str) -> str:
-    return SIBLING_RE.sub("", text)
+    text = MULTI_RE.sub("", text)
+    text = SINGLE_RE.sub("", text)
+    return text
 
 
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    parts: list[str] = [HEADER]
+    # Drop ALL module docstrings + __future__ imports from sources, then
+    # hoist a single `from __future__ import annotations` to the top
+    # right after the header docstring (Python requires it before any
+    # other import / non-docstring code).
+    parts: list[str] = [HEADER, "from __future__ import annotations\n"]
     for mod in MODULES:
         src = (HERE / f"{mod}.py").read_text()
-        # Drop the module's own docstring + __future__ after the first
-        # occurrence to avoid duplicates in the flattened file.
-        if parts != [HEADER]:
-            src = re.sub(r'^"""[\s\S]*?"""\s*\n?', "", src, count=1)
-            src = re.sub(r"^from __future__ import.*\n?", "",
-                         src, count=1, flags=re.MULTILINE)
+        src = re.sub(r'^"""[\s\S]*?"""\s*\n?', "", src, count=1)
+        src = re.sub(r"^from __future__ import.*\n?", "",
+                     src, flags=re.MULTILINE)
         parts.append(f"\n# ===== {mod}.py =====\n")
         parts.append(strip_siblings(src))
     parts.append('\nif __name__ == "__main__":\n    main()\n')
