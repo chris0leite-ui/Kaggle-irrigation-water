@@ -8698,3 +8698,41 @@ F1 (hedge under-protects) stands — recommend swap to
 sidesteps meta-stacker layer). Primary unchanged.
 
 LB budget: 0 probes spent on either follow-up.
+
+### 2026-04-25 — next-steps plan (without giving up)
+
+Audit closed F2 GREEN and confirmed OOF honesty on both leakage axes.
+Primary's lift is mostly genuine. We have honest LB headroom AND 5
+days × 10 LB probes left. Keep pushing.
+
+Full ranked plan in `audit/2026-04-25-next-steps.md`. Top 4 immediate
+levers (no defeat):
+
+  Tier A (cheap CPU, today/tomorrow):
+    A1. τ sweep on stage-1 pseudo (τ ∈ {0.95, 0.97, 0.99}, 3 × ~50 min CPU).
+        Untested band; team picked τ=0.98 by instinct. Drop-in upgrade
+        if any τ has tuned OOF > 0.97993 + errs ≤ 10039 + Jaccard < 0.85.
+    A2. GroupKFold-Crop OOF as meta-stacker input (~15 min, no retraining).
+        New OOF, structurally different fold split → different errors.
+    A3. Per-fold-iso variants in greedy pool (~15 min).
+        bag3__iso outperformed metastack__iso in per-fold-iso experiment.
+    A4. Hedge swap to 3-way (manual, zero compute).
+
+  Tier B (Kaggle GPU, queue overnight):
+    B1. SMOTE-NC on Kaggle kernel (~3h Kaggle wall). Smoke green
+        +0.00174 OOF over recipe smoke. Highest single EV remaining.
+    B2. RealMLP n_ens=2 with n_epochs=40 (~50 min). Tests
+        under-convergence hypothesis from CLAUDE.md.
+    B3. Trompt push (~1h). Architecturally distinct NN family.
+
+  Tier C (speculative ceiling-breakers):
+    C1. Per-bin blend at 3 bins instead of 5 (lower free params).
+    C2. 4-component "clean meta-stacker" (less over-parameterized).
+    C3. Public/private split ratio verification (~5 min).
+
+What NOT to retry: HP tuning, model-seed bagging, cleanlab,
+NN-from-scratch MLPs, public-CSV blending. All structurally null.
+
+Pack 0.98114 is +0.00020 above primary. Leader 0.98219 is +0.00125
+above. Both reachable via ANY of A1-A3 + B1 if signals stack. We're
+not done.
