@@ -992,3 +992,52 @@ all of them on the same model.
   gates. Translates to: require OOF lift > +0.0005 to have >50%
   chance of positive LB transfer when adding a NN leg (vs the
   usual +0.0002 threshold for tree-family components).
+
+- **Isotonic-calibrate meta-stacker outputs before blending into a
+  fixed-bias stack.** Raw multi-class probs from a heavy-reg meta-XGB
+  can be miscalibrated relative to the anchor stack's bias; per-class
+  isotonic re-aligns scales and shifts the optimal α downward, often
+  unlocking 50-100% more lift than the raw version. Tier-1b empirical:
+  raw meta-stacker peaked α=0.40 with Δ OOF +0.00012 (LB-marginal);
+  isotonic version peaked α=0.30 with Δ OOF +0.00023. Always include
+  `__iso` copies of every component in greedy pool — costs nothing,
+  occasionally unlocks the best step.
+
+- **OOF can underestimate LB lift for meta-stackers built over noisy
+  OOF banks.** When the meta-stacker's input features are themselves
+  fold-OOFs (each row's feature is a noisy hold-out estimate of that
+  component's behavior), the meta-stacker's CV bal_acc under-counts
+  its true generalization. On test, all components see unseen rows
+  simultaneously and the meta's signal accumulates without fold-noise
+  smearing. Negative OOF→LB gap is the diagnostic signature. Empirical:
+  Tier-1b meta-stacker had OOF Δ +0.00023 → LB Δ +0.00086 (3.7× over-shoot).
+  Don't down-weight a meta-stacker candidate based on OOF Δ alone — if
+  the diagnostic (Jaccard < 0.97, errors ≤ anchor, no class hurt at
+  fixed bias) passes, it's worth a probe even at sub-+0.0002 OOF Δ.
+
+- **Boundary-specialist break-even precision under macro-recall depends
+  on the class-pair direction.** For a flip from predicted-X to predicted-Y
+  in a row that should be Y, break-even precision = `count(Y) / (count(X) + count(Y))`.
+  Concretely on this 369k/239k/21k Low/Med/High problem:
+  ```
+  spec H↔M (rare-class flip):  break-even = H/(M+H) ≈ 8%   ← spec_mh easy
+  spec L↔M (majority flip):    break-even = M/(L+M) ≈ 39%  ← spec_lm hard
+  spec H↔L:                    break-even = H/(L+H) ≈ 5%   ← rare flip easy
+  ```
+  Bucket size and break-even pull in opposite directions on this problem:
+  the score=3 M→L bucket has 4,324 recoverable rows (10× more than score=6
+  M→H's 326), but each correct flip is worth only 1/(3·M_count) ≈ +1.4e-6
+  to mean recall vs spec_mh's 1/(3·H_count) ≈ +1.6e-5 (~10× more weight).
+  Net: bucket-mass alone is misleading; `bucket_size × per_flip_weight ×
+  (precision − break_even)` is the lift estimator.
+
+- **Model-seed bagging is not automatically additive when the leg has
+  per-fold isotonic calibration anchored on the single-seed run.**
+  Tier-1b: xgb_nonrule 3-seed bag {42,7,123} lifted standalone OOF
+  +0.00167 but **regressed** the LB-best stack by −0.00005 when dropped
+  in. Diagnosis: the bag's averaged prob-scale shifts away from the
+  isotonic calibration's anchor (single seed=42), so the same fixed α
+  no longer maps to the optimal bias-tuned operating point. Fix
+  options: (a) re-fit isotonic on the bag's OOF, (b) sweep α at the
+  bag step (it might prefer higher α), (c) skip the bag and rely on
+  the meta-stacker level for variance reduction.

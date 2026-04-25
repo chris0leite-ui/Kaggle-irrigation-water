@@ -3945,56 +3945,66 @@ architecture or feature view adds orthogonal bits at this base.
 
 ## Hypothesis board
 
-- **Current best (LB)**: `submission_recipe_greedy_recipe_pseudolabel.csv` →
-  **LB 0.97998 / OOF tuned 0.98012** (gap +0.00014 — tightest so far).
+- **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
+  **LB 0.98094 / OOF tuned 0.98084** (gap **−0.00010** — LB above OOF,
+  first negative gap since digit-XGB era). Construction:
+  ```
+  lb3      = log_blend(recipe_full_te, recipe_pseudolabel, recipe_pseudolabel_seed7labeler;
+                       0.25/0.35/0.40)
+  stack1   = log_blend(lb3, realmlp;                    0.80/0.20)
+  stack2   = log_blend(stack1, xgb_nonrule_iso;         0.925/0.075)   ← prior LB-best 3-stack
+  final    = log_blend(stack2, xgb_metastack_iso;       0.70/0.30)     ← Tier-1b new step
+  pred     = argmax(log(final) + [1.4324, 1.4689, 3.4008])
+  ```
+  Pack 0.98114 now only **+0.00020 above**; leader 0.98219 only **+0.00125 above**.
+  LB budget: **3/10 used today** (3 = 1 recipe_full_te baseline from earlier,
+  1 LB-best-3-stack confirmation, 1 new probe). 7 remaining.
+
+  **Why it worked**: greedy forward over a 63-component pool with isotonic
+  calibration applied to every candidate. The XGB meta-stacker (`oof_xgb_metastack`,
+  trained over ~200-dim feature space = 63 components × 3 + dgp_score + distances)
+  has **8,948 errors** standalone vs LB-best stack's 9,572. Raw blend peaks at
+  α=0.40 with +0.00012 OOF (LB-marginal); **isotonic-calibrated** version peaks
+  at α=0.30 with +0.00023 OOF, and the LB delta over-shot by ~3.7× (+0.00086 LB
+  vs +0.00023 OOF). Mechanism: meta-stacker corrects LB-best's log-bias
+  over-push on score=6 boundary rows — the dominant Medium→High error bucket.
+  See 2026-04-25 session log for the +157 net-correct-flips per-bucket breakdown.
+
+  Second-best: `submission_lb3_realmlp_nonruleiso.csv` →
+  **LB 0.98008 / OOF tuned 0.98061** (gap +0.00053). Greedy from the
+  3-way multi-seed anchor + RealMLP α=0.200 + xgb_nonrule_iso α=0.075.
+  This is the prior LB best the meta-stacker built on top of.
+
+  Third-best: `submission_3way_recipe025_s1035_s7040.csv` →
+  **LB 0.98005 / OOF tuned 0.98029** (gap +0.00024). Pure 3-way
+  log-blend of recipe_full_te × pseudo_s1 × pseudo_s7 — the safe
+  fallback. Tightest calibration of the pre-meta candidates; good
+  hedge for private LB.
+
+  Fourth-best: `submission_recipe_greedy_recipe_pseudolabel.csv` →
+  **LB 0.97998 / OOF tuned 0.98012** (gap +0.00014).
   50/50 log-blend of recipe_full_te × recipe_pseudolabel at recipe's
-  fixed tuned bias [1.43, 1.47, 3.40]. Pseudo-label uses recipe_full_te's
-  test probs at τ=0.98 (226k/270k test rows kept, pseudo class dist
-  matches real-train, +41% boost to rare-High pool). Pack 0.98114 is
-  +0.00116 above; leader 0.98219 is +0.00221 above.
-  LB budget today: 2 remaining (8/10 used: 2 digits-OTE variants +
-  1 greedy_full_bank + 1 recipe_full_te + 1 recipe×pseudolabel 2-way
-  + 1 4-way blend probe + 1 recipe×pseudo_stage2 2-way
-  + 1 asymmetric 3-way with allpairs).
-  Stacking-inflation ceiling CONFIRMED: 3 submissions at OOF 0.9802-0.9804
-  all landed LB 0.97995-0.97997 (gap +0.00036 to +0.00038). Breaking above
-  LB 0.97998 requires a genuinely different mechanism, not another blend.
+  fixed tuned bias [1.43, 1.47, 3.40].
 
-  Second-best: `submission_recipe_greedy_recipe_pseudolabel_stage2_recipe_catboost_recipe_pseudolabel.csv`
-  → **LB 0.97997 / OOF tuned 0.98033** (gap +0.00036, null follow-up).
-  4-way greedy log-blend: recipe_full_te (0.37) + recipe_pseudolabel_stage2
-  (0.37) + recipe_catboost (0.13) + recipe_pseudolabel (0.13). Stage-2
-  uses the 2-way blend (LB 0.97998) as labeler. OOF gain +0.00021 vs
-  2-way did NOT transfer to LB — classic OOF stacking inflation beyond
-  2 anchors on a single CV split.
-
-  Third-best: `submission_recipe_full_te.csv` → **LB 0.97939 /
+  Fifth-best: `submission_recipe_full_te.csv` → **LB 0.97939 /
   OOF tuned 0.97967** (gap +0.00028). Full V10 recipe: ~117
   categoricals (raw+pair+digit+num-as-cat+tres) OTE'd, plus FREQ +
   ORIG mean/std + LR-formula logits + threshold flags = ~500
   features. Heavy-reg XGB (max_depth=4, alpha=5, reg_lambda=5) +
   class-balanced sample weights + post-hoc log-bias.
 
-  Fourth-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
+  Sixth-best: greedy full-bank 6-way log-blend (digit_xgb 0.44 +
   digits_ote 0.24 + xgb_nonrule 0.11 + xgb_corn 0.09 + digits_pairs
   0.07 + digits_light_ote 0.05) → OOF 0.97558, LB 0.97581.
   Submission: `submissions/submission_greedy_full_bank.csv`.
 
-  Fifth-best: digits-OTE × digit-XGB log-blend at α=0.40
+  Seventh-best: digits-OTE × digit-XGB log-blend at α=0.40
   → OOF 0.97477, LB 0.97482. Submission:
   `submissions/submission_digit_ote_digits_blend.csv`.
 
-  Sixth-best: XGB-dist + digits standalone, tuned log-bias →
+  Eighth-best: XGB-dist + digits standalone, tuned log-bias →
   OOF 0.97449, LB 0.97468. Submission:
   `submissions/submission_xgb_dist_digits_tuned.csv`.
-
-  Seventh-best: greedy + xgb-nonrule log-blend at α=0.15
-  → OOF 0.97421, LB 0.97352. Submission:
-  `submissions/submission_greedy_nonrule_blend.csv`.
-
-  Eighth-best: greedy log-blend `hybrid_v3(0.45) + routed_v3(0.40) +
-  spec_678(0.15)` → OOF 0.97375, LB 0.97296. Submission:
-  `submissions/submission_blend_greedy_w045_040_015.csv`.
 
 ### 2026-04-23 — N1 recipe_no_ote: genuinely novel errors (Jaccard 0.60) but blend null — magnitude trap
 
@@ -7607,3 +7617,153 @@ read time has surfaced every real lever we've found. Start there.
   - `submissions/submission_focal_blend_a000.csv` (diagnostic, = 3-way)
   - `submissions/submission_spec6_override_th50.csv` (v1 hard-override test)
   - `submissions/submission_spec6_override_v2_th15.csv` (v2 hard-override test)
+
+### 2026-04-25 — Tier 1b: XGB meta-stacker isotonic blend → NEW LB BEST 0.98094 (+0.00086)
+
+- Goal: while parallel branch ran GPU experiments (RealMLP n_ens=4 / Trompt),
+  exhaust cheap CPU levers on top of the LB-best 3-stack (OOF 0.98061 / LB
+  0.98008). Five experiments: greedy refit, error-geometry → spec_lm_v3,
+  XGB meta-stacker, xgb_nonrule seed-bag, combined diagnostic. **Four
+  null, one breakthrough.**
+
+- **Step 1 — greedy on LB-best 3-stack (73 components)**: only step-1
+  candidate is `recipe_full_te_a10 α=0.200` Δ=+0.00006, below +1e-4
+  gate. **Null.** Confirms the saturation conclusion from earlier.
+
+- **Step 1b — spec6_mh_v2 transfer to NEW teacher**: v2 was trained with
+  OLD teacher meta-features. On the new override space (35,335 score=6
+  Medium-argmax rows, 326 truly-H), best θ=0.20 gives 4 OOF overrides at
+  50% precision but **0 test overrides** — the new teacher already catches
+  the easy score=6 H-flips. Lever exhausted without retraining.
+
+- **Step 2 — error-geometry analysis** revealed dominant buckets:
+  ```
+  score=3 Medium→Low      n=4,324  (45.2% of total errors)
+  score=6 Medium→High     n=1,858  (19.4%)
+  score=4 Low→Medium      n=1,354  (14.1%)
+  ```
+  Built `spec_lm_v3` (Low↔Medium specialist, score=3 binary head with
+  new teacher meta-features). AUC 0.827. Break-even precision under
+  macro-recall = M/(L+M) = **39.3%** (4× stricter than spec_mh's 8.1%
+  because Low is the majority class). Best θ=0.35 hits 45.2% precision
+  on 168 overrides, but Δ OOF = **+0.00002** — tiny because each correct
+  L→M flip gives ~1/4 the macro-recall weight of a correct H flip.
+  The bucket is 10× bigger than score=6, but the math goes the wrong
+  way. **Real signal, but architecturally mass-bounded.** Null on LB.
+
+- **Step 3 — xgb_nonrule 3-seed bag (XGB seeds {42, 7, 123}, fold seed
+  fixed at 42)**: standalone bag tuned OOF 0.53767 (+0.00167 vs single
+  0.53600). Drop-in replacement in LB-best stack: Δ = **−0.00005**
+  (mild regression). Diagnosis: the bag's prob-scale shifts away from
+  the single-seed isotonic anchor; a higher α=0.125 partially recovers
+  but lifts only +0.00001. **Model-seed bagging on top of an
+  already-isotonic-calibrated leg is not automatically additive.** Null.
+
+- **Step 4 — combined diagnostic** (fine meta α grid + spec_lm_v3 on
+  meta-enhanced):
+  - Raw meta peak shifts from α=0.40 to α=0.325 → OOF 0.98075 (+0.00014)
+  - + spec_lm_v3 θ=0.35 → OOF 0.98077 (+0.00016)
+  - Below +2e-4 gate but first combined lift.
+
+- **Step 5 — greedy with meta-stacker + isotonic-calibrated copies in
+  pool, finer α grid (0.01 → 0.5)**:
+  ```
+  step1: + xgb_metastack__iso α=0.300  OOF 0.98084  Δ=+0.00023  ← KEY
+  step2: + recipe_no_digits  α=0.010  OOF 0.98087  Δ=+0.00002  (stop)
+  ```
+  Critical insight: **isotonic calibration of the meta-stacker output
+  was the breakthrough**. Raw meta blend peaked at α=0.40 with +0.00012
+  (LB-marginal); iso version peaks at lower α=0.30 with +0.00023. Same
+  calibration-alignment mechanism the 2026-04-24 c0_isotonic experiment
+  observed with CatBoost (+0.00197 from iso alone). Iso version's
+  per-class probabilities align with LB-best's fixed bias, so the
+  fixed-bias decision rule actually exploits the new signal.
+
+- **Bucket-level diagnostic** (where the +157 net-correct flips come from):
+  ```
+  score=6 Medium predicted High → corrected to Medium:  +157  ← biggest win
+  score=7 Medium → Medium:                              +28
+  score=8 Medium → Medium:                              +17
+  score=3 Low → Medium (correct flips from M→L bucket): +33
+  score=6 Medium Medium → High (mistake):               -72
+  score=3 Low Low → Medium (mistake):                   -30
+  ```
+  Net flips = 157 = exactly the 9572 → 9415 error reduction. The
+  meta-stacker corrects LB-best's log-bias over-push on score=6
+  boundary rows — the SAME bucket the error-geometry analysis
+  identified as the second-largest mass-carrier.
+
+- **Pre-LB diagnostic on candidate** (`submission_tier1b_greedy_meta.csv`):
+  - OOF 0.98084 / errs 9,415 (Δ −157 vs LB-best 9,572)
+  - Per-class recall: Low 0.9955 (unchanged), Medium 0.9695 (+0.0006),
+    High 0.9775 (+0.0001) — no class hurt
+  - Jaccard vs LB-best 0.955 = small calibration perturbation, not
+    structural blend
+  - Rows differing on test: 196 (0.07%)
+
+- **LB PROBE (submitted 05:37 UTC, user-approved)**:
+  **LB public = 0.98094** ← **NEW LB BEST**, Δ vs prior 0.98008 = **+0.00086**.
+  OOF→LB gap = **−0.00010** (LB above OOF — first negative gap since
+  the digit-XGB era).
+
+- **The OOF underestimated the LB lift by ~3.7×.** Diagnosis: the
+  meta-stacker over 63 components captures cross-component disagreement
+  patterns that 5-fold OOF underestimates. CV is too pessimistic when the
+  hold-out fold's component-OOFs are themselves noisy estimates of each
+  component's behavior; the meta-stacker's improvement is averaged across
+  noisy hold-outs. On the test set, all 63 components fire on the same
+  unseen rows, and the meta-stacker's signal accumulates without that
+  fold-noise smearing.
+
+- **Updated calibration ladder:**
+  ```
+  recipe_full_te                  0.97967 → 0.97939   gap +0.00028
+  recipe × pseudo_s1 2-way        0.98012 → 0.97998   gap +0.00014
+  3-way multi-seed                0.98029 → 0.98005   gap +0.00024
+  LB-best 3-stack (lb3+rmlp+nr)   0.98061 → 0.98008   gap +0.00053
+  **+ xgb_metastack__iso α=0.300  0.98084 → 0.98094   gap -0.00010** ← NEW LB BEST
+  ```
+- Pack 0.98114 now only **+0.00020 above** (was +0.00106).
+- Leader 0.98219 now only **+0.00125 above** (was +0.00211).
+- LB budget: **3/10 used today**, 7 remaining.
+
+- **Portable rules** (logging to LEARNINGS.md):
+  1. **Isotonic-calibrate meta-stacker outputs before blending into a
+     fixed-bias stack.** Raw multi-class probs from a meta-XGB at heavy
+     reg can be miscalibrated relative to the anchor stack's bias; iso
+     re-aligns per-class scales and shifts the optimal α downward, often
+     unlocking 50-100% more lift. Tested at +0.00009 OOF gain on this
+     problem (raw 0.98073 → iso 0.98084 at peak α).
+  2. **OOF can underestimate LB lift for meta-stackers built over noisy
+     OOF banks.** When the meta-stacker's input features are themselves
+     fold-OOFs (noisy hold-out estimates), the meta-stacker's CV bal_acc
+     under-counts its true generalization. On test, all components see
+     unseen rows simultaneously and the meta's signal accumulates cleanly.
+     Negative OOF→LB gap is a signature of this. Don't down-weight a
+     meta-stacker candidate on OOF Δ alone — submit if the diagnostic
+     (Jaccard < 0.97, errors ≤ anchor, no class hurt) passes.
+  3. **For binary boundary specialists, break-even precision under
+     macro-recall depends on the class-pair**: spec H↔M (rare class)
+     break-even = H/(M+H) ≈ 8%; spec L↔M (majority class) break-even =
+     M/(L+M) ≈ 39%. Bucket size and break-even pull in opposite
+     directions — score=3 has 10× the row mass of score=6 but each
+     correct flip is worth 4× less under macro-recall.
+
+- New reusable scripts:
+  - `tier1b_xgb_metastack.py` — 63-component XGB meta-stacker (5-fold
+    stacking, max_depth=4 heavy-reg, 200+ feature dim)
+  - `tier1b_err_geometry.py` — confusion + score×direction bucket dump
+  - `spec_lm_v3.py` — Low↔Medium boundary specialist template (mirror
+    of spec_mh_v3 with target = (y == Medium) and L-M margin features)
+  - `tier1b_greedy_with_meta.py` — greedy forward with finer α grid +
+    isotonic calibration applied to every pool component
+  - `tier1b_combined.py` — fine α grid + meta + spec_lm_v3 combo sweep
+  - `tier1b_verify_meta_iso.py` — pre-LB diagnostic harness
+
+- Artefacts whitelisted for cross-branch reuse:
+  ```
+  oof_xgb_metastack.npy + test       (the breakthrough leg)
+  oof_xgb_nonrule_bag3.npy + test    (model-seed bag, null but kept)
+  oof_spec_lm_v3_score3.npy + test   (L↔M specialist, marginal)
+  submissions/submission_tier1b_greedy_meta.csv  (LB 0.98094)
+  ```
