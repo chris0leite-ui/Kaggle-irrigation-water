@@ -819,3 +819,14 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_meta_perturbed_v1_noise03_csb09_k3.npy
 !scripts/artifacts/oof_meta_perturbed_v2_noise05_csb05_k3.npy
 !scripts/artifacts/test_meta_perturbed_v2_noise05_csb05_k3.npy
+# A/B at fixed 62-component bank (the original LB-best primary's bank).
+# Result: standalone 0.98033 / iso 0.98049, peak blend Δ=+0.00007 raw
+# α=0.35 — STRICTLY WORSE than original meta (no perturbation, same
+# bank): standalone 0.98041 / iso 0.98059 / blend Δ=+0.00023 iso α=0.30.
+# Confirms: 100% of the +0.00071 OOF lift in the 111-component variant
+# was bank-extension OOF overfit from 49 new components added since
+# LB-best built. Perturbation mechanism contributes ZERO signal at
+# fixed bank size. Hypothesis "noise injection amplifies negative
+# OOF→LB gap" is structurally false on this problem.
+!scripts/artifacts/oof_meta_perturbed_62_v1.npy
+!scripts/artifacts/test_meta_perturbed_62_v1.npy
