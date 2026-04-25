@@ -9312,3 +9312,89 @@ by EV/cost:
   - **Recommended next action**: pivot to **N3** as the highest-EV
     untried lever. N2's kNN+ET sub-experiments can be done in parallel
     if compute allows.
+
+### 2026-04-25 — N1 closed across all α (linear gap-projection on the OOF-overfit signal)
+
+- Question: should we submit the conservative α=0.30 candidate
+  (`submission_tier1c_lr_iso_4stack_a030.csv`, OOF 0.98152, Δ +0.00068)?
+- Answer: **NO.** The LR meta-stacker's contribution to the OOF→LB gap
+  is structurally linear in α (a single overfit component blended at
+  fixed bias contributes ~constant per-α gap inflation). Project:
+  ```
+  α     OOF Δ      proj gap infl.   proj LB Δ vs primary
+  0.05  +0.00012   +0.00019         -0.00007
+  0.10  +0.00026   +0.00037         -0.00011
+  0.30  +0.00068   +0.00112         -0.00044
+  0.50  +0.00083   +0.00186         -0.00103   ← observed
+  0.65  +0.00098   +0.00242         -0.00144   (would have been worse)
+  ```
+  - Conservative α=0.30 projects to **LB ~0.98050** (regression).
+  - Even α=0.05 projects to LB ~0.98087 (regression).
+  - **No α threads the needle**: the LR signal is OOF-overfit at every
+    weight, so dilution doesn't help — it just reduces the magnitude
+    of a known LB-negative contribution proportionally to its OOF "lift".
+
+- **Mechanism — why dilution can't fix overfit**:
+  At α=0.50, the LR contribution at fixed bias is decomposable as:
+  ```
+  log P_blend = 0.5 · log P_4stack + 0.5 · log P_LR_iso
+  ```
+  Each LR row whose OOF favored the wrong class also favors the wrong
+  class on test (same model, same training distribution). Cutting the
+  weight to 0.30 reduces the magnitude of those wrong votes but does
+  not change their SIGN. The signed gap inflation per unit α stays
+  approximately constant. This is the mathematical consequence of "LR
+  overfits SAME components on test as on OOF" — the failure mode is
+  in the model, not in the blend weight.
+- Practical rule (LEARNINGS.md candidate): **"Once a meta-stacker is
+  shown to have a >2x OOF→LB gap inflation per α at one operating
+  point, expect roughly linear gap inflation across all α and SKIP
+  the conservative dilution probe — it will null at LB even if OOF
+  shows a smaller positive Δ. Spend the LB slot on a different lever
+  family instead."**
+
+- **N1 lever fully closed** (α=0.50 LB-confirmed null, α=0.30 + α=0.65
+  projected null without spending LB slots).
+
+- **Final-selection candidates UNCHANGED**:
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+  2. **HEDGE**: `submission_recipe_full_te.csv` → LB 0.97939
+
+- **Recommended next steps (5 days to deadline, 9 LB slots today)**:
+
+  **N3 (top — 1.5-2h CPU): yunsuxiaozi 5-shuffle OTE concat**.
+  Feature-level lever, structurally orthogonal to the N1 OOF-overfit
+  failure mode. Implement as `recipe_ote_5shuffle_concat` variant —
+  the recipe pipeline runs OrderedTE 5× with different shuffle seeds,
+  concatenates all 5 fits as augmented training rows (5x training
+  pool per fold), then trains XGB on the augmented pool. Standalone
+  OOF gate first; if Jaccard < 0.85 vs LB-best AND errs ≤ 10,114
+  (recipe baseline), add to meta-stacker bank as a new component.
+  Cost: ~1.5-2h CPU per fold × 5 folds = ~10h wall serial, ~3h with
+  fold parallelism. Skip if not finishable in current session.
+
+  **N2-restricted (medium, parallel): kNN-ote + ET-ote ONLY**
+  (drop lr_ote per N1 falsification). Build 2 new OOFs on the recipe
+  feature set:
+    `KNeighborsClassifier(n_neighbors=50)` (subsampled 50k stratified
+    fit for compute feasibility — full 504k k-NN is impractical)
+    `ExtraTreesClassifier(n_estimators=500, class_weight='balanced')`
+  Add to the meta-stacker bank → re-train XGB metastack v4 → re-blend.
+  Decision gate: meta-stacker errs drop below 8,948 AND Jaccard <
+  0.97 vs primary → blend into 4-stack at fixed bias, gate at +0.0002
+  OOF. ET takes ~30 min, kNN takes ~45 min. Cheap in parallel.
+
+  **N4 (lock + stop)**: if N2 + N3 both null, lock primary + hedge as
+  final and stop spending compute. With current +0.00020 gap to
+  pack 0.98114 and ±0.0005 private-LB variance, the marginal LB-probe
+  EV is below the cost of variance noise.
+
+- **Skip on principled grounds (re-confirmed)**:
+  - LR meta-stacker variants (HP-tuned, different scaler, different
+    weight scheme) — N1 is a definitive ARCHITECTURAL null, not a
+    tuning issue.
+  - All public-CSV blending (banned).
+  - Further fine-tuning of the 4-stack composition (Tier 1c saturation
+    confirmed three independent ways already).
+  - More NN-family attempts beyond TabM (RealMLP n_ens=4 was the 13th
+    NN null; magnitude trap pattern is structural at this feature set).
