@@ -387,6 +387,18 @@ kernel_audit*/
 !scripts/artifacts/oof_b2_groupkfold_region.npy
 !scripts/artifacts/test_b2_groupkfold_region.npy
 
+# 2026-04-25 audit-followup A1: stage-1 pseudo-label tau sweep (0.95, 0.97, 0.99).
+# tau=0.98 was the team's instinct pick; A1 tests the unswept band.
+!scripts/artifacts/oof_recipe_pseudolabel_tau095.npy
+!scripts/artifacts/test_recipe_pseudolabel_tau095.npy
+!scripts/artifacts/recipe_pseudolabel_tau095_results.json
+!scripts/artifacts/oof_recipe_pseudolabel_tau097.npy
+!scripts/artifacts/test_recipe_pseudolabel_tau097.npy
+!scripts/artifacts/recipe_pseudolabel_tau097_results.json
+!scripts/artifacts/oof_recipe_pseudolabel_tau099.npy
+!scripts/artifacts/test_recipe_pseudolabel_tau099.npy
+!scripts/artifacts/recipe_pseudolabel_tau099_results.json
+
 # Missed-High detector (binary XGB, P(y=H ∧ teacher_pred ∈ {L,M})) —
 # AUC 0.9711 (ranking signal real) but deploy precision 6.5% at N=200
 # vs 8.8% break-even → override strictly net-negative. Closes the
