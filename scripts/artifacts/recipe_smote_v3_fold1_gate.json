@@ -1,0 +1,13 @@
+{
+  "argmax_bal": 0.9751342938879813,
+  "recall_low": 0.9953097967128027,
+  "recall_med": 0.977224720276064,
+  "recall_high": 0.9528683646750774,
+  "errors": 1634,
+  "err_ratio": 0.06484126984126984,
+  "pass_argmax": true,
+  "pass_high_floor": false,
+  "pass_high_lift": false,
+  "pass_errs": true,
+  "decision": "PROCEED"
+}
