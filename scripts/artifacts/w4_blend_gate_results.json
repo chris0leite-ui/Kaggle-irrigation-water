@@ -1,0 +1,11 @@
+{
+  "lbbest_ba": 0.9808424406412425,
+  "lbbest_errs": 9415,
+  "w4_tuned_wide": 0.9696230690712168,
+  "w4_errs": 10277,
+  "jaccard_vs_lbbest": 0.6102706680840625,
+  "best_raw_alpha": 0.0,
+  "best_raw_delta": 0.0,
+  "best_iso_alpha": 0.0,
+  "best_iso_delta": 0.0
+}

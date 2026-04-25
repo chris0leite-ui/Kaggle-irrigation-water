@@ -1,0 +1,13 @@
+{
+  "lbbest_ba": 0.9808424406412425,
+  "lbbest_errs": 9415,
+  "recipe_ba": 0.9796650350078755,
+  "recipe_errs": 10114,
+  "w8_ba": 0.9795395674025684,
+  "w8_errs": 9957,
+  "delta_vs_recipe": -0.00012546760530707246,
+  "jaccard_vs_recipe": 0.8670697674418605,
+  "jaccard_vs_lbbest": 0.8296184359652437,
+  "best_blend_alpha": 0.025,
+  "best_blend_delta": 4.675970724954404e-06
+}

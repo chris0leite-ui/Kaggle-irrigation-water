@@ -1,6 +1,49 @@
 # Next steps
 
-## 🚧 Work in flight (as of 2026-04-24 ~15:05 UTC)
+## 🚧 Work in flight (as of 2026-04-25 — wild-step W1-W8 brainstorm)
+
+`claude/improve-predictions-with-dgp-d0ADN` is currently executing **W1
+(distill-the-host MLP sweep)** + **W8 (LLM-FE-at-scale)** in parallel
+on local CPU. See "Wild-step brainstorm (2026-04-25)" section below for
+the full W1-W8 menu and EV ranking.
+
+| Branch | Task | Status |
+|---|---|---|
+| `claude/improve-predictions-with-dgp-d0ADN` | **W1 distill-the-host MLP sweep** | ✅ COMPLETE — **NULL (14th NN-family)**. 3 narrow tanh MLPs in production 5-fold seed=42 on raw nums + cats + DGP score. All magnitude-trap (tuned 0.96207-0.96273, errs 10,951-12,460 vs anchor 9,415, +16-32% magnitude). But Jaccards **0.51-0.56** are **LOWEST orthogonality of any NN ever** (RealMLP 0.62, Trompt 0.53). Kept as cross-branch diagnostic. The "host used a small standard tabular MLP" hypothesis is FALSIFIED — sklearn MLP at this feature set + capacity can't break 0.97 OOF gate. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W8 LLM-FE-at-scale (smoke grader)** | ✅ COMPLETE — 21 FE-idea bundles tested on 250k subsample × 1-fold. **5 PASS** (Δ ≥ +0.0005): I11 decimal_fractions (+0.00090), I12 floor_round (+0.00087), I9 soil_chemistry (+0.00071), I6 humidity_water (+0.00066), I21 prev_irrig_z_in_score (+0.00050). I11/I12 likely redundant with recipe digit extraction (A4 was NULL); I6/I9/I20/I21/I16/I18 novel-on-recipe subset (15 cols) bundled as `EXTRA_FE='w8'`. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W1+W4 OOFs as meta-stacker INPUTS** | ✅ COMPLETE — **LB NULL (4th meta-stacker bank-extension regression)**. Retrained xgb_metastack with 95-component bank (70 baseline + 4 W1/W4 components, J 0.51-0.61 — unprecedented orthogonality). Standalone meta iso lifted +0.00038 (0.98059→0.98097). 4-stack at α=0.45: OOF 0.98119 (+0.00035 vs LB-best 4-stack 0.98084), errs 9067 (−348), per-class L+0.0001/M+0.0014/H−0.0004 (within guardrail). Submitted → **LB 0.97996, Δ −0.00098 vs LB-best**. OOF→LB gap blew up to +0.00123 vs prior LB-best's −0.00010. **Same exact pattern as Tier-1c v4 (LB 0.97992), LR meta (LB 0.97991), cross-poll v3 (LB 0.98060) — all 4 meta-stacker bank-extension experiments LB-regress with gap inflation +0.00123-+0.00176**. Structural rule LB-confirmed: orthogonal-component bank extension produces CV-side inflation that does NOT transfer. LB best unchanged at **0.98094**. |
+
+## Wild-step brainstorm (2026-04-25, post-LB 0.98094 saturation)
+
+After the LB-best 4-stack (`submission_tier1b_greedy_meta.csv` at LB
+0.98094, OOF 0.98084) saturated against ~30 LB probes + diagnostic
+audit (J3 AV closes train-shift, F2 per-fold-iso confirms calibration
+honest, J6 QP closes search-procedure suboptimality), user requested
+widening the search space with larger step size. Eight wild ideas
+identified, ranked by EV-per-hour:
+
+| ID | Idea | Mechanism | Cost | EV |
+|---|---|---|---|---|
+| **W1** | Distill-the-host MLP sweep | 30-50 narrow MLP configs (depth 2-4, width 32-256, ReLU/GELU/Tanh, dropout) on rule + non-rule continuous features only — host disclosed they used a small DL model (`brief.md:74`); one config may exactly match the generator function. | ~2h CPU | 5-15% × +0.001-0.005 |
+| **W8** | LLM-driven FE at scale | 50-200 FE ideas brainstormed via LLM (or in-session), each auto-tested as a binary/numeric column add to recipe XGB on a 1-fold smoke. Top survivors → 5-fold + meta-stacker bank addition. | ~3h CPU | 15% × +0.0005-0.002 |
+| **W2** | Frozen-rule-backbone residual NN | Pre-train tiny MLP→100% on rule features, freeze, train residual NN on top. Forces flip-residual learning, not re-learning rule. | ~1h GPU | 10% × +0.0005-0.002 |
+| **W4** | Score-regression XGB → learned thresholds | Train XGB targeting `dgp_score` as integer regression (RMSE), not 3-class CE. Different gradient surface; pick 2 thresholds via macro-recall optimization. | ~30 min CPU | 8% × +0.0005 |
+| **W6** | Adversarial-perturbation flip-detector | Per test row, find minimal feature perturbation flipping LB-best's argmax. Use perturbation magnitude as confidence weight in TTA-with-margin. Genuinely novel attack vector. | ~1h | 10% × +0.0003 |
+| **W3** | Multi-task XGB (y, score, all rule binaries) | Single XGB with 7 simultaneous heads. Auxiliary heads are perfectly determined → forces shared trunk to learn rule structure. | ~30 min CPU | 5% × +0.0005 |
+| **W7** | Reverse the synthetic generation | k=1 NN to original 10k in feature space; if distance < threshold, hard-override label with original's. Catches near-duplicate test rows host's generator may have sampled from anchors. | ~10 min CPU | 5% × +0.0002 |
+| **W5** | Active LB probing for test class distribution | 3 LB slots crafted to extract test-side per-class counts via balanced-accuracy algebra; perfect post-hoc bias tuning. Burns scarce slots. | 3 LB probes | 50% × +0.0001, 5% × +0.001 |
+
+**Execution order**: W1 + W8 in parallel (both pure CPU, complementary
+mechanisms). If both null: W2 next (only NN architectural lever
+left), then W4. Save W5 LB probes for end-of-comp.
+
+**Skip on principled grounds**: W7 if W1+W8 land any signal
+(redundant + low EV); further meta-stacker variants (4 saturation
+confirmations); public-CSV blending (banned).
+
+---
+
+## 🚧 Prior work in flight (as of 2026-04-24 ~15:05 UTC)
 
 Other agents: check here FIRST before starting a Tier-A/B item — these
 are actively running or recently scaffolded on feature branches.
