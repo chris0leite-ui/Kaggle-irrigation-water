@@ -1,0 +1,29 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "max_folds": 1,
+  "smote_target": 42000,
+  "smote_k": 5,
+  "suffix": "smote_v2_fold1",
+  "folds_completed": 1,
+  "fold_scores_argmax": [
+    0.9747094817891996
+  ],
+  "overall_argmax_bal_acc": 0.4615967564269747,
+  "tuned_log_bias_bal_acc": null,
+  "log_bias": null,
+  "fold1_metrics": {
+    "argmax_bal": 0.9747094817891996,
+    "recall_low": 0.9952962802768166,
+    "recall_med": 0.9773920317891875,
+    "recall_high": 0.9514401333015948,
+    "errors": 1633,
+    "err_ratio": 0.0648015873015873,
+    "pass_argmax": false,
+    "pass_high_floor": false,
+    "pass_high_lift": false,
+    "pass_errs": true,
+    "decision": "ABORT"
+  },
+  "gate_decision": "ABORT"
+}
