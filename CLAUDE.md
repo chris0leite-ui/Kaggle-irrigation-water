@@ -9501,6 +9501,72 @@ by EV/cost:
 
 - LB budget: **1/10 used today, 9 remaining**.
 
+### 2026-04-25 — N2 v4 LB RESULT: NULL (LB 0.97992, Δ −0.00102, gap +0.00129) — meta-stacker bank saturated
+
+- LB probe (`submission_tier1c_meta_v4_a035.csv` at α=0.35,
+  user-approved): **LB public = 0.97992**.
+  Δ vs LB-best primary (0.98094) = **−0.00102** (clear regression).
+  OOF→LB gap = 0.98121 − 0.97992 = **+0.00129** — much wider than
+  prior XGB metastack's −0.00010 negative gap.
+- Almost identical magnitude regression to the N1 LR meta-stacker
+  (LB 0.97991, Δ −0.00103, gap +0.00176).
+- Per the original recommendation conditional ("if a035 nulls, do NOT
+  probe α=0.40"), v4 α=0.40 will NOT be probed. **v4 lever closed.**
+
+- **Diagnosis — N2 components saturated the meta-stacker bank**:
+  Same XGB heavy-reg model class as the prior LB-best meta-stacker
+  (which had a NEGATIVE OOF→LB gap of −0.00010). Only the bank changed
+  (75 → 77 components). Adding 2 weak components with high standalone
+  error counts (ET 10,371 errs, kNN 11,235 errs) gave the depth-4 XGB
+  stacker more places to look for spurious signal. Even with depth=4 +
+  reg_alpha=5 + reg_lambda=5, the additional features broke the
+  prior's calibration property.
+- **Errors-decrease-monotonically heuristic IS NOT sufficient for LB
+  transfer.** The v4 sweep showed errs going from 9415 → 9049 (clean
+  pattern, opposite of magnitude trap) AND PCR within guardrail at
+  α≤0.35. Both signals predicted LB transfer. Both were wrong because
+  the underlying meta-stacker had OOF-fitted to noise on the new
+  components.
+
+- **Linear gap-projection rules out α=0.30 too** (same logic as
+  N1 LR closure on 2026-04-25):
+  ```
+  α      OOF Δ      proj gap infl   proj LB Δ vs primary
+  0.20  +0.00023   +0.00073        -0.00050
+  0.30  +0.00034   +0.00109        -0.00075
+  0.35  +0.00036   +0.00129        -0.00093 (observed -0.00102)
+  0.40  +0.00035   +0.00148        -0.00113 (would have been worse)
+  ```
+  No α threads the needle. v4 conservative not worth probing.
+
+- **Portable rule** (LEARNINGS.md candidate): **"Wguesdon's 'weak
+  individually, help stacker' pattern (lr_ote/knn_ote/et_ote) is
+  bank-size dependent. On a bank already at saturation (75+
+  components, prior XGB metastack already with negative OOF→LB gap),
+  adding weak components causes the meta-stacker to overfit on the
+  new features. The pattern only helps when the bank is far from
+  saturation. For a saturated bank, ANY meta-stacker change (model
+  class, additional components, reweighting) tends to regress LB
+  even when OOF improves with all-error-decreasing + per-class
+  guardrail signals."**
+
+- **Combined N1 + N2 closure**: both meta-stacker family experiments
+  null. Saturation at LB 0.98094 confirmed for FOUR independent
+  attacks now:
+  1. Tier 1c greedy + meta-on-meta + seed-bag (2026-04-25)
+  2. Cross-poll metastack v3 (2026-04-25)
+  3. SMOTE-NC training-data lever (2026-04-25)
+  4. **N2 + meta-stacker v4 bank-extension (this entry)**
+
+- **LB budget**: **2/10 used today**, 8 remaining. LB best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Only remaining bet**: N3 (yunsuxiaozi 5-shuffle OTE concat) —
+  feature-level lever, structurally orthogonal to all four nullified
+  meta-stacker family attacks. Production blocked on container
+  rehydrate; needs Kaggle CPU kernel (~30 min scaffolding +
+  ~3h queue+run).
+
 ### 2026-04-25 — cross-poll v3 + SMOTE-NC kernel: 3 NULLs, own-pipeline closed
 
 - Goal: extend the 63-component Tier-1b meta-stacker with new candidates
