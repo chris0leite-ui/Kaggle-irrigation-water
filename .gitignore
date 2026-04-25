@@ -470,6 +470,13 @@ kernel_audit*/
 !scripts/artifacts/oof_xgb_metastack.npy
 !scripts/artifacts/test_xgb_metastack.npy
 
+# meta-stacker v2 (224-dim: v1 inputs + 4-stack logprobs + 3 binary
+# specialists). Standalone null vs new LB-best 4-stack (+0.00002 peak
+# v2_iso α=0.20). Saturation: meta-on-meta when input bank already
+# contains the prior meta. Kept for cross-branch greedy diagnostic.
+!scripts/artifacts/oof_xgb_metastack_v2.npy
+!scripts/artifacts/test_xgb_metastack_v2.npy
+
 # xgb_nonrule 3-seed bag {42,7,123}. Null as drop-in replacement in
 # LB-best stack (-0.00005) — bag prob-scale differs from single-seed
 # isotonic calibration anchor. Kept for future stacking experiments.
