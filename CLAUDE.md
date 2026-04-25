@@ -8729,3 +8729,177 @@ Next-session priorities:
   2. After SMOTE returns: blend-gate → LB probe if Δ ≥ +2e-4.
   3. If SMOTE nulls or stays inside fold-noise: lock primary +
      hedge as final and stop spending compute.
+
+### 2026-04-25 — Tier 1b cross-pollinate + ensemble: third saturation confirmation at LB 0.98094
+
+- Goal: after Tier 1c saturation (greedy + meta-v2 + meta-bag all null on
+  the LB-best 4-stack), test two adjacent levers from the post-1c
+  brainstorm: (#4) **cross-pollinate** the Tier-1b meta-stacker with
+  components that didn't exist at v1's run-time (recipe_focal_g2_aH1,
+  recipe_focal_g2_invfreq, soft_distill_small, soft_distill_tiny,
+  realmlp_ens4); (#2) **ensemble of meta-stackers** with varying
+  hyperparameters (depth, XGB seed, colsample, max-rounds) to gather
+  meta-level diversity. Both run on top of the LB-best 0.98094 4-stack.
+- Changed: `scripts/tier1b_helpers.py` (shared loaders + iso_cal +
+  build_lbbest_stack — extracted from tier1b_xgb_metastack.py),
+  `scripts/tier1b_metastack_v3.py` (cross-pollinate, depth=4 seed=42
+  same HPs as v1, expanded EXCLUDE for derived/circular components),
+  `scripts/tier1b_metastack_variant.py` (env-var parameterised runner;
+  VARIANT, DEPTH, XGB_SEED, COLSAMPLE, MAX_ROUNDS),
+  `scripts/tier1b_final_blend.py` (Strategy 1 single-replace, Strategy
+  2 equal-weight ensemble, Strategy 3 greedy forward; per-class recall
+  guardrail at -0.0005, fixed-bias decision rule, +2e-4 LB-transfer
+  emit gate).
+- Smoke: helpers reproduce LB-best 3-stack OOF=0.98061 exactly. Pool
+  size = 66 (62 prior + 5 new − 1 dropped via stricter EXCLUDE). All
+  5 new candidates loaded.
+- v3 results (5 folds × 215-feature XGB, 6 min wall):
+  ```
+  fold     it    val_argmax_bal_acc
+  1       471        0.97475
+  2       585        0.97363
+  3       735        0.97508
+  4       738        0.97297
+  5       655        0.97407
+  OOF argmax = 0.97410   tuned = 0.98073
+  errs vs LB-best 3-stack = 8915 (LB-best = 9572)
+  Jaccard vs LB-best 3-stack = 0.8308   (v1 was 0.8743 — MORE orthogonal)
+  iso(v3) standalone = 0.98121
+  ```
+  Standalone +0.00032 vs v1 (0.98041) and +33 fewer errors. The 5
+  added components changed the disagreement pattern materially.
+- Variant B (depth=3, seed=7, colsample=0.7, 5000-cap, 8 min wall) and
+  variant C (depth=5, seed=123, colsample=0.5, 2500-cap, 8 min wall):
+  ```
+                  argmax    tuned     iso(standalone)
+  v1 (existing)   0.96995   0.98041   0.98059
+  v3              0.97410   0.98073   0.98121
+  B               0.97418   0.98053   0.98137  ← highest iso of any meta
+  C               0.97411   0.98034   0.98037
+  ```
+  Both B and C trained on a pool of 67 (their pool included v3 since
+  it was on disk by then) — leak-free since fold structure is preserved
+  across the chain.
+- Final blend gate (3 strategies × per-class guardrail, 28s wall):
+  ```
+  STRATEGY 1: single-meta replace v1 in LB-best 4-stack (anchor 0.98084)
+    replace_v3_a030    Δ=+0.00004  J=0.961  recH=0.9771   PASS class-gate, FAIL Δ
+    replace_B_a030     Δ=+0.00003  J=0.955  recH=0.9771
+    replace_C_a030     Δ=-0.00001  J=0.956  recH=0.9768
+
+  STRATEGY 2: equal-weight log-ensemble of metas → α-sweep into LB-3-stack
+    ens_v1_v3_a400              Δ=+0.00004
+    ens_v1_v3_B_a350            Δ=+0.00006
+    ens_v1_v3_B_C_a350          Δ=+0.00009  ← Strategy 2 best, still below gate
+
+  STRATEGY 3: greedy forward over iso metas
+    step1: + v3 α=0.400  OOF=0.98093
+    step2: + C  α=0.200  OOF=0.98101
+    step3: + v1 α=0.300  OOF=0.98102   (4th candidate B can't improve)
+    final greedy_v3_C_v1: Δ=+0.00018  J=0.9385  recH=0.9764
+
+  Strategy 3 closest to gate: Δ +0.00018 (just shy of +2e-4 threshold)
+  but recH drops 0.0011 vs anchor's 0.9775 — violates per-class guardrail.
+  ```
+- **No submission emitted.** Three independent attacks (greedy
+  expanded pool, meta-stacker pool extension, meta-stacker ensemble)
+  all land within ±0.0002 of OOF 0.98084. Saturation at the LB-best
+  4-stack is now triple-confirmed.
+- Read-out: cross-pollinating with new components DOES add real
+  signal at the standalone meta level (v3 +0.00032 OOF, B's iso
+  reaches 0.98137 — highest iso of any meta tested). But the LB-best
+  4-stack absorbs almost all of it through the existing v1 channel.
+  The +0.00018 Strategy 3 OOF lift trades High recall for Medium
+  recall, which is the wrong direction under macro-recall and
+  systematically fails to transfer.
+- **Rule reconfirmed**: meta-stacker ensembling at fixed pool size
+  is bounded by what the v1 meta already extracts. Path past the
+  ceiling requires NEW components — not new metas on the same
+  components.
+- Companion work this session: kernel audit round 3 (16 unread
+  kernels at ≥20 votes inspected). 2 actionable Tier-A findings:
+  1. **OvR-XGB** (include4eto, 31 votes, 2026-04-25) — 3 binary:logistic
+     XGB heads on the FULL V10 recipe feature set, concat → softmax-
+     renormalize → multiplicative class-weight Optuna (200-trial,
+     bounds [0.5, 3.0]³). Genuinely new mechanism: never sees the
+     multi-class CE gradient; multiplicative rather than additive
+     post-hoc bias. ~80 min CPU. Highest-EV next bet.
+  2. **TabM** (wguesdon, 33 votes; ICLR 2025 BatchEnsemble MLP via
+     pytorch_frame) — only architecturally novel NN family remaining
+     after the 13 NN nulls. Reuses Trompt kernel scaffold; ~1h GPU.
+- LB budget unchanged (0 spent). LB-best stays
+  `submission_tier1b_greedy_meta.csv` at **0.98094** with hedge
+  `submission_recipe_full_te.csv` at LB 0.97939.
+
+### 2026-04-25 — recommended next-step priority list (5 days to deadline)
+
+The own-pipeline ceiling at LB 0.98094 is now confirmed against:
+- 12-component greedy expanded pool (Tier 1c step 1)
+- Meta-stacker v2 with binary specialists (Tier 1c step 2)
+- Meta-stacker XGB seed-bag (Tier 1c step 3)
+- 5-component cross-pollinate (this session, Tier 1b v3)
+- 4-meta isotonic ensemble (this session, Strategy 2)
+- 4-meta greedy forward selection (this session, Strategy 3)
+
+To break LB 0.98094 we need to ADD a fundamentally new component to
+the OOF bank — not another meta on the existing components. Ranked
+by EV/cost:
+
+  **N1. OvR-XGB on V10 recipe** (Tier-A audit finding, ~80 min CPU).
+  Three independent binary:logistic XGB heads against the full V10
+  recipe feature set. SMOKE first (1 fold × 50k rows × 2 binary
+  heads → ~5 min). Production: 5-fold × 3 heads × ~25 min/fold ≈
+  6h serial OR ~2h with 3 heads in parallel on the 16-core box
+  (each head only uses ~5 cores at hist tree_method).
+  - Save oof/test_xgb_ovr_recipe.npy after softmax-renormalize.
+  - Add to tier1b_metastack_v3 candidate pool (a NEW component
+    that didn't exist when v3 ran).
+  - Re-run tier1b_final_blend.py — if v3+OvR meta-stacker clears
+    +2e-4 + per-class gate, LB probe.
+  - Expected: +0.00010 to +0.00030 OOF if the binary CE gradient
+    produces materially different boundary geometry than softmax
+    CE; the magnitude-trap rule applies (Jaccard < 0.80 AND errs ≤
+    anchor required).
+
+  **N2. TabM via pytorch_frame** (GPU, ~1h smoke + ~1h production).
+  Only architecturally novel NN family remaining after 13 NN nulls.
+  Reuses Trompt kernel scaffold (`kaggle_kernel/kernel_trompt/`)
+  with a single-line model swap. SMOKE-first under the 1h GPU cap.
+  - Gate at fold-1 errs vs LB-best 4-stack ≤ +5% (stricter than
+    prior NN gates because we know the magnitude-trap pattern).
+  - If passes: full 5-fold, add to meta-stacker bank.
+  - Expected null based on 13 prior NN failures, but worth one
+    GPU slot since it's the last unexplored architecture.
+
+  **N3. SMOTE-NC** (deferred from prior session, blocked by container
+  rehydrate). Push to Kaggle CPU kernel (~3h wall, well under 9h
+  cap). Smoke evidence already showed +0.00174 OOF lift on a 20k
+  subsample. Real test: does that signal survive at full scale + the
+  meta-stacker bank gate?
+  - Run via `kaggle_kernel/kernel_smote/` (needs 30 min scaffold
+    using existing `scripts/recipe_smote_high.py` as base).
+  - Output: oof/test_recipe_smote_high.npy.
+  - Add to meta-stacker bank, re-run final blend gate.
+
+  **N4. Decision: lock current finals if N1+N2+N3 all null.**
+  Primary `submission_tier1b_greedy_meta.csv` (LB 0.98094) +
+  hedge `submission_recipe_full_te.csv` (LB 0.97939) is locked.
+  Stop spending compute. With 5 days to deadline and the current
+  +0.00020 gap to pack, private-LB variance (±0.0005) makes
+  another LB-probe cycle low EV.
+
+  **Skip on principled grounds:**
+  - Further meta-stacker variants (depth/seed/HP sweeps) — three
+    saturation confirmations document this is exhausted.
+  - Public-CSV blending (banned by top-of-file rule).
+  - HP tuning on existing components (LB regressed twice, see
+    2026-04-22 entry).
+  - More NN-family attempts beyond TabM — RealMLP n_ens=4 was the
+    13th null; the magnitude-trap pattern is structural at this
+    feature set.
+
+  **Execution order**: N1 first (highest EV, all-CPU, 1 evening of
+  wall time). If N1 yields a passing OOF, push to LB and skip N2/N3
+  unless deadline pressure allows. Otherwise N3 (SMOTE on Kaggle
+  kernel as low-attention background work) and N2 (TabM) in parallel
+  on day 2-3.
