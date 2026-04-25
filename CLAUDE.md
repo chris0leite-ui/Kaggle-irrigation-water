@@ -9398,3 +9398,322 @@ by EV/cost:
     confirmed three independent ways already).
   - More NN-family attempts beyond TabM (RealMLP n_ens=4 was the 13th
     NN null; magnitude trap pattern is structural at this feature set).
+
+### 2026-04-25 — N2 ET + kNN + meta-stacker v4: NEW OOF BEST 0.98121, AWAITING LB PROBE
+
+- Goal: execute N2 + N3 in parallel per the kernel-audit-round-4 plan.
+
+- **N2 ExtraTrees** (`scripts/n2_extratrees.py`, ~3.6 min CPU):
+  500 trees on 35-dist features, 5-fold seed=42, class_weight='balanced'.
+  OOF tuned **0.96667**, errs 10,371, **Jaccard 0.589** vs LB-best 4-stack
+  — strongest tree-family orthogonality in the bank.
+
+- **N2 kNN** (`scripts/n2_knn.py`, ~2.4 min CPU):
+  k=50 on 80k stratified subsample fit, 5-fold seed=42. OOF tuned
+  **0.96308**, errs 11,235, **Jaccard 0.548** vs LB-best — STRONGEST
+  orthogonality in the entire bank (lower than even RealMLP 0.62).
+
+- **Direct blend gate** (`scripts/n2_blend_direct.py`): both ET and kNN
+  strictly hurt LB-best 4-stack at every α > 0. Per-class trade is High
+  recall DOWN for Low+Med up — wrong direction under macro-recall.
+  Direct blend lever DEAD; only meta-stacker absorption remains.
+
+- **N3 5-shuffle OTE concat** (production launched in background):
+  killed by container rehydrate ~10 min into fold-1 XGB on 2.52M-row
+  augmented set. Per-fold checkpointing in place but production fold
+  takes ~25-30 min and rehydrate hit before fold 1 finished. Smoke
+  confirmed +0.00177 OOF lift on 20k subset over recipe smoke baseline.
+  Production retry needs Kaggle CPU kernel (9h cap, no rehydrate).
+
+- **Meta-stacker v4** (`scripts/tier1c_metastack_v4.py`) — XGB stacker
+  on bank + ET + kNN, **NEW OOF BEST**:
+  - Same XGB (depth=4, reg_alpha=5, reg_lambda=5, lr=0.05) heavy-reg
+    model class as the prior LB-best meta-stacker; only the bank
+    changed (75 + n2_extratrees + n2_knn = 77 components).
+  - Standalone iso OOF tuned **0.98102** (vs prior XGB metastack iso
+    0.98059, **+0.00043 standalone lift**).
+  - 4-stack drop-in replacement OOF **0.98108** (Δ +0.00024 vs LB-best
+    4-stack 0.98084).
+  - Blend on top of LB-best 4-stack at fixed bias (best so far):
+    ```
+    α       OOF       Δ vs LB4   errs   recL    recM    recH    guardrail
+    0.20  0.98107  +0.00023      9153  0.9956  0.9706  0.9771  PASS
+    0.25  0.98112  +0.00028      9112  0.9956  0.9707  0.9771  PASS
+    0.30  0.98119  +0.00034      9078  0.9956  0.9709  0.9771  PASS
+    **0.35  0.98121  +0.00036      9049  0.9956  0.9709  0.9771  PASS**  ← peak
+    0.40  0.98119  +0.00035      9017  0.9956  0.9711  0.9769  borderline
+    ```
+    LB-best baseline: errs=9415, PCR=[L 0.9955, M 0.9695, H 0.9775].
+  - **Errors DECREASE monotonically** across the sweep (9415 → 9049 at
+    α=0.35) — opposite of the magnitude-trap pattern that killed prior
+    NN attempts. Trade is favorable: tiny High recall drop (-0.0004)
+    for Medium gain (+0.0014) + Low slight up.
+
+- **Three submission candidates emitted, AWAITING USER APPROVAL** for
+  LB probe:
+  ```
+  submission_tier1c_meta_v4_a030.csv  conservative   154 test rows differ from primary
+  submission_tier1c_meta_v4_a035.csv  RECOMMENDED    177 test rows differ
+  submission_tier1c_meta_v4_a040.csv  aggressive     207 test rows differ (borderline guardrail)
+  ```
+
+- **Why this is real signal, NOT OOF overfit like N1 LR was**:
+  1. **Same heavy-reg XGB model class** as the prior LB-best meta-stacker,
+     which had a NEGATIVE OOF→LB gap (-0.00010, LB > OOF). The model
+     class is unchanged; only the bank grew (75 → 77 components). The
+     prior calibration property should carry over.
+  2. **Errors DECREASE in the safe α range** — opposite of the LR null
+     pattern (where errors went UP) and opposite of every prior NN
+     magnitude-trap failure.
+  3. **Per-class trade preserves rare class** — High recall down only
+     -0.0004 (within guardrail), Medium UP +0.0014 (most of the lift),
+     Low slight up. Net positive under macro-recall without the
+     rare-class sacrifice that doomed LR.
+  4. **Standalone v4 lift is honest scale** — +0.00043 OOF over prior
+     XGB metastack iso (vs LR's +0.00124 was a much bigger jump that
+     turned out to be overfit).
+  5. **Same blend mechanism** that produced LB 0.98094 (prior metastack
+     iso × LB-best 3-stack at α=0.30). v4 just plugs a slightly stronger
+     metastack into the same architecture.
+
+- **Recommended LB probe order if approved**:
+  1. **α=0.35** (`submission_tier1c_meta_v4_a035.csv`) — peak OOF,
+     all PCR comfortably within guardrail. If gap stays at -0.00010,
+     expected LB ~0.98131 (above pack 0.98114).
+  2. If a035 lifts ≥+0.0002, follow with α=0.40 to test whether the
+     borderline-guardrail variant gives +0.00035 more or regresses on
+     the High recall trade.
+  3. If a035 nulls, do NOT probe α=0.40.
+
+- **N3 retry strategy** (separate from v4 LB-probe decision): smoke
+  showed real signal (+0.00177 over recipe smoke baseline). Production
+  needs an environment that survives ~2.5h compute. Two options:
+  1. **Kaggle CPU kernel** (best — 9h cap, no rehydrate). ~30 min
+     scaffolding to inline `recipe_ote_5shuffle.py` +
+     `recipe_full_te_5shuffle.py` + `recipe_features.py` +
+     `recipe_ote.py` into a single kernel script, push, pull resulting
+     OOF + test back. Blocks N3 result by ~3h (queue + run).
+  2. **Reduced-K local** (faster, less faithful) — K=3 instead of K=5
+     halves wall time. Architecturally weaker but might fit in a
+     90-min container window between rehydrates.
+  Recommended: option 1 (Kaggle kernel) — closer to published technique,
+  more likely to transfer.
+
+- LB budget: **1/10 used today, 9 remaining**.
+
+### 2026-04-25 — cross-poll v3 + SMOTE-NC kernel: 3 NULLs, own-pipeline closed
+
+- Goal: extend the 63-component Tier-1b meta-stacker with new candidates
+  + run SMOTE-NC at production scale via Kaggle GPU. Two attacks against
+  LB 0.98094: bank-extension (cross-poll) and training-data-level lever
+  (SMOTE).
+- Changed:
+  - `scripts/tier1b_xgb_metastack_v3.py` — cross-pollinate meta-stacker
+    with `recipe_focal_g2_invfreq` + `xgb_nonrule_bag3`, stricter EXCLUDE
+    drops known LB-regressors. 64 components, ~5 min wall.
+  - `scripts/emit_metastack_v3_submission.py` — emits the v3 iso-blend
+    α=0.30 candidate (peak vs LB-best 4-stack OOF +0.00015, below
+    internal +2e-4 gate but submitted per user direction).
+  - `kaggle_kernel/kernel_smote_recipe/recipe_smote.py` (788 L) — single-
+    file kernel, per-fold SMOTE-NC on RAW 19 cols (8 cats + 11 nums)
+    only, then re-derive combos / digits / num_as_cat / freq /
+    orig_stats on augmented rows via cached vocab maps. Memory peak
+    ~91 MB vs 45 GiB OOM that killed local recipe_smote_high.py.
+    Promise-gate after fold 1 (argmax≥0.97500, recall_high≥0.965,
+    errs≤1.05× recipe; PROCEED if 2-of-3 pass OR recall_high lifts
+    +0.5pp). Hard kill at t+55min (CLAUDE.md GPU rule).
+  - `scripts/recipe_smote_v2.py` + `scripts/smote_local/{load_engineer,
+    fe_with_maps,redrive,gate,cv_loop}.py` (modular ≤150L per file) —
+    local CPU twin reusing `scripts/recipe_features.py` + `recipe_ote.py`
+    so any kernel results can be reproduced offline.
+  - `MAX_FOLDS` env override + per-fold OOF/test/JSON checkpointing to
+    survive container rehydrates.
+
+- **Cross-poll metastack v3 — LB REGRESSION**:
+  ```
+  standalone @ recipe bias       0.97365 argmax / 0.97954 tuned
+  iso-cal'd @ recipe bias        0.97956
+  blend vs LB-best 4-stack       peak α=0.30 → OOF 0.98099 (+0.00015)
+  Jaccard vs LB-best             0.94
+  errs vs LB-best                similar
+  LB submission α=0.30           **0.98060  (Δ = -0.00034 vs LB-best 0.98094)**
+  OOF→LB gap                     +0.00039 (vs Tier-1b's −0.00010)
+  ```
+  Adding 2 components inflated OOF +0.00015 but cost LB -0.00034.
+  **Bank-extension lever DEAD.** The 63-component meta-stacker has
+  absorbed all available signal; further additions amplify
+  fold-noise overfit without adding orthogonal signal.
+
+- **SMOTE-NC v2 (TARGET=42k, K=5, sample_weight='balanced')** — fold-1 NULL:
+  Two production-scale bugs surfaced + fixed before fold-1 ran clean:
+  1. SMOTE-NC dtype detection: `df[c].dtype == "object"` returned False
+     at production scale — pandas reported cats as 'category' dtype.
+     Fix: pass explicit `cats` list, force `astype(str)` defensively.
+  2. Kaggle kernel `_find_one("Irrigation_Prediction*.csv")` didn't
+     match dataset's lowercase `irrigation_prediction.csv`. Fix: try
+     multiple casings.
+
+  After fixes (Kaggle kernel v2 + local v2):
+  ```
+                        Kaggle    Local     recipe baseline
+  argmax_bal            0.97436   0.97471   ~0.97544
+  recall_high           0.9502    0.9514    ~0.977 (-2.7pp)
+  recall_med            0.9775    0.978     ~0.969 (+0.008)
+  errors                1630      ~1700     ~2900
+  decision              ABORT     ABORT     gate caught it
+  ```
+  Cross-platform agreement to noise (Δ ≤ 0.001). **High recall hurt by
+  2.7pp** — opposite of the hypothesis. Mechanism: synthetic Highs
+  interpolated from 5 NN bled into Medium-territory, blurring the
+  M↔H decision boundary. balanced sample weight + SMOTE oversample
+  partially cancel (more H rows × proportionally lower weights = same
+  total H gradient), so the only net effect is decision-boundary
+  diffusion.
+
+- **SMOTE-NC v3 (TARGET=25k, K=10) — softer config, full 5-fold NULL**:
+  Hypothesis: smaller TARGET (1.5× vs 2× original High count) +
+  smoother K=10 NN should reduce the diffusion mechanism that hurt v2.
+  Kaggle GPU completed all 5 folds (gate PROCEEDed: 2-of-3 metrics
+  passed even though recall_high still 0.9529 < 0.965 floor).
+
+  ```
+                              v2 (42k, K=5)   v3 (25k, K=10)   recipe
+  fold-1 argmax               0.97436         0.97513          ~0.97544
+  fold-1 recall_high          0.9502          0.9529           ~0.977
+  full 5-fold tuned OOF       — (aborted)     0.97963          0.97967
+  log-bias                    —               [-1.91, -1.78, 0.41]   [1.43, 1.47, 3.40]
+  errs vs LB-best 4-stack     —               +366             +542 anchor
+  Jaccard vs LB-best          —               0.8225           1.00 anchor
+  blend Δ peak (fixed bias)   —               +0.00002 @ α=0.075
+  ```
+
+  **Both blend-gate criteria fail**: Jaccard 0.82 above 0.80 redundancy
+  threshold + errs (+366 over anchor) violates magnitude rule. Tuned
+  bias `[-1.91, -1.78, 0.41]` is structurally incompatible with the
+  recipe-bias-anchored stack: SMOTE shifted prob scale far enough
+  that calibration alignment with the existing 63-component bank is
+  impossible without retuning the entire stack's bias.
+
+- **Strategic implication: own-pipeline lever bank fully exhausted.**
+  Three orthogonal attacks against LB 0.98094 today:
+  1. Tier 1c (yesterday): greedy / meta-on-meta / seed-bag — saturated.
+  2. Cross-poll metastack v3 (today): bank extension — LB regressed.
+  3. SMOTE-NC v2 + v3 (today): training-data lever — both NULL.
+
+  Combined with the prior structural confirmations (B2 GroupKFold
+  honest, Pareto-frontier closure on per-class High recall, 13 NN
+  family nulls, focal/distill/specialist nulls), there is no remaining
+  own-pipeline mechanism that can break LB 0.98094 within the
+  +0.0002 LB-transfer threshold. CLAUDE.md rule forbids public-CSV
+  blending.
+
+- **LB budget**: 4/10 used today (3 from yesterday + 1 cross-poll
+  probe), 6 remaining. **LB best unchanged** at 0.98094 via
+  `submission_tier1b_greedy_meta.csv`.
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/artifacts/oof_xgb_metastack_v3{,_iso}.npy` + test + JSON
+  - `scripts/artifacts/oof_smote_v2_fold1.npy` + test (partial, fold-1
+    only — Kaggle/local cross-platform validation)
+  - `scripts/artifacts/oof_recipe_smote_v3.npy` + test + JSON +
+    fold1_gate.json (full 5-fold, Kaggle GPU production)
+  - `kaggle_kernel/kernel_smote_recipe/{recipe_smote.py,kernel-metadata.json}`
+  - `scripts/recipe_smote_v2.py` + `scripts/smote_local/*.py` (local
+    twin, modular ≤150L per file)
+  - `submissions/submission_metastack_v3_iso_a300.csv` (LB 0.98060)
+
+- **Final-selection lock recommendation** (5 days to deadline):
+  - **Primary**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    (gap −0.00010, anomalous LB > OOF). Composition: lb3 + RealMLP α=0.20
+    + xgb_nonrule_iso α=0.075 + xgb_metastack_iso α=0.30.
+  - **Hedge**: `submission_recipe_full_te_catboost.csv` → **LB 0.97935**
+    (gap +0.00001, tightest calibration in ladder). Different model
+    family (CatBoost ordered-boosting vs primary's XGB+RealMLP+meta-XGB).
+    Premium = -0.00159 LB; protects against meta-stacker private-LB
+    overfit. Reserve 6 LB submissions for end-of-comp variance check.
+
+- **Lessons logged for future synthetic-tabular comps**:
+  1. **SMOTE-NC at production scale requires raw-only inputs.** Feeding
+     a 443-col FE matrix (with high-card combos) OOMs at 45 GiB on
+     16 GB containers. Refactor: SMOTE on raw cats+nums (~90 MB peak),
+     then re-derive FE on augmented rows via cached vocab maps. Never
+     SMOTE on factorized-int columns (they're not real categoricals).
+  2. **pandas dtype inference for SMOTE-NC fails at production scale.**
+     `df[c].dtype == "object"` returned False on cats at 504k rows
+     (pandas reported 'category'). Pass explicit cat-name list to
+     SMOTE-NC's `categorical_features=` arg, force `astype(str)`
+     defensively.
+  3. **Synthetic minority oversampling + balanced sample weights cancel
+     each other** when minority gradient was already saturating. The
+     only net effect is decision-boundary diffusion (bad). For SMOTE
+     on imbalanced data with tree models, choose ONE rebalancing
+     mechanism, not both.
+  4. **Tuned bias incompatibility breaks blend extension.** A model
+     trained with structurally different class priors (post-SMOTE)
+     will land at log-bias `[-1.9, -1.8, +0.4]` while a recipe-anchored
+     stack uses `[+1.4, +1.5, +3.4]`. They can't be log-blended at
+     fixed anchor bias regardless of standalone OOF — calibration
+     alignment is a hard prerequisite.
+  5. **Promise-gate after fold-1 saved compute** — Kaggle v2's full
+     5-fold would have cost ~50 min; aborted at fold 1 in 7 min after
+     gate triggered. Pattern: persist OOF/test/JSON BEFORE evaluating
+     the gate, decision rule based on standalone metrics + class-recall
+     direction, ABORT exits cleanly.
+
+### Next steps: speculative ceiling-breaker (post-2026-04-25 own-pipeline closure)
+
+After today's 4 LB-probed nulls (LR meta-stacker, cross-poll v3 metastack,
+SMOTE v2, SMOTE v3) and the prior comprehensive saturation evidence,
+**every own-pipeline lever within the standard tabular ML toolkit is
+exhausted on this feature set.** The only remaining categorically-new
+mechanism not yet attempted is from the **2024-2025 tabular-foundation-
+model wave**:
+
+  **S1. Tabular-Mamba leg via mamba-tabular** (~1-1.5h Kaggle GPU).
+  State-space architecture with linear-time sequence modelling instead
+  of attention. Structurally distinct from every prior NN tested
+  (MLP / FT-T / TabPFN / DAE / RealMLP / Trompt all use either
+  attention or pure feed-forward). Mamba's selective scan mechanism
+  may pick up different feature interactions than column-attention
+  models. Same kernel scaffold pattern as kernel_trompt (boot + pip
+  install mamba_ssm + 5-fold StratifiedKFold seed=42 + fold-1 promise
+  gate at Jaccard < 0.75 vs LB-best 4-stack AND errs ≤ 9572).
+
+  **S2. T-Few in-context tabular learning** (~1h Kaggle GPU). Few-shot
+  classification via LLM-style in-context inference. Off-paradigm
+  for tabular but recently shown competitive on small-prior-class
+  problems (rare-class High recall is exactly our weakness). Risk:
+  setup overhead may eat the 1h budget.
+
+  **Why both are speculative**:
+  - 13 prior NN-family attempts all showed magnitude-trap failure
+    (Jaccard ~0.55-0.85 with errs > LB-best). The structural pattern
+    is consistent: any NN trained on this 443-feature recipe matrix
+    produces orthogonal errors but in greater absolute count than
+    the tree-stacker bank, defeating fixed-bias log-blends.
+  - Mamba/T-Few may behave differently because their architectures
+    don't process tabular features through the same MLP/attention
+    bottleneck. But this is a Bayesian prior of <20% they break the
+    pattern.
+
+  **Realistic outcome**: probably the 14th NN null. **Skip unless you
+  want closure** or are comfortable spending one of the remaining 6
+  LB submissions on a low-probability shot.
+
+  **Decision rule if attempted**:
+  - Fold-1 Jaccard < 0.75 AND errs ≤ 9572 vs LB-best 4-stack: PROCEED
+    full 5-fold + meta-stacker bank addition + retrain XGB meta + LB
+    probe only if blend Δ ≥ +0.0003 OOF (stricter than +0.0002 because
+    LR meta-stacker showed OOF inflation up to +0.00176 transfers
+    negatively in this regime).
+  - Otherwise: ABORT, mark as 14th NN null, lock the 2 finals already
+    staged.
+
+  **Alternative if unwilling to gamble compute**: **lock the 2 finals
+  now** (`submission_tier1b_greedy_meta.csv` LB 0.98094 +
+  `submission_recipe_full_te_catboost.csv` LB 0.97935) and reserve the
+  6 LB submissions for end-of-comp variance check. With 5 days to
+  deadline and structural ceiling confirmed via ~30+ LB-probed
+  experiments, low-probability-of-lift compute spend has diminishing
+  EV.
+

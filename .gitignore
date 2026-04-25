@@ -573,3 +573,43 @@ kaggle_kernel/*/dist/
 # teacher 9,873 (3.7x magnitude trap). Null — production skipped.
 !scripts/artifacts/oof_recipe_focal_g2_aH1.npy
 !scripts/artifacts/test_recipe_focal_g2_aH1.npy
+
+# 2026-04-25 SMOTE-NC kernel + per-fold raw-19-col redrive architecture.
+# v2 (TARGET=42k, K=5): NULL — recall_high -2.7pp vs recipe baseline.
+# v3 (TARGET=25k, K=10): NULL — softer config; standalone tuned 0.97963
+# basically tied with recipe but blend Δ=+0.00002 vs LB-best 4-stack
+# (Jaccard 0.82 above 0.80 redundancy + errs 9938 > 9572 anchor =
+# magnitude trap on both axes). Tuned bias [-1.91, -1.78, 0.41] wildly
+# different from recipe's [1.43, 1.47, 3.40] — SMOTE shifted prob scale
+# far enough to break calibration alignment with bank. Kept for cross-
+# branch diagnostic reuse (low-Jaccard candidate for any future blend
+# scheme that doesn't depend on fixed recipe bias).
+!scripts/artifacts/oof_recipe_smote_v3.npy
+!scripts/artifacts/test_recipe_smote_v3.npy
+# Local v2 fold-1-only validation OOF (PID 6459, ~40min CPU). Kaggle
+# cross-platform agreement: argmax 0.97471 vs Kaggle 0.97436; recall_high
+# 0.9514 vs Kaggle 0.9502. Both ABORT.
+!scripts/artifacts/oof_smote_v2_fold1.npy
+!scripts/artifacts/test_smote_v2_fold1.npy
+
+# 2026-04-25 N2 diversity-leg components for the meta-stacker bank
+# (per kernel audit round 4 — wguesdon's "weak individually, help
+# stacker" pattern). Direct blend gate vs LB-best 4-stack: NULL on
+# both (every α > 0 hurts macro-recall via High recall trade-down).
+# Retained as meta-stacker bank inputs — added to tier1c_metastack_v4.
+# ET on 35-dist features: OOF tuned 0.96667, Jaccard 0.589 vs LB4.
+# kNN(k=50, 80k subsample) on 35-dist: OOF tuned 0.96308, Jaccard 0.548.
+!scripts/artifacts/oof_n2_extratrees.npy
+!scripts/artifacts/test_n2_extratrees.npy
+!scripts/artifacts/oof_n2_knn.npy
+!scripts/artifacts/test_n2_knn.npy
+
+# 2026-04-25 Meta-stacker v4 — XGB stacker on the 77-component bank
+# (existing 75 + n2_extratrees + n2_knn). Standalone iso OOF tuned
+# 0.98102 (vs prior 0.98059, +0.00043). 4-stack drop-in replacement
+# OOF 0.98108 (+0.00024 vs LB-best 4-stack 0.98084). Blend on top of
+# LB-best 4-stack at fixed bias: α=0.35 → OOF 0.98121, Δ +0.00036,
+# errs 9049 < anchor 9415, all PCR within -0.0005 guardrail. Awaiting
+# LB probe.
+!scripts/artifacts/oof_xgb_metastack_v4.npy
+!scripts/artifacts/test_xgb_metastack_v4.npy
