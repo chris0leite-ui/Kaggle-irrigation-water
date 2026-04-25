@@ -8657,3 +8657,44 @@ Key findings:
 
 Action: hedge swap recommendation written up; primary unchanged.
 0 LB probes spent on this audit.
+
+### 2026-04-25 — audit follow-up: F2 verified GREEN + GroupKFold-Crop honest
+
+Two diagnostic experiments executed after the audit to verify the F1/F2
+findings. Both close cleanly. Full results in
+`audit/2026-04-25-senior-engineer-audit.md` (audit follow-up section).
+
+**F2 verification — `tier1b_greedy_perfoldiso.py`**: per-fold isotonic
+greedy mirrors the LB-best primary pipeline but fits iso honestly per
+fold (`oof[!=fold_k]`-fit, applied to `oof[fold_k]`). Result:
+
+```
+anchor OOF (per-fold iso)         = 0.98060   (vs full-OOF iso 0.98061)
+step1 + xgb_metastack_bag3__iso α=0.350 OOF = 0.98080  Δ=+0.00019
+final OOF                         = 0.98080
+Δ vs current primary OOF 0.98084  = -0.00004
+```
+
+Verdict GREEN: iso-on-full-OOF was contributing ~1 bp inflation. The
+current primary's +0.00086 LB lift over LB-best 3-stack is mostly
+genuine signal, not iso-leak inflation. Lock primary as-is.
+
+**GroupKFold-by-Crop diagnostic** (`b2_groupkfold.py GROUP=crop`): the
+2026-04-22 B2 check tested only Region. Crop is the second leakage axis.
+
+```
+per-fold argmax: 0.97476 / 0.97668 / 0.97565 / 0.97453 / 0.97373
+OOF argmax = 0.97485   tuned = 0.97910   bias=[0.732, 0.969, 3.101]
+Δ vs StratifiedKFold baseline (0.97967) = -0.00056
+```
+
+Verdict HONEST: Δ well within the "honest" threshold (≤ 0.002). OOF
+holds across BOTH leakage axes (Region: -0.00029; Crop: -0.00056).
+No OTE/FREQ/ORIG-stat leakage exploitable across either axis.
+
+**Net**: audit's F2 (iso) and OOF-honesty concerns close cleanly.
+F1 (hedge under-protects) stands — recommend swap to
+`submission_3way_recipe025_s1035_s7040.csv` (premium -0.00089,
+sidesteps meta-stacker layer). Primary unchanged.
+
+LB budget: 0 probes spent on either follow-up.

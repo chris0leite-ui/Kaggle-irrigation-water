@@ -195,3 +195,62 @@ no anomaly seen by inspection)
 
 All three CSVs are well-formed Kaggle submissions ready to be marked
 as final selections.
+
+## Audit follow-up: F1/F2 verification runs (2026-04-25)
+
+Two diagnostic experiments executed after the audit to verify F1
+(hedge selection) and F2 (iso-on-full-OOF) concerns.
+
+### F2 verification — per-fold isotonic greedy (`scripts/tier1b_greedy_perfoldiso.py`)
+
+Replicates `tier1b_greedy_with_meta.py` but swaps `iso_cal` for an
+honest per-fold version (iso fit on `oof[!=fold_k]`, applied to
+`oof[fold_k]`; test transform uses iso fit on full OOF — leak-free
+since test rows are never in OOF training).
+
+```
+anchor OOF (per-fold iso)         = 0.98060   (vs full-OOF iso 0.98061)
+step1 + xgb_metastack_bag3__iso α=0.350 OOF = 0.98080  Δ=+0.00019
+step2 candidate Δ=+0.00003 below 5e-5 gate, rejected
+final OOF                         = 0.98080
+Δ vs current primary OOF 0.98084  = -0.00004  (well within fold noise)
+```
+
+**Verdict GREEN**: iso-on-full-OOF was contributing minimal inflation
+(~1 bp). The current primary's +0.00086 LB lift over LB-best 3-stack
+is mostly genuine signal. **Lock primary as-is.** Per-fold iso noted
+as best-practice fix for future-comp playbook; no action this comp.
+
+### B2 follow-up — GroupKFold by Crop_Type
+
+Earlier B2 audit tested only Region (Δ -0.00029). Crop_Type is the
+second leakage axis worth testing.
+
+```
+fold 1 (Sugarcane):    argmax 0.97476
+fold 2 (Rice):         argmax 0.97668
+fold 3 (Cotton):       argmax 0.97565
+fold 4 (Maize):        argmax 0.97453
+fold 5 (Potato+Wheat): argmax 0.97373
+OOF argmax = 0.97485   tuned = 0.97910   bias=[0.732, 0.969, 3.101]
+Δ vs StratifiedKFold baseline (0.97967) = -0.00056
+```
+
+**Verdict HONEST**: Δ -0.00056 is well within the "honest" threshold
+(≤ 0.002). OOF holds across BOTH leakage axes (Region: -0.00029;
+Crop: -0.00056). No OTE/FREQ/ORIG-stat leakage exploitable across
+either axis. The structural-saturation conclusion (LB ~0.98005-0.98094
+is the real own-pipeline frontier, not a CV artifact) is reinforced.
+
+### Net audit result
+
+- **F1 (hedge under-protects, HIGH)**: still applies. Recommend
+  swap to `submission_3way_recipe025_s1035_s7040.csv`. Verification
+  runs don't change this.
+- **F2 (iso-on-full-OOF, MEDIUM)**: verified to be ≤ 0.0001 OOF
+  inflation. No action required.
+- **OOF honesty under GroupKFold**: confirmed across Region + Crop.
+  Primary's reported OOF is trustworthy.
+
+Final-selection action: swap hedge per F1 recommendation; primary
+locked at `submission_tier1b_greedy_meta.csv` (LB 0.98094).
