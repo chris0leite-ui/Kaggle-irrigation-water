@@ -41,7 +41,7 @@ from recipe_features import (  # noqa: E402
     add_cat_pair_combos, add_decimal_fractions, add_digit_features,
     add_domain_interactions, add_freq_features, add_groupby_cat_num_stats,
     add_lr_formula_logits, add_num_as_cat, add_orig_mean_std,
-    add_threshold_flags,
+    add_threshold_flags, add_w8_block,
 )
 from recipe_ote import OrderedTE  # noqa: E402
 
@@ -83,8 +83,8 @@ DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
 #   "both"   — both sets (16 new numeric features total)
 # Suffix "_fex{variant}" on outputs so LB-best artefacts stay untouched.
 EXTRA_FE = os.environ.get("EXTRA_FE", "")
-assert EXTRA_FE in ("", "domain", "decimal", "both"), (
-    f"EXTRA_FE must be ''|domain|decimal|both, got {EXTRA_FE!r}"
+assert EXTRA_FE in ("", "domain", "decimal", "both", "w8"), (
+    f"EXTRA_FE must be ''|domain|decimal|both|w8, got {EXTRA_FE!r}"
 )
 # GBY: rohit8527-style group-by cat x num stats on the SYNTHETIC 630k pool.
 # When set to "1", adds per-cat-group mean/std of each numeric, merged onto
@@ -174,6 +174,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     # the tree but NOT digit-expanded (would explode feature count).
     extra_domain: list[str] = []
     extra_decimal: list[str] = []
+    extra_w8: list[str] = []
     if EXTRA_FE in ("domain", "both"):
         log("A4 FE transplant: +11 domain interaction features (utaazu)")
         for df in (train, test, orig):
@@ -182,6 +183,10 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         log("A4 FE transplant: +5 decimal-fraction features")
         for df in (train, test, orig):
             extra_decimal = add_decimal_fractions(df)
+    if EXTRA_FE == "w8":
+        log("W8 FE block: +15 novel-on-recipe cross-products + per-score z-scores")
+        for df in (train, test, orig):
+            extra_w8 = add_w8_block(df)
 
     # Pair combos (concat string values; factorized across combined).
     log("adding cat x cat pair combos")
@@ -248,6 +253,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
         extra_domain=extra_domain, extra_decimal=extra_decimal,
+        extra_w8=extra_w8,
         gby=gby_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
@@ -257,6 +263,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"freq={len(freq)} orig_stats={len(orig_stats_cols)} "
         f"dae_embed={len(dae_cols)} "
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
+        f"extra_w8={len(extra_w8)} "
         f"gby={len(gby_cols)} "
         f"te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
@@ -304,6 +311,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("dae_embed", [])
                      + info.get("extra_domain", [])
                      + info.get("extra_decimal", [])
+                     + info.get("extra_w8", [])
                      + info.get("gby", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 

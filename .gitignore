@@ -619,6 +619,28 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/j3_av_p.npy
 !scripts/artifacts/j3_av_w.npy
 
+# W1 distill-the-host MLP sweep (2026-04-25, claude/improve-predictions-with-dgp-d0ADN).
+# 3 narrow tanh MLPs on (raw nums + cats + DGP score). Production tuned
+# 0.96207-0.96273 (well below 0.97 gate, magnitude-trap +16-32% errs vs
+# anchor 9,415) but Jaccards 0.51-0.56 — UNPRECEDENTED orthogonality vs
+# LB-best (RealMLP n_ens=1 was 0.62, Trompt 0.53). 14th NN-family null.
+# Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_w1_tanh_128_64.npy
+!scripts/artifacts/test_w1_tanh_128_64.npy
+!scripts/artifacts/oof_w1_tanh_64_64.npy
+!scripts/artifacts/test_w1_tanh_64_64.npy
+!scripts/artifacts/oof_w1_tanh_128_128_64.npy
+!scripts/artifacts/test_w1_tanh_128_128_64.npy
+!scripts/artifacts/w1_smoke_results.json
+!scripts/artifacts/w1_prod_results.json
+
+# W8 LLM-FE smoke grader results JSON (2026-04-25). 21 idea bundles tested
+# as add-ons to a moderately-rich XGB (raw + dist + cats) on 250k
+# stratified subsample, 1-fold. 5 PASS (Δ ≥ +0.0005): I11/I12/I9/I6/I21.
+# I11/I12 likely redundant with recipe digit extraction; novel-on-recipe
+# subset bundled as EXTRA_FE='w8' for full-recipe production test.
+!scripts/artifacts/w8_grade_results.json
+
 # J1 tree-leaf OTE meta-stacker (junior-engineer audit, 2026-04-25).
 # Train base XGB on 19 raw features, extract per-tree leaf indices,
 # OrderedTE-encode (3 cls), feed to meta-XGB. Standalone meta tuned

@@ -243,6 +243,78 @@ def add_groupby_cat_num_stats(train: pd.DataFrame, test: pd.DataFrame,
     return new_cols
 
 
+def add_w8_block(df: pd.DataFrame, y: np.ndarray | None = None) -> list[str]:
+    """W8 — novel-on-recipe FE block from 2026-04-25 LLM-FE smoke survivors.
+
+    14 cols spanning ideas not already in `add_domain_interactions` /
+    `add_decimal_fractions`:
+      - I6 humidity_water (4 NEW): hum_x_dry, hum_minus_50, pi_x_norain, pi_x_dry
+      - I9 soil_chemistry (3 NEW): ph_dev_neutral, oc_x_ph, ec_x_sm
+        (ph_dev_optimal omitted — too similar to dev_neutral)
+      - I16 kc_x_water (3): kc_x_dry, kc_x_norain, kc_x_sm_dist
+      - I18 three_axis_interaction (3): dry_nor_hot, dry_nor_kc, all_critical
+      - I20 + I21 per-score-band z-scores (2): humidity_z_in_score, prev_irrig_z_in_score
+
+    Mutates df in-place. y argument unused (no target encoding here).
+    """
+    sm = df["Soil_Moisture"].astype(float).values
+    rf = df["Rainfall_mm"].astype(float).values
+    tc = df["Temperature_C"].astype(float).values
+    ws = df["Wind_Speed_kmh"].astype(float).values
+    h  = df["Humidity"].astype(float).values
+    pi = df["Previous_Irrigation_mm"].astype(float).values
+    ph = df["Soil_pH"].astype(float).values
+    oc = df["Organic_Carbon"].astype(float).values
+    ec = df["Electrical_Conductivity"].astype(float).values
+    mu = (df["Mulching_Used"].astype(str).values == "No").astype(np.float32)
+    cgs = df["Crop_Growth_Stage"].astype(str).values
+    kc = np.where(np.isin(cgs, ("Flowering", "Vegetative")), 2.0, 0.0).astype(np.float32)
+    dry = (sm < 25).astype(np.float32)
+    nor = (rf < 300).astype(np.float32)
+    hot = (tc > 30).astype(np.float32)
+    win = (ws > 10).astype(np.float32)
+    score = (2 * (dry + nor) + (hot + win + mu) + kc).astype(np.float32)
+
+    # I6 (4 NEW — water_supply/deficit already in add_domain_interactions)
+    df["W8_hum_x_dry"]    = (h * dry).astype(np.float32)
+    df["W8_hum_minus_50"] = (h - 50).astype(np.float32)
+    df["W8_pi_x_norain"]  = (pi * nor).astype(np.float32)
+    df["W8_pi_x_dry"]     = (pi * dry).astype(np.float32)
+    # I9 (3 NEW — soil_quality already in add_domain_interactions)
+    df["W8_ph_dev_neutral"] = np.abs(ph - 7.0).astype(np.float32)
+    df["W8_oc_x_ph"]        = (oc * ph).astype(np.float32)
+    df["W8_ec_x_sm"]        = (ec * sm).astype(np.float32)
+    # I16 (3)
+    df["W8_kc_x_dry"]       = (kc * dry).astype(np.float32)
+    df["W8_kc_x_norain"]    = (kc * nor).astype(np.float32)
+    df["W8_kc_x_sm_dist"]   = (kc * (sm - 25)).astype(np.float32)
+    # I18 (3)
+    df["W8_dry_nor_hot"]    = (dry * nor * hot).astype(np.float32)
+    df["W8_dry_nor_kc"]     = (dry * nor * (kc / 2)).astype(np.float32)
+    df["W8_all_critical"]   = (dry * nor * hot * win * mu * (kc / 2)).astype(np.float32)
+    # I20, I21 — per-score-band z-scores
+    z_h = np.zeros(len(df), dtype=np.float32)
+    z_pi = np.zeros(len(df), dtype=np.float32)
+    s_int = score.astype(int)
+    for sk in range(10):
+        m = s_int == sk
+        if m.sum() > 1:
+            mu_h = h[m].mean(); sd_h = h[m].std() + 1e-6
+            mu_p = pi[m].mean(); sd_p = pi[m].std() + 1e-6
+            z_h[m] = (h[m] - mu_h) / sd_h
+            z_pi[m] = (pi[m] - mu_p) / sd_p
+    df["W8_humidity_z_in_score"] = z_h
+    df["W8_prev_irrig_z_in_score"] = z_pi
+
+    return [
+        "W8_hum_x_dry", "W8_hum_minus_50", "W8_pi_x_norain", "W8_pi_x_dry",
+        "W8_ph_dev_neutral", "W8_oc_x_ph", "W8_ec_x_sm",
+        "W8_kc_x_dry", "W8_kc_x_norain", "W8_kc_x_sm_dist",
+        "W8_dry_nor_hot", "W8_dry_nor_kc", "W8_all_critical",
+        "W8_humidity_z_in_score", "W8_prev_irrig_z_in_score",
+    ]
+
+
 def add_num_as_cat(train: pd.DataFrame, test: pd.DataFrame,
                    orig: pd.DataFrame, nums: list[str]) -> list[str]:
     """Duplicate each numeric as a string-cast categorical column.

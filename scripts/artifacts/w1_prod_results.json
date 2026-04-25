@@ -1,0 +1,56 @@
+{
+  "lbbest_oof": 0.9808424406412425,
+  "n_folds": 5,
+  "max_iter": 60,
+  "results": [
+    {
+      "name": "tanh_128_64",
+      "hidden": "(128, 64)",
+      "activation": "tanh",
+      "argmax_oof": 0.9572672679768252,
+      "tuned_oof": 0.9621353193736745,
+      "tuned_bias": [
+        -1.5,
+        -1.5,
+        0.5
+      ],
+      "errs": 12460,
+      "lbbest_errs": 9415,
+      "jaccard_vs_lbbest": 0.5110174759964081,
+      "wall_s": 98.83435106277466
+    },
+    {
+      "name": "tanh_64_64",
+      "hidden": "(64, 64)",
+      "activation": "tanh",
+      "argmax_oof": 0.9567319994359007,
+      "tuned_oof": 0.9620684783078576,
+      "tuned_bias": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "errs": 10951,
+      "lbbest_errs": 9415,
+      "jaccard_vs_lbbest": 0.5560819070904646,
+      "wall_s": 90.03894591331482
+    },
+    {
+      "name": "tanh_128_128_64",
+      "hidden": "(128, 128, 64)",
+      "activation": "tanh",
+      "argmax_oof": 0.9545495217110123,
+      "tuned_oof": 0.9627300379637305,
+      "tuned_bias": [
+        -1.5,
+        -1.5,
+        0.5
+      ],
+      "errs": 11765,
+      "lbbest_errs": 9415,
+      "jaccard_vs_lbbest": 0.5336712527154236,
+      "wall_s": 332.5767240524292
+    }
+  ],
+  "total_wall_s": 529.2080600261688
+}

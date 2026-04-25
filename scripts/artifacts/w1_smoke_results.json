@@ -1,0 +1,202 @@
+{
+  "smoke": true,
+  "subsample": 200000,
+  "n_folds": 1,
+  "max_iter": 20,
+  "n_configs": 12,
+  "results": [
+    {
+      "config_idx": 0,
+      "hidden": "(64, 64)",
+      "activation": "relu",
+      "alpha": 0.001,
+      "tuned_oof": 0.9515247010389278,
+      "bias": [
+        -1.0,
+        -1.0,
+        0.5
+      ],
+      "errs": 2487,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.41901408450704225,
+      "wall_s": 6.388291120529175
+    },
+    {
+      "config_idx": 1,
+      "hidden": "(128, 128)",
+      "activation": "relu",
+      "alpha": 0.001,
+      "tuned_oof": 0.9563102982055686,
+      "bias": [
+        -1.0,
+        -1.0,
+        0.5
+      ],
+      "errs": 2037,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.49291075896580483,
+      "wall_s": 9.168277263641357
+    },
+    {
+      "config_idx": 2,
+      "hidden": "(128, 64)",
+      "activation": "relu",
+      "alpha": 0.001,
+      "tuned_oof": 0.9543919501781315,
+      "bias": [
+        -1.0,
+        -1.0,
+        1.0
+      ],
+      "errs": 2565,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.41752933057280883,
+      "wall_s": 7.881509780883789
+    },
+    {
+      "config_idx": 3,
+      "hidden": "(256, 128)",
+      "activation": "relu",
+      "alpha": 0.001,
+      "tuned_oof": 0.9575448719441996,
+      "bias": [
+        -1.0,
+        -1.0,
+        0.5
+      ],
+      "errs": 2069,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.49627174813587405,
+      "wall_s": 11.741528511047363
+    },
+    {
+      "config_idx": 4,
+      "hidden": "(128, 128, 64)",
+      "activation": "relu",
+      "alpha": 0.001,
+      "tuned_oof": 0.9567487522245508,
+      "bias": [
+        -0.5,
+        -1.0,
+        0.5
+      ],
+      "errs": 2141,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.47892412685668406,
+      "wall_s": 10.720197439193726
+    },
+    {
+      "config_idx": 5,
+      "hidden": "(64, 64)",
+      "activation": "tanh",
+      "alpha": 0.001,
+      "tuned_oof": 0.9592306255161098,
+      "bias": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "errs": 1914,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5135726795096323,
+      "wall_s": 5.0537941455841064
+    },
+    {
+      "config_idx": 6,
+      "hidden": "(128, 128)",
+      "activation": "tanh",
+      "alpha": 0.001,
+      "tuned_oof": 0.9585981977841538,
+      "bias": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "errs": 1986,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5113490364025696,
+      "wall_s": 7.474082946777344
+    },
+    {
+      "config_idx": 7,
+      "hidden": "(128, 64)",
+      "activation": "tanh",
+      "alpha": 0.001,
+      "tuned_oof": 0.9596977244391773,
+      "bias": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "errs": 1674,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5616504854368932,
+      "wall_s": 5.8674705028533936
+    },
+    {
+      "config_idx": 8,
+      "hidden": "(256, 128)",
+      "activation": "tanh",
+      "alpha": 0.001,
+      "tuned_oof": 0.9584204743188159,
+      "bias": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "errs": 1726,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5537072243346007,
+      "wall_s": 8.49199891090393
+    },
+    {
+      "config_idx": 9,
+      "hidden": "(128, 128, 64)",
+      "activation": "tanh",
+      "alpha": 0.001,
+      "tuned_oof": 0.9586315653792569,
+      "bias": [
+        -0.5,
+        -1.0,
+        0.0
+      ],
+      "errs": 1785,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5414543770264011,
+      "wall_s": 8.54671859741211
+    },
+    {
+      "config_idx": 10,
+      "hidden": "(128, 128)",
+      "activation": "logistic",
+      "alpha": 0.001,
+      "tuned_oof": 0.9561189008070433,
+      "bias": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "errs": 2352,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.4490327380952381,
+      "wall_s": 10.498723030090332
+    },
+    {
+      "config_idx": 11,
+      "hidden": "(256, 128, 64)",
+      "activation": "relu",
+      "alpha": 0.01,
+      "tuned_oof": 0.9579873098610964,
+      "bias": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "errs": 1933,
+      "lbbest_errs_on_eval": 1543,
+      "jaccard_vs_lbbest": 0.5132781889420984,
+      "wall_s": 13.250292539596558
+    }
+  ],
+  "total_wall_s": 111.07168698310852
+}
