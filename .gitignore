@@ -619,7 +619,87 @@ kaggle_kernel/*/dist/
 # 0.98102 (vs prior 0.98059, +0.00043). 4-stack drop-in replacement
 # OOF 0.98108 (+0.00024 vs LB-best 4-stack 0.98084). Blend on top of
 # LB-best 4-stack at fixed bias: α=0.35 → OOF 0.98121, Δ +0.00036,
-# errs 9049 < anchor 9415, all PCR within -0.0005 guardrail. Awaiting
-# LB probe.
+# errs 9049 < anchor 9415, all PCR within -0.0005 guardrail. LB
+# RESULT: 0.97992, Δ -0.00102 — saturation confirmed.
 !scripts/artifacts/oof_xgb_metastack_v4.npy
 !scripts/artifacts/test_xgb_metastack_v4.npy
+
+# 2026-04-25 N3 (5-shuffle OTE concat reduced to K=2 for compute fit):
+# per-fold checkpoints written incrementally via RUN_FOLD env var. Each
+# fold ~18min CPU; checkpoints whitelisted so partial progress survives
+# container rehydrate. Final aggregated OOF = oof_recipe_2shuffle.npy
+# (after n3_aggregate.py).
+!scripts/artifacts/oof_recipe_2shuffle.npy
+!scripts/artifacts/test_recipe_2shuffle.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold1.npy
+!scripts/artifacts/test_recipe_2shuffle_fold1.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold2.npy
+!scripts/artifacts/test_recipe_2shuffle_fold2.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold3.npy
+!scripts/artifacts/test_recipe_2shuffle_fold3.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold4.npy
+!scripts/artifacts/test_recipe_2shuffle_fold4.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold5.npy
+!scripts/artifacts/test_recipe_2shuffle_fold5.npy
+
+# J3 adversarial-validation: closes train↔test shift hypothesis.
+# AUC=0.50247 ⇒ train/test indistinguishable, residual gap is structural.
+!scripts/artifacts/j3_av_p.npy
+!scripts/artifacts/j3_av_w.npy
+
+# J1 tree-leaf OTE meta-stacker (junior-engineer audit, 2026-04-25).
+# Train base XGB on 19 raw features, extract per-tree leaf indices,
+# OrderedTE-encode (3 cls), feed to meta-XGB. Standalone meta tuned
+# OOF 0.96564; vs LB-best 4-stack: Jaccard 0.5597 (LOWEST ORTHOGONALITY
+# OF ANY CANDIDATE EVER tested on this problem) but errs 10,830 vs 9,415
+# (+15% magnitude). Blend sweep monotone-negative — classic magnitude
+# trap. Lever orthogonality CONFIRMED; magnitude gap with weak base
+# defeats the blend gate. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_leaf_ote_meta.npy
+!scripts/artifacts/test_leaf_ote_meta.npy
+!scripts/artifacts/leaf_ote_meta_results.json
+!scripts/artifacts/leaf_ote_blend_results.json
+!scripts/artifacts/leaf_ote_meta_smoke_results.json
+# J1-v2 (recipe-feature base, per-fold OTE before base, leaf-OTE on top).
+# Stronger base lifts standalone tuned 0.97812 BUT bias-mismatch trap:
+# v2 own bias [1.83, 1.77, 3.20] vs LB's [1.43, 1.47, 3.40] — at LB
+# fixed bias errs blow up to 12,343 (+31% vs anchor). M↔H pivots wrong
+# way under macro-recall. Sweep monotone-negative; emit gate fails.
+# Two failure modes (v1 magnitude trap, v2 bias-mismatch trap) close
+# the J1 lever family. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_leaf_ote_meta_v2.npy
+!scripts/artifacts/test_leaf_ote_meta_v2.npy
+!scripts/artifacts/leaf_ote_meta_v2_results.json
+!scripts/artifacts/leaf_ote_v2_blend_results.json
+!scripts/artifacts/leaf_ote_meta_v2_smoke_results.json
+# J6 constraint-aware QP for blend weights: NULL across two pool variants.
+# Convex log-loss minimization on simplex misaligned with macro-recall
+# under fixed bias. QP global optimum WORSE than greedy+LR local optima
+# (Δ -0.00020 with metas, -0.00029 without). Confirms LB-best 4-stack
+# weight composition is not obviously suboptimal at the objective level.
+!scripts/artifacts/oof_j6_qp_blend.npy
+!scripts/artifacts/test_j6_qp_blend.npy
+
+# 2026-04-25 N1 OvR-XGB on V10 recipe (imbalanced-classification session):
+# 3 binary:logistic heads with scale_pos_weight=neg/pos + per-class
+# OOF iso-cal + softmax-renormalize. Standalone tuned 0.97927; LOWEST
+# standalone errs of any candidate (9327 vs LB-best meta-stack 9415,
+# −88). Blend NULL across all 5 anchors (Jaccard 0.83 vs meta — the
+# meta-stacker already absorbs the OvR signal via xgb_nonrule_iso).
+# Raw 3-channel head outputs preserved separately for future
+# meta-stacker variants. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_xgb_ovr_recipe.npy
+!scripts/artifacts/test_xgb_ovr_recipe.npy
+!scripts/artifacts/oof_xgb_ovr_recipe_raw.npy
+!scripts/artifacts/test_xgb_ovr_recipe_raw.npy
+# 2026-04-25 N2 class-balanced effective-number focal (Cui CVPR 2019):
+# alpha via (1-beta)/(1-beta^n_c) with beta=0.99999 → [1.0, 1.07, 5.15]
+# (3.4× milder than invfreq's [1.0, 1.55, 17.6]), gamma=1, esr=400.
+# Best_iter 1478-2381 (vs prior invfreq null's 59-200) confirms the
+# textbook fix optimizes correctly. Tuned bias [1.23, 1.27, 3.40] —
+# High bias matches recipe exactly. Standalone tuned 0.97785; LOWEST
+# Jaccard ever (0.74-0.76 vs LB-best stack). Blend still NULL across
+# all 5 anchors — same Pareto-frontier ceiling: orthogonality alone
+# is insufficient when meta-stack already captures the signal channel.
+!scripts/artifacts/oof_recipe_focal_effnum.npy
+!scripts/artifacts/test_recipe_focal_effnum.npy

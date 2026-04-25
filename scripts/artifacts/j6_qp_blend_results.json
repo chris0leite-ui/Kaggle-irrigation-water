@@ -1,0 +1,47 @@
+{
+  "pool": [
+    "recipe_full_te",
+    "recipe_pseudolabel",
+    "recipe_pseudolabel_seed7labeler",
+    "realmlp",
+    "xgb_nonrule",
+    "xgb_metastack",
+    "xgb_metastack_v3",
+    "lgbm_te_orig",
+    "xgb_corn",
+    "xgb_dist_digits"
+  ],
+  "weights": {
+    "recipe_full_te": 0.0,
+    "recipe_pseudolabel": 0.06278274411889818,
+    "recipe_pseudolabel_seed7labeler": 0.2539774169563871,
+    "realmlp": 0.07713504180598597,
+    "xgb_nonrule": 0.06581959059974471,
+    "xgb_metastack": 0.27125800123259547,
+    "xgb_metastack_v3": 0.2690272052863886,
+    "lgbm_te_orig": 0.0,
+    "xgb_corn": 0.0,
+    "xgb_dist_digits": 0.0
+  },
+  "lb4_bal": 0.9808424406412425,
+  "lb4_per_class_recall": [
+    0.9955341333326124,
+    0.9695073491889541,
+    0.9774858394021609
+  ],
+  "qp_bal": 0.9806385739874258,
+  "qp_per_class_recall": [
+    0.995555759805578,
+    0.9703020822004902,
+    0.9760578799562093
+  ],
+  "delta_bal": -0.00020386665381666447,
+  "per_class_delta": [
+    2.1626472965552423e-05,
+    0.0007947330115360973,
+    -0.0014279594459516431
+  ],
+  "guardrail_ok": false,
+  "emit_threshold": 0.0002,
+  "emit": false
+}
