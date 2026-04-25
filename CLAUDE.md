@@ -4130,6 +4130,20 @@ architecture or feature view adds orthogonal bits at this base.
   LB budget: **3/10 used today** (3 = 1 recipe_full_te baseline from earlier,
   1 LB-best-3-stack confirmation, 1 new probe). 7 remaining.
 
+- **Saturation status (2026-04-25 end-of-day)**: the new LB-best 4-stack
+  is locally saturated against THREE independent attack vectors tested
+  in Tier 1c:
+  1. Greedy log-blend over expanded 132-component pool (incl. iso copies):
+     step1 picks `recipe_no_digits α=0.010 → +0.00002`, sub-gate.
+  2. Meta-stacker v2 with v1's OOF + binary specialists + 4-stack inputs
+     (224-dim feature space): best v2_iso α=0.20 → +0.00002 OOF.
+  3. Multi-seed bag of meta-stacker XGB seeds {42,7,123}: best add α=0.150
+     → +0.00003 OOF.
+  Plus parallel-session falsifications: RealMLP n_ens=4 strictly worse
+  than n_ens=1 (commit 6662924), per_bin_blend NULL with regression risk
+  (commit 80842d0). Conclusion: breaking past LB 0.98094 requires a
+  fundamentally NEW signal source, not another OOF-stacking variant.
+
   **Why it worked**: greedy forward over a 63-component pool with isotonic
   calibration applied to every candidate. The XGB meta-stacker (`oof_xgb_metastack`,
   trained over ~200-dim feature space = 63 components × 3 + dgp_score + distances)

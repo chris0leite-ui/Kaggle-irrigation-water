@@ -1066,3 +1066,29 @@ all of them on the same model.
   options: (a) re-fit isotonic on the bag's OOF, (b) sweep α at the
   bag step (it might prefer higher α), (c) skip the bag and rely on
   the meta-stacker level for variance reduction.
+
+- **Once a meta-stacker has been added to a stack, "deeper meta" is
+  saturation-bounded.** Tier-1c: trained `meta_stacker_v2` with
+  `xgb_metastack` (v1's OOF) AS AN INPUT FEATURE plus binary specialists
+  (spec_lm, spec_mh) plus the 4-stack's logprobs. v2 standalone
+  performance was ~equal to v1; vs the OLD 3-stack anchor v2 still
+  added +0.00015 OOF, but vs the NEW 4-stack anchor (which already
+  contains v1) only +0.00002. Mechanism: when input bank for the meta
+  contains the prior meta as a feature, the meta correlates with v1's
+  predictions and adds noise rather than orthogonal signal. Rule:
+  **don't iterate meta-on-meta on a stack that already contains the
+  prior meta-stacker. To extend the stack, add a NEW base learner
+  (different model family, different feature view) and rebuild the
+  meta from scratch with the expanded bank.**
+
+- **Multi-seed bag of a heavy-reg meta-stacker can DECREASE OOF if
+  one seed is genuinely worse.** Tier-1c bag {42,7,123} per-seed
+  standalone @ recipe bias: 0.98041 / 0.98029 / 0.98040. seed=7 is
+  −0.00012 below seed=42 — a real local-optima difference, not noise.
+  Bag iso-cal standalone +0.00002 vs single-seed iso, best blend lift
+  +0.00003 OOF. The heavy-reg-XGB seed-dominant-optimum effect (low
+  best_iter ≈ 200-400, max_depth=4, L1+L2=5 each) makes seed variance
+  matter more than usual. Rule: **for heavy-reg low-iter XGBs, validate
+  per-seed standalone before bagging — if one seed is materially worse,
+  exclude it (or use a weighted bag that discounts losers) instead of
+  averaging.**
