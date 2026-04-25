@@ -9127,3 +9127,110 @@ by EV/cost:
   N1 lands. N3 last (highest wall time, lowest confidence on transfer).
 
 - LB budget unchanged (0 probes spent on the audit). LB-best still 0.98094.
+
+### 2026-04-25 — N1 EXECUTED: LR meta-stacker, biggest OOF lift since Tier 1b (+0.00098 vs LB-best 4-stack), AWAITING LB PROBE
+
+- Goal: execute N1 — multinomial LR meta-stacker on the same 70-component
+  bank that produced our LB-best XGB meta-stacker. Test whether a
+  structurally simpler model class (no tree depth) finds a different
+  operating point than depth-4 XGB on the same bank.
+- Changed: `scripts/tier1c_lr_metastack.py` (mirrors `tier1b_xgb_metastack.py`
+  exactly except for the model: `LogisticRegression(C=1.0, class_weight=
+  'balanced', solver='lbfgs', max_iter=1000)` over standardized features);
+  `scripts/tier1c_lr_extend.py` (extended α∈[0,1] sweep + per-class recall
+  + LB-best 4-stack anchor + LR×XGB compound grid);
+  `scripts/tier1c_lr_emit.py` (4-stack-anchored submission emission at three
+  α candidates).
+- Wall: 5 min total (5 folds × ~60s LR fit + 0.3s test predict).
+
+- **Standalone diagnostic** (LR_iso vs prior anchors, OOF tuned bal_acc):
+  ```
+  model                      OOF       errs     PCR [L, M, H]
+  LB-best 3-stack            0.98061   9572    [0.9955, 0.9689, 0.9774]
+  LB-best 4-stack (LB-best   0.98084   9415    [0.9955, 0.9695, 0.9775]
+                  PRIMARY)
+  XGB metastack_iso          0.98059   9044    (basis of 4-stack via α=0.30)
+  **LR  metastack_iso        0.98183   9806    [0.9942, 0.9696, 0.9817]**
+  ```
+  LR_iso is the **first standalone to BEAT the LB-best 4-stack** by
+  +0.00099 OOF — net positive macro-recall via +0.0042 High at the cost
+  of -0.0013 Low. Errs increase (+391 vs 4-stack) but the per-class
+  rebalance favors macro-recall.
+
+- **Cross-stacker Jaccards** (post log-bias):
+  - Jaccard(LR_iso, LB-best 3-stack) = **0.7054** (strong orthogonality)
+  - Jaccard(LR_iso, XGB_iso meta) = **0.7166** (LR + XGB are non-redundant
+    even though both consume the same 70-component bank)
+
+- **Blend sweep, fixed-bias log-blend, LR_iso × LB-best 4-stack**
+  (the actual primary, OOF 0.98084 / LB 0.98094):
+  ```
+  alpha    OOF     Δ        errs   recL    recM    recH    guardrail
+  0.30   0.98152  +0.00068  9232  0.9954  0.9703  0.9788   PASS (Low -0.0001)
+  0.40   0.98160  +0.00075  9275  0.9953  0.9703  0.9792   PASS (Low -0.0002)
+  0.50   0.98167  +0.00083  9287  0.9952  0.9703  0.9794   PASS (Low -0.0003)
+  0.60   0.98175  +0.00091  9341  0.9951  0.9703  0.9799   PASS (Low -0.0004)
+  0.65   0.98182  +0.00098  9387  0.9950  0.9702  0.9802   BORDER (Low -0.0005)
+  0.75   0.98186  +0.00101  9475  0.9948  0.9702  0.9806   FAIL (Low -0.0007)
+  0.90   0.98191  +0.00107  9709  0.9943  0.9699  0.9816   FAIL (Low -0.0012)
+  ```
+  - Magnitude trap analysis: errors actually DECREASE from 9415 (anchor)
+    to 9232 at α=0.30 (-183 errs), then stay below anchor through
+    α=0.65 (9387 vs 9415). The "magnitude trap" rule (LB-regress when
+    errs > anchor) doesn't trigger until α≥0.75 where errors climb
+    past the anchor.
+  - Per-class recall preservation: Low drops from 0.9955 → 0.9942 over
+    the sweep; the -0.0005 guardrail catches it at α=0.65 (right at the
+    edge). Conservative α=0.30-0.50 candidates all pass cleanly.
+
+- **Compound (3-stack + α_xgb·XGB + α_lr·LR) grid**: best is
+  (a_xgb=0.20, a_lr=0.50) at OOF 0.98168 (Δ +0.00107 vs 3-stack /
+  +0.00084 vs 4-stack). Effectively ties the LR-only blend at α=0.50
+  on the 4-stack anchor — XGB stacker's incremental signal already
+  captured in the 4-stack itself.
+
+- **Test-side disagreement vs primary** (`submission_tier1b_greedy_meta.csv`,
+  LB 0.98094):
+  - α=0.30: 265 rows differ (0.10%)
+  - α=0.50: 477 rows differ (0.18%)
+  - α=0.65: 611 rows differ (0.23%)
+  Magnitudes large enough to move LB by ±0.001-0.002 if signal transfers.
+
+- **Three submission candidates emitted, AWAITING USER APPROVAL** for LB probe:
+  ```
+  submission_tier1c_lr_iso_4stack_a030.csv  OOF 0.98152  proj LB ~0.9817 (gap -0.0001)
+  submission_tier1c_lr_iso_4stack_a050.csv  OOF 0.98167  proj LB ~0.9818
+  submission_tier1c_lr_iso_4stack_a065.csv  OOF 0.98182  proj LB ~0.9819
+  ```
+  The OOF→LB gap on prior meta-stacker stack went NEGATIVE (-0.00010,
+  LB above OOF). If the same calibration property holds for LR, the
+  α=0.65 variant projects LB ~0.98192 — within +0.00027 of the leader
+  0.98219.
+
+- **Why this is real signal, not OOF overfit** (key audit thinking):
+  1. The fixed-bias decision rule is held constant across the sweep
+     (no per-α bias retune → no binhigh-style selection inflation).
+  2. The LR meta-stacker doesn't share the XGB stacker's tree-depth
+     knob — different overfit failure modes.
+  3. The lift compounds with the XGB stacker (compound grid shows
+     LR adds signal even on top of the 4-stack which already includes
+     XGB stacker).
+  4. The per-class trade is SAFE (Low recall preserved within
+     guardrail at α≤0.65).
+  5. Errors DECREASE over the safe α range — opposite of the
+     magnitude-trap pattern that has killed every prior candidate.
+  6. wguesdon's published 30-model kernel explicitly demonstrates that
+     a SIMPLER stacker (his choice was LGB) can beat greedy on LB even
+     when greedy has higher CV. Our LB-best (XGB stacker + greedy
+     forward) sits in the OPPOSITE corner of the simplicity spectrum.
+
+- **Recommended LB probe order if approved**:
+  1. **α=0.50** (`submission_tier1c_lr_iso_4stack_a050.csv`) — middle
+     of the safe range, cleanest per-class profile, OOF +0.00083 vs
+     primary. Low risk of regression, moderate upside.
+  2. If a050 lifts ≥+0.0005, follow with α=0.65 to test whether the
+     additional OOF Δ +0.00015 transfers (rare-class guardrail right
+     at the edge — riskier but higher upside).
+  3. If a050 nulls, do NOT probe α=0.65 (LR lever doesn't transfer).
+
+- LB budget: unchanged at this point (0 spent today). 10 available.

@@ -527,6 +527,15 @@ kernel_audit*/
 # confirmed — meta-stacker has absorbed all available bank diversity.
 !scripts/artifacts/oof_xgb_metastack_v3.npy
 !scripts/artifacts/test_xgb_metastack_v3.npy
+
+# Tier-1c: multinomial-LR meta-stacker on the same 70-component bank.
+# Standalone OOF (iso, tuned bias) = 0.98183; Jaccard 0.7166 vs XGB
+# meta-stacker = strong cross-stacker orthogonality. Best blend vs LB-best
+# 4-stack: α=0.65 → OOF 0.98182 (Δ +0.00098, Low recall right at the
+# -0.0005 guardrail edge). α=0.30 conservative variant: OOF 0.98152
+# (Δ +0.00068, all PCR within guardrail).
+!scripts/artifacts/oof_lr_metastack.npy
+!scripts/artifacts/test_lr_metastack.npy
 !scripts/artifacts/oof_xgb_metastack_v3_iso.npy
 !scripts/artifacts/test_xgb_metastack_v3_iso.npy
 
