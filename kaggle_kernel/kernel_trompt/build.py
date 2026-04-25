@@ -31,16 +31,24 @@ to regenerate.
 '''
 
 # Strip lines that import from this package's modules (they become
-# local-namespace references after concatenation).
-SIBLING_RE = re.compile(
+# local-namespace references after concatenation). Handles both
+# single-line `from x import a, b` and multi-line
+# `from x import (\n    a,\n    b,\n)` forms.
+SINGLE_RE = re.compile(
     r"^\s*from\s+(" + "|".join(MODULES) + r")\s+import\s+.*$|"
     r"^\s*import\s+(" + "|".join(MODULES) + r")\s*$",
     re.MULTILINE,
 )
+MULTI_RE = re.compile(
+    r"^\s*from\s+(" + "|".join(MODULES) + r")\s+import\s+\([^)]*\)\s*$",
+    re.MULTILINE | re.DOTALL,
+)
 
 
 def strip_siblings(text: str) -> str:
-    return SIBLING_RE.sub("", text)
+    text = MULTI_RE.sub("", text)
+    text = SINGLE_RE.sub("", text)
+    return text
 
 
 def main() -> None:
