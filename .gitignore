@@ -6,6 +6,9 @@ data/*
 scripts/artifacts/*
 !scripts/artifacts/.gitkeep
 
+# Per-run log directory used by background pipelines
+run_logs/
+
 # Submissions — keep only the LB-confirmed reference CSVs
 submissions/*
 !submissions/.gitkeep
