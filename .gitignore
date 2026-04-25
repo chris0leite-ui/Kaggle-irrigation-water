@@ -609,7 +609,12 @@ kaggle_kernel/*/dist/
 # 0.98102 (vs prior 0.98059, +0.00043). 4-stack drop-in replacement
 # OOF 0.98108 (+0.00024 vs LB-best 4-stack 0.98084). Blend on top of
 # LB-best 4-stack at fixed bias: α=0.35 → OOF 0.98121, Δ +0.00036,
-# errs 9049 < anchor 9415, all PCR within -0.0005 guardrail. Awaiting
-# LB probe.
+# errs 9049 < anchor 9415, all PCR within -0.0005 guardrail. LB
+# RESULT: 0.97992, Δ -0.00102 — saturation confirmed.
 !scripts/artifacts/oof_xgb_metastack_v4.npy
 !scripts/artifacts/test_xgb_metastack_v4.npy
+
+# J3 adversarial-validation: closes train↔test shift hypothesis.
+# AUC=0.50247 ⇒ train/test indistinguishable, residual gap is structural.
+!scripts/artifacts/j3_av_p.npy
+!scripts/artifacts/j3_av_w.npy
