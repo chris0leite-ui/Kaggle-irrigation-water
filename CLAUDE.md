@@ -8170,3 +8170,111 @@ read time has surfaced every real lever we've found. Start there.
   oof_spec_lm_v3_score3.npy + test   (L↔M specialist, marginal)
   submissions/submission_tier1b_greedy_meta.csv  (LB 0.98094)
   ```
+
+### 2026-04-25 — Trompt PROBE: lowest NN Jaccard ever (0.5340) but magnitude-trap NULL
+
+- Goal: 13th NN-family lever-existence test. Trompt (column-attention
+  tabular NN, Chen et al. 2023) via pytorch_frame. Architecturally
+  distinct from RealMLP (BatchEnsemble + PBLD) — column-attention with
+  learnable prompts. The yekenot/ps-s6e4-trompt-pytorch-frame public
+  kernel claimed CV ~0.97-0.98 standalone, so Trompt had a chance to
+  clear the bar even with the +0.0003 NN OOF→LB surcharge.
+- Build path: modular kernel `kaggle_kernel/kernel_trompt/` (boot.py,
+  config.py, features.py, model.py, cv.py, main.py + build.py
+  concatenator) per the CLAUDE.md "short files" rule. Took 4 SMOKE
+  iterations to land cleanly:
+  - **v1 ERRORED** (IndentationError): build.py multi-line `from
+    config import (...)` strip left orphan body lines. Fix: separate
+    DOTALL regex MULTI_RE before SINGLE_RE.
+  - **v2 ERRORED** (`from __future__` placement): assembled dist had
+    header docstring → boot's docstring → __future__, violating
+    Python's "must be at top". Fix: hoist single
+    `from __future__ import annotations` to top after header docstring;
+    strip ALL module __future__ imports from siblings.
+  - **v3 ERRORED** (`ModuleNotFoundError: torch_frame`): model.py's
+    module-level `from torch_frame import ...` ran at dist-file import
+    time, BEFORE boot()'s install logic. Fix: hoist
+    `install_torch_if_pascal()` + `install_pytorch_frame()` to boot.py
+    module body so they execute as soon as boot.py's section runs
+    (line 79-80 in dist), before model.py's torch_frame imports
+    (line 179+).
+  - **v4 PASSED** structurally (2 folds × 20k × 2 epochs in <1 min
+    training; per-fold bal_acc 0.51/0.55, low because under-converged
+    smoke config).
+- PROBE config (after SMOKE pass): `IS_PROBE=True`, full 504k train,
+  full Trompt capacity (channels=128, num_prompts=128, num_layers=3),
+  N_EPOCHS=8, MAX_FOLDS=1 (StratifiedKFold(5) split structure preserved
+  for fold-1 alignment). Outputs suffixed `_probe`.
+- PROBE wall: ~70 min total kernel time. Kaggle script-kernel
+  re-imported the module at kernel-time 1684s for nbconvert HTML
+  compilation, triggering main() a SECOND TIME — saw boot logs reset,
+  fold 1 start again. Both runs completed cleanly (the second run is
+  the one whose outputs we kept, identical to the first).
+- **Fold-1 results** (only va0 = 126,000 rows populated):
+  - argmax bal_acc = **0.96092** (vs RealMLP fold-1 0.96978, −0.009)
+  - tuned 1-fold OOF = 0.96633, bias [1.43, 1.17, 3.40]
+  - errs at recipe bias = **2,183** (RealMLP fold-1 2069, LB3 fold-1 2014)
+- **Jaccards (fold-1)**:
+  - Trompt vs RealMLP n_ens=1 = **0.5696** (lower than RealMLP vs LB3 0.6222)
+  - Trompt vs LB-best 3-way = **0.5340** ← LOWEST NN ORTHOGONALITY EVER
+  - RealMLP vs LB3 = 0.6222
+- **Blend gate (fold-1, LB3 + Trompt @ α, fixed bias)**:
+  ```
+  α=0.00  bal=0.97926  errs=2014  ← peak (LB3 standalone)
+  α=0.05  bal=0.97926  errs=1972  (tied; errs −42 but bal_acc unchanged)
+  α=0.10  bal=0.97901  errs=1954
+  α=0.20  bal=0.97899  errs=1922
+  α=0.50  bal=0.97748  errs=1873
+  ```
+  Classic magnitude-trap. Trompt has the lowest Jaccard of any NN
+  tested AND drops total errors at small α, but the rare-class trade
+  is unfavorable for macro-recall. No α > 0.05 lifts above LB3 alone.
+- **Decision: skip 5-fold push.** Three reasons:
+  1. **Compute budget**: production wall = 8 epochs × 5 min × 5 folds =
+     ~3.3h, exceeds the 1h GPU cap by 3×. Would need multi-kernel
+     splits or a halved-capacity config.
+  2. **Magnitude trap**: even at the best Jaccard ever, +169 extra
+     errors per fold predicts a 5-fold OOF that doesn't beat LB3
+     alone. Adding to the LB-best 0.98094 meta-stacker stack would
+     compound the surcharge unfavorably.
+  3. **Compounding NN OOF→LB surcharge**: +0.0003 per NN leg. With
+     Trompt's predicted standalone OOF tuned at ~0.97 (extrapolated
+     from fold-1 0.966) and the meta-stacker at OOF 0.98084 / LB
+     0.98094, Trompt's blend lift needs OOF Δ > +0.0005 to net-positive.
+     Fold-1 sweep tops at Δ +0.00000 vs LB3 (let alone the meta-stacker
+     stack).
+- **Lever closes**. 13th NN-family null; pattern is now structural at
+  this feature set. Summary table:
+  ```
+  NN family       Jaccard vs anchor   errs vs anchor   LB outcome
+  ----------     ------------------- ---------------- --------------------
+  MLP v5-v9       0.62-0.85           +1500-15000     NULL
+  FT-Transformer  0.61                +12000          NULL
+  TabPFN          0.81                +1485           NULL
+  Pretrain-FT MLP 0.65                +3615           NULL
+  DAE SwapNoise   0.84                similar         NULL
+  RealMLP n_ens=1 0.62                +358            LB +0.00003 (3-stack)
+  RealMLP n_ens=4 0.62                +485            NULL (worse than n_ens=1)
+  Trompt          **0.53**            +169 (lowest)   NULL (magnitude-trap)
+  ```
+  Trompt's +169 errs at the BEST Jaccard ever seen still failed the
+  blend gate. Structural rule firmer than ever: NN architectures on
+  this feature set produce orthogonal errors but in larger absolute
+  numbers, and macro-recall at fixed-bias cares about total per-class
+  accuracy → the magnitude tax dominates.
+- LB delta: n/a — no LB probe warranted.
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts:
+  - `kaggle_kernel/kernel_trompt/` (modular kernel + 4 build fixes)
+  - `scripts/artifacts/oof_trompt_probe.npy` + test (fold-1 only,
+    other 4 fold rows = 0). Whitelisted for cross-branch diagnostic —
+    Trompt's 0.53 Jaccard is unique in our OOF bank.
+  - `scripts/artifacts/trompt_probe_results.json`
+- Lessons logged to LEARNINGS.md:
+  1. Build-script gotchas for sibling-module Kaggle kernels.
+  2. Trompt at full capacity is ~12× more compute-heavy per row than
+     RealMLP; needs PROBE-first before 5-fold on the 1h cap.
+  3. Lowest Jaccard ever (0.53) STILL fails the blend gate when errs
+     are higher than anchor. **The magnitude rule is stricter than
+     orthogonality.**
