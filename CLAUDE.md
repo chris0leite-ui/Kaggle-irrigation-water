@@ -9017,3 +9017,163 @@ by EV/cost:
   unless deadline pressure allows. Otherwise N3 (SMOTE on Kaggle
   kernel as low-attention background work) and N2 (TabM) in parallel
   on day 2-3.
+
+### 2026-04-25 — cross-poll v3 + SMOTE-NC kernel: 3 NULLs, own-pipeline closed
+
+- Goal: extend the 63-component Tier-1b meta-stacker with new candidates
+  + run SMOTE-NC at production scale via Kaggle GPU. Two attacks against
+  LB 0.98094: bank-extension (cross-poll) and training-data-level lever
+  (SMOTE).
+- Changed:
+  - `scripts/tier1b_xgb_metastack_v3.py` — cross-pollinate meta-stacker
+    with `recipe_focal_g2_invfreq` + `xgb_nonrule_bag3`, stricter EXCLUDE
+    drops known LB-regressors. 64 components, ~5 min wall.
+  - `scripts/emit_metastack_v3_submission.py` — emits the v3 iso-blend
+    α=0.30 candidate (peak vs LB-best 4-stack OOF +0.00015, below
+    internal +2e-4 gate but submitted per user direction).
+  - `kaggle_kernel/kernel_smote_recipe/recipe_smote.py` (788 L) — single-
+    file kernel, per-fold SMOTE-NC on RAW 19 cols (8 cats + 11 nums)
+    only, then re-derive combos / digits / num_as_cat / freq /
+    orig_stats on augmented rows via cached vocab maps. Memory peak
+    ~91 MB vs 45 GiB OOM that killed local recipe_smote_high.py.
+    Promise-gate after fold 1 (argmax≥0.97500, recall_high≥0.965,
+    errs≤1.05× recipe; PROCEED if 2-of-3 pass OR recall_high lifts
+    +0.5pp). Hard kill at t+55min (CLAUDE.md GPU rule).
+  - `scripts/recipe_smote_v2.py` + `scripts/smote_local/{load_engineer,
+    fe_with_maps,redrive,gate,cv_loop}.py` (modular ≤150L per file) —
+    local CPU twin reusing `scripts/recipe_features.py` + `recipe_ote.py`
+    so any kernel results can be reproduced offline.
+  - `MAX_FOLDS` env override + per-fold OOF/test/JSON checkpointing to
+    survive container rehydrates.
+
+- **Cross-poll metastack v3 — LB REGRESSION**:
+  ```
+  standalone @ recipe bias       0.97365 argmax / 0.97954 tuned
+  iso-cal'd @ recipe bias        0.97956
+  blend vs LB-best 4-stack       peak α=0.30 → OOF 0.98099 (+0.00015)
+  Jaccard vs LB-best             0.94
+  errs vs LB-best                similar
+  LB submission α=0.30           **0.98060  (Δ = -0.00034 vs LB-best 0.98094)**
+  OOF→LB gap                     +0.00039 (vs Tier-1b's −0.00010)
+  ```
+  Adding 2 components inflated OOF +0.00015 but cost LB -0.00034.
+  **Bank-extension lever DEAD.** The 63-component meta-stacker has
+  absorbed all available signal; further additions amplify
+  fold-noise overfit without adding orthogonal signal.
+
+- **SMOTE-NC v2 (TARGET=42k, K=5, sample_weight='balanced')** — fold-1 NULL:
+  Two production-scale bugs surfaced + fixed before fold-1 ran clean:
+  1. SMOTE-NC dtype detection: `df[c].dtype == "object"` returned False
+     at production scale — pandas reported cats as 'category' dtype.
+     Fix: pass explicit `cats` list, force `astype(str)` defensively.
+  2. Kaggle kernel `_find_one("Irrigation_Prediction*.csv")` didn't
+     match dataset's lowercase `irrigation_prediction.csv`. Fix: try
+     multiple casings.
+
+  After fixes (Kaggle kernel v2 + local v2):
+  ```
+                        Kaggle    Local     recipe baseline
+  argmax_bal            0.97436   0.97471   ~0.97544
+  recall_high           0.9502    0.9514    ~0.977 (-2.7pp)
+  recall_med            0.9775    0.978     ~0.969 (+0.008)
+  errors                1630      ~1700     ~2900
+  decision              ABORT     ABORT     gate caught it
+  ```
+  Cross-platform agreement to noise (Δ ≤ 0.001). **High recall hurt by
+  2.7pp** — opposite of the hypothesis. Mechanism: synthetic Highs
+  interpolated from 5 NN bled into Medium-territory, blurring the
+  M↔H decision boundary. balanced sample weight + SMOTE oversample
+  partially cancel (more H rows × proportionally lower weights = same
+  total H gradient), so the only net effect is decision-boundary
+  diffusion.
+
+- **SMOTE-NC v3 (TARGET=25k, K=10) — softer config, full 5-fold NULL**:
+  Hypothesis: smaller TARGET (1.5× vs 2× original High count) +
+  smoother K=10 NN should reduce the diffusion mechanism that hurt v2.
+  Kaggle GPU completed all 5 folds (gate PROCEEDed: 2-of-3 metrics
+  passed even though recall_high still 0.9529 < 0.965 floor).
+
+  ```
+                              v2 (42k, K=5)   v3 (25k, K=10)   recipe
+  fold-1 argmax               0.97436         0.97513          ~0.97544
+  fold-1 recall_high          0.9502          0.9529           ~0.977
+  full 5-fold tuned OOF       — (aborted)     0.97963          0.97967
+  log-bias                    —               [-1.91, -1.78, 0.41]   [1.43, 1.47, 3.40]
+  errs vs LB-best 4-stack     —               +366             +542 anchor
+  Jaccard vs LB-best          —               0.8225           1.00 anchor
+  blend Δ peak (fixed bias)   —               +0.00002 @ α=0.075
+  ```
+
+  **Both blend-gate criteria fail**: Jaccard 0.82 above 0.80 redundancy
+  threshold + errs (+366 over anchor) violates magnitude rule. Tuned
+  bias `[-1.91, -1.78, 0.41]` is structurally incompatible with the
+  recipe-bias-anchored stack: SMOTE shifted prob scale far enough
+  that calibration alignment with the existing 63-component bank is
+  impossible without retuning the entire stack's bias.
+
+- **Strategic implication: own-pipeline lever bank fully exhausted.**
+  Three orthogonal attacks against LB 0.98094 today:
+  1. Tier 1c (yesterday): greedy / meta-on-meta / seed-bag — saturated.
+  2. Cross-poll metastack v3 (today): bank extension — LB regressed.
+  3. SMOTE-NC v2 + v3 (today): training-data lever — both NULL.
+
+  Combined with the prior structural confirmations (B2 GroupKFold
+  honest, Pareto-frontier closure on per-class High recall, 13 NN
+  family nulls, focal/distill/specialist nulls), there is no remaining
+  own-pipeline mechanism that can break LB 0.98094 within the
+  +0.0002 LB-transfer threshold. CLAUDE.md rule forbids public-CSV
+  blending.
+
+- **LB budget**: 4/10 used today (3 from yesterday + 1 cross-poll
+  probe), 6 remaining. **LB best unchanged** at 0.98094 via
+  `submission_tier1b_greedy_meta.csv`.
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/artifacts/oof_xgb_metastack_v3{,_iso}.npy` + test + JSON
+  - `scripts/artifacts/oof_smote_v2_fold1.npy` + test (partial, fold-1
+    only — Kaggle/local cross-platform validation)
+  - `scripts/artifacts/oof_recipe_smote_v3.npy` + test + JSON +
+    fold1_gate.json (full 5-fold, Kaggle GPU production)
+  - `kaggle_kernel/kernel_smote_recipe/{recipe_smote.py,kernel-metadata.json}`
+  - `scripts/recipe_smote_v2.py` + `scripts/smote_local/*.py` (local
+    twin, modular ≤150L per file)
+  - `submissions/submission_metastack_v3_iso_a300.csv` (LB 0.98060)
+
+- **Final-selection lock recommendation** (5 days to deadline):
+  - **Primary**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    (gap −0.00010, anomalous LB > OOF). Composition: lb3 + RealMLP α=0.20
+    + xgb_nonrule_iso α=0.075 + xgb_metastack_iso α=0.30.
+  - **Hedge**: `submission_recipe_full_te_catboost.csv` → **LB 0.97935**
+    (gap +0.00001, tightest calibration in ladder). Different model
+    family (CatBoost ordered-boosting vs primary's XGB+RealMLP+meta-XGB).
+    Premium = -0.00159 LB; protects against meta-stacker private-LB
+    overfit. Reserve 6 LB submissions for end-of-comp variance check.
+
+- **Lessons logged for future synthetic-tabular comps**:
+  1. **SMOTE-NC at production scale requires raw-only inputs.** Feeding
+     a 443-col FE matrix (with high-card combos) OOMs at 45 GiB on
+     16 GB containers. Refactor: SMOTE on raw cats+nums (~90 MB peak),
+     then re-derive FE on augmented rows via cached vocab maps. Never
+     SMOTE on factorized-int columns (they're not real categoricals).
+  2. **pandas dtype inference for SMOTE-NC fails at production scale.**
+     `df[c].dtype == "object"` returned False on cats at 504k rows
+     (pandas reported 'category'). Pass explicit cat-name list to
+     SMOTE-NC's `categorical_features=` arg, force `astype(str)`
+     defensively.
+  3. **Synthetic minority oversampling + balanced sample weights cancel
+     each other** when minority gradient was already saturating. The
+     only net effect is decision-boundary diffusion (bad). For SMOTE
+     on imbalanced data with tree models, choose ONE rebalancing
+     mechanism, not both.
+  4. **Tuned bias incompatibility breaks blend extension.** A model
+     trained with structurally different class priors (post-SMOTE)
+     will land at log-bias `[-1.9, -1.8, +0.4]` while a recipe-anchored
+     stack uses `[+1.4, +1.5, +3.4]`. They can't be log-blended at
+     fixed anchor bias regardless of standalone OOF — calibration
+     alignment is a hard prerequisite.
+  5. **Promise-gate after fold-1 saved compute** — Kaggle v2's full
+     5-fold would have cost ~50 min; aborted at fold 1 in 7 min after
+     gate triggered. Pattern: persist OOF/test/JSON BEFORE evaluating
+     the gate, decision rule based on standalone metrics + class-recall
+     direction, ABORT exits cleanly.
+
