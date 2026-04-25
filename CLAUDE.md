@@ -9557,3 +9557,60 @@ by EV/cost:
      the gate, decision rule based on standalone metrics + class-recall
      direction, ABORT exits cleanly.
 
+### Next steps: speculative ceiling-breaker (post-2026-04-25 own-pipeline closure)
+
+After today's 4 LB-probed nulls (LR meta-stacker, cross-poll v3 metastack,
+SMOTE v2, SMOTE v3) and the prior comprehensive saturation evidence,
+**every own-pipeline lever within the standard tabular ML toolkit is
+exhausted on this feature set.** The only remaining categorically-new
+mechanism not yet attempted is from the **2024-2025 tabular-foundation-
+model wave**:
+
+  **S1. Tabular-Mamba leg via mamba-tabular** (~1-1.5h Kaggle GPU).
+  State-space architecture with linear-time sequence modelling instead
+  of attention. Structurally distinct from every prior NN tested
+  (MLP / FT-T / TabPFN / DAE / RealMLP / Trompt all use either
+  attention or pure feed-forward). Mamba's selective scan mechanism
+  may pick up different feature interactions than column-attention
+  models. Same kernel scaffold pattern as kernel_trompt (boot + pip
+  install mamba_ssm + 5-fold StratifiedKFold seed=42 + fold-1 promise
+  gate at Jaccard < 0.75 vs LB-best 4-stack AND errs ≤ 9572).
+
+  **S2. T-Few in-context tabular learning** (~1h Kaggle GPU). Few-shot
+  classification via LLM-style in-context inference. Off-paradigm
+  for tabular but recently shown competitive on small-prior-class
+  problems (rare-class High recall is exactly our weakness). Risk:
+  setup overhead may eat the 1h budget.
+
+  **Why both are speculative**:
+  - 13 prior NN-family attempts all showed magnitude-trap failure
+    (Jaccard ~0.55-0.85 with errs > LB-best). The structural pattern
+    is consistent: any NN trained on this 443-feature recipe matrix
+    produces orthogonal errors but in greater absolute count than
+    the tree-stacker bank, defeating fixed-bias log-blends.
+  - Mamba/T-Few may behave differently because their architectures
+    don't process tabular features through the same MLP/attention
+    bottleneck. But this is a Bayesian prior of <20% they break the
+    pattern.
+
+  **Realistic outcome**: probably the 14th NN null. **Skip unless you
+  want closure** or are comfortable spending one of the remaining 6
+  LB submissions on a low-probability shot.
+
+  **Decision rule if attempted**:
+  - Fold-1 Jaccard < 0.75 AND errs ≤ 9572 vs LB-best 4-stack: PROCEED
+    full 5-fold + meta-stacker bank addition + retrain XGB meta + LB
+    probe only if blend Δ ≥ +0.0003 OOF (stricter than +0.0002 because
+    LR meta-stacker showed OOF inflation up to +0.00176 transfers
+    negatively in this regime).
+  - Otherwise: ABORT, mark as 14th NN null, lock the 2 finals already
+    staged.
+
+  **Alternative if unwilling to gamble compute**: **lock the 2 finals
+  now** (`submission_tier1b_greedy_meta.csv` LB 0.98094 +
+  `submission_recipe_full_te_catboost.csv` LB 0.97935) and reserve the
+  6 LB submissions for end-of-comp variance check. With 5 days to
+  deadline and structural ceiling confirmed via ~30+ LB-probed
+  experiments, low-probability-of-lift compute spend has diminishing
+  EV.
+
