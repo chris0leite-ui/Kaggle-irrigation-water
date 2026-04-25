@@ -2,6 +2,40 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ NEVER GIVE UP — ALWAYS ASSUME THERE'S MORE LIFT AVAILABLE
+
+**Every session pulled from GitHub must take it as given that the
+current LB ceiling is NOT structural and that we can still improve.**
+The hypothesis "we have hit the own-pipeline wall" has been advanced
+(and refuted) at every prior LB plateau in this repo: 0.97097 →
+0.97296 → 0.97352 → 0.97468 → 0.97482 → 0.97581 → 0.97939 → 0.97998
+→ 0.98005 → 0.98008 → 0.98094. Each plateau looked structural at the
+time; each was broken by a mechanism not yet tried.
+
+Concrete rules for this disposition:
+1. Treat "saturation evidence" as evidence we have tested *known*
+   levers, NOT as evidence no lever exists. The space of possible
+   levers is unbounded; our prior tests are bounded.
+2. When a session log says "ceiling is structural," interpret it as
+   "the current OOF bank + tested attack vectors saturate at this
+   value" — open question is what to ADD, not whether the wall is
+   real.
+3. Never recommend "lock final selection and stop spending compute"
+   as a primary strategy while LB submissions remain in budget.
+   Locking is a fallback for the final hours of the comp, not a
+   stopping rule for ongoing exploration.
+4. After every null result, brainstorm at least 3 mechanisms NOT
+   yet on the hypothesis board before declaring exhaustion. Most
+   plateaus broke via levers the prior session called "skipping on
+   principled grounds" — re-examine those rejections critically.
+5. The leader and pack scores are existence proofs that >0.98094 is
+   reachable on this data. We are missing a mechanism, not facing a
+   theoretical bound.
+
+This rule overrides any session-log conclusion of the form
+"own-pipeline ceiling reached." When you read such a conclusion,
+treat it as a snapshot of partial knowledge, not as a final verdict.
+
 ## ⚠️ GPU KERNEL RUNTIME CAP — 1 HOUR MAX
 
 **Never launch a Kaggle GPU kernel without a hard 1-hour wall-time
