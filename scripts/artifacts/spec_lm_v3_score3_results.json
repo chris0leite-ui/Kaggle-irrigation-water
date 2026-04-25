@@ -1,0 +1,26 @@
+{
+  "spec_score": 3,
+  "seed": 42,
+  "n_folds": 5,
+  "smoke": false,
+  "n_features": 41,
+  "train_rows_in_spec": 102157,
+  "truly_medium_in_spec": 4899,
+  "truly_low_in_spec": 97258,
+  "test_rows_in_spec": 43746,
+  "best_iters": [
+    17,
+    7,
+    29,
+    25,
+    65
+  ],
+  "fold_aucs": [
+    0.8448714384930502,
+    0.8398362431455738,
+    0.8323118010855887,
+    0.8425104298287657,
+    0.8335348120779567
+  ],
+  "overall_auc": 0.826549736791603
+}

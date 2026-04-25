@@ -449,6 +449,33 @@ kernel_audit*/
 !scripts/artifacts/oof_soft_distill_tiny.npy
 !scripts/artifacts/test_soft_distill_tiny.npy
 
+# v3 boundary specialists keyed on the NEW LB-best 3-stack teacher
+# (OOF 0.98061 / LB 0.98008). score=5 and score=6 variants. Both null
+# as hard-override legs on the new teacher (score=5 peak Δ=+0.00004,
+# score=6 dead). Kept for future experiments that may find uses.
+!scripts/artifacts/oof_spec_mh_v3_score5.npy
+!scripts/artifacts/test_spec_mh_v3_score5.npy
+!scripts/artifacts/oof_spec_mh_v3_score6.npy
+!scripts/artifacts/test_spec_mh_v3_score6.npy
+
+# spec_lm_v3 = Low↔Medium boundary specialist at score=3. AUC 0.827 but
+# break-even precision 39.3% means ~+0.00002 OOF standalone delta.
+!scripts/artifacts/oof_spec_lm_v3_score3.npy
+!scripts/artifacts/test_spec_lm_v3_score3.npy
+
+# XGB meta-stacker over 63-component OOF bank (203-dim features).
+# 8,948 errors vs LB-best's 9,572. Isotonic-calibrated version at
+# α=0.300 on top of LB-best stack gave OOF 0.98084 / LB 0.98094 —
+# CURRENT LB BEST (+0.00086 over prior 0.98008, gap −0.00010).
+!scripts/artifacts/oof_xgb_metastack.npy
+!scripts/artifacts/test_xgb_metastack.npy
+
+# xgb_nonrule 3-seed bag {42,7,123}. Null as drop-in replacement in
+# LB-best stack (-0.00005) — bag prob-scale differs from single-seed
+# isotonic calibration anchor. Kept for future stacking experiments.
+!scripts/artifacts/oof_xgb_nonrule_bag3.npy
+!scripts/artifacts/test_xgb_nonrule_bag3.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
 
