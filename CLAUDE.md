@@ -8326,3 +8326,152 @@ read time has surfaced every real lever we've found. Start there.
 
 - LB best unchanged at 0.98094. Pack 0.98114 still +0.00020 above.
 - LB budget: 3/10 used today, 7 remaining.
+
+### 2026-04-25 — U0OEQ session: focal-NULL, distill family closed, Options 4+2 deferred (rehydrate constraint)
+
+**Context**: ran 4-option plan after sibling sessions hit Tier 1b LB-best
+0.98094. Container rehydrates ~every 15-30 min idle wiped uncommitted
+work three times this session. Final state captured below.
+
+**Confirmed CLOSED (this session)**:
+1. **Option 3 — greedy_expanded over 42-component bank with new candidates**
+   (focal_g2_invfreq, focal_g2h3, distill_small, distill_tiny added).
+   All three anchors (recipe, lb_best_3way, lb_best_realmlp_stack)
+   converge to OOF ≤ 0.98061, the known LB-best stack OOF. Greedy
+   rediscovers the realmlp + xgb_nonrule_iso path the sibling found
+   for LB 0.98008. **No new path emerges.** Independently confirmed
+   by parallel session on origin/main with identical results.
+   - Script: `scripts/greedy_expanded.py`
+   - Result: `scripts/artifacts/greedy_expanded_results.json`
+
+2. **Option 1 — extreme-capacity distill (d=2, leaves=7, r=500)**.
+   Ran twice (post-rehydrate), bit-identical results both times:
+   - Per-fold argmax: 0.97297 / 0.97414 / 0.97486 / 0.97274 / 0.97396
+   - Tuned OOF: **0.97975** (vs distill_small 0.98066, recipe 0.97967)
+   - Bias [0.83, 1.37, 3.30]; errors 9,935 (recipe 10,114)
+   - Blend gate: peak α=0.000 vs LB-best stack (strict null), peak α=0.250
+     Δ=+0.00024 vs recipe (marginal, below LB-transfer threshold).
+   - Capacity reduction WORKS as predicted (less memorization, narrower
+     OOF→LB gap on extrapolation), but OOF collapses faster than gap
+     narrows. **No capacity sweet spot for soft-distill from
+     bagged-OOF teacher on this problem.**
+   - Artefacts: `oof_soft_distill_tiny.npy`, `test_soft_distill_tiny.npy`,
+     `soft_distill_tiny_results.json`,
+     `submissions/submission_soft_distill_tiny.csv` (diagnostic, not
+     for LB probe).
+
+**DEFERRED to a more persistent environment** (rehydrate constraint):
+3. **Option 4 — SMOTE-NC on High class** (training-data-level lever).
+   Killed by container rehydrate three times. Reaches fold 1 SMOTE
+   step (~5 min FE + ~15 min SMOTE k-NN) before reset. ~2.5h total
+   wall doesn't fit any plausible idle window in this container.
+   Status: scripts committed and ready (`scripts/recipe_smote_high.py`),
+   re-launch with `python scripts/recipe_smote_high.py` in a stable
+   environment. Expected output: `oof_recipe_smote2x.npy` +
+   `test_recipe_smote2x.npy` + results JSON.
+
+4. **Option 2 — leak-eliminated teacher / W_RECIPE=1.0 distill**
+   (recipe-only teacher, no pseudo component, leak source removed).
+   ~30 min wall — fits rehydrate window — but de-prioritized by user
+   pivot to documentation. Re-launch with
+   `SOFT_SUFFIX=recipeonly W_RECIPE=1.0 XGB_DEPTH=3 XGB_NROUND=1500 XGB_MAX_LEAVES=15 python scripts/soft_distill_xgb.py`
+   in a stable environment. Tests whether the pseudo component is
+   the leak source (vs the teacher OOF construction itself).
+
+**Distill family — closed at three capacity points**:
+```
+                       d   leaves  rounds   OOF tuned   LB         OOF→LB gap
+soft_distill           4   30      3000     0.98096     0.97850    +0.00246
+soft_distill_small     3   15      1500     0.98066     0.97865    +0.00201
+soft_distill_tiny      2   7        500     0.97975     ?          (not probed)
+                                                                     projected -0.0009
+                                                                     to 0.97850-0.97900
+```
+Pattern: gap narrows ~0.0005 per 2× capacity reduction; OOF
+collapses ~0.0010 per same reduction. No capacity sweet spot.
+**Soft-distillation from bagged-OOF teacher is structurally bounded
+on this problem.**
+
+**Strategic context**: parallel session achieved LB 0.98094 via
+**isotonic-calibrated XGB meta-stacker** (Tier 1b, commit 205b42f)
+over 63-component bank + α=0.30 blend into LB-best 3-stack. Then
+hit saturation at Tier 1c. Their conclusion (matches ours):
+"breaking past LB 0.98094 requires NEW signal source." Options 4
+(SMOTE-NC for synthetic High rows) and 2 (leak-eliminated distill)
+are precisely such NEW signal sources — both still untried and
+warrant a stable environment for the ~2.5h and ~30 min
+respectively.
+
+**Portable rules logged this session** (see LEARNINGS.md):
+1. Heavy-alpha focal loss on a class-weight-tuned XGB regresses on
+   every class, not rebalances (focal-invfreq null). Lin et al.
+   defaults are too aggressive on top of an already-balanced base.
+2. 2× capacity reduction in soft-distill narrows the OOF→LB gap by
+   ~0.0005 but is insufficient for LB transfer. Needs 4×+ reduction
+   (collapses OOF) or row-wise teacher leak-elimination (untried).
+3. "First to satisfy all blend-gate heuristics on OOF" is NOT a
+   sufficient condition for LB transfer when the candidate consumes
+   teacher OOF directly. distill_small met every heuristic
+   (Jaccard <0.80, errs ≤ anchor, per-class recall ≥ anchor across
+   all classes, peak-α blend Δ ≥ +0.0002 on 3 anchors) and still
+   LB-regressed by 0.00143.
+4. Container rehydrates erase uncommitted compute. Long jobs
+   (>30 min) need either external compute (Kaggle GPU kernel) or
+   a stable container; pip installs (e.g. `imbalanced-learn`) also
+   don't survive — bake them into Dockerfile or `bootstrap.sh`.
+
+### Next steps (handoff): re-execute Options 4 + 2 in stable env (2026-04-25)
+
+Highest-value untried experiments after the U0OEQ session and
+parallel session's Tier 1b/1c saturation:
+
+  **N1. Option 4 — SMOTE-NC + meta-stacker bank extension**
+  (`scripts/recipe_smote_high.py`, ~2.5h wall + ~5 min meta-stacker
+  rebuild). Run on a stable environment (not rehydrate-prone).
+  - Step 1: `SMOTE_TARGET=42000 python scripts/recipe_smote_high.py`
+    → produces `oof_recipe_smote2x.npy`, `test_recipe_smote2x.npy`.
+    Expected behavior: per-fold High recall lifts +0.005 to +0.015,
+    Low/Medium recall drops by ~0.001, net OOF tuned bal_acc ?
+    (open question — could lift or hurt depending on whether
+    interpolated High labels are NN-flip-consistent).
+  - Step 2: add `recipe_smote2x` to the meta-stacker bank
+    (`scripts/tier1b_xgb_metastack.py` features list) and re-train.
+    If smote2x's errors are orthogonal to the existing 63
+    components, the meta-stacker's error count drops below 8,948
+    (current best) and the iso-blended Δ vs LB-best 3-stack lifts
+    above +0.00023 OOF.
+  - Step 3: blend the new meta-stacker iso into LB-best 3-stack
+    (same α=0.30 protocol that produced LB 0.98094).
+  - Decision gate: only LB-probe if blend OOF lifts ≥ +0.0002 over
+    0.98094.
+
+  **N2. Option 2 — W_RECIPE=1.0 distill** (~30 min, fits any window).
+  Quick diagnostic: replace teacher = 0.5×recipe + 0.5×pseudo with
+  teacher = recipe_only. If student gap narrows below distill_small's
+  +0.00201, the pseudo-label component is a meaningful leak source.
+  - Run: `SOFT_SUFFIX=recipeonly W_RECIPE=1.0 XGB_DEPTH=3 XGB_NROUND=1500 XGB_MAX_LEAVES=15 python scripts/soft_distill_xgb.py`
+  - Diagnostic value only — LB probe NOT warranted regardless of
+    outcome (recipe alone is OOF 0.97967, weaker than current best).
+  - If gap narrows: indicates path to a real distill that transfers.
+    Then build a leak-eliminated multi-fold teacher.
+  - If gap doesn't narrow: confirms overfit is in teacher OOF
+    construction itself, not the pseudo component. Distill family
+    fully closed.
+
+  **N3. Cross-pollinate parallel session's meta-stacker with
+  today's NEW components**. The Tier 1b meta-stacker bank predates
+  distill_tiny + recipe_smote2x. Add the 4 new components
+  (focal_invfreq, focal_g2h3, distill_small, distill_tiny once
+  built) to `tier1b_xgb_metastack.py` CANDIDATES list and re-train.
+  If standalone errors drop below 8,948, isotonic + blend may
+  exceed 0.98094.
+  - Wall: ~30 min (meta-stacker rebuild only, no base-component
+    retraining since OOFs are on disk).
+
+  **Skip on principled grounds**:
+  - Further focal variants (γ < 2 or alpha < 1.5x). Two failures in
+    one session at different α magnitudes; mechanism is structurally
+    backwards on this base.
+  - More distill capacity-reduction experiments (d=2/r=500 and
+    d=3/r=1500 already run). Capacity-reduction path is bounded.
+  - Public-CSV blending (banned by top-of-file rule).
