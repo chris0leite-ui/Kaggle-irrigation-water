@@ -514,6 +514,12 @@ kernel_audit*/
 # Same heavy-reg-XGB seed-dominant-optimum lesson as nonrule_bag.
 !scripts/artifacts/oof_xgb_metastack_bag3.npy
 !scripts/artifacts/test_xgb_metastack_bag3.npy
+!scripts/artifacts/oof_xgb_metastack_v3.npy
+!scripts/artifacts/test_xgb_metastack_v3.npy
+!scripts/artifacts/oof_xgb_metastack_varB.npy
+!scripts/artifacts/test_xgb_metastack_varB.npy
+!scripts/artifacts/oof_xgb_metastack_varC.npy
+!scripts/artifacts/test_xgb_metastack_varC.npy
 
 # xgb_nonrule 3-seed bag {42,7,123}. Null as drop-in replacement in
 # LB-best stack (-0.00005) — bag prob-scale differs from single-seed

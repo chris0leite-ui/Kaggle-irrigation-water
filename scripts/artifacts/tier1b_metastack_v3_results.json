@@ -1,0 +1,148 @@
+{
+  "components": [
+    "bagged_greedy_nonrule",
+    "catboost_optuna",
+    "catboost_recipe_gpu",
+    "em_uniform",
+    "extratrees_dist_digits",
+    "extratrees_dist_digits_v2",
+    "greedy_blend",
+    "greedy_full_bank_6way",
+    "hybrid_lgbmxgb_blend",
+    "lb_best_fs123",
+    "lb_best_fs7",
+    "lgbm_competitor",
+    "lgbm_dist_digits",
+    "lgbm_dist_digits_ote",
+    "lgbm_te_orig",
+    "ovo_boundary_blend",
+    "ovo_nonrule_blend",
+    "p3_embed_propagate",
+    "realmlp",
+    "realmlp_ens4",
+    "recipe_171pair",
+    "recipe_allpairs",
+    "recipe_catboost",
+    "recipe_focal_g2_aH1",
+    "recipe_focal_g2_invfreq",
+    "recipe_focal_g2h3",
+    "recipe_full_te",
+    "recipe_full_te_a01",
+    "recipe_full_te_a10",
+    "recipe_full_te_catboost",
+    "recipe_full_te_cldrop",
+    "recipe_full_te_dae",
+    "recipe_full_te_fexboth",
+    "recipe_full_te_gby",
+    "recipe_full_te_lgbm",
+    "recipe_full_te_seed123",
+    "recipe_full_te_seed7",
+    "recipe_lgbm",
+    "recipe_no_combos",
+    "recipe_no_digits",
+    "recipe_no_orig",
+    "recipe_no_ote",
+    "recipe_pseudolabel",
+    "recipe_pseudolabel_seed123labeler",
+    "recipe_pseudolabel_seed7labeler",
+    "recipe_pseudolabel_tau092",
+    "soft_distill",
+    "soft_distill_small",
+    "soft_distill_tiny",
+    "tabpfn",
+    "tta_recipe_baseline",
+    "tta_recipe_s001",
+    "tta_recipe_s005",
+    "tta_recipe_s010",
+    "tta_recipe_s020",
+    "tta_recipe_s030",
+    "xgb_corn",
+    "xgb_dist_digits",
+    "xgb_dist_digits_ote",
+    "xgb_dist_digits_ote_digits",
+    "xgb_dist_digits_ote_digits_light",
+    "xgb_dist_digits_ote_digits_pairs",
+    "xgb_dist_digits_ote_light",
+    "xgb_dist_routed_v3",
+    "xgb_nonrule",
+    "xgb_vanilla_dist"
+  ],
+  "n_components": 66,
+  "feature_dim": 215,
+  "best_iters": [
+    471,
+    585,
+    735,
+    738,
+    655
+  ],
+  "meta_argmax": 0.9740999289737827,
+  "meta_tuned": 0.9807325979527047,
+  "lb_oof": 0.9806090685483349,
+  "sweep": [
+    {
+      "alpha": 0.0,
+      "oof": 0.9806090685483349,
+      "delta": 0.0
+    },
+    {
+      "alpha": 0.05,
+      "oof": 0.9806115422384503,
+      "delta": 2.473690115412097e-06
+    },
+    {
+      "alpha": 0.1,
+      "oof": 0.9807605145452237,
+      "delta": 0.00015144599688887705
+    },
+    {
+      "alpha": 0.15,
+      "oof": 0.9807997193480736,
+      "delta": 0.00019065079973878962
+    },
+    {
+      "alpha": 0.2,
+      "oof": 0.9807555446229818,
+      "delta": 0.00014647607464690626
+    },
+    {
+      "alpha": 0.25,
+      "oof": 0.9808530581861103,
+      "delta": 0.0002439896377754991
+    },
+    {
+      "alpha": 0.3,
+      "oof": 0.9808261800433368,
+      "delta": 0.0002171114950019204
+    },
+    {
+      "alpha": 0.35,
+      "oof": 0.9808190282120761,
+      "delta": 0.00020995966374126596
+    },
+    {
+      "alpha": 0.4,
+      "oof": 0.980824734474524,
+      "delta": 0.00021566592618915692
+    },
+    {
+      "alpha": 0.45,
+      "oof": 0.9809136319127493,
+      "delta": 0.000304563364414423
+    },
+    {
+      "alpha": 0.5,
+      "oof": 0.980901517498697,
+      "delta": 0.00029244895036217855
+    }
+  ],
+  "best": {
+    "alpha": 0.45,
+    "oof": 0.9809136319127493,
+    "delta": 0.000304563364414423
+  },
+  "err_lb": 9572,
+  "err_meta": 8915,
+  "jaccard_vs_lb": 0.8307585660526837,
+  "elapsed_sec": 389.24815464019775
+}
