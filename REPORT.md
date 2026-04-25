@@ -216,12 +216,13 @@ concat(P_hv3, P_routed, P_dgp, P_xgbdist) with class_weight=balanced
 gave 0.97348 — underperformed the simple greedy blend because the
 component probs are too correlated for 12-feature logistic to add signal.
 
-## 4. Strategy and next steps (updated 2026-04-24, LB 0.98008)
+## 4. Strategy and next steps (updated 2026-04-25, LB 0.98094)
 
-Current best: **LB3-anchor + RealMLP + xgb_nonrule_iso log-blend,
-OOF 0.98061 / LB 0.98008** (+0.00003 LB vs prior best 0.98005
-multi-seed 3-way). Gap to 0.98114 tied pack: +0.00106.
-Gap to 0.98219 leader: +0.00211. The pack's LB is known to be a
+Current best: **Tier-1b XGB meta-stacker isotonic blend on top of the
+LB-best 3-stack, OOF 0.98084 / LB 0.98094** (+0.00086 over the prior
+2026-04-24 best 0.98008). Gap to 0.98114 tied pack: +0.00020.
+Gap to 0.98219 leader: +0.00125. The own-pipeline frontier is now
+within 1 tier of the public-CSV-blend pack. The pack's LB is known to be a
 public-notebook CSV-blend artifact (banned per repo rule), not a
 modeling breakthrough available through our own pipelines.
 
@@ -299,36 +300,41 @@ Ranked by expected ROI / effort:
    deterministic and approximated by (1) above. No independent
    payoff to further archaeology.
 
-### Final-selection candidates (updated 2026-04-24, LB 0.98008)
+### Final-selection candidates (updated 2026-04-25, LB 0.98094)
 
 Candidates listed in order of LB public. Final-selection decision
 should weigh public LB, OOF→LB gap (calibration robustness), and
 model-family variance for private-LB risk mitigation.
 
-- **Primary (new LB best)**: `submission_lb3_realmlp_nonruleiso.csv`
-  → OOF 0.98061 / **LB 0.98008** / gap +0.00053. Greedy-refit 3-stack:
-  LB-best 3-way anchor + RealMLP-TD (n_ens=1, GPU) @ α=0.200 +
-  xgb_nonrule (isotonic-calibrated) @ α=0.075. First NN-leg blend that
-  passed BOTH Jaccard gate (0.62) AND magnitude gate (errs −301 vs
-  anchor). Wider OOF→LB gap reflects RealMLP's inherent OOF-overfit
-  surcharge but still LB-positive.
-- **Safe fallback (prior LB best)**:
-  `submission_3way_recipe025_s1035_s7040.csv`
+- **Primary (new LB best)**: `submission_tier1b_greedy_meta.csv`
+  → OOF 0.98084 / **LB 0.98094** / gap **−0.00010** (LB ABOVE OOF).
+  Tier-1b stack: LB-best 3-stack base + isotonic-calibrated XGB
+  meta-stacker @ α=0.30. Meta-stacker built over the saved OOF bank;
+  raw meta peaked at α=0.40 with marginal lift, but per-class
+  isotonic re-aligned scales and dropped optimum to α=0.30 with
+  3.7× more LB lift than OOF predicted. Negative OOF→LB gap is the
+  signature of meta-stackers built over noisy OOF banks (fold-noise
+  smearing under-counts true generalization).
+- **Tier-1a 3-stack (RealMLP)**: `submission_lb3_realmlp_nonruleiso.csv`
+  → OOF 0.98061 / LB 0.98008 / gap +0.00053. LB-best 3-way anchor +
+  RealMLP-TD (n_ens=1) @ α=0.200 + xgb_nonrule_iso @ α=0.075. First
+  NN-leg blend that passed both Jaccard (0.62) and magnitude gates.
+  Different model-family signature than the Tier-1b primary — useful
+  hedge if private LB punishes the meta-stacker's heavier inductive
+  bias.
+- **Safe fallback (multi-seed)**: `submission_3way_recipe025_s1035_s7040.csv`
   → OOF 0.98029 / LB 0.98005 / gap +0.00024. 3-way multi-seed log-blend
-  of recipe × pseudo_s1 × pseudo_s7. Tight calibration (lowest gap we
-  have), pure tree-family pipeline, minimal variance surface. Good
-  hedge against private-LB fold drift.
+  of recipe × pseudo_s1 × pseudo_s7. Tightest calibration (lowest gap
+  in the family), pure tree-family pipeline, minimal variance surface.
+  Strong hedge against private-LB fold drift.
 - **Ultra-safe single-model baseline**: `submission_recipe_full_te.csv`
   → OOF 0.97967 / LB 0.97939 / gap +0.00028. Zero blend overfit risk,
   ceiling-confirmed structural baseline.
 
-Gap to pack (0.98114): +0.00106. Gap to leader (0.98219): +0.00211.
+Gap to pack (0.98114): +0.00020. Gap to leader (0.98219): +0.00125.
 The pack's LB is known to be public-CSV-blend (banned per CLAUDE.md);
-own-pipeline frontier is now at the 0.98008 LB mark confirmed by this
-session's 3-stack probe.
-
-If (1) lands a verified LB lift before close, swap the fallback for
-the NN-augmented blend.
+own-pipeline frontier is now at the **0.98094 LB mark** — within 1
+tier of the public-blend pack.
 
 ### Ruled out in today's session (short list)
 
