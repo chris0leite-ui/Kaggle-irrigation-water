@@ -9653,6 +9653,99 @@ by EV/cost:
      19-feature base produces orthogonal partitions but those
      partitions inherit the weak base's class-recall profile.
 
+### 2026-04-25 — J1-v2 (recipe-feature base) NULL: bias-mismatch, not magnitude
+
+- Goal: J1-v1 closed NULL with weak 19-raw-feature base. J1-v2 retest:
+  swap to a recipe-feature base (443 cols + per-fold OrderedTE,
+  matching recipe_full_te's pipeline) to see if a stronger base
+  closes the magnitude trap. Risk: recipe-base trees may produce
+  leaves too similar to recipe_full_te's partitions (already in the
+  63-component meta-stacker bank), making the leaf-OTE encoding
+  redundant.
+- Production (504k × 5-fold seed=42, 14.7 min wall):
+  - base: argmax 0.97678, tuned 0.97729, bias [1.83, 2.27, 2.50]
+  - meta: argmax 0.97674, tuned 0.97812, bias [1.83, 1.77, 3.20]
+  - meta-over-base lift shrunk to +0.00083 (vs J1-v1's +0.00169 with
+    weak base) — confirms partial redundancy with recipe-base
+- **Blend gate vs LB-best 4-stack** (anchor 0.98084, errs 9,415, bias [1.43, 1.47, 3.40]):
+  - Standalone v2 @ LB bias: argmax 0.97734, **errs 12,343 (+31%)**.
+    Per-class recall L 0.9950 / **M 0.9580** (-0.0115!) / H 0.9791
+    (+0.0016).
+  - Jaccard(leaf-OTE-v2, 4-stack) = **0.6696** — orthogonality
+    intact (well below 0.97 redundancy threshold)
+  - Fixed-bias α-sweep: monotone-negative from α=0.025 (Δ=-0.00004
+    at α=0.025, -0.00128 at α=0.500). Emit gate fails at every α.
+- **NEW failure mode** (different from J1-v1): not magnitude
+  per-class direction; it's **bias-signature mismatch at fixed-LB-bias
+  evaluation**. v2's own tuned bias is [1.83, 1.77, 3.20], vs LB's
+  [1.43, 1.47, 3.40] — a ~0.4-unit shift on Low and ~0.5 on Medium.
+  At LB-bias the v2 meta's argmax push lands wrong: Medium boundary
+  rows that 4-stack catches at L/M get rerouted to H. Per-class
+  isotonic calibration (already applied via `iso_cal`) doesn't fix
+  per-row overfit. Net macro-recall at LB bias: 0.97734 (v2) vs
+  0.97750 (4-stack), so even at standalone v2 trails by 0.00016 at
+  the anchor's operating point.
+- **Two different failure modes across J1-v1 + J1-v2**:
+  - v1 (weak base, 19 raw features): magnitude trap, +15% errs,
+    High recall crashes -0.045 — error MAGNITUDE distributed
+    against the rare class
+  - v2 (strong recipe base): bias-signature mismatch trap, +31%
+    errs at LB bias, M↔H recall pivots in the wrong direction —
+    error MAGNITUDE worse, but per-class direction has High up
+- **J1 lever family CLOSED** at two distinct failure points. The
+  TREE-SPACE ENCODING mechanism (per-tree partition memberships
+  via OrderedTE) genuinely produces orthogonal predictions
+  (Jaccard 0.56 v1, 0.67 v2 — both well below redundancy
+  thresholds) but cannot clear the blend gate because:
+  1. With weak base, magnitude is too high
+  2. With strong base, bias-signature differs from anchor enough
+     that fixed-bias evaluation flips error direction
+  Both modes are structural: a leaf-OTE meta is a fundamentally
+  separate model from the anchor's component family, so its
+  decision-rule operating point won't align with the anchor's
+  fixed bias regardless of how the base is configured.
+- LB delta: n/a. No probe warranted at any α.
+- Current LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/artifacts/oof_leaf_ote_meta_v2.npy` (7.3 MB)
+  - `scripts/artifacts/test_leaf_ote_meta_v2.npy` (3.1 MB)
+  - `scripts/artifacts/leaf_ote_meta_v2_results.json`
+  - `scripts/artifacts/leaf_ote_v2_blend_results.json`
+  - 2 scripts: `leaf_ote_metastack_v2.py`, `leaf_ote_blend_v2.py`
+- **Pivot recommendation**: J2 (bootstrap-bagged meta-stacker) is
+  the next mechanically distinct lever. Unlike J1's "different
+  feature representation" approach, J2 attacks the SAME 63-component
+  bank that produced LB 0.98094, but via component-bootstrap of the
+  meta's INPUT features — same calibration signature as the existing
+  meta-stacker, no bias mismatch. Lower upside (+0.00005-0.00015
+  expected) but higher transfer probability.
+- Lessons logged for future synthetic-tabular comps:
+  1. **The "blend gate" needs a fourth criterion beyond errs/Jaccard/
+     recall floor: bias-signature ALIGNMENT.** A candidate with a
+     standalone-tuned bias that differs from the anchor's bias by
+     more than ~0.2 units on any class will fail fixed-bias evaluation
+     even if its standalone tuned-OOF is competitive. Pre-screen by
+     comparing tuned biases before launching a full sweep.
+  2. **Tree-leaf OTE encoding is structurally a separate model
+     family** from the anchor it tries to blend with — different
+     base, different OTE source (leaves vs cats), different meta
+     XGB. Even when the base USES the same FE as the anchor, the
+     meta's per-row prob distribution has a different operating
+     point. To use this lever effectively, retune the entire stack's
+     bias jointly with the leaf-OTE leg — but doing so risks
+     binhigh-style OOF-tuning overfit.
+  3. **Stronger base → smaller meta lift** in this lever family
+     because the meta's tree-space encoding becomes increasingly
+     redundant with what a strong base XGB already captures via
+     its softprob output. The sweet spot, if one exists, is a base
+     just strong enough to clear magnitude but not so strong that
+     tree-space adds nothing. Heuristic to test: aim for base
+     standalone within 0.005 of anchor (here 0.98084 - 0.005 =
+     0.97584 ideal base target). v1 at 0.96395 was too weak; v2
+     at 0.97729 was just under target. A base at 0.975-0.978
+     range might thread the needle but is unstable to tune.
+
 ### Next steps: junior-engineer audit speculative levers (2026-04-25)
 
 After 4 LB-probed nulls today (LR meta-stacker, cross-poll v3 metastack,
