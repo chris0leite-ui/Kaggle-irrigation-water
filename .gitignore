@@ -605,3 +605,4 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_leaf_ote_meta.npy
 !scripts/artifacts/leaf_ote_meta_results.json
 !scripts/artifacts/leaf_ote_blend_results.json
+!scripts/artifacts/leaf_ote_meta_smoke_results.json
