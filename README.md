@@ -3,76 +3,59 @@
 <https://www.kaggle.com/competitions/playground-series-s6e4>
 
 3-class classification (`Low` / `Medium` / `High`) on 19 tabular agronomy
-features (soil chemistry, weather, crop/irrigation metadata). Train 630,000
-rows, test 270,000 rows. Metric: **balanced accuracy** (macro-recall).
+features. Train 630k rows, test 270k rows. Metric: **balanced accuracy**.
 Severe class imbalance: 58.7 / 37.9 / **3.3** %.
 
-Best public LB: **0.97352** — greedy 3-way log-blend
-(hybrid_v3 0.45 + routed_v3 0.40 + spec_678 0.15) with an extra
-log-space weight 0.15 of a non-rule-features-only XGB head (using
-only `Soil_Type, Soil_pH, Organic_Carbon, Electrical_Conductivity,
-Humidity, Sunlight_Hours, Crop_Type, Season, Irrigation_Type,
-Water_Source, Field_Area_hectare, Previous_Irrigation_mm, Region`).
-Submission at `submissions/submission_greedy_nonrule_blend.csv`;
-build via `python scripts/nonrule_features_only.py` after the
-greedy base is reconstructed by `greedy_binhigh_minimal.py`.
+## Pipeline
 
-> **For any fresh Claude session / new container**: run `./bootstrap.sh`
-> first. It installs deps and downloads the competition data. The
-> `KAGGLE_API_TOKEN` env var is configured at the container level, so
-> no interactive prompt is needed. Do **not** use `download_data.py`
-> for the competition data — it targets an optional extra dataset.
+Two trainings of the same heavy-reg-XGB recipe + a single 50/50 log-blend:
 
+```
+recipe_full_te.py   →  oof_recipe_full_te.npy,   test_recipe_full_te.npy   (LB 0.97939)
+recipe_pseudolabel  →  oof_recipe_pseudolabel.npy, test_recipe_pseudolabel.npy
+                       (uses recipe's test probs as τ=0.98 pseudo-labels)
+blend.py            →  submission_recipe_pseudolabel_blend.csv               (LB 0.97998)
+```
+
+Decision rule: `argmax(0.5·log(test_a) + 0.5·log(test_b) + [1.4324, 1.4689, 3.4008])`
+where the bias is recipe's per-class log-bias from coord-ascent on OOF.
+
+This is within ~1σ of the prior LB-best 4-stack (0.98094) under fold-std
+σ≈0.00088, with one-tenth the moving parts.
 
 ## Reproduce
 
 ```bash
-./bootstrap.sh                 # installs deps, prompts for Kaggle token, downloads data
-
-# Build the final submission(s)
-python scripts/<builder>.py
-# or walk the narrative:
-jupyter notebook notebooks/<final>.ipynb
+./bootstrap.sh                      # installs deps + downloads data
+python scripts/recipe_full_te.py    # ~55 min CPU, fold OOF + test probs
+python scripts/recipe_pseudolabel.py # ~48 min CPU, augmented retrain
+python scripts/blend.py             # ~5 s, writes the final submission
 ```
 
-`bootstrap.sh` reads the Kaggle API token via an interactive prompt (no
-echo, not written to disk except as `~/.kaggle/kaggle.json`) and downloads
-`data/train.csv`, `data/test.csv`, `data/sample_submission.csv`.
+`SMOKE=1` shrinks each step to a 5-min sanity run (20k rows × 2 folds).
 
-> Competition data is **not** committed to git — it's covered by the
-> competition Rules § 2.4.b (no redistribution). Re-run `bootstrap.sh`
-> after each container restart to fetch it.
-
-## Leaderboard tiers
-
-| Submission file | CV | Public LB | Notes |
-|---|---:|---:|---|
-| `submission_<name>.csv` | — | — | — |
-
-## Repo layout
+## Layout
 
 ```
-notebooks/          Final narrative notebooks.
-scripts/            Every submission and analysis reproducible from here.
-scripts/artifacts/  Cached models/OOF preds/features — survives restart.
-data/               Competition data (gitignored, re-fetched via bootstrap.sh).
-submissions/        Built submission CSVs.
-plots/              High-signal diagnostics.
-legacy/             Archive of exploratory code, stale plots, dead ends.
-brief.md            Verbatim host material.
-CLAUDE.md           Development log.
-LEARNINGS.md        Portable patterns.
-REPORT.md           Work report.
-bootstrap.sh        One-shot environment re-hydration.
+scripts/
+  recipe_features.py    feature-engineering blocks
+  recipe_ote.py         OrderedTE (per-class cumulative shuffled target encoder)
+  recipe_full_te.py     XGB on FE + OTE (foundation model)
+  recipe_pseudolabel.py same pipeline, augmented with τ=0.98 pseudo-labels
+  common.py             tune_log_bias, log_blend, fast_bal_acc
+  blend.py              50/50 log-blend → submission CSV
+data/                   competition data + 10k original (gitignored)
+submissions/            LB-confirmed reference CSVs
 ```
 
-## Key findings
+## Feature blocks (recipe_full_te)
 
-- `Irrigation_Need` is severely imbalanced (3.3% `High`) → balanced accuracy
-  is dominated by minority-class recall → per-class threshold tuning on
-  OOF probabilities is the first lever to try before any model ensembling.
-- The 0.98114 tied pack (~100+ teams exactly tied as of 2026-04-20) looks
-  like a ceiling from the default public baseline. Real movement above
-  0.98114 probably comes from threshold tuning, careful class weighting,
-  or adding the original Irrigation Prediction dataset as extra training
-  signal.
+8 raw cats + 11 raw nums + threshold flags (4) + LR-formula logits (3) +
+cat×cat pair combos (28) + digit features `floor(v·10^k) mod 10` for k=−4..+3
+(~70) + num-as-cat (11) + FREQ over cats+combos (~44) + ORIG mean/std on the
+10k original (~48), then **OrderedTE (a=1)** on every categorical (~117 keys ×
+3 classes ≈ 350 OTE features). Total ≈ 440 features fed to XGB.
+
+XGB: `max_depth=4, max_leaves=30, lr=0.1, reg_alpha=5, reg_lambda=5,
+subsample=0.8, colsample_bytree=0.8, n_estimators=3000, early_stopping=200`,
+class-balanced sample weights. 5-fold StratifiedKFold(seed=42).

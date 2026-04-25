@@ -1,27 +1,17 @@
-"""Feature engineering blocks for the public-notebook recipe (XGB + OTE + FE).
+"""Feature engineering blocks for the recipe pipeline (XGB + OTE + FE).
 
-Adapted from:
-- cdeotte/original-data-exact-formula  (LR-formula coefs on 10k original)
-- aliafzal9323/s6e4-0-978-xgb-cat-pairwise-te-magic  (cat-pair combos + TE_ORIG)
-- yunsuxiaozi/pss6e4-xgb-cv-0-979805  (digit FE + OrderedTE)
-- include4eto/ps6e4-xgb-cudf-pseudo-labels  (composed pipeline)
-
-Public `build_feature_sets(train, test, orig, target='Irrigation_Need')` returns
-  (train_fe, test_fe, orig_fe, feat_info) where feat_info carries the column
-lists the downstream pipeline needs (NUMS, CATS, NEW_NUMS, NEW_CATS,
-NUM_AS_CAT, TE_COLUMNS, TO_REMOVE). All transforms are deterministic and
-leak-free (external aggregations are computed on orig only).
+Public `add_*` helpers; the orchestrator `recipe_full_te.py` composes them.
 """
 from __future__ import annotations
 
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
-from itertools import combinations
 
 
 # Chris Deotte's LR coefficients on the 10k original (logits per class), used
 # verbatim as 3 numeric features so the tree can combine them with TE/digits.
-# Source: include4eto/ps6e4-xgb-cudf-pseudo-labels cell-17.
 _LOGIT_COEFS = {
     "Low":    dict(bias=16.3173,
                    soil_lt_25=-11.0237, temp_gt_30=-5.8559,
@@ -45,7 +35,6 @@ _LOGIT_COEFS = {
 
 
 def add_threshold_flags(df: pd.DataFrame) -> list[str]:
-    """Add the 4 DGP threshold boolean flags; mutates df in-place."""
     df["soil_lt_25"] = (df["Soil_Moisture"] < 25).astype(np.int8)
     df["temp_gt_30"] = (df["Temperature_C"] > 30).astype(np.int8)
     df["rain_lt_300"] = (df["Rainfall_mm"] < 300).astype(np.int8)
@@ -54,7 +43,6 @@ def add_threshold_flags(df: pd.DataFrame) -> list[str]:
 
 
 def add_lr_formula_logits(df: pd.DataFrame) -> list[str]:
-    """Compute the 3 LR-formula logit features (Chris Deotte coefficients)."""
     stage = df["Crop_Growth_Stage"].astype(str).values
     mulch = df["Mulching_Used"].astype(str).values
     soil = df["soil_lt_25"].values
@@ -79,11 +67,7 @@ def add_lr_formula_logits(df: pd.DataFrame) -> list[str]:
 
 def add_cat_pair_combos(train: pd.DataFrame, test: pd.DataFrame,
                         orig: pd.DataFrame, cats: list[str]) -> list[str]:
-    """Concat every (c1, c2) cat pair into a single string-encoded combo col.
-
-    Assigns the same integer code across train+test+orig (factorized on the
-    concatenation). Returns list of new combo column names.
-    """
+    """Concat every (c1, c2) cat pair into a single string-encoded combo col."""
     new_cols: list[str] = []
     for c1, c2 in combinations(cats, 2):
         col = f"COMBO_{c1}_{c2}"
@@ -91,11 +75,10 @@ def add_cat_pair_combos(train: pd.DataFrame, test: pd.DataFrame,
             df[col] = df[c1].astype(str) + "_" + df[c2].astype(str)
         combined = pd.concat([train[col], test[col], orig[col]])
         codes, _ = pd.factorize(combined)
-        split_tr = len(train)
-        split_te = split_tr + len(test)
-        train[col] = codes[:split_tr]
-        test[col] = codes[split_tr:split_te]
-        orig[col] = codes[split_te:]
+        s = len(train); t = s + len(test)
+        train[col] = codes[:s]
+        test[col] = codes[s:t]
+        orig[col] = codes[t:]
         new_cols.append(col)
     return new_cols
 
@@ -103,11 +86,7 @@ def add_cat_pair_combos(train: pd.DataFrame, test: pd.DataFrame,
 def add_digit_features(train: pd.DataFrame, test: pd.DataFrame,
                        orig: pd.DataFrame, nums: list[str],
                        digit_range=range(-4, 4)) -> list[str]:
-    """Extract digit-position features for every numeric column.
-
-    `floor(v * 10^(-k)) mod 10` for k in `digit_range` (default -4..+3).
-    Drops positions that are constant across the test set.
-    """
+    """`floor(v * 10^(-k)) mod 10` for k in `digit_range`. Drops test-constant cols."""
     cols: list[str] = []
     for c in nums:
         for k in digit_range:
@@ -115,7 +94,6 @@ def add_digit_features(train: pd.DataFrame, test: pd.DataFrame,
             for df in (train, test, orig):
                 df[name] = (df[c] // (10.0 ** k) % 10).astype("int8")
             cols.append(name)
-    # Drop positions that are constant on test (zero variance — no signal).
     drop = [c for c in cols if test[c].nunique() == 1]
     for c in drop:
         for df in (train, test, orig):
@@ -125,10 +103,6 @@ def add_digit_features(train: pd.DataFrame, test: pd.DataFrame,
 
 def add_freq_features(train: pd.DataFrame, test: pd.DataFrame,
                       orig: pd.DataFrame, cats: list[str]) -> list[str]:
-    """Per-cat relative-frequency computed on the combined (train+test+orig).
-
-    Uses float32 for memory. Tolerant of unseen categories (fill 0).
-    """
     new_cols: list[str] = []
     for c in cats:
         freq = pd.concat([train[c], test[c], orig[c]]).value_counts(normalize=True)
@@ -142,20 +116,12 @@ def add_freq_features(train: pd.DataFrame, test: pd.DataFrame,
 def add_orig_mean_std(train: pd.DataFrame, test: pd.DataFrame,
                       orig: pd.DataFrame, cols_to_aggregate: list[str],
                       target: str) -> list[str]:
-    """For each col, groupby its value on ORIG and compute mean+std of target.
-
-    Join those aggregated values onto train/test. Fill unseen with (0.5, 0).
-    This is leak-free for the synthetic train because orig is an external
-    dataset. Returns the names of the 2*len(cols) new numeric features.
-    """
+    """For each col, groupby its value on ORIG and compute mean+std of target."""
     new_cols: list[str] = []
     for c in cols_to_aggregate:
         stats = orig.groupby(c)[target].agg(["mean", "std"]).reset_index()
-        stats.columns = [c,
-                         f"ORIG_{c}_mean",
-                         f"ORIG_{c}_std"]
-        for df_name in ("train", "test"):
-            df = {"train": train, "test": test}[df_name]
+        stats.columns = [c, f"ORIG_{c}_mean", f"ORIG_{c}_std"]
+        for df in (train, test):
             merged = df.merge(stats, on=c, how="left")
             df[f"ORIG_{c}_mean"] = merged[f"ORIG_{c}_mean"].fillna(0.5).astype(np.float32).values
             df[f"ORIG_{c}_std"]  = merged[f"ORIG_{c}_std"].fillna(0).astype(np.float32).values
@@ -163,93 +129,9 @@ def add_orig_mean_std(train: pd.DataFrame, test: pd.DataFrame,
     return new_cols
 
 
-def add_domain_interactions(df: pd.DataFrame) -> list[str]:
-    """11 ratio/product features from utaazu kernel (0.979 CV).
-
-    Mutates df in-place. All safe additions (+1/+0.1 denominators prevent
-    div-by-zero). No groupby or cross-split stats — purely row-wise.
-    """
-    d = df
-    d["moist_rain"]    = d["Soil_Moisture"]  / (d["Rainfall_mm"]      + 1)
-    d["moist_temp"]    = d["Soil_Moisture"]  / (d["Temperature_C"]    + 1)
-    d["moist_wind"]    = d["Soil_Moisture"]  / (d["Wind_Speed_kmh"]   + 1)
-    d["ET_proxy"]      = (d["Temperature_C"] * d["Wind_Speed_kmh"] *
-                          d["Sunlight_Hours"]) / (d["Humidity"]       + 1)
-    d["heat_stress"]   = d["Temperature_C"]  * d["Sunlight_Hours"]
-    d["drying_force"]  = (d["Wind_Speed_kmh"] * d["Temperature_C"]) / (
-                          d["Humidity"] + 1)
-    d["water_supply"]  = d["Rainfall_mm"]    + d["Previous_Irrigation_mm"]
-    d["water_deficit"] = d["Soil_Moisture"]  - d["water_supply"] * 0.1
-    d["soil_quality"]  = d["Organic_Carbon"] / (d["Electrical_Conductivity"]
-                                                + 0.1)
-    d["moist_x_temp"]  = d["Soil_Moisture"]  * d["Temperature_C"]
-    d["wind_x_temp"]   = d["Wind_Speed_kmh"] * d["Temperature_C"]
-    return ["moist_rain", "moist_temp", "moist_wind", "ET_proxy",
-            "heat_stress", "drying_force", "water_supply", "water_deficit",
-            "soil_quality", "moist_x_temp", "wind_x_temp"]
-
-
-def add_decimal_fractions(df: pd.DataFrame,
-                          nums: list[str] | None = None) -> list[str]:
-    """Extract 2-dp decimal fraction `(col % 1).round(2)` per numeric.
-
-    Structurally distinct from digit extraction: digit FE captures INTEGER
-    digit positions, this captures the FRACTIONAL portion. Float rounding
-    noise below the 2nd decimal is suppressed via .round(2).
-    """
-    if nums is None:
-        nums = ["Temperature_C", "Organic_Carbon", "Soil_Moisture",
-                "Soil_pH", "Sunlight_Hours"]
-    cols: list[str] = []
-    for c in nums:
-        if c not in df.columns:
-            continue
-        name = f"{c}_dec"
-        df[name] = (df[c] % 1).round(2).astype(np.float32)
-        cols.append(name)
-    return cols
-
-
-def add_groupby_cat_num_stats(train: pd.DataFrame, test: pd.DataFrame,
-                               cats: list[str], nums: list[str],
-                               stats=("mean", "std")) -> list[str]:
-    """Per-cat-group mean/std of each numeric, computed on SYNTHETIC TRAIN only.
-
-    Port of rohit8527kmr7518/ps-s6e4-lgbm-with-target-encoding-group-stats:
-    for each (cat, num) pair, group train by cat → aggregate num via mean/std,
-    merge back onto train and test. Leak-free for the synthetic train fold
-    structure (computed on FULL train once, not per-fold; but downstream
-    target encoding handles the leak path via OrderedTE).
-
-    Distinct from `add_orig_mean_std` (which aggregates TARGET on 10k
-    original) — this aggregates NUMERIC distributions on the full 630k
-    synthetic pool. Mutates train, test in-place.
-
-    Returns list of new numeric column names (2 × |cats| × |nums| = 176
-    for 8 cats + 11 nums + mean/std).
-    """
-    new_cols: list[str] = []
-    for c in cats:
-        for n in nums:
-            stats_df = train.groupby(c, observed=False)[n].agg(list(stats)).reset_index()
-            stats_df.columns = [c] + [f"GBY_{c}_{n}_{s}" for s in stats]
-            for df_name in ("train", "test"):
-                df = {"train": train, "test": test}[df_name]
-                merged = df.merge(stats_df, on=c, how="left")
-                for s in stats:
-                    col = f"GBY_{c}_{n}_{s}"
-                    df[col] = merged[col].fillna(0).astype(np.float32).values
-            new_cols += [f"GBY_{c}_{n}_{s}" for s in stats]
-    return new_cols
-
-
 def add_num_as_cat(train: pd.DataFrame, test: pd.DataFrame,
                    orig: pd.DataFrame, nums: list[str]) -> list[str]:
-    """Duplicate each numeric as a string-cast categorical column.
-
-    Factorized across train+test+orig so codes are consistent. These columns
-    are intended for target-encoding, not raw XGB input.
-    """
+    """Duplicate each numeric as a string-cast cat (input to OrderedTE)."""
     new_cols: list[str] = []
     for c in nums:
         name = f"CAT_{c}"
@@ -257,8 +139,7 @@ def add_num_as_cat(train: pd.DataFrame, test: pd.DataFrame,
             df[name] = df[c].astype(str)
         combined = pd.concat([train[name], test[name], orig[name]])
         codes, _ = pd.factorize(combined)
-        s = len(train)
-        t = s + len(test)
+        s = len(train); t = s + len(test)
         train[name] = codes[:s]
         test[name] = codes[s:t]
         orig[name] = codes[t:]

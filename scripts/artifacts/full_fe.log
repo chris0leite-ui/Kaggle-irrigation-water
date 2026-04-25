@@ -1,4 +1,0 @@
-loaded train.csv: (630000, 21)
-engineered 11 features: ['VPD_kPa', 'ET_proxy', 'Soil_FC', 'Soil_AWC', 'Soil_Depletion', 'Crop_Thirst', 'Stage_Kc', 'Crop_Demand', 'Irr_Eff', 'Water_Balance', 'Saline_Flag']
-X shape: (630000, 30)
-categorical features (8): ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region']
