@@ -9234,3 +9234,81 @@ by EV/cost:
   3. If a050 nulls, do NOT probe α=0.65 (LR lever doesn't transfer).
 
 - LB budget: unchanged at this point (0 spent today). 10 available.
+
+### 2026-04-25 — N1 LB RESULT: LR meta-stacker NULL (LB 0.97991, Δ −0.00103, OOF→LB gap +0.00176)
+
+- LB probe (`submission_tier1c_lr_iso_4stack_a050.csv` at α=0.50,
+  user-approved): **LB public = 0.97991**.
+  Δ vs LB-best primary (0.98094) = **−0.00103** (clear regression).
+  OOF→LB gap = 0.98167 − 0.97991 = **+0.00176** — much wider than the
+  −0.00010 negative gap that the prior meta-stacker family showed.
+- **LR meta-stacker is OOF-overfit on this 70-component bank.**
+  Per the original recommendation conditional ("if a050 nulls, do NOT
+  probe α=0.65"), the α=0.65 candidate WILL NOT be probed. N1 lever
+  is closed.
+
+- **Calibration ladder update:**
+  ```
+  3-way multi-seed                  0.98029 → 0.98005   gap +0.00024
+  LB-best 3-stack (lb3+rmlp+nonruleiso) 0.98061 → 0.98008  gap +0.00053
+  LB-best 4-stack (PRIMARY)         0.98084 → 0.98094   gap −0.00010
+  **LR meta-stacker × 4-stack a050  0.98167 → 0.97991   gap +0.00176**  ← REGRESSION
+  ```
+
+- **Diagnosis — three structural reasons LR overfit OOF where XGB didn't:**
+  1. **StandardScaler + LR(C=1.0) is less regularized than XGB(depth=4,
+     reg_alpha=5, reg_lambda=5) on a 227-dim feature space**. XGB's tree
+     constraints + L1 regularization actively prune weak component
+     contributions; LR with C=1.0 distributes weights across all 210
+     log-probability features. Effectively higher capacity per
+     informative dimension.
+  2. **`class_weight='balanced'` doubles the rare-High loss weight at
+     training time**. This pushes LR to over-emphasize High discrimination
+     on the OOF folds (each fold's High distribution matches training).
+     On the test set with the same prior but slightly different per-row
+     features, the over-emphasis flips boundary rows the wrong way.
+     Visible in standalone PCR: LR_iso pushed High to 0.9817 (vs primary
+     0.9775) BUT errors went UP (+391). The OOF score thinks High +0.0042
+     × 1/3 weight = +0.0014 macro-recall lift, more than offsetting
+     Low −0.0013 × 1/3 weight = −0.0004; on test, the "High recall
+     gain" disappears because the actual flipped rows aren't High.
+  3. **70-component bank contains weak components LR can't down-weight**.
+     XGB's tree splits naturally ignore weak components (they don't
+     improve gain); LR's coefficient regularization just shrinks them
+     all uniformly toward zero, leaving residual noise contributions.
+
+- **Portable rule** (LEARNINGS.md candidate): **"On a wide
+  meta-stacker bank (≥50 components × 3 classes = ≥150 features),
+  multinomial Logistic Regression with `class_weight='balanced'` is
+  systematically more OOF-overfit than a heavy-regularized depth-4
+  XGB on the same bank — even though LR has fewer architectural
+  knobs to tune. The 'simpler model = lower overfit' heuristic
+  inverts at this feature-dim / sample-size ratio (210 features /
+  504k rows) when the simpler model has class_weight upweighting
+  the rare class. Drop class_weight + use stronger L2 (C ≤ 0.1) if
+  you want to retry; otherwise prefer XGB or LGB stackers with
+  explicit tree-depth caps."**
+
+- **Reconciles with wguesdon's published 30-model kernel**: he chose
+  LGB-stacker (NOT LR-stacker) over greedy. LGB's tree splits behave
+  similarly to XGB's depth-4 — they also actively down-weight weak
+  components. LR was never on his shortlist; we shouldn't have
+  assumed it would behave like LGB just because both are "simpler
+  than greedy".
+
+- **LB budget**: **1/10 used today**, 9 remaining. LB best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Next bet (re-prioritized after N1 null)**:
+  - N2 (weak diversity learners as meta-stacker bank inputs) is now
+    PARTIALLY PRE-FALSIFIED: if LR doesn't work as a meta-stacker
+    output, then `lr_ote` as a meta-stacker INPUT also has a low
+    probability of helping (the meta-stacker would just learn to
+    down-weight it, which the existing 70-component bank's diversity
+    already does). kNN-ote and ET-ote retain their independent EV
+    since they're tree/distance models, not LR.
+  - N3 (yunsuxiaozi 5-shuffle OTE concat) is unchanged in priority —
+    it's a feature-level lever, orthogonal to N1's failure mode.
+  - **Recommended next action**: pivot to **N3** as the highest-EV
+    untried lever. N2's kNN+ET sub-experiments can be done in parallel
+    if compute allows.
