@@ -443,3 +443,17 @@ kernel_audit*/
 
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
+
+# 2026-04-24 review-edge-cases session: 50/50 log-mean hedge of the two
+# LB-verified bests (2-way 0.97998 + 3-way 0.98005). Produces a
+# geometric-midpoint submission for private-LB variance protection.
+!scripts/artifacts/oof_hedge_avg_lb_bests.npy
+!scripts/artifacts/test_hedge_avg_lb_bests.npy
+
+# 2026-04-24 review-edge-cases session: focal-loss XGB smoke (2-fold
+# on full 630k). Gradient math verified (best_iter 39-45, not the
+# GCE-precedent pathological 1). Blend-gate vs LB-best 3-way teacher:
+# Jaccard 0.24 (very orthogonal) but 36,942 errs at recipe bias vs
+# teacher 9,873 (3.7x magnitude trap). Null — production skipped.
+!scripts/artifacts/oof_recipe_focal_g2_aH1.npy
+!scripts/artifacts/test_recipe_focal_g2_aH1.npy
