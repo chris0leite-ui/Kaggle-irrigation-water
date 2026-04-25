@@ -402,6 +402,17 @@ kernel_audit*/
 !scripts/artifacts/oof_realmlp.npy
 !scripts/artifacts/test_realmlp.npy
 
+# n_ens=4 retry (2026-04-25): NULL — strictly worse than n_ens=1 in
+# the 3-stack (3-stack OOF 0.98050 vs 0.98061, errs −67 but unfavorable
+# class distribution). Per-fold σ tightened (variance reduction worked
+# at the per-fold level) but standalone errs +125 vs n_ens=1. Diagnosis:
+# n_epochs=25 (cut from 40 to fit 1h cap with 4× heads) under-converged
+# the BatchEnsemble heads. Kept for cross-branch diagnostic — diversity
+# leg with a different calibration surface, useful for greedy-pool
+# experiments even if standalone-blend is null.
+!scripts/artifacts/oof_realmlp_ens4.npy
+!scripts/artifacts/test_realmlp_ens4.npy
+
 # Focal-loss XGB (#3 from 2026-04-24 plan): custom multi-class
 # focal-weighted CE objective on the 443-feature recipe matrix.
 # gamma=2, alpha=(1,1,3) — rare-class-focused training-time mechanism.
@@ -440,6 +451,16 @@ kernel_audit*/
 !scripts/artifacts/test_recipe_focal_g2_invfreq.npy
 !scripts/artifacts/oof_soft_distill_small.npy
 !scripts/artifacts/test_soft_distill_small.npy
+
+# 2026-04-25 ensemble-methods-optimization session — per-score-bin
+# log-blend over the LB-best 3-way (recipe + pseudo_s1 + pseudo_s7).
+# Honest nested 5-fold CV with global-bal_acc coord-descent objective
+# at simplex step=0.05. NULL with regression: nested fixed-bias OOF
+# 0.97997 (Δ=-0.00031 vs baseline 0.98029). Smoking gun: bin score_6
+# weights swing across the simplex per fold (5 different optima).
+# Stranded artefacts kept for cross-branch reuse / future audit.
+!scripts/artifacts/oof_per_bin_blend.npy
+!scripts/artifacts/test_per_bin_blend.npy
 
 # 2026-04-25 distill-tiny (d=2, leaves=7, r=500). Extreme capacity
 # reduction test of soft-distill overfit. OOF tuned 0.97975 (vs
