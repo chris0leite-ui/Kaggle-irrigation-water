@@ -3943,6 +3943,176 @@ architecture or feature view adds orthogonal bits at this base.
   feature surface, not a new learning signal, so it can't inherit
   the distillation overfit failure mode.
 
+### 2026-04-24 — final-selection hedge audit (write-up)
+
+- Goal: stop deferring the final-selection call. Deadline 2026-04-30;
+  6 days out, 2/2 final slots spent once submitted. LB-state: LB-best
+  3-way multi-seed `submission_3way_recipe025_s1035_s7040.csv` at 0.98005,
+  prior LB-best 2-way `submission_recipe_greedy_recipe_pseudolabel.csv`
+  at 0.97998, recipe standalone `submission_recipe_full_te.csv` at 0.97939,
+  recipe CatBoost `submission_recipe_full_te_catboost.csv` at 0.97935.
+- **Problem with the plan-of-record (primary 3-way + fallback 2-way)**:
+  both anchor on `recipe_full_te + recipe_pseudolabel` (pseudo_s1). If
+  pseudo_s1 overfits private LB — which is plausible since the whole
+  stacking-inflation ceiling analysis treats it as the "unusually lucky"
+  draw that stage-2 / seed-7 / seed-123 couldn't reproduce — BOTH
+  submissions regress together. That's correlated exposure dressed up
+  as a hedge.
+- **Recommendation**: lock primary = 3-way multi-seed (0.98005), hedge =
+  **`submission_recipe_full_te_catboost.csv`** (LB 0.97935, gap +0.00001,
+  the tightest calibration in the whole ladder). Reasoning:
+  1. Different model family (CatBoost ordered-boosting vs XGB), so the
+     per-row error distribution is materially different (Jaccard 0.806
+     vs recipe, 0.788 on GPU variant). Errors on private LB will not
+     overlap with the XGB-family primary's errors in the same way the
+     2-way fallback's will.
+  2. Single-model, no blend composition — can't suffer stacking-
+     inflation overfit. The +0.00001 gap is the only submission in the
+     log with OOF ≤ LB, not the other way around.
+  3. Hedge cost: −0.00070 LB vs 2-way fallback. That's the insurance
+     premium. If the 3-way stays on top of private, the primary wins
+     and we don't care about the gap. If the 3-way drops, a
+     XGB-family fallback at LB 0.97998 likely drops with it;
+     CatBoost-family fallback at LB 0.97935 might stay put or drop
+     less (different error geometry under distribution shift).
+  4. Alternative hedge = `submission_recipe_full_te.csv` (LB 0.97939).
+     Same family as primary (both XGB-on-recipe), but no blend overfit.
+     Slightly cheaper premium (+0.00004 vs CatBoost-hedge). I prefer
+     CatBoost-hedge because model-family diversity is the stronger
+     insurance-against-correlation-failure axis than within-family
+     standalone-vs-blend.
+- **Zero-risk auxiliary candidate emitted this session**:
+  `submission_hedge_avg_2way_3way.csv` (OOF 0.98020, not yet LB-probed).
+  50/50 log-mean of the two LB-verified blends at recipe's fixed bias.
+  Not recommended as either final slot — shares overfit surface with
+  BOTH its parents. Useful only as a diagnostic LB probe if we have a
+  slot to spare (~10/day from 2026-04-25 reset).
+- No LB spend this session (scaffold only; focal + GroupKFold-crop
+  still in flight).
+
+### 2026-04-24 — hedge-avg 50/50 submission built (not yet LB-probed)
+
+- Goal: realize item 4 of the "overlooked levers" pass — zero-risk
+  50/50 log-mean of the two LB-verified bests (2-way + 3-way) as an
+  "ensemble-of-ensembles" midpoint submission for private LB variance
+  protection.
+- Changed: `scripts/hedge_avg_lb_bests.py`. Reconstructs 2-way and
+  3-way from components (recipe_full_te, recipe_pseudolabel,
+  recipe_pseudolabel_seed7labeler), takes a 50/50 log-mean in
+  probability space, applies recipe's fixed tuned bias
+  [1.43, 1.47, 3.40] (no retune — binhigh-rule compliance), emits
+  `submissions/submission_hedge_avg_2way_3way.csv`.
+- OOF @ recipe bias:
+  - 2-way component       → 0.98012
+  - 3-way component       → 0.98029
+  - 50/50 log-mean hedge  → **0.98020**
+- Test-argmax disagreement matrix:
+  - 2-way ↔ 3-way           = 163 rows
+  - hedge ↔ 2-way           = 88 rows (hedge agrees with 2-way more often)
+  - hedge ↔ 3-way           = 75 rows
+  - 88 + 75 = 163 — hedge sits exactly between the two submissions.
+- Class dist: Low 159,534 / Medium 100,213 / High 10,253 — pulls the
+  High count down from 3-way's 11,101 toward 2-way's territory
+  (2-way's split is closer to train prior). Implicit "rare-class
+  shrinkage" effect from log-averaging over two predictors with
+  different High thresholds.
+- Not recommended as a final-slot candidate (shares overfit surface
+  with both its parents). Available as a diagnostic LB probe if
+  surplus slots remain near deadline.
+- Artefacts committed: `oof_hedge_avg_lb_bests.npy`,
+  `test_hedge_avg_lb_bests.npy`, `hedge_avg_lb_bests_results.json`.
+
+### 2026-04-24 — focal-loss XGB (γ=2, α=balanced) smoke: NULL (magnitude-trap calibration mismatch)
+
+- Goal: the one untried *training-time* lever for the High Pareto
+  frontier. Teacher's per-class recall [0.9949, 0.9685, 0.9774] is a
+  Pareto ceiling on the current OOF bank; post-hoc overrides
+  (detector, router, disagree-meta) all null because they rearrange
+  the same bank. Focal loss changes the ERROR DISTRIBUTION produced
+  by the base learner via the `(1-p_y)^γ` hardness modulation.
+- Changed: `scripts/recipe_focal_obj.py` — multiclass softmax-focal
+  grad/hess closure over (γ, per-class α, sample_weight). Unit
+  tests: γ=0 recovers softmax CE exactly; γ∈{1,2,3} analytical
+  gradient matches finite-difference at rel err ~1e-8.
+  `scripts/recipe_focal.py` — mirrors recipe_full_te FE+CV but uses
+  `xgb.train()` with the custom obj (α = balanced-per-class
+  × ALPHA_HIGH env multiplier, γ via GAMMA env, early-stop on
+  custom bal_acc metric). `scripts/focal_smoke_blend_gate.py` —
+  post-hoc Jaccard + fixed-bias sweep diagnostic.
+- Smoke pass (FOCAL_SMOKE=1, 2-fold × 630k, γ=2.0, α_High=1×balanced):
+  - Fold 1: argmax 0.97598, best_iter=**45**
+  - Fold 2: argmax 0.97553, best_iter=**39**
+  - Overall OOF argmax: 0.97576 (σ=0.00022)
+  - **Tuned OOF: 0.97742** with bias **[1.83, 1.77, 2.20]** —
+    notably the High bias is 2.20 vs recipe's 3.40. Focal's γ
+    modulation + balanced α already produces sharper High probs,
+    so less post-hoc bias correction is needed.
+  - Per-class recall at focal's own tuned bias:
+    Low 0.99479 / Medium 0.96513 / **High 0.97235** — vs teacher's
+    0.9774, focal's High is LOWER despite the extra hardness focus.
+  - **Gradient verified correct** — `best_iter` 39-45 across folds,
+    not the pathological best_iter=1 from the 2026-04-21 GCE bug.
+- Fixed-bias blend gate vs LB-best 3-way teacher (held-out rows only,
+  recipe bias [1.43, 1.47, 3.40]):
+  - Teacher bal_acc @ recipe bias: 0.98029, errs 9,873
+  - Focal bal_acc @ recipe bias:  **0.94801**, errs **36,942** (3.7×)
+  - Jaccard(focal, teacher) = **0.2401** (lowest Jaccard we've ever
+    seen — true architectural orthogonality)
+  - Blend sweep α∈[0, 0.5]: **monotone negative from α=0.025 onwards**
+    (α=0.050 Δ=−0.00001, α=0.500 Δ=−0.00142). Peak at α=0 (no blend).
+- **Classic magnitude-trap failure** — the 11th NN-family-adjacent
+  null with the same geometry: exceptional Jaccard orthogonality
+  (0.24!) but 3.7× error-count overflow when evaluated at the
+  anchor's calibration scale. Focal's α=balanced + γ=2 produces
+  probs in a fundamentally different scale from recipe's XGB +
+  balanced-sample-weight. At recipe's fixed bias (the rule to
+  prevent binhigh-style retune overfit), focal's probs are
+  misaligned and 36k rows flip to wrong argmax.
+- **Production NOT launched**: 5-fold with the same objective won't
+  change the calibration-mismatch geometry — the scale difference is
+  architectural (training-time focal modulation), not variance.
+  Retuning bias on the focal+teacher blend per-α would manufacture
+  OOF lift that won't transfer to LB (binhigh-rule, 2026-04-21).
+- **Rule** (candidate LEARNINGS.md add): *Training-time loss changes
+  that alter a model's prob-scale calibration (focal γ>0, LDAM-DRW,
+  logit-adjustment with non-uniform priors) cannot be blended with
+  a differently-calibrated anchor at the anchor's fixed bias. They
+  either (a) need full pipeline replacement — refit teacher at the
+  new scale — or (b) need per-class isotonic calibration before
+  blending, which already nulled on C0 isotonic+greedy.* This
+  closes focal loss as a blend leg on this feature set; it remains
+  unclosed as a STANDALONE replacement for recipe, which would need
+  full 5-fold production + LB probe.
+- No LB probe warranted. Artefacts committed for cross-branch reuse:
+  `oof_recipe_focal_g2_aH1.npy` + test + results JSON + blend-gate
+  JSON + diagnostic submission CSV.
+
+### 2026-04-24 — session close-out (review-edge-cases)
+
+- 4-item overlooked-levers pass executed on `claude/review-edge-cases-6K1Dm`.
+- **Item 1 (final-selection hedge audit)**: written up — primary 3-way
+  (LB 0.98005) + CatBoost hedge (LB 0.97935, gap +0.00001) preferred
+  over 3-way + 2-way pairing (both share pseudo_s1 overfit surface).
+- **Item 2 (focal-loss XGB)**: closed NULL. Smoke confirmed gradient
+  math (best_iter 39-45, not pathological 1), tuned OOF 0.97742,
+  but magnitude-trap blend gate (Jaccard 0.24 yet 3.7× errors at
+  recipe bias) killed the lever. Production not launched —
+  calibration-mismatch is architectural.
+- **Item 3 (GroupKFold-crop)**: SCRIPT WORKS but environment repeatedly
+  killed the 45-min CPU job at session turnover (three attempts
+  with `setsid nohup` detach; each died mid-training). Last
+  progress: fold 1 at round 1000, mlogloss 0.048 — consistent with
+  recipe's single-fold training curve. No artifacts produced.
+  Script `scripts/b2_groupkfold.py` is invoked with `GROUP=crop`;
+  a future session with longer wall budget should complete it.
+  Expected: OOF-honest per the Region precedent (−0.00029 delta),
+  confirming structural ceiling.
+- **Item 4 (hedge log-mean submission)**: zero-risk 50/50 log-blend
+  of 2-way × 3-way at recipe's fixed bias. OOF 0.98020. Midway
+  between anchors geometrically. Diagnostic only.
+- LB budget unchanged (no probes this session). LB best unchanged:
+  `submission_3way_recipe025_s1035_s7040.csv` at **LB 0.98005**.
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
@@ -7382,6 +7552,150 @@ read time has surfaced every real lever we've found. Start there.
   3. **SMOTE-NC or CVAE for synthetic High rows** — training-data
      augmentation, not model architecture. Direct attack on the 21k
      High sample shortage.
+
+### 2026-04-24 — focal-loss recipe XGB + capacity-reduced soft-distill: both null with useful diagnostics
+
+- Goal: execute the top-2 untried own-pipeline levers from the
+  2026-04-24 brainstorm. (#1) Multi-class focal loss on the recipe
+  feature set with γ=2 and α=invfreq — training-time class-asymmetric
+  mechanism, not a post-hoc override. (#2) Capacity-reduced
+  soft-distillation from the LB-best 2-way teacher (depth 4→3,
+  max_leaves 30→15, n_round 3000→1500) — fixes the prior soft_distill
+  overfit (OOF 0.98096 → LB 0.97850, gap +0.00246) by halving student
+  memorization capacity.
+- Changed: `scripts/focal_loss_common.py` (multi-class focal-xent obj
+  factory, analytic grad + diagonal Hessian approx); `scripts/recipe_focal.py`
+  (orchestrator mirroring soft_distill_xgb pattern, native xgb.train
+  API, same FE+OTE pipeline, no sample_weight since alpha is baked
+  into loss); `scripts/soft_distill_xgb.py` parameterized via
+  `XGB_DEPTH`, `XGB_MAX_LEAVES`, `XGB_NROUND` env vars preserving
+  defaults; `scripts/blend_focal_distill.py` (joint blend-gate
+  analysis vs recipe / LB-best 2-way / LB-best 3-way anchors).
+
+- **#1 focal loss (γ=2, α=invfreq=[1.0, 1.55, 17.61])**: NULL,
+  structurally backwards.
+  - Per-fold argmax: 0.97342 / 0.97347 / 0.97327 / 0.97095 / 0.97208
+    (mean 0.97264 ± 0.00107; fold 4 hit 3000-iter cap). Recipe
+    per-fold argmax mean was 0.97589.
+  - OOF tuned 0.97683  (-0.00284 vs recipe 0.97967; -0.00346 vs
+    LB-best 3-way 0.98029). Bias [1.53, 1.47, 3.00] — High bias 3.00
+    < recipe's 3.40 (sharper raw High probs from α=17.6).
+  - Errors 12,082 (+19% vs recipe 10,114); Jaccard 0.66 vs recipe,
+    0.65 vs LB2, 0.61 vs LB3 — best error-orthogonality of any
+    tree candidate.
+  - Per-class recall (tuned): L 0.9944, M 0.9660, **H 0.9701**.
+    **All three classes WORSE than every anchor.** H 0.9701 vs
+    recipe 0.9765 / LB-best 2-way 0.9768 / LB-best 3-way 0.9774.
+  - Blend gate vs all 3 anchors: monotone-negative from α=0 →
+    strict null at every weight.
+  - **Failure mode**: α=17.6 on rare-class + γ=2 (1-p)^2 modulator
+    compound. γ=2 starves gradient on easy Low/Medium boundary
+    rows (many of which are informative); α=17.6 introduces gradient
+    noise on High rows that XGB at depth=4 can't exploit cleanly.
+    Net: weaker discrimination on every class, not a differently-
+    balanced one. Focal is closed as a direct-replacement lever on
+    this feature set with this alpha magnitude.
+
+- **#2 capacity-reduced soft-distill (depth=3, max_leaves=15,
+  n_round=1500)**: OOF PASS all 3 blend gates; LB regression.
+  - Per-fold argmax: 0.97541 / 0.97572 / 0.97618 / 0.97461 / 0.97550
+    (mean 0.97548 ± 0.00051; best_iter consistently hit 1499 cap —
+    student still learning at cutoff, regularization by budget).
+  - OOF tuned **0.98066** — first standalone to beat LB-best 3-way
+    0.98029 (+0.00037). Bias [0.83, 1.27, 3.20].
+  - Errors 9,678 (FEWER than every anchor: recipe 10,114, LB2 9,851,
+    LB3 9,983). Jaccard 0.79-0.81 vs anchors (below 0.80 novelty
+    threshold vs recipe and LB3, just above vs LB2).
+  - Per-class recall (tuned): L 0.9945, M 0.9698, **H 0.9777**.
+    Higher on every class than every anchor — first candidate ever
+    to achieve this AND have fewer errors.
+  - Blend gate: peak α=0.45-0.50, Δ=+0.00042 to +0.00067 on all 3
+    anchors. All PASS the +0.0002 LB-transfer threshold.
+  - **LB probe (user-approved)**: `submission_soft_distill_small.csv`
+    → **LB = 0.97865**. OOF→LB gap = **+0.00201**. Not enough
+    capacity reduction — student at depth=3 / 1500 rounds still
+    memorized teacher OOF noise.
+  - Comparison to prior soft_distill:
+    ```
+                        prior (d=4, r=3000)   small (d=3, r=1500)
+      OOF argmax         0.97557              0.97548
+      OOF tuned          0.98096              0.98066  (-0.00030)
+      errors             9,520                9,678    (+158, less memorize)
+      LB                 0.97850              0.97865  (+0.00015)
+      OOF->LB gap        +0.00246             +0.00201 (-0.00045)
+    ```
+  - Gap narrowed by 0.00045 (capacity reduction did something), but
+    only +0.00015 LB over prior. Standalone LB 0.97865 is 0.00143
+    BELOW new LB-best 0.98008 (achieved separately via RealMLP blend
+    on `claude/gpu-nn-implementation-mh7N0`, merged to main at 19:27
+    today).
+
+- **Updated calibration ladder:**
+  ```
+  prior soft_distill (d=4, r=3000)   0.98096 → 0.97850  gap +0.00246
+  **distill_small (d=3, r=1500)      0.98066 → 0.97865  gap +0.00201** (this session)
+  LB-best 2-way (recipe × pseudo_s1) 0.98012 → 0.97998  gap +0.00014
+  3-way multi-seed                   0.98029 → 0.98005  gap +0.00024
+  **RealMLP 3-stack (other branch)   0.98061 → 0.98008  gap +0.00053 ← NEW LB BEST**
+  focal-loss (this session)          0.97683 → (not probed, strict null)
+  ```
+- **Portable rules** (LEARNINGS.md candidates):
+  1. **Focal loss with heavy α on a tuned XGB REGRESSES rather than
+     balances.** The training-time gradient distortion at α=17.6
+     combined with γ=2 modulator produces a weaker model on every
+     class, not a rare-class-focused one. Rule: don't use focal
+     loss on top of a class-weighted recipe unless you're prepared
+     to reduce BOTH α AND γ well below Lin et al. defaults.
+  2. **Soft-target distillation from a bagged-OOF teacher is
+     structurally overfit-prone even at 2× capacity reduction.**
+     Going from depth=4/3000 rounds to depth=3/1500 rounds narrowed
+     the OOF→LB gap by 0.00045 (real effect) but the residual
+     +0.00201 gap still eats all the standalone OOF lift. Portable
+     fix requires either (a) 4×+ capacity reduction (depth=2,
+     rounds≤500 — speculative), or (b) row-wise teacher leak
+     elimination: hold row i out of ALL bagged components that
+     form the teacher, not just the single model that produced
+     teacher_oof[i]. The current 2× reduction is NOT sufficient.
+  3. **"First to satisfy all blend-gate heuristics on OOF" is NOT
+     a sufficient condition for LB transfer.** distill_small was
+     the first candidate with (a) standalone > every anchor,
+     (b) errors < every anchor, (c) per-class recall > every anchor,
+     (d) Jaccard < 0.80 vs the strongest anchor, AND (e) peak-α
+     blend Δ > +0.0002 on all 3 anchors. It still LB-regressed by
+     -0.00143. Rule: any candidate built from teacher-OOF inputs
+     (distillation, pseudo-label stage-2+) needs an independent
+     leak-elimination check before being trusted.
+
+- LB delta: -0.00143 vs LB-best (distill_small standalone submitted).
+  Budget: 6/10 used today (5 probes from other branches earlier
+  today + 1 this session), 4 remaining.
+- Current LB best: **0.98008** (`submission_lb3_realmlp_nonruleiso.csv`
+  on main, from RealMLP-TD blend on sibling branch).
+- Artefacts committed for cross-branch reuse (gitignore-whitelisted):
+  `scripts/artifacts/oof_recipe_focal_g2_invfreq.npy` + test + JSON,
+  `scripts/artifacts/oof_soft_distill_small.npy` + test + JSON,
+  `scripts/artifacts/blend_focal_distill_results.json`,
+  `submissions/submission_recipe_focal_g2_invfreq.csv` (diagnostic,
+  below all anchors, not for LB probe),
+  `submissions/submission_soft_distill_small.csv` (probed → 0.97865).
+
+- **Next bets** (post-session):
+  1. **Extreme capacity reduction distill** (depth=2, rounds=500) —
+     direct test of whether the fix is simply not-enough-reduction.
+     ~20 min wall. If OOF collapses below recipe, the lever is
+     dead; if OOF stays ≥ LB-best 3-way with Jaccard < 0.80, then
+     gap may finally narrow below +0.0005 for genuine LB lift.
+  2. **Port RealMLP as a blend leg into this branch's candidate
+     bank** — new LB best is a blend of LB-best 3-way + RealMLP +
+     xgb_nonrule_iso. Running our greedy + blend-gate analysis on
+     the expanded bank (now including distill_small as a potential
+     tiny-α addition) may surface configurations the other branch
+     didn't find.
+  3. **Leak-eliminated distillation**: build a teacher OOF where
+     for each row i, ALL bagged components were trained on folds
+     that exclude row i (not just one). Expensive — requires
+     retraining each teacher component 5×. But it directly fixes
+     the overfit mechanism rather than mitigating it via capacity.
 
 ### 2026-04-24 — W2/W3/W5 weaknesses-audit session (3 experiments: 2 nulls, 1 guardrail shipped)
 
