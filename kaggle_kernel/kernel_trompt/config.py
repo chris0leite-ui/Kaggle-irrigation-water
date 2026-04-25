@@ -3,14 +3,20 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# IS_SMOKE: top-level override (env vars don't travel through Kaggle
-# push). Flip to False AFTER the SMOKE kernel completes successfully.
-IS_SMOKE = True
+# IS_SMOKE: 2-fold/20k/2-epoch structural check.
+# IS_PROBE: 1-fold full-data run for compute-budget validation
+# before committing to a 5-fold run. Mutually exclusive with SMOKE.
+IS_SMOKE = False
+IS_PROBE = True  # fold-1-only at full capacity + full data
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
+PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
-# 5-fold stratified aligned with every saved OOF on main (seed=42).
+# 5-fold StratifiedKFold(seed=42) for OOF alignment with every saved
+# OOF on main. PROBE mode runs only fold 1 (via MAX_FOLDS=1 break),
+# preserving the val-index alignment for fold-1 Jaccard diagnostics.
 N_FOLDS = 2 if SMOKE else 5
-N_EPOCHS = 2 if SMOKE else 15
+MAX_FOLDS = 2 if SMOKE else (1 if PROBE else 5)
+N_EPOCHS = 2 if SMOKE else (8 if PROBE else 15)
 
 # Trompt hyperparams (published kernel defaults).
 CHANNELS = 128

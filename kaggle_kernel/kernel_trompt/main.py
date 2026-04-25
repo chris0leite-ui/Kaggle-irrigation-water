@@ -11,7 +11,7 @@ import torch
 
 from boot import boot
 from config import (
-    IS_SMOKE, SMOKE, N_FOLDS, N_EPOCHS,
+    IS_SMOKE, SMOKE, IS_PROBE, PROBE, N_FOLDS, MAX_FOLDS, N_EPOCHS,
     FOLD1_KILL_SEC, TOTAL_KILL_SEC,
     KAGGLE_INPUT, OUT_DIR,
 )
@@ -21,8 +21,8 @@ from cv import run_cv, save_outputs
 
 def main() -> None:
     boot()
-    print(f"[main] SMOKE={SMOKE} N_FOLDS={N_FOLDS} N_EPOCHS={N_EPOCHS}",
-          flush=True)
+    print(f"[main] SMOKE={SMOKE} PROBE={PROBE} N_FOLDS={N_FOLDS} "
+          f"MAX_FOLDS={MAX_FOLDS} N_EPOCHS={N_EPOCHS}", flush=True)
     train, test, orig, test_ids = load_data(KAGGLE_INPUT, SMOKE)
     train, test, orig = build_frame(train, test, orig)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,9 +31,11 @@ def main() -> None:
         train, test, orig, device,
         n_folds=N_FOLDS, n_epochs=N_EPOCHS,
         fold1_kill_s=FOLD1_KILL_SEC, total_kill_s=TOTAL_KILL_SEC,
+        max_folds=MAX_FOLDS,
     )
+    suffix = "_probe" if PROBE else ("_smoke" if SMOKE else "")
     save_outputs(OUT_DIR, oof, test_pred, test_ids, fold_ba,
-                 folds_done, N_FOLDS, y)
+                 folds_done, N_FOLDS, y, suffix=suffix)
 
 
 if __name__ == "__main__":
