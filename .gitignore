@@ -614,6 +614,24 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_xgb_metastack_v4.npy
 !scripts/artifacts/test_xgb_metastack_v4.npy
 
+# 2026-04-25 N3 (5-shuffle OTE concat reduced to K=2 for compute fit):
+# per-fold checkpoints written incrementally via RUN_FOLD env var. Each
+# fold ~18min CPU; checkpoints whitelisted so partial progress survives
+# container rehydrate. Final aggregated OOF = oof_recipe_2shuffle.npy
+# (after n3_aggregate.py).
+!scripts/artifacts/oof_recipe_2shuffle.npy
+!scripts/artifacts/test_recipe_2shuffle.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold1.npy
+!scripts/artifacts/test_recipe_2shuffle_fold1.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold2.npy
+!scripts/artifacts/test_recipe_2shuffle_fold2.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold3.npy
+!scripts/artifacts/test_recipe_2shuffle_fold3.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold4.npy
+!scripts/artifacts/test_recipe_2shuffle_fold4.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold5.npy
+!scripts/artifacts/test_recipe_2shuffle_fold5.npy
+
 # J3 adversarial-validation: closes train↔test shift hypothesis.
 # AUC=0.50247 ⇒ train/test indistinguishable, residual gap is structural.
 !scripts/artifacts/j3_av_p.npy
