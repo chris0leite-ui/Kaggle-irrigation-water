@@ -8622,3 +8622,38 @@ Next-session priorities:
   2. After SMOTE returns: blend-gate → LB probe if Δ ≥ +2e-4.
   3. If SMOTE nulls or stays inside fold-noise: lock primary +
      hedge as final and stop spending compute.
+
+### 2026-04-25 — senior-engineer pre-deadline audit
+
+Standalone read-through of the LB-best pipeline + final-selection
+choice with three parallel sub-agents on (meta-stacker / recipe FE +
+OTE / submission validity), then merged with my own re-reads. Full
+report in `audit/2026-04-25-senior-engineer-audit.md`. Plan file at
+`/root/.claude/plans/you-are-a-senior-jaunty-flute.md`.
+
+Key findings:
+- **Headline +0.00086 LB lift is probably real signal** (not the
+  "critical leakage" the first sub-agent flagged). Iso-cal on full
+  OOF is a 1-D mapping over 630k pts; if dominant it would push gap
+  positive (OOF > LB), opposite of what we observe. Negative gap
+  pattern matches digit-XGB / digits-OTE precedent on this comp.
+- **Hedge under-protects (HIGH)**: current
+  `submission_recipe_full_te.csv` shares its full FE pipeline with
+  primary (484/270k disagreement = 0.18%). Recommended swap to
+  `submission_3way_recipe025_s1035_s7040.csv`: half the premium
+  (-0.00089 vs -0.00155), sidesteps meta-stacker layer (the
+  most-tuned and most-likely public-LB-overfit element). Alternative
+  CatBoost hedge equal-cost with 39% more disagreement rows.
+- **Iso-cal on full OOF (MEDIUM)**: per-fold isotonic would be the
+  honest version. OOF inflation likely 0.0001-0.0003. No action for
+  deadline; flagged for future-comp playbook.
+- **Selection bias (MEDIUM)**: ~30 cumulative LB probes pushes
+  max-of-N order statistic to ~+0.00075 above true. Estimated true
+  primary LB ~0.98019, central private ±0.0005.
+- **Sub-agent claim that `recipe_features.py:119` (drop digit cols
+  constant on test) is a leak: WRONG.** Dropping zero-variance
+  features cannot leak labels; metadata access ≠ target leakage.
+  OrderedTE itself is correct.
+
+Action: hedge swap recommendation written up; primary unchanged.
+0 LB probes spent on this audit.
