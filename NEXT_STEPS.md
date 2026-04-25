@@ -1,6 +1,48 @@
 # Next steps
 
-## 🚧 Work in flight (as of 2026-04-24 ~15:05 UTC)
+## 🚧 Work in flight (as of 2026-04-25 — wild-step W1-W8 brainstorm)
+
+`claude/improve-predictions-with-dgp-d0ADN` is currently executing **W1
+(distill-the-host MLP sweep)** + **W8 (LLM-FE-at-scale)** in parallel
+on local CPU. See "Wild-step brainstorm (2026-04-25)" section below for
+the full W1-W8 menu and EV ranking.
+
+| Branch | Task | Status |
+|---|---|---|
+| `claude/improve-predictions-with-dgp-d0ADN` | **W1 distill-the-host MLP sweep** | 🟡 EXECUTING — sklearn MLPClassifier sweep over depth ∈ {2,3} × hidden ∈ {64,128,256} × activation ∈ {relu,tanh} × dropout/alpha grid on (6 rule + 7 non-rule continuous) features. Smoke first (1 fold × 5 configs), then 5-fold on top configs. ~2h CPU expected. |
+| `claude/improve-predictions-with-dgp-d0ADN` | **W8 LLM-driven FE at scale** | 🟡 EXECUTING — 50+ FE ideas brainstormed in-session, each tested as binary/numeric column add to recipe XGB on 1-fold smoke. Top survivors → 5-fold + meta-stacker bank addition. ~3h CPU. |
+
+## Wild-step brainstorm (2026-04-25, post-LB 0.98094 saturation)
+
+After the LB-best 4-stack (`submission_tier1b_greedy_meta.csv` at LB
+0.98094, OOF 0.98084) saturated against ~30 LB probes + diagnostic
+audit (J3 AV closes train-shift, F2 per-fold-iso confirms calibration
+honest, J6 QP closes search-procedure suboptimality), user requested
+widening the search space with larger step size. Eight wild ideas
+identified, ranked by EV-per-hour:
+
+| ID | Idea | Mechanism | Cost | EV |
+|---|---|---|---|---|
+| **W1** | Distill-the-host MLP sweep | 30-50 narrow MLP configs (depth 2-4, width 32-256, ReLU/GELU/Tanh, dropout) on rule + non-rule continuous features only — host disclosed they used a small DL model (`brief.md:74`); one config may exactly match the generator function. | ~2h CPU | 5-15% × +0.001-0.005 |
+| **W8** | LLM-driven FE at scale | 50-200 FE ideas brainstormed via LLM (or in-session), each auto-tested as a binary/numeric column add to recipe XGB on a 1-fold smoke. Top survivors → 5-fold + meta-stacker bank addition. | ~3h CPU | 15% × +0.0005-0.002 |
+| **W2** | Frozen-rule-backbone residual NN | Pre-train tiny MLP→100% on rule features, freeze, train residual NN on top. Forces flip-residual learning, not re-learning rule. | ~1h GPU | 10% × +0.0005-0.002 |
+| **W4** | Score-regression XGB → learned thresholds | Train XGB targeting `dgp_score` as integer regression (RMSE), not 3-class CE. Different gradient surface; pick 2 thresholds via macro-recall optimization. | ~30 min CPU | 8% × +0.0005 |
+| **W6** | Adversarial-perturbation flip-detector | Per test row, find minimal feature perturbation flipping LB-best's argmax. Use perturbation magnitude as confidence weight in TTA-with-margin. Genuinely novel attack vector. | ~1h | 10% × +0.0003 |
+| **W3** | Multi-task XGB (y, score, all rule binaries) | Single XGB with 7 simultaneous heads. Auxiliary heads are perfectly determined → forces shared trunk to learn rule structure. | ~30 min CPU | 5% × +0.0005 |
+| **W7** | Reverse the synthetic generation | k=1 NN to original 10k in feature space; if distance < threshold, hard-override label with original's. Catches near-duplicate test rows host's generator may have sampled from anchors. | ~10 min CPU | 5% × +0.0002 |
+| **W5** | Active LB probing for test class distribution | 3 LB slots crafted to extract test-side per-class counts via balanced-accuracy algebra; perfect post-hoc bias tuning. Burns scarce slots. | 3 LB probes | 50% × +0.0001, 5% × +0.001 |
+
+**Execution order**: W1 + W8 in parallel (both pure CPU, complementary
+mechanisms). If both null: W2 next (only NN architectural lever
+left), then W4. Save W5 LB probes for end-of-comp.
+
+**Skip on principled grounds**: W7 if W1+W8 land any signal
+(redundant + low EV); further meta-stacker variants (4 saturation
+confirmations); public-CSV blending (banned).
+
+---
+
+## 🚧 Prior work in flight (as of 2026-04-24 ~15:05 UTC)
 
 Other agents: check here FIRST before starting a Tier-A/B item — these
 are actively running or recently scaffolded on feature branches.
