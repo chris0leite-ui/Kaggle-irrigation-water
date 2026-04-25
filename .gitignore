@@ -644,3 +644,10 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/leaf_ote_meta_v2_results.json
 !scripts/artifacts/leaf_ote_v2_blend_results.json
 !scripts/artifacts/leaf_ote_meta_v2_smoke_results.json
+# J6 constraint-aware QP for blend weights: NULL across two pool variants.
+# Convex log-loss minimization on simplex misaligned with macro-recall
+# under fixed bias. QP global optimum WORSE than greedy+LR local optima
+# (Δ -0.00020 with metas, -0.00029 without). Confirms LB-best 4-stack
+# weight composition is not obviously suboptimal at the objective level.
+!scripts/artifacts/oof_j6_qp_blend.npy
+!scripts/artifacts/test_j6_qp_blend.npy
