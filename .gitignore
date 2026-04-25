@@ -804,3 +804,18 @@ kaggle_kernel/*/dist/
 # fully closed: v1 LB 0.97991, v2 LB 0.98052, v2+iso-after NULL.
 !scripts/artifacts/oof_lr_metastack_v2.npy
 !scripts/artifacts/test_lr_metastack_v2.npy
+
+# 2026-04-25 P3 perturbed-OOF meta-stacker (data-science-perspectives)
+# Mechanism: train meta-XGB on 111-component bank with Gaussian noise
+# on log-prob features at training time (eval on clean OOF/test).
+# Hypothesis: noise robustness amplifies the negative OOF→LB gap
+# property of the original meta. K=3 bag for stability. Both variants
+# peak at iso α=0.500 onto LB-best 3-stack: v1 OOF 0.98132 Δ=+0.00071,
+# v2 OOF 0.98123 Δ=+0.00062. Per-class recall safe (M +0.0014, H
+# within noise). Bank grew 62→111 components — separating perturbation
+# lift from bank-extension overfit requires clean A/B at fixed bank
+# size before LB probe.
+!scripts/artifacts/oof_meta_perturbed_v1_noise03_csb09_k3.npy
+!scripts/artifacts/test_meta_perturbed_v1_noise03_csb09_k3.npy
+!scripts/artifacts/oof_meta_perturbed_v2_noise05_csb05_k3.npy
+!scripts/artifacts/test_meta_perturbed_v2_noise05_csb05_k3.npy
