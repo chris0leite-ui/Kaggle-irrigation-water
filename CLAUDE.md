@@ -10693,3 +10693,94 @@ model wave**:
   filtering to kernels ≥20 votes posted after 2026-04-23 (the
   date of the last full audit). Targets: novel mechanisms not in
   any prior round 1-4 reads.
+
+### 2026-04-25 — LR v2 LB result + kernel audit round 5 close-out
+
+- **LR meta-stacker v2 LB probe** (`submission_lr_v2_iso_3stack_a300.csv`,
+  user-approved, submitted 19:14 UTC): **LB public = 0.98052**.
+  Δ vs LB-best primary (0.98094) = **−0.00042** (regression but
+  ~2.5x smaller than v1's −0.00103). OOF→LB gap = **+0.00055**.
+
+- **Calibration ladder update**:
+  ```
+  LR v1 (C=1.0, class_weight='balanced')  OOF 0.98167 → LB 0.97991  gap +0.00176
+  **LR v2 (C=0.1, class_weight=None)       OOF 0.98107 → LB 0.98052  gap +0.00055**
+  LR Δ-improvement (v2 over v1):                                    gap -0.00121 (3x tighter)
+  LB-best primary (4-stack)                OOF 0.98084 → LB 0.98094  gap -0.00010
+  ```
+
+- **Diagnosis confirmed correct, fix worked partially.** The
+  2026-04-25 LR v1 closure note diagnosed v1's overfit as
+  `class_weight='balanced'` upweighting the rare-High class on a
+  210-dim input + insufficient L2 (C=1.0). v2's fix (`class_weight=
+  None` + `C=0.1`) reduced gap inflation from +0.00176 to +0.00055
+  — a real ~3x improvement. But the OOF lift (+0.00046 vs 3-stack
+  anchor) still doesn't survive the gap completely; net LB Δ remains
+  negative.
+
+- **Saturation at LB 0.98094 reconfirmed** (now the **6th
+  independent attack** to land at or below):
+  ```
+  attack vector                              best LB        Δ vs primary
+  ----------------------------------------- -------------- --------------
+  1. Tier 1c greedy expanded (132c)          (no probe)     n/a (sub-gate)
+  2. Tier 1c meta-stacker v2 (224-dim)       (no probe)     n/a (sub-gate)
+  3. Tier 1c meta-stacker XGB seed-bag       (no probe)     n/a (sub-gate)
+  4. Cross-poll metastack v3                 0.98060        -0.00034
+  5. J2 bootstrap-bagged metastack           (no probe)     n/a (proj -0.00054)
+  6. **LR meta-stacker v2 (this session)     0.98052        -0.00042**
+  ```
+
+- **Portable rule** (LEARNINGS.md candidate): **"For LR
+  meta-stackers on 200+ dim component banks, the (class_weight=None,
+  C=0.1) config reduces OOF→LB gap inflation by ~3x vs (class_weight=
+  'balanced', C=1.0) but does not eliminate it. The remaining
+  +0.00055 gap reflects fundamental mismatch between LR's
+  global-optimum convex log-loss surrogate and macro-recall under
+  fixed-bias decision rules. To get LR meta-stacker LB-positive,
+  would need either (a) C ≤ 0.01 (likely collapses standalone OOF),
+  (b) a custom macro-recall-aware loss replacing log-loss, or
+  (c) per-class isotonic re-fit AFTER LR (untried). Lever stays
+  closed without (b) or (c) pending — unlikely high-EV given 6
+  saturation confirmations at LB 0.98094."**
+
+- **Kernel audit round 5 close-out**: 5 kernels read (ldausl
+  31 votes, harigovindj3 32 votes, mikhailnaumov ensemble 18
+  votes, mohameddrabo lgbm-optuna 21 votes, agentzz SOTA v15 3
+  votes, mtoshidesu 0.98134-test-mod 2 votes). Findings:
+  - **No new actionable levers.** ldausl + mtoshidesu use
+    public-CSV blending (banned). harigovindj3 + mohameddrabo
+    are standard XGB/LGBM with no novel mechanism. agentzz SOTA
+    v15: pseudo-labeling + TE, prior PB 0.97395 (well below our
+    ceiling). mikhailnaumov imports `TabM_D_Classifier` from
+    pytabkit but doesn't actually instantiate it — only RealMLP
+    is used (which we already have).
+  - **TabM-via-pytabkit remains untested** (the import-but-don't-
+    use pattern in mikhailnaumov suggests they tried and dropped).
+    Per CLAUDE.md GPU 1h cap rule: TabM standalone production at
+    n_ens=4 × 5-fold could exceed wall budget; would require
+    SMOKE-first + careful capacity reduction, like RealMLP
+    n_ens=4 retry which itself nulled.
+  - All public-CSV blend kernels (ldausl, mtoshidesu, nina2025
+    series) read public datasets `0.98114.csv`, `0.98117.csv`,
+    `0.98119.csv` — confirming the leader 0.98219 still requires
+    public-CSV blending (banned).
+
+- **LB budget**: 6/10 used today (5 from earlier sessions + 1 LR v2
+  this session). 4 remaining.
+
+- **Final-selection LOCKED** (5 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+     (gap −0.00010, anomalous LB > OOF). Composition:
+     LB-best 3-stack + xgb_metastack_iso × α=0.30.
+  2. **HEDGE (swap target)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → **LB 0.98005** (gap +0.00024, premium −0.00089 vs primary).
+     Sidesteps meta-stacker layer — orthogonal overfit surface
+     for private-LB protection.
+
+- **Strategic read**: with 6 independent saturation confirmations
+  in hand and 5 days to deadline, marginal LB-probe EV is below
+  the cost of variance noise. Reserve remaining 4 LB slots for
+  end-of-comp variance check (one re-validation per day until
+  close). The own-pipeline ceiling at LB 0.98094 is **structural
+  on this feature set within the standard tabular ML toolkit**.
