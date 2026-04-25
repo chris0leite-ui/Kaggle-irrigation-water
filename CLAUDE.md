@@ -9398,6 +9398,109 @@ by EV/cost:
     confirmed three independent ways already).
   - More NN-family attempts beyond TabM (RealMLP n_ens=4 was the 13th
     NN null; magnitude trap pattern is structural at this feature set).
+
+### 2026-04-25 — N2 ET + kNN + meta-stacker v4: NEW OOF BEST 0.98121, AWAITING LB PROBE
+
+- Goal: execute N2 + N3 in parallel per the kernel-audit-round-4 plan.
+
+- **N2 ExtraTrees** (`scripts/n2_extratrees.py`, ~3.6 min CPU):
+  500 trees on 35-dist features, 5-fold seed=42, class_weight='balanced'.
+  OOF tuned **0.96667**, errs 10,371, **Jaccard 0.589** vs LB-best 4-stack
+  — strongest tree-family orthogonality in the bank.
+
+- **N2 kNN** (`scripts/n2_knn.py`, ~2.4 min CPU):
+  k=50 on 80k stratified subsample fit, 5-fold seed=42. OOF tuned
+  **0.96308**, errs 11,235, **Jaccard 0.548** vs LB-best — STRONGEST
+  orthogonality in the entire bank (lower than even RealMLP 0.62).
+
+- **Direct blend gate** (`scripts/n2_blend_direct.py`): both ET and kNN
+  strictly hurt LB-best 4-stack at every α > 0. Per-class trade is High
+  recall DOWN for Low+Med up — wrong direction under macro-recall.
+  Direct blend lever DEAD; only meta-stacker absorption remains.
+
+- **N3 5-shuffle OTE concat** (production launched in background):
+  killed by container rehydrate ~10 min into fold-1 XGB on 2.52M-row
+  augmented set. Per-fold checkpointing in place but production fold
+  takes ~25-30 min and rehydrate hit before fold 1 finished. Smoke
+  confirmed +0.00177 OOF lift on 20k subset over recipe smoke baseline.
+  Production retry needs Kaggle CPU kernel (9h cap, no rehydrate).
+
+- **Meta-stacker v4** (`scripts/tier1c_metastack_v4.py`) — XGB stacker
+  on bank + ET + kNN, **NEW OOF BEST**:
+  - Same XGB (depth=4, reg_alpha=5, reg_lambda=5, lr=0.05) heavy-reg
+    model class as the prior LB-best meta-stacker; only the bank
+    changed (75 + n2_extratrees + n2_knn = 77 components).
+  - Standalone iso OOF tuned **0.98102** (vs prior XGB metastack iso
+    0.98059, **+0.00043 standalone lift**).
+  - 4-stack drop-in replacement OOF **0.98108** (Δ +0.00024 vs LB-best
+    4-stack 0.98084).
+  - Blend on top of LB-best 4-stack at fixed bias (best so far):
+    ```
+    α       OOF       Δ vs LB4   errs   recL    recM    recH    guardrail
+    0.20  0.98107  +0.00023      9153  0.9956  0.9706  0.9771  PASS
+    0.25  0.98112  +0.00028      9112  0.9956  0.9707  0.9771  PASS
+    0.30  0.98119  +0.00034      9078  0.9956  0.9709  0.9771  PASS
+    **0.35  0.98121  +0.00036      9049  0.9956  0.9709  0.9771  PASS**  ← peak
+    0.40  0.98119  +0.00035      9017  0.9956  0.9711  0.9769  borderline
+    ```
+    LB-best baseline: errs=9415, PCR=[L 0.9955, M 0.9695, H 0.9775].
+  - **Errors DECREASE monotonically** across the sweep (9415 → 9049 at
+    α=0.35) — opposite of the magnitude-trap pattern that killed prior
+    NN attempts. Trade is favorable: tiny High recall drop (-0.0004)
+    for Medium gain (+0.0014) + Low slight up.
+
+- **Three submission candidates emitted, AWAITING USER APPROVAL** for
+  LB probe:
+  ```
+  submission_tier1c_meta_v4_a030.csv  conservative   154 test rows differ from primary
+  submission_tier1c_meta_v4_a035.csv  RECOMMENDED    177 test rows differ
+  submission_tier1c_meta_v4_a040.csv  aggressive     207 test rows differ (borderline guardrail)
+  ```
+
+- **Why this is real signal, NOT OOF overfit like N1 LR was**:
+  1. **Same heavy-reg XGB model class** as the prior LB-best meta-stacker,
+     which had a NEGATIVE OOF→LB gap (-0.00010, LB > OOF). The model
+     class is unchanged; only the bank grew (75 → 77 components). The
+     prior calibration property should carry over.
+  2. **Errors DECREASE in the safe α range** — opposite of the LR null
+     pattern (where errors went UP) and opposite of every prior NN
+     magnitude-trap failure.
+  3. **Per-class trade preserves rare class** — High recall down only
+     -0.0004 (within guardrail), Medium UP +0.0014 (most of the lift),
+     Low slight up. Net positive under macro-recall without the
+     rare-class sacrifice that doomed LR.
+  4. **Standalone v4 lift is honest scale** — +0.00043 OOF over prior
+     XGB metastack iso (vs LR's +0.00124 was a much bigger jump that
+     turned out to be overfit).
+  5. **Same blend mechanism** that produced LB 0.98094 (prior metastack
+     iso × LB-best 3-stack at α=0.30). v4 just plugs a slightly stronger
+     metastack into the same architecture.
+
+- **Recommended LB probe order if approved**:
+  1. **α=0.35** (`submission_tier1c_meta_v4_a035.csv`) — peak OOF,
+     all PCR comfortably within guardrail. If gap stays at -0.00010,
+     expected LB ~0.98131 (above pack 0.98114).
+  2. If a035 lifts ≥+0.0002, follow with α=0.40 to test whether the
+     borderline-guardrail variant gives +0.00035 more or regresses on
+     the High recall trade.
+  3. If a035 nulls, do NOT probe α=0.40.
+
+- **N3 retry strategy** (separate from v4 LB-probe decision): smoke
+  showed real signal (+0.00177 over recipe smoke baseline). Production
+  needs an environment that survives ~2.5h compute. Two options:
+  1. **Kaggle CPU kernel** (best — 9h cap, no rehydrate). ~30 min
+     scaffolding to inline `recipe_ote_5shuffle.py` +
+     `recipe_full_te_5shuffle.py` + `recipe_features.py` +
+     `recipe_ote.py` into a single kernel script, push, pull resulting
+     OOF + test back. Blocks N3 result by ~3h (queue + run).
+  2. **Reduced-K local** (faster, less faithful) — K=3 instead of K=5
+     halves wall time. Architecturally weaker but might fit in a
+     90-min container window between rehydrates.
+  Recommended: option 1 (Kaggle kernel) — closer to published technique,
+  more likely to transfer.
+
+- LB budget: **1/10 used today, 9 remaining**.
+
 ### 2026-04-25 — cross-poll v3 + SMOTE-NC kernel: 3 NULLs, own-pipeline closed
 
 - Goal: extend the 63-component Tier-1b meta-stacker with new candidates
