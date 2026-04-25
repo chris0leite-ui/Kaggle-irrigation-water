@@ -7607,3 +7607,93 @@ read time has surfaced every real lever we've found. Start there.
   - `submissions/submission_focal_blend_a000.csv` (diagnostic, = 3-way)
   - `submissions/submission_spec6_override_th50.csv` (v1 hard-override test)
   - `submissions/submission_spec6_override_v2_th15.csv` (v2 hard-override test)
+
+### 2026-04-25 — Tier 1a n_ens=4 RealMLP retry: NULL (strictly worse than n_ens=1)
+
+- Goal: build on the 2026-04-24 LB-best 0.98008 (LB-3way + realmlp@0.2
+  + nonrule_iso@0.075) by upgrading the RealMLP leg from n_ens=1 to
+  n_ens=4. Tier 1b had already confirmed the OOF bank is saturated —
+  the only remaining lever in the 3-stack architecture is improving
+  the RealMLP component itself. Hypothesis: 4× BatchEnsemble heads
+  cuts per-row variance ~2×, dropping errs below the anchor and
+  unlocking another +0.0002-0.0003 LB.
+- Changed: new `kaggle_kernel/kernel_realmlp_ens4/` (separate from
+  the n_ens=1 kernel so artifacts don't clobber). Config shifts from
+  n_ens=1 baseline: `n_ens=1→4`, `n_epochs=40→25` (tighter to fit the
+  1h cap with 4× internal heads), `TargetEncoder cv=2` unchanged.
+  In-kernel safety nets (fold-1 t+20min, total t+55min) unchanged.
+  SMOKE-first discipline: SMOKE v1 (2-fold/20k/3 epochs) passed in
+  <1 min training. `scripts/blend_realmlp_ens4.py` runs the diagnostic
+  comparing n_ens=1 vs n_ens=4 across standalone, LB3+RM 2-stack,
+  and full 3-stack (LB3+RM+nonrule_iso).
+- Production v2: 5/5 folds COMPLETE in **38.2 min wall** (well under
+  the 55min cap). Per-fold argmax 0.9698/0.9711/0.9710/0.9702/0.9680,
+  σ=0.00115 (TIGHTER than n_ens=1's σ=0.00144 — variance reduction
+  worked at the per-fold level). But:
+  ```
+                       standalone                 3-stack peak (LB3+RM+nonrule_iso)
+                       OOF argmax  errs @bias     OOF       errs
+  n_ens=1 (LB best)    0.97055     10472          0.98061   9572
+  n_ens=4              0.97002     10597          0.98050   9505
+  Δ                    -0.00053    +125            -0.00011  -67
+  ```
+  n_ens=4 has MORE errors at standalone bias (+125 vs anchor) but
+  FEWER errors in the 3-stack (−67). However, the 3-stack OOF is
+  LOWER (0.98050 vs 0.98061) — error count went down but in the
+  wrong distribution for macro-recall. Per-class trade unfavourable.
+- Standalone Jaccard vs LB-best 3-way: n_ens=1 = 0.6206, n_ens=4 =
+  0.6243. n_ens=4 is SLIGHTLY MORE redundant with the anchor, not
+  more orthogonal. Variance reduction collapsed the prediction
+  surface toward the mean-tree-blend's surface.
+- Projected LB at the +0.00053 OOF→LB gap: 0.98050 − 0.00053 =
+  0.97997 (BELOW current LB-best 0.98008). **No LB probe warranted.**
+- **Diagnosis**: variance dropped (per-fold σ tightened) but the
+  variance reduction came with a small calibration shift that made
+  the model's prob distribution closer to what trees produce.
+  Two plausible mechanisms:
+  1. **Under-converged heads**: cutting `n_epochs` 40→25 to fit the
+     1h cap with 4× heads means each shared-weight pass saw less
+     gradient — under-converged heads averaged together produce a
+     less-biased but smoothed-out prediction.
+  2. **Variance floor**: RealMLP at n_ens=1 was already at the
+     low-variance floor for this problem. Further ensembling adds
+     bias (mode collapse) without removing variance.
+  Both predict the same outcome: "more ensemble heads at fixed
+  compute budget" doesn't help — and might hurt — when the base
+  variance is already low.
+- **Per the decision framework committed at b076d3f**: "n_ens=4
+  plateaus at LB ≤ 0.98015 → don't push Trompt, pivot to Tier 2".
+  We hit exactly that case. The Trompt scaffold remains committed
+  but unpushed; the lever-existence test would now have negative EV
+  (compounding +0.0003 NN OOF→LB surcharge over a 2nd NN family on
+  top of a marginal n_ens=4 "lift" that's already negative).
+- LB budget: unchanged — no probes spent today. Current LB-best
+  unchanged at **0.98008** via `submission_lb3_realmlp_nonruleiso.csv`.
+- Next bets ordered by EV:
+  1. **n_ens=2 with n_epochs=40** (~50 min GPU). Direct test of the
+     under-convergence hypothesis: if n_ens=2 at full epoch budget
+     beats n_ens=1, the lever is "ensembling at fixed-per-head
+     epochs" (and we should retry n_ens=4 at n_epochs=40 in a
+     non-Kaggle env that allows >1h wall). If n_ens=2 plateaus,
+     RealMLP variance floor is structural and ensembling is dead.
+  2. **Tier 2 FE/data-quality** on recipe_full_te. Untested
+     territory: SMOTE-NC for High rows, stricter class weights,
+     time-of-year features if any temporal signal exists.
+  3. **Push Trompt anyway** as lever-existence — separate NN family
+     might break the 12-NN-null pattern even if RealMLP is exhausted.
+     Compounding gap surcharge (+0.0006 OOF→LB) makes this risky;
+     gate at OOF > +0.0007 over 3-stack baseline before LB probe.
+  4. **Lock LB 0.98008 as final and stop spending GPU budget**. With
+     6 days to deadline and tight calibration (gap +0.00053),
+     diminishing returns past this point.
+- Artefacts:
+  - `kaggle_kernel/kernel_realmlp_ens4/` (kernel + metadata)
+  - `scripts/blend_realmlp_ens4.py` (diagnostic)
+  - `scripts/artifacts/realmlp_ens4_results.json` (per-fold + tuned
+    bal_acc; .npy artifacts whitelisted as a cross-branch diversity
+    leg even though strictly worse than n_ens=1 in our 3-stack)
+- **Trompt scaffold stays committed but unpushed** at
+  `kaggle_kernel/kernel_trompt/` (modular: boot/config/features/
+  model/cv/main + build.py concatenator). Ready to push if a
+  different decision-framework signal emerges; otherwise stays in
+  cold storage.

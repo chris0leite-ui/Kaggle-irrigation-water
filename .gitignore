@@ -402,6 +402,17 @@ kernel_audit*/
 !scripts/artifacts/oof_realmlp.npy
 !scripts/artifacts/test_realmlp.npy
 
+# n_ens=4 retry (2026-04-25): NULL — strictly worse than n_ens=1 in
+# the 3-stack (3-stack OOF 0.98050 vs 0.98061, errs −67 but unfavorable
+# class distribution). Per-fold σ tightened (variance reduction worked
+# at the per-fold level) but standalone errs +125 vs n_ens=1. Diagnosis:
+# n_epochs=25 (cut from 40 to fit 1h cap with 4× heads) under-converged
+# the BatchEnsemble heads. Kept for cross-branch diagnostic — diversity
+# leg with a different calibration surface, useful for greedy-pool
+# experiments even if standalone-blend is null.
+!scripts/artifacts/oof_realmlp_ens4.npy
+!scripts/artifacts/test_realmlp_ens4.npy
+
 # Focal-loss XGB (#3 from 2026-04-24 plan): custom multi-class
 # focal-weighted CE objective on the 443-feature recipe matrix.
 # gamma=2, alpha=(1,1,3) — rare-class-focused training-time mechanism.
