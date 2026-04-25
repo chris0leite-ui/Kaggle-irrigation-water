@@ -1,0 +1,18 @@
+{
+  "id": "chrisleitescha/irrigation-n3-5shuffle-gpu",
+  "title": "irrigation-n3-5shuffle-gpu",
+  "code_file": "recipe_n3_5shuffle_gpu.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-prediction-original"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}

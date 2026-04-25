@@ -804,3 +804,13 @@ kaggle_kernel/*/dist/
 # fully closed: v1 LB 0.97991, v2 LB 0.98052, v2+iso-after NULL.
 !scripts/artifacts/oof_lr_metastack_v2.npy
 !scripts/artifacts/test_lr_metastack_v2.npy
+
+# 2026-04-25 N3 GPU validation (single fold, K=5 shuffle on Kaggle P100):
+# completed fold 1 in 17.3 min wall (4 min OTE + ~16 min XGB). Per-iter
+# 0.52s vs CPU 13s — 25x speedup. Fold-1 argmax 0.97602. Validated GPU
+# kernel as feasible for full 5-fold (~1.6h projected). Kept for the
+# full-5-fold replacement to avoid re-running the slow CPU 5-shuffle.
+!scripts/artifacts/n3_gpu_validate_output/oof_n3_gpu_validate_fold1.npy
+!scripts/artifacts/n3_gpu_validate_output/test_n3_gpu_validate_fold1.npy
+!scripts/artifacts/n3_gpu_validate_output/n3_gpu_validate_results.json
+!scripts/artifacts/n3_gpu_validate_output/irrigation-n3-gpu-validate.log

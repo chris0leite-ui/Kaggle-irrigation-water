@@ -1,0 +1,13 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "n_shuffle": 5,
+  "smoke": false,
+  "folds_completed": 1,
+  "fold_scores_argmax": [
+    0.976021630814166
+  ],
+  "overall_argmax_bal_acc": 0.46185914708570386,
+  "n_features": 443,
+  "elapsed_sec": 1035.796978712082
+}
