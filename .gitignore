@@ -654,6 +654,19 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/recipe_full_te_fexw8_results.json
 !scripts/artifacts/w8_blend_gate_results.json
 
+# W4 score-regression XGB (2026-04-25). Target = MIDPOINTS[y] (1.5/5/8),
+# RMSE loss, 89-feature dist+digits+raw+cats. Standalone tuned (wide bias
+# grid) 0.96962. errs 10277 (LB-best 9415, +862). Jaccard vs LB-best
+# 0.6103 — orthogonal but high errs. At blend α=0.025 errs DROP to 8913
+# but per-class High recall craters from 0.9775 to 0.9720 → bal_acc -0.001.
+# Pareto-frontier closure: rare-class High loss outweighs Low+Medium gain
+# under macro-recall. Same pattern as disagree-meta + selective-router
+# from 2026-04-24. NULL on both raw and iso blends.
+!scripts/artifacts/oof_xgb_score_reg.npy
+!scripts/artifacts/test_xgb_score_reg.npy
+!scripts/artifacts/w4_score_reg_results.json
+!scripts/artifacts/w4_blend_gate_results.json
+
 # J1 tree-leaf OTE meta-stacker (junior-engineer audit, 2026-04-25).
 # Train base XGB on 19 raw features, extract per-tree leaf indices,
 # OrderedTE-encode (3 cls), feed to meta-XGB. Standalone meta tuned
