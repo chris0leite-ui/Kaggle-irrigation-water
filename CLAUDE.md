@@ -8081,3 +8081,62 @@ read time has surfaced every real lever we've found. Start there.
   oof_spec_lm_v3_score3.npy + test   (L↔M specialist, marginal)
   submissions/submission_tier1b_greedy_meta.csv  (LB 0.98094)
   ```
+
+### 2026-04-25 — Tier 1c: 3 follow-ups on new LB-best 4-stack, all NULL (saturation confirmed)
+
+- Goal: after Tier 1b's +0.00086 LB win, test 3 cheap CPU follow-ups on
+  the new LB-best 4-stack (OOF 0.98084 / LB 0.98094) to find the next
+  step. All three null.
+
+- **Move 1 — greedy on new 4-stack with finer α grid (0.005..0.5) +
+  isotonic-calibrated copies of every pool component (66 base × 2 = 132)**:
+  ```
+  step1: + recipe_no_digits α=0.010  OOF=0.98087  Δ=+0.00002
+  STOP (below +5e-5 internal gate)
+  ```
+  The 4-stack is locally saturated for greedy log-blend operations.
+
+- **Move 2 — meta-stacker v2 (224-dim features = v1 inputs + 4-stack
+  logprobs + 3 binary specialists spec_lm_v3 + spec_mh_v3_score{5,6})**:
+  - vs LB-best 3-stack:  best v2_iso α=0.250 → +0.00015 (sub-+0.0002 gate)
+  - vs LB-best 4-stack:  best v2_iso α=0.200 → **+0.00002** (essentially zero)
+  - **v2 = v1 + noise.** Meta-on-meta saturates exactly when the input
+    bank already contains the prior meta.
+
+- **Move 3 — meta-stacker 3-seed bag (XGB seeds {42, 7, 123})**:
+  Per-seed standalone OOF: 0.98041 / 0.98029 / 0.98040.
+  - seed=7 is genuinely worse (−0.00012 vs seed=42), dragging the
+    bag mean down.
+  - Bag iso-cal standalone 0.98061 (vs single-seed iso 0.98059,
+    +0.00002 nominal).
+  - Replace single-iso with bag-iso in 4-stack: every α tested
+    NEGATIVE (best α=0.40 → −0.00001).
+  - Add bag-iso ON TOP of 4-stack: best α=0.150 → +0.00003 (below
+    +1e-4 gate).
+  - **Same heavy-reg-XGB seed-dominant-optimum lesson as the nonrule
+    bag from Tier 1b.** When XGB is heavy-reg (max_depth=4,
+    reg_alpha=reg_lambda=5) with low best_iter (200-400), seed
+    variance has more room to find different local optima. Sometimes
+    seed=42 IS the best one and bagging worse seeds dilutes the signal.
+
+- **Combined Tier 1c read-out**: the 4-stack is saturated against:
+  1. Greedy log-blend addition from a 132-component pool (1e-4 gate)
+  2. Deeper meta-stacking with v1 + binary heads (224-dim XGB)
+  3. Variance reduction via XGB seed bagging
+  All three diagnostic levers fail because the 4-stack already absorbed
+  the meaningful signal from these components in Tier 1b's greedy step.
+  Breaking past LB 0.98094 requires a fundamentally NEW signal source
+  not yet on disk — most likely from the GPU-side experiments
+  (RealMLP n_ens=4, Trompt) that were running in parallel.
+
+- New scripts (all 3 reusable for future stacks once new components arrive):
+  - `next_greedy_on_meta_stack.py` (greedy from 4-stack anchor + iso pool)
+  - `next_meta_stack_v2.py` (meta-stacker v2 with 224-dim features)
+  - `next_meta_stack_seedbag.py` (3-seed XGB seed-bag of meta-stacker)
+
+- Artefacts whitelisted:
+  - `oof_xgb_metastack_v2 + test`  (224-dim v2)
+  - `oof_xgb_metastack_bag3 + test` (3-seed bag)
+
+- LB best unchanged at 0.98094. Pack 0.98114 still +0.00020 above.
+- LB budget: 3/10 used today, 7 remaining.
