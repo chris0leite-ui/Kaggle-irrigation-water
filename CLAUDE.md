@@ -9017,3 +9017,113 @@ by EV/cost:
   unless deadline pressure allows. Otherwise N3 (SMOTE on Kaggle
   kernel as low-attention background work) and N2 (TabM) in parallel
   on day 2-3.
+
+### 2026-04-25 — kernel audit round 4: 3 actionable levers + execution priorities
+
+- Goal: fresh kaggle-kernel sweep targeting unread / recent high-vote kernels
+  to find new own-pipeline signal sources after the LB-best 0.98094 4-stack
+  saturated. 8 kernels pulled from `kaggle kernels list -c playground-series-s6e4`
+  (sorted by votes), cross-checked against the audit log; 5 net-new readouts
+  beyond audit rounds 1-3.
+
+- **Reads (8 unaudited kernels, ranked by signal):**
+  ```
+  kernel                                           votes  novelty             verdict
+  -------                                          -----  -------             -------
+  wguesdon/ps6e4-30-model-ensemble-with-stacking   23     30-model bank w/    HIGH
+                                                          lr_ote+knn_ote+
+                                                          et_ote as "weak
+                                                          individually,
+                                                          help stacker";
+                                                          explicit "greedy
+                                                          CV > LB, LGB-stack
+                                                          LB > CV"
+  yunsuxiaozi/pss6e4-lgb-advanced-cv-0-97997       27     5-shuffle OTE       MED-HIGH
+                                                          concat as
+                                                          training augmentation
+                                                          (5x duplicated rows
+                                                          per shuffle)
+  utaazu/0-979-cv-single-cat-pairwise-te-bias-tun  32     adversarial         MED
+                                                          validation drives
+                                                          orig_weight=0.35
+                                                          (we use 1.0)
+  rawashishsin/s6e4-single-xgboost-cv-0-9786       17     qcut-binned         LOW-MED
+                                                          numeric × cat OTE
+                                                          keys (we have
+                                                          num_as_cat + cat-
+                                                          pair OTE, not this)
+  aliafzal9323/s6e4-0-970-stacked-lgb-xgb-cat-fe   118    generic stacking;   LOW
+                                                          only untested FE =
+                                                          pH_Deviation =
+                                                          abs(Soil_pH-6.5)
+  beraterolelk/oof-meta-stacking-with-golden       29     VPD via Tetens-     LOW
+                                                          Murray (we tested
+                                                          vpd_proxy null
+                                                          in A4)
+  simarbirsinghsandhu/reverse-engineering-irriga   23     DGP rule equiv      LOW
+                                                          to ours (Kc shift
+                                                          identity)
+  manasi197/s6e4-multi-model-ensemble-voting-ana   49     public-CSV blend    BANNED
+                                                          over nina2025
+                                                          0.98113-.117 csvs
+  ```
+
+- **N1 (top pick, ~30 min CPU): Multinomial-LR meta-stacker** on the same
+  63-component bank that produced our LB-best XGB meta-stacker.
+  - Mirror `scripts/tier1b_xgb_metastack.py` with multinomial LR
+    (`C=1, class_weight='balanced'`) instead of XGB. Same 5-fold
+    StratifiedKFold(seed=42), same fixed-bias blend gate vs LB-best
+    3-stack, same +2e-4 emit threshold.
+  - **Why**: wguesdon explicitly chose LGB-stacker over greedy because
+    "greedy CV > LB". Our LB-best 0.98094 stack uses both an XGB
+    meta-stacker AND a greedy-forward step on top. LR meta-stacker is
+    structurally simpler (no tree depth to overfit) and our prior LR
+    meta-stacker test (2026-04-21 soft-blend session) was on a 12-component
+    bank — never on the 63-component bank that produced the breakthrough.
+  - **Decision criteria**:
+    * If LR_iso standalone @ recipe bias is competitive with XGB_iso
+      (within ~0.0010 OOF) AND has Jaccard < 0.97 vs LB-best, build a
+      4-stack candidate (lb3 + RealMLP + nonrule_iso + LR_iso) for hedge
+      consideration.
+    * If LR_iso blend Δ ≥ +2e-4 over LB-best 4-stack, gate-emit submission.
+    * Even a null result is informative: confirms XGB depth=4 was the
+      "right" meta-stacker capacity for this bank.
+
+- **N2 (~1.5h CPU): Add weak diversity learners to the meta-stacker bank**.
+  Build 3 new OOFs on recipe feature set:
+  `LR(C=1, class_weight='balanced', solver='lbfgs')`,
+  `KNeighborsClassifier(n_neighbors=50)`,
+  `ExtraTreesClassifier(n_estimators=500, class_weight='balanced')`.
+  Add to the bank → re-train Tier-1b XGB meta-stacker → re-blend.
+  - Decision gate: any of the three pulls meta-stacker errors below 8,948
+    AND Jaccard < 0.97 → blend into 4-stack and gate at +0.0002 OOF +
+    per-class recall guardrail.
+  - kNN may need subsampled fit (50k stratified) for compute feasibility;
+    LR + ET both fit on full 504k easily.
+
+- **N3 (~1.5-2h CPU): yunsuxiaozi 5-shuffle OTE concat as training augmentation**.
+  Implement as `recipe_ote_5shuffle_concat` variant of `recipe_full_te.py`
+  (concat 5 shuffled OTE-fit copies of train into a 5x-augmented training
+  pool, vs our current per-row K-shuffle averaging). Structurally distinct
+  from every prior OTE variant.
+  - Standalone OOF gate: tune log-bias and compute Jaccard vs recipe.
+  - If Jaccard < 0.85 AND errs ≤ recipe (10,114), gate as new meta-stacker
+    component.
+
+- **Skip on principled grounds**:
+  - aliafzal stacking, beraterolelk's VPD, simarbir's DGP — equivalent to
+    or below what we have.
+  - manasi197 — public-CSV blending (banned).
+  - HP / multiplicative class-weight tuning — equivalent to our additive
+    log-bias coord-ascent.
+  - utaazu's `ORIG_ROW_WEIGHT=0.35` swap — global perturbation with high
+    risk and no Jaccard-novelty signal; our 1.0 has been the working
+    setting through every successful blend.
+
+- **Execution order**: N1 first (cheapest + addresses audit's F1 hedge concern
+  — current hedge `recipe_full_te.csv` shares full FE pipeline with primary,
+  484/270k disagreement; LR-stacker hedge would be structurally different from
+  primary's XGB-stacker while still benefiting from the same bank). Then N2 if
+  N1 lands. N3 last (highest wall time, lowest confidence on transfer).
+
+- LB budget unchanged (0 probes spent on the audit). LB-best still 0.98094.
