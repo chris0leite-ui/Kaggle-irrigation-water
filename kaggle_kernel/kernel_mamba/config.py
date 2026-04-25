@@ -21,15 +21,17 @@ N_FOLDS = 2 if SMOKE else 5
 MAX_FOLDS = 2 if SMOKE else (1 if PROBE else 5)
 N_EPOCHS = 2 if SMOKE else (8 if PROBE else 15)
 
-# Mamba hyperparams. mambular defaults are a reasonable starting point;
-# we pick a moderate-capacity config to fit in the wall budget.
+# Mamba hyperparams. P100 has 16 GB; mambular's pure-PyTorch
+# selective_scan fallback is O(L^2 * d_model * d_state) memory.
+# Even with mamba_ssm CUDA kernel installed, conservative batch helps
+# reliability across the SMOKE/PROBE/full-fold path.
 D_MODEL = 64
 N_LAYERS = 4
-D_STATE = 32
+D_STATE = 16
 D_CONV = 4
 EXPAND = 2
 DROPOUT = 0.1
-BATCH_SIZE = 1024
+BATCH_SIZE = 256 if SMOKE else 512
 LR = 1e-3
 WEIGHT_DECAY = 1e-5
 

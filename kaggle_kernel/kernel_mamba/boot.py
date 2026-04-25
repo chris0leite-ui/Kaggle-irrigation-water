@@ -38,17 +38,20 @@ def install_torch_if_pascal() -> None:
 
 def install_mambular() -> None:
     # mambular: BASF tabular Mamba (sklearn-style API). Has a
-    # pure-PyTorch fallback for selective scan (no nvcc required).
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install", "--quiet",
-        "mambular",
-    ])
-    # lightning is a transitive dep but pin defensively (RealMLP kernel
-    # had a 'lightning not found' error from a similar miss).
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install", "--quiet",
-        "lightning",
-    ])
+    # pure-PyTorch fallback for selective scan (no nvcc required) but
+    # the fallback is O(L^2) memory which OOMs the P100 16GB at
+    # batch=1024. Install mamba_ssm + causal_conv1d FIRST so mambular
+    # picks up the O(L) CUDA kernel path. Pre-built wheels for cu121
+    # are available as of late 2024.
+    for pkg in ("causal-conv1d", "mamba-ssm", "mambular", "lightning"):
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install", "--quiet", pkg,
+            ])
+            print(f"[boot] installed {pkg}", flush=True)
+        except subprocess.CalledProcessError as e:
+            print(f"[boot] {pkg} install failed ({e}); continuing",
+                  flush=True)
 
 
 def boot() -> None:
