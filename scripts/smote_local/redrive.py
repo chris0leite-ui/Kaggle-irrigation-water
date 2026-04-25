@@ -16,17 +16,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from recipe_features import add_threshold_flags, add_lr_formula_logits  # noqa
 
 
-def smote_nc_on_raw(raw_train_df, y_tr, target_n_high, k=5, random_state=42):
-    """SMOTE-NC over (8 string cats + 11 float nums). Memory ~91 MB."""
-    cat_cols = [c for c in raw_train_df.columns if raw_train_df[c].dtype == "object"]
-    cat_idx = [raw_train_df.columns.get_loc(c) for c in cat_cols]
+def smote_nc_on_raw(raw_train_df, y_tr, target_n_high, *, cats, k=5,
+                    random_state=42):
+    """SMOTE-NC over (string cats + float nums). Memory ~91 MB.
+
+    `cats`: explicit list of categorical column names (don't rely on dtype
+    inference; pandas may report cats as 'category' or 'object' depending
+    on read_csv behavior).
+    """
+    # Defensive: ensure cats are object-typed strings (SMOTE-NC requires).
+    df = raw_train_df.copy()
+    for c in cats:
+        if c in df.columns and df[c].dtype.name != "object":
+            df[c] = df[c].astype(str)
+    cat_idx = [df.columns.get_loc(c) for c in cats if c in df.columns]
+    if not cat_idx:
+        raise RuntimeError(
+            f"no cat cols found in raw_train_df; "
+            f"have={list(df.columns)} expected_cats={cats}")
     smote = SMOTENC(
         categorical_features=cat_idx,
         sampling_strategy={2: target_n_high},
         k_neighbors=k,
         random_state=random_state,
     )
-    return smote.fit_resample(raw_train_df, y_tr)
+    return smote.fit_resample(df, y_tr)
 
 
 def redrive_fe(raw_aug, *, cats, nums, combo_pairs, combo_maps,

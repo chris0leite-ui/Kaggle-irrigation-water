@@ -64,12 +64,12 @@ def run_cv(train, test, raw_train, info, maps, *,
         log(f"  raw fold-tr: {len(raw_tr_nolab):,} × "
             f"{raw_tr_nolab.shape[1]} (8 cats + 11 nums)")
 
-        # 1. SMOTE-NC on raw 19 cols
+        # 1. SMOTE-NC on raw 19 cols (explicit cats list, not dtype-inferred)
         t1 = time.time()
         try:
             raw_aug, y_aug = smote_nc_on_raw(
                 raw_tr_nolab, y_tr_full, smote_target,
-                k=smote_k, random_state=SEED + fold)
+                cats=cats, k=smote_k, random_state=SEED + fold)
         except Exception as e:
             log(f"  SMOTE failed: {e}; skip aug this fold")
             raw_aug, y_aug = raw_tr_nolab.copy(), y_tr_full.copy()

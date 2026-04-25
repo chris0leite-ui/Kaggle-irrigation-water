@@ -357,22 +357,32 @@ class OrderedTE:
 
 
 # ============================== SMOTE + redrive ==============================
-def run_smote_nc_on_raw(raw_train_df, y_tr, target_n_high, k=5, random_state=42):
+def run_smote_nc_on_raw(raw_train_df, y_tr, target_n_high, *, cats,
+                        k=5, random_state=42):
     """SMOTE-NC on the raw 19-col DF (cats as strings, nums as floats).
+
+    `cats`: explicit list of categorical column names (pandas may report
+    cats as 'category' instead of 'object' at production scale, breaking
+    dtype-based inference).
 
     Memory ≈ n_synthesize × k × n_cols_after_onehot × 8 bytes
             ≈ 25k × 5 × 91 × 8 = 91 MB.
     """
-    cat_cols = [c for c in raw_train_df.columns if raw_train_df[c].dtype == "object"]
-    cat_idx = [raw_train_df.columns.get_loc(c) for c in cat_cols]
+    df = raw_train_df.copy()
+    for c in cats:
+        if c in df.columns and df[c].dtype.name != "object":
+            df[c] = df[c].astype(str)
+    cat_idx = [df.columns.get_loc(c) for c in cats if c in df.columns]
+    if not cat_idx:
+        raise RuntimeError(
+            f"no cat cols in raw_train_df; have={list(df.columns)} cats={cats}")
     smote = SMOTENC(
         categorical_features=cat_idx,
         sampling_strategy={2: target_n_high},
         k_neighbors=k,
         random_state=random_state,
     )
-    raw_aug, y_aug = smote.fit_resample(raw_train_df, y_tr)
-    return raw_aug, y_aug
+    return smote.fit_resample(df, y_tr)
 
 
 def re_derive_fe_aug(raw_aug, *, cats, nums, combo_pairs, combo_maps,
@@ -443,7 +453,18 @@ def load_and_engineer():
     if "/kaggle/" in str(KAGGLE_INPUT) and KAGGLE_INPUT.exists():
         train_path = _find_one("train.csv")
         test_path = _find_one("test.csv")
-        orig_path = _find_one("Irrigation_Prediction*.csv")
+        orig_path = None
+        for pattern in ("irrigation_prediction.csv", "Irrigation_Prediction.csv",
+                        "irrigation-prediction.csv"):
+            try:
+                orig_path = _find_one(pattern)
+                break
+            except FileNotFoundError:
+                continue
+        if orig_path is None:
+            raise FileNotFoundError(
+                f"no orig CSV found under {KAGGLE_INPUT}; "
+                f"check dataset_sources in kernel-metadata.json")
     else:
         train_path = Path("data/train.csv")
         test_path = Path("data/test.csv")
@@ -621,12 +642,12 @@ def run_cv(train, test, raw_train, info, maps):
         log(f"  raw fold-tr: {len(raw_tr_nolab):,} rows × "
             f"{raw_tr_nolab.shape[1]} cols (8 cats + 11 nums)")
 
-        # 2. SMOTE-NC on raw 19 cols
+        # 2. SMOTE-NC on raw 19 cols (explicit cats list)
         t_smote = time.time()
         try:
             raw_aug, y_aug = run_smote_nc_on_raw(
                 raw_tr_nolab, y_tr_full, smote_target,
-                k=SMOTE_K, random_state=SEED + fold,
+                cats=cats, k=SMOTE_K, random_state=SEED + fold,
             )
         except Exception as e:
             log(f"  SMOTE-NC failed: {e}; skipping aug for this fold")
