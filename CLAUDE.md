@@ -8475,3 +8475,150 @@ parallel session's Tier 1b/1c saturation:
   - More distill capacity-reduction experiments (d=2/r=500 and
     d=3/r=1500 already run). Capacity-reduction path is bounded.
   - Public-CSV blending (banned by top-of-file rule).
+
+### 2026-04-25 — final-selection lock (post-LB-0.98094 reframe)
+
+Context: parallel session pushed Tier-1b XGB meta-stacker isotonic blend
+to LB **0.98094** (+0.00086 over prior 0.98008). Pack 0.98114 only
++0.00020 above. The earlier hedge audit (2026-04-24, primary = 3-way at
+LB 0.98005, hedge = CatBoost) is stale — primary moved.
+
+**Final-selection locked**:
+
+  PRIMARY: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    - composition: lb3 + RealMLP α=0.20 + xgb_nonrule__iso α=0.075
+                   + xgb_metastack__iso α=0.300
+    - OOF 0.98084, gap **−0.00010** (LB above OOF — meta-stacker
+      CV-pessimism property)
+    - per-class recall: L 0.9955 / M 0.9695 / **H 0.9775**
+    - errs 9,415 (−157 vs LB-best 3-stack)
+
+  HEDGE: `submission_recipe_full_te.csv` → **LB 0.97939**
+    - composition: pure single-model XGB-on-recipe with class-balanced
+      sample-weight + post-hoc log-bias [1.43, 1.47, 3.40]
+    - OOF 0.97967, gap +0.00028 (clean calibration)
+    - NO blend, NO isotonic, NO meta-stacker — independent of every
+      stacking ingredient in the primary
+
+Hedge rationale: the primary depends on a 63-component XGB meta-stacker
+trained over the full OOF bank. If any single component overfits private
+LB, the meta-stacker amplifies that overfit through the +0.00086 blend
+lever. The 2026-04-24 CatBoost-hedge recommendation favored model-family
+diversity, but the new primary already includes RealMLP (NN family) +
+xgb_nonrule_iso (calibration-corrected XGB) + meta-stacker (XGB over 63
+components). Adding CatBoost as a hedge over-diversifies — the primary
+itself is already maximally diverse on the model-family axis.
+
+The cleanest hedge against meta-stacker overfit is therefore a candidate
+that does NOT touch the meta-stacker pool at all: pure single-model
+recipe XGB. Premium = −0.00155 LB vs primary; the gap +0.00028 is
+honest CV calibration (no negative-gap CV-pessimism artefact).
+
+Alternative hedges considered and rejected:
+  - `submission_lb3_realmlp_nonruleiso.csv` (LB 0.98008): the
+    foundation the meta-stacker builds on. Too closely correlated.
+  - `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005): shares
+    pseudo_s1 + pseudo_s7 with the meta-stacker pool.
+  - `submission_recipe_full_te_catboost.csv` (LB 0.97935): different
+    model family but the primary already has NN diversity. Premium
+    cost (−0.00159) only fractionally larger than recipe-XGB hedge
+    (−0.00155) for less marginal value.
+
+Pack 0.98114 still +0.00020 above primary. With 6 days to deadline and
+7 LB submissions remaining today (3/10 used), one more LB-probe slot
+is reserved for either: (a) the SMOTE-NC follow-up if it lifts, or
+(b) a tighter primary if a meta-stacker variant adds another +0.0002.
+
+### 2026-04-25 — SMOTE-NC environment-blocked + Kaggle-kernel route
+
+- Goal: execute Step 3 of the post-LB-0.98094 follow-up — SMOTE-NC
+  oversampling of the rare High class as the only untested
+  *training-data-level* attack on the Pareto-frontier ceiling
+  [0.9949, 0.9685, 0.9774].
+- Smoke (SMOKE=1, 20k/2-fold, SMOTE_TARGET=5k): PASSED in ~80s.
+  - SMOTE-NC adds High rows 333 → 5,000 per fold (k=5 NN interpolation
+    over cats+digits+combos+num_as_cat+tres categorical indices)
+  - best_iter 51 / 85 (gradient correct, no GCE-style pathological 1)
+  - OOF tuned 0.96555 vs recipe smoke 0.96381 = +0.00174 standalone
+    in smoke mode (signal exists at 20k subsample scale)
+- Production attempts (5-fold × 504k tr × ~16k → ~42k High per fold):
+  did not survive the idle gap between user prompts.
+  - Attempt 1 (06:14 UTC): PID 4635 launched detached. Process gone
+    on next check (~80min later). No OOF artifact written.
+  - Attempt 2 (07:51 UTC): PID 3522 relaunched detached. Process
+    gone on next check (~30min later). Same outcome.
+- **Observation, not a generalised rule**: detached background
+  processes did not survive in this session — but we only have two
+  data points and didn't investigate the underlying cause. The
+  portable lesson (logged to LEARNINGS.md) is the per-fold
+  checkpoint pattern: any pipeline whose total wall budget exceeds
+  the smoke runtime should write `oof_*_fold{f}.npy` and
+  `test_*_fold{f}.npy` immediately after each fold completes, so
+  partial progress is recoverable regardless of why the process
+  ended.
+- **Status: SMOTE-NC is ENVIRONMENT-BLOCKED on this branch.** The
+  scaffold (`scripts/recipe_smote_high.py`) and blend-gate
+  (`scripts/blend_gate_smote.py`) are committed and ready to run
+  on persistent compute.
+- **Recommended next-session route**: Kaggle kernel.
+  1. `kaggle_kernel/kernel_smote/` — single-file orchestrator that
+     inlines `recipe_features.py` + `recipe_ote.py` + the SMOTE-NC
+     pipeline. ~30min scaffolding.
+  2. Upload as a private kernel; expected wall ~3h on Kaggle's
+     16-core CPU runtime (well under the 9h kernel cap).
+  3. Pull OOF + test back via `kaggle kernels output`.
+  4. Run `scripts/blend_gate_smote.py` locally — auto-emits
+     submission if Δ ≥ +2e-4 vs LB-best 0.98094.
+- **Why SMOTE-NC is still worth pursuing despite the saturation**:
+  every prior High-class lever (detector, router, meta-stack,
+  binary-Medium head, score=6 specialist) operated POST-HOC on the
+  existing OOF bank. The Pareto frontier closure proved no
+  rearrangement of the bank can push High recall past 0.9774.
+  SMOTE-NC produces a model with a fundamentally different training
+  distribution (~2x High rows synthesized via k-NN feature-space
+  interpolation), so its decision surface CAN exceed 0.9774 on
+  High at the cost of Low/Medium recall. Whether that trade is
+  net-positive under macro-recall is the open question — only
+  determinable by running it through the blend gate.
+- LB budget unchanged (0 used today). LB-best remains **0.98094**
+  via `submission_tier1b_greedy_meta.csv`. Final-selection lock
+  unchanged: primary = LB 0.98094, hedge = recipe_full_te (LB
+  0.97939).
+
+### 2026-04-25 — overlooked-levers pass: SUMMARY (1 lock + 1 close-out)
+
+Three follow-up items from the user-prompted "what have we overlooked"
+review (2026-04-25 prior session):
+
+  Item 1 — final-selection hedge audit  →  COMMITTED a63e532
+    Primary: submission_tier1b_greedy_meta.csv (LB 0.98094)
+    Hedge:   submission_recipe_full_te.csv     (LB 0.97939)
+    Rationale: primary already includes XGB + RealMLP NN +
+    xgb_nonrule_iso + 63-component meta-stacker — model-family
+    diversity maxed. CatBoost-hedge would over-diversify; pure
+    single-model recipe-XGB is the cleanest orthogonal-to-meta
+    fallback against private-LB overfit.
+
+  Item 2 — re-run greedy with iso pool  →  PIVOTED (pre-existing exhaustive)
+    Audit showed tier1b_greedy_with_meta.py already adds an __iso
+    copy of every component (line 121-123). Both raw and iso
+    variants exhausted. Action revised: re-run only after a NEW
+    component (SMOTE) lands.
+
+  Item 3 — SMOTE-NC training-data lever  →  ENVIRONMENT-BLOCKED
+    Smoke green (+0.00174 OOF lift over recipe smoke). Production
+    killed by container rehydrate twice in one session.
+    Deferred to Kaggle kernel.
+
+Net session output:
+  - 1 final-selection lock (CLAUDE.md a63e532)
+  - SMOTE-NC scaffold + smoke evidence + blend-gate (ba5afbb)
+  - 1 LEARNINGS rule: container-rehydrate persistence
+  - 0 LB submissions spent
+
+Next-session priorities:
+  1. Push SMOTE-NC scaffold to Kaggle kernel (highest EV remaining
+     own-pipeline lever).
+  2. After SMOTE returns: blend-gate → LB probe if Δ ≥ +2e-4.
+  3. If SMOTE nulls or stays inside fold-noise: lock primary +
+     hedge as final and stop spending compute.

@@ -621,6 +621,30 @@ all of them on the same model.
      is safe. It isn't — fold 2 inherits fold 1's residual allocations
      plus its own new ones. The first fold-boundary is the critical
      point; architect for it explicitly.
+- **Heavy CPU pipelines must (a) gate on a single-fold smoke and
+  (b) checkpoint per fold.** Any pipeline whose smoke-runtime
+  multiplied by `N_FOLDS` exceeds the largest reliable wall budget
+  in the current environment must save `oof_*_fold{f}.npy` and
+  `test_*_fold{f}.npy` to disk immediately after each fold completes
+  (not just at the end of `run_cv`). Final-aggregation is then a
+  separate concatenation step that succeeds as long as ≥1 fold
+  artifact exists. Two reasons:
+  1. **Single-fold smoke at production scale is the actual ceiling
+     test**, not a smoke at `rows/25 × 2 folds`. Run one fold of the
+     real configuration first; if it completes inside one session,
+     the remaining 4 folds are probably safe; if it doesn't, shrink
+     the config (subsample, fewer features, smaller XGB) BEFORE
+     committing to the full 5-fold run.
+  2. **Partial progress is salvageable.** 2026-04-25 SMOTE-NC
+     production launched detached twice; the Python process did not
+     survive the idle gap between user prompts in either case. Both
+     attempts produced zero output because `run_cv` only writes the
+     final aggregated OOF at the end of all 5 folds — so even though
+     fold 1 completed, that work was lost. With per-fold checkpoints,
+     a 5-fold run that dies mid-fold-3 still leaves 2 fold OOFs on
+     disk, and the next session resumes from fold 3. Pattern:
+     `if (ART / f"oof_{TAG}_fold{f}.npy").exists(): continue` at the
+     top of each fold loop iteration.
 - **Select NN checkpoints on the metric you'll deploy with, not raw
   argmax.** An MLP trained with plain CE has a raw-argmax val_bal
   that plateaus quickly and bounces within ~0.003; the *probability

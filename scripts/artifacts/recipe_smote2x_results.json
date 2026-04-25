@@ -1,0 +1,20 @@
+{
+  "seed": 42,
+  "n_folds": 2,
+  "smoke": true,
+  "smote_target": 42000,
+  "smote_k": 5,
+  "suffix": "smote2x",
+  "fold_scores_argmax": [
+    0.8122641680167016,
+    0.8283779696177372
+  ],
+  "overall_argmax_bal_acc": 0.8203319852460681,
+  "tuned_log_bias_bal_acc": 0.9655475290401715,
+  "log_bias": [
+    -0.0690566993149081,
+    0.07101094407438802,
+    3.403700511880274
+  ],
+  "n_features": 443
+}
