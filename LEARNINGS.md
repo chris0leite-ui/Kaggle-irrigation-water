@@ -1215,3 +1215,32 @@ all of them on the same model.
   per-seed standalone before bagging — if one seed is materially worse,
   exclude it (or use a weighted bag that discounts losers) instead of
   averaging.**
+
+- **Conformal threshold selection cannot rescue a binary detector whose
+  prevalence × achievable-precision is too small in the test override
+  domain.** Run a 10-second `n_truly_positive × max_attainable_precision`
+  scan BEFORE scaffolding split-conformal calibration. If the product is
+  below ~50 (per macro-recall break-even math on this comp; scale by
+  metric weighting on others), the lever is structurally bounded
+  regardless of how principled the threshold method is. J7 conformal on
+  spec6_mh_v2 (AUC 0.938, override domain 35,418 train / 15,288 test
+  rows, ~330 truly-H per side) hit Wilson 90% lower-CI τ=0.148 with
+  break-even precision 8.1%, but only **5 test-side overrides cleared
+  the bar** — same numeric floor the ad-hoc theta-sweep found. Conformal
+  validates the threshold's coverage guarantee but doesn't change WHICH
+  rows pass it. Information is the bottleneck, not threshold method.
+
+- **Saturated meta-stacker banks: standalone iso-OOF lift from new
+  components does NOT translate to blend-level lift over the existing
+  meta.** Adding OvR + recipe_focal_effnum + LR meta to v1's 63-component
+  bank produced v5_iso standalone 0.98072 (+0.00013 vs v1_iso 0.98059),
+  the FIRST meta variant ever to beat v1_iso. But at REPLACE-v1 α=0.30
+  (v1's role in the LB-best 4-stack), v5 OOF was 0.98071 — UNDERPERFORMING
+  the LB-best 4-stack 0.98084 by −0.00013. Peak v5 lift required α=0.40
+  (+0.00020 OOF, right at +2e-4 gate); per linear-projection rule
+  predicted LB null. Diagnostic: **if v_new_iso standalone > v_old_iso
+  BUT v_new_iso at v_old's α-slot UNDERPERFORMS v_old, the new components
+  are calibration-cosmetic, not signal-contributing.** The meta-stacker
+  that consumed the prior bank already extracts the available signal
+  channels; iso-cal of the new meta over the extended bank rebalances
+  per-class scales without surfacing new orthogonal information.

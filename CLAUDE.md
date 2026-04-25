@@ -10925,3 +10925,141 @@ model wave**:
   scale mismatch BEFORE blending) but NEVER on the blend output."
 - LB delta: n/a. No probe. LB-best unchanged at **0.98094**.
 - LB budget unchanged: 6/10 used today, 4 remaining.
+
+### 2026-04-25 — meta v5 (OvR + focal + LR pool) + J7 conformal: 8th saturation confirmation, both NULL
+
+- Goal: execute the two highest-EV untested recommendations from the
+  next-steps menu — **N1 OvR-XGB as a meta-stacker bank addition** (audit
+  round 4 flagged this as the recommended next step but never executed
+  with a fresh meta retraining) and **J7 conformal-gated overrides on
+  score=6 boundary** (replaces ad-hoc theta sweep with Wilson-bounded
+  calibrated threshold on the spec6_mh_v2 detector).
+- Branch: `claude/test-next-steps-OwwJ4`. CPU only (~6 min meta v5,
+  ~10 s J7 conformal). No GPU, no LB submission.
+
+- **Meta v5 — 64-component pool with OvR + recipe_focal_effnum + LR meta**
+  (`scripts/meta_v5_ovr_extended.py`, ~155 lines):
+  - **Strict EXTRA_EXCLUDE list**: 12 prior meta outputs (xgb_metastack
+    v1-v4 + variants + LR metas) treated as circular leakage; LB-confirmed
+    regressors (soft_distill family); bias-mismatched (recipe_smote_v3);
+    submission-derived (primary_sub_tau*); derived blends (j6_qp_blend,
+    greedy_blend, etc.); tau-sweep pseudos (circular w.r.t. pseudo_s1);
+    TTA artifacts. Final clean pool: **64 components** (v1's was 63;
+    gained OvR + focal_effnum, lost some excluded items).
+  - Pool composition verified: OvR present, focal_effnum present, all
+    known LB-regressors excluded. `xgb_metastack` (v1) excluded so v5
+    isn't trained on its own predecessor.
+  - Same XGB heavy-reg HPs as v1: depth=4, lr=0.05, reg_alpha/lambda=5,
+    subsample/colsample=0.9, 3000-round cap with es=200.
+  - Wall: 6m15s on 16-core CPU (5 folds × ~70s each, best_iter 279-408).
+  - **Standalone**:
+    ```
+                          v5         v1         Δ
+    raw OOF argmax      0.97364    0.97365    -0.00001
+    raw @recipe-bias    0.98023    0.98041    -0.00018
+    iso @recipe-bias    0.98072    0.98059    +0.00013   ← stronger raw signal
+    ```
+    v5_iso is the FIRST meta variant to beat v1_iso standalone, but
+    raw v5 is BELOW raw v1. Pattern: extra components (OvR + focal +
+    others) add NOISE at the raw output level; iso recovers it.
+  - **REPLACE-v1 sweep onto LB-best 3-stack** (anchor 0.98061; v1 at
+    α=0.30 produced LB-best 4-stack 0.98084 / +0.00023 OOF lift):
+    ```
+    α          v5_iso onto 3-stack    Δ vs anchor
+    0.000     0.98061                 +0.00000
+    0.300     0.98071                 +0.00010   ← v1's α slot, UNDERPERFORMS
+    0.350     0.98076                 +0.00015
+    0.400     0.98081                 +0.00020   ← peak (right at +2e-4 gate)
+    0.500     0.98069                 +0.00009
+    ```
+    Per-class recall at α=0.40: L=0.9956 / M=0.9699 / H=0.9770 vs anchor
+    [0.99553, 0.96885, 0.97744]. H drop -0.0004 marginally PASSES the
+    -5e-4 guardrail. Compare to v1's α=0.30 lift +0.00023 OOF → +0.00086
+    LB. **v5 needs α=0.40 to barely match v1's OOF lift, and at v1's
+    α=0.30 v5 underperforms by 0.00013.**
+  - **STACK-ON-TOP onto LB-best 4-stack** (anchor 0.98084):
+    ```
+    α          v5_iso onto 4-stack    Δ vs anchor
+    0.025     0.98079                 -0.00005
+    0.200     0.98086                 +0.00002   ← peak (sub-gate)
+    0.500     0.98075                 -0.00010
+    ```
+    All α below +2e-4 LB-transfer threshold. v5 contributes nothing on
+    top of v1; v1 already extracts the meta-stacker signal.
+  - **Linear-projection rule** (LR/v4 closures predicted): Δ +0.00020
+    OOF at α=0.40 with marginal guardrail pass projects LB null or
+    marginal regression vs current LB-best 0.98094. **No LB probe
+    warranted.**
+
+- **J7 — conformal-gated overrides on score=6** (`scripts/j7_conformal_spec6.py`,
+  ~140 lines):
+  - Mechanism: split-conformal calibration of spec6_mh_v2 detector
+    (AUC 0.938 per CLAUDE.md 2026-04-25 entry). Hold out 30% of in-domain
+    train rows for calibration; pick threshold τ such that Wilson 90%
+    one-sided lower CI on precision ≥ 8.1% break-even (under macro-recall).
+    Replaces ad-hoc theta sweep with principled coverage-guaranteed
+    threshold selection.
+  - Override domain: score=6 ∩ teacher_argmax=Medium.
+    Train: 35,418 rows / 324 truly-H. Test: 15,288 rows.
+  - Calibration: 10,625 rows / 94 truly-H. **Conformal τ=0.14782**,
+    Wilson lower CI 0.0829 (just above 0.081 break-even).
+  - Out-of-cal train: 30 overrides, 3 correct (10.0% precision — at the
+    break-even floor).
+  - Full-train OOF: 45 overrides, 6 correct (13.3% precision).
+    Δ macro-recall = +0.00004 (well below +2e-4 LB-transfer gate).
+  - **Test-side override count: 5** (gate requires ≥10).
+  - **Verdict: lever fully closed.** Conformal calibration confirms the
+    spec6_mh_v2 entry's "prevalence-bounded to ~10 override rows"
+    diagnosis is structural — even with principled coverage-guaranteed
+    threshold at break-even precision, only 5 test rows clear the bar.
+    The bottleneck is INFORMATION (which rows to override) not THRESHOLD
+    SELECTION (what cutoff to use).
+
+- **Combined session read-out — 8th independent saturation confirmation
+  at LB 0.98094**:
+  ```
+  attack vector                                  best OOF Δ   notes
+  --------------------------------------------- -----------  -------
+  1. Tier 1c greedy expanded pool (132c)        +0.00002     sub-gate
+  2. Tier 1c meta-stacker v2 (224-dim)          +0.00002     sub-gate
+  3. Tier 1c meta-stacker XGB seed-bag          +0.00003     sub-gate
+  4. Cross-poll metastack v3                    +0.00015     LB 0.98060 -0.00034
+  5. J2 bootstrap-bagged metastack              +0.00003     proj LB -0.00054
+  6. LR meta-stacker v2 (this branch's parent)  +0.00046     LB 0.98052 -0.00042
+  7. LR v2 + iso-after-blend                    +0.00000     OOF NULL
+  8. **Meta v5 + J7 conformal (this entry)       +0.00020     borderline (predicted null) + closed**
+  ```
+- LB best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  Final-selection lock unchanged: PRIMARY = LB 0.98094, HEDGE =
+  `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005, audit F1 swap).
+  LB budget unchanged: 6/10 used today, 4 remaining.
+
+- **Two portable rules** (logged to LEARNINGS.md):
+  1. **Conformal calibration on a binary detector with prevalence < 0.05
+     in the test override domain hits a numeric floor at ~5-10 overrides
+     regardless of detector AUC.** Conformal threshold selection cannot
+     manufacture overrides where the detector's confidence distribution
+     is too narrow at break-even precision. The lever's structural limit
+     is information about WHICH rows to override, not WHAT threshold to
+     use. Run a 10-second prevalence × precision scan BEFORE building
+     the conformal pipeline; if `n_truly_positive_in_override_domain ×
+     achievable_precision < 50`, the lever is structurally too small to
+     move LB regardless of threshold method.
+  2. **Adding components to a saturated meta-stacker bank lifts standalone
+     iso OOF (+0.00013 in v5 case via per-class iso re-calibration of
+     the new larger bank's outputs) but does NOT translate to blend-level
+     lift over the existing meta.** The meta-stacker that consumed the
+     prior bank already extracts most of the available signal channels;
+     iso-cal of the new meta over-fits the additional components without
+     adding orthogonal signal at the anchor's fixed-bias operating point.
+     Diagnostic check: if standalone v_new_iso > v_old_iso BUT v_new_iso
+     at v_old's α-slot UNDERPERFORMS v_old, the new components are
+     calibration-cosmetic, not signal-contributing.
+
+- Artefacts committed (whitelisted in `.gitignore`):
+  - `scripts/meta_v5_ovr_extended.py` + `scripts/j7_conformal_spec6.py`
+  - `scripts/artifacts/oof_xgb_metastack_v5{,_iso}.npy` + test (4 files)
+  - `scripts/artifacts/meta_v5_results.json` (full sweep + per-class
+    recall + best_iters)
+  - `scripts/artifacts/j7_conformal_spec6_results.json` (Wilson CI +
+    train override stats + test override count + gate decision)
