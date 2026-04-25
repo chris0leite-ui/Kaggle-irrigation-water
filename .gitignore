@@ -591,3 +591,14 @@ kaggle_kernel/*/dist/
 # 0.9514 vs Kaggle 0.9502. Both ABORT.
 !scripts/artifacts/oof_smote_v2_fold1.npy
 !scripts/artifacts/test_smote_v2_fold1.npy
+
+# 2026-04-25 Mamba (mambular tabular SSM) PROBE — 14th NN-family null.
+# 100k subsample fold 1 (pure-PyTorch fallback because mamba_ssm CUDA
+# wheels failed to install on Kaggle). Standalone tuned 0.9632 vs LB-4
+# 0.9799 = -0.017 BUT Jaccard 0.491 vs LB-4 (LOWEST EVER for any NN
+# family on this problem). Magnitude trap: errs 2432 > 1.05x anchor
+# 1914 (+27%). Blend monotone-negative from a=0.05. Kept for cross-
+# branch diagnostic — record-low NN Jaccard is unique even though it
+# didn't transfer.
+!scripts/artifacts/oof_mamba_probe.npy
+!scripts/artifacts/test_mamba_probe.npy

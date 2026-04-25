@@ -60,14 +60,23 @@ def _errmask(probs, y, bias):
     return (np.log(np.clip(probs, 1e-9, 1.0)) + bias).argmax(1) != y
 
 
-def _per_class_iso(oof, y):
-    """Per-class isotonic calibration on full OOF (matches tier1b)."""
+def _per_class_iso(oof, y, also_transform=None):
+    """Per-class isotonic calibration: fit on OOF, transform OOF (and
+    optionally a separate matrix like test). Matches tier1b semantics.
+    """
     out = np.zeros_like(oof)
+    out_extra = (np.zeros_like(also_transform)
+                 if also_transform is not None else None)
     for k in range(3):
         ir = IsotonicRegression(out_of_bounds="clip")
         ir.fit(oof[:, k], (y == k).astype(np.float64))
         out[:, k] = ir.transform(oof[:, k])
+        if out_extra is not None:
+            out_extra[:, k] = ir.transform(also_transform[:, k])
     out = out / out.sum(axis=1, keepdims=True).clip(1e-9)
+    if out_extra is not None:
+        out_extra = out_extra / out_extra.sum(axis=1, keepdims=True).clip(1e-9)
+        return out, out_extra
     return out
 
 
@@ -113,10 +122,10 @@ def main() -> None:
     )["log_bias"], dtype=np.float64)
     log(f"  bias_recipe = {bias_recipe.round(4).tolist()}")
 
-    nonrule_iso_oof = _per_class_iso(nonrule_oof, y)
-    nonrule_iso_test = _per_class_iso(nonrule_test, y)
-    meta_iso_oof = _per_class_iso(meta_oof, y)
-    meta_iso_test = _per_class_iso(meta_test, y)
+    nonrule_iso_oof, nonrule_iso_test = _per_class_iso(
+        nonrule_oof, y, also_transform=nonrule_test)
+    meta_iso_oof, meta_iso_test = _per_class_iso(
+        meta_oof, y, also_transform=meta_test)
 
     lb3_oof = log_blend([recipe_oof, pseudo_s1_oof, pseudo_s7_oof],
                         np.array([0.25, 0.35, 0.40]))
