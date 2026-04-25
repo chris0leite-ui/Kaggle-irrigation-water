@@ -441,6 +441,14 @@ kernel_audit*/
 !scripts/artifacts/oof_soft_distill_small.npy
 !scripts/artifacts/test_soft_distill_small.npy
 
+# 2026-04-25 distill-tiny (d=2, leaves=7, r=500). Extreme capacity
+# reduction test of soft-distill overfit. OOF tuned 0.97975 (vs
+# distill_small 0.98066, recipe 0.97967). Blend-null on lb_best_stack
+# (peak alpha=0.000). Confirms capacity-reduction path is structurally
+# bounded: less memorization = less OOF lift, no LB transfer sweet spot.
+!scripts/artifacts/oof_soft_distill_tiny.npy
+!scripts/artifacts/test_soft_distill_tiny.npy
+
 # Built / concatenated kernel upload targets — regenerated via build.py
 kaggle_kernel/*/dist/
 

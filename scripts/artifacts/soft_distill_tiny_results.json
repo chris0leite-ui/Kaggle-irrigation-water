@@ -1,0 +1,25 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "smoke": false,
+  "w_recipe": 0.5,
+  "suffix": "tiny",
+  "xgb_depth": 2,
+  "xgb_max_leaves": 7,
+  "xgb_nround": 500,
+  "fold_scores_argmax": [
+    0.9729670012681341,
+    0.9741438727643749,
+    0.974856617999313,
+    0.972740347377138,
+    0.9739623085448255
+  ],
+  "overall_argmax_bal_acc": 0.9737340796555132,
+  "tuned_log_bias_bal_acc": 0.9797498157150666,
+  "log_bias": [
+    0.8324411632360978,
+    1.3689466919465483,
+    3.3007689020440885
+  ],
+  "n_features": 443
+}
