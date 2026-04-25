@@ -1,0 +1,15 @@
+{
+  "tau": 0.147818461060524,
+  "n_picked_cal": 15,
+  "k_picked_cal": 3,
+  "wilson_lower": 0.08289629179727304,
+  "n_train_overrides": 45,
+  "correct_train_overrides": 6,
+  "train_precision": 0.13333333333333333,
+  "bal_pre": 0.9808424406412425,
+  "bal_post": 0.980883261468429,
+  "delta_oof": 4.0820827186482944e-05,
+  "n_test_overrides": 5,
+  "gate_pass": false,
+  "elapsed_sec": 4.920050621032715
+}
