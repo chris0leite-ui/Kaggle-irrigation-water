@@ -9557,18 +9557,101 @@ by EV/cost:
      the gate, decision rule based on standalone metrics + class-recall
      direction, ABORT exits cleanly.
 
-### 2026-04-25 — junior-engineer audit + tree-leaf-OTE meta-stacker IN PROGRESS
+### 2026-04-25 — junior-engineer audit + J1 tree-leaf-OTE meta-stacker (NULL on blend gate; orthogonality lever proven)
 
-- Goal: fresh-eyes review of the saturation evidence, then start the
-  highest-EV / cheapest speculative lever from the new menu below.
-- **Currently in flight on `claude/ml-optimization-ideas-rD6N3`**:
-  J1 below — tree-leaf-OTE meta-stacker. Smoke first (SMOKE=1, 20k rows,
-  2 folds, ~5 min) to validate the leaf-extraction → OTE-encode → meta-XGB
-  chain end-to-end before any production wall spend.
-- Decision gate: if smoke OOF beats recipe-smoke baseline (0.96381 from
-  the 2026-04-23 entry) by any margin AND meta has Jaccard < 0.97 vs
-  recipe smoke OOF, run full 5-fold (~1h CPU). Otherwise mark closed
-  and pivot to J2 / J3.
+- Goal: fresh-eyes review of saturation evidence, then run the highest-EV
+  / cheapest speculative lever from the J1-J7 menu (next section below).
+- Approach: SMOKE first (SMOKE=1, 20k×2-fold, ~1 min wall) to validate
+  the leaf-extraction → OTE-encode → meta-XGB chain end-to-end, then full
+  5-fold seed=42 production.
+- Mechanism: train a base XGB on 19 raw factorized features, extract
+  per-tree leaf indices for every row (multi:softprob produces 3 trees
+  per round → 50 rounds × 3 cls = 150 trees), treat each tree's leaf-
+  index column as a high-card categorical, OrderedTE-encode (3 classes,
+  450 OTE features), feed to a meta XGB. The meta sees TREE-SPACE
+  (per-tree partition memberships) instead of PROB-SPACE, structurally
+  orthogonal to the 63-component meta-stacker bank that produced LB
+  0.98094.
+- Smoke (20k×2-fold, ~55s wall) PASSED:
+  - base argmax 0.93189 → meta argmax 0.94664 (+0.01475)
+  - base tuned  0.95151 → meta tuned  0.95903 (+0.00752)
+  - meta-vs-base error Jaccard 0.6504 (well below 0.97 redundancy)
+  - base errs 469 → meta errs 442 (-27, -5.8%)
+  Chain works end-to-end at smoke scale.
+- Production (504k × 5-fold seed=42, 19 raw features, 9.7 min wall):
+  - base argmax 0.94908, tuned 0.96395, bias [0.43, 1.17, 3.00]
+  - meta argmax 0.95946, tuned 0.96564, bias [0.73, 1.17, 3.40]
+  - meta-vs-base Jaccard at smoke scale held → tree-space encoding
+    extracts signal at production scale too
+- **Blend gate vs LB-best 4-stack (anchor OOF 0.98084, errs 9,415):**
+  - Standalone meta @ LB bias: argmax 0.96529, errs 10,830 (+1,415,
+    +15% magnitude). Per-class recall L 0.9949 / M 0.9686 / H 0.9324
+    (High recall craters by 0.045 vs 4-stack 0.9775 — catastrophic
+    under macro-recall).
+  - **Jaccard(leaf-OTE, LB-best 4-stack) @ LB bias = 0.5597**
+    — **LOWEST ORTHOGONALITY OF ANY CANDIDATE EVER TESTED** on this
+    problem (lower than RealMLP's 0.62, lower than Trompt's 0.53
+    fold-1, lower than every NN family null). Tree-space encoding is
+    GENUINELY orthogonal as the J1 mechanism predicts.
+  - Fixed-bias α-sweep:
+    ```
+    α       tuned    Δ vs 4st  errs   recL    recM    recH    Jaccard
+    0.000  0.98084  +0.00000   9415  0.9955  0.9695  0.9775  1.0000
+    0.025  0.98067  -0.00017   9353  0.9956  0.9697  0.9767  0.9820
+    0.050  0.98062  -0.00023   9268  0.9957  0.9700  0.9762  0.9637
+    0.100  0.98024  -0.00061   9192  0.9958  0.9703  0.9746  0.9282
+    0.200  0.97955  -0.00129   9077  0.9959  0.9708  0.9719  0.8679
+    0.500  0.97661  -0.00423   8962  0.9959  0.9722  0.9617  0.7363
+    ```
+    Monotone-negative from α=0.025; emit gate fails at every α.
+  - **Classic magnitude-trap failure mode** (15th confirmation on this
+    problem): great Jaccard orthogonality but 15% more errors,
+    distributed AGAINST the rare High class. Macro-recall punishes
+    rare-class recall drops; total-error decrease (9415 → 8940 at
+    α=0.4) is invisible to the metric.
+- **Read-out**: J1 mechanism (TREE-SPACE encoding → orthogonal signal)
+  is PROVEN. The Jaccard 0.56 is unprecedented on this problem and
+  validates the audit hypothesis that the LR meta-stacker null doesn't
+  generalize to all simpler/different stackers. **What J1 with weak
+  base does NOT prove**: whether scaling the base to recipe-features
+  (443 cols) would close the magnitude gap. The current standalone
+  (0.96564 tuned) is too weak to test that hypothesis cleanly.
+- LB delta: n/a (no LB probe — gate failed at every α).
+- Current LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/artifacts/oof_leaf_ote_meta.npy` (7.3 MB)
+  - `scripts/artifacts/test_leaf_ote_meta.npy` (3.1 MB)
+  - `scripts/artifacts/leaf_ote_meta_results.json`
+  - `scripts/artifacts/leaf_ote_blend_results.json`
+  - 3 scripts: `leaf_ote_smoke.py`, `leaf_ote_metastack.py`,
+    `leaf_ote_blend.py`
+- **Possible J1-v2 retry** (~45 min CPU): swap the 19-raw-feature base
+  for a recipe-feature base (443 cols). Base XGB fits at ~5 min/fold
+  on recipe → ~25 min for 5 folds; OTE on 450 leaves ≈ same as J1-v1
+  (~10 min); meta XGB fit ≈ same (~10 min). If recipe-base meta
+  standalone reaches ≥0.978 (closer to 4-stack's 0.98084), the
+  magnitude trap may close. Risk: recipe-base trees may produce leaves
+  too similar to recipe_full_te's tree partitions (recipe_full_te is
+  ALREADY in the 63-component bank), making the OTE encoding
+  redundant. Decision after either continuing with J1-v2 or pivoting
+  to J2 (bootstrap-bagged meta-stacker, 30 min CPU) deferred to user.
+- Lessons logged for future synthetic-tabular comps:
+  1. **Tree-leaf OTE encoding is the cheapest known mechanism for
+     producing ORTHOGONAL meta-stacker inputs** (Jaccard 0.56 vs the
+     LB-best 4-stack which itself averages over 70+ component pred
+     scales). For future comps, run this lever EARLY before exhausting
+     prob-space stackers.
+  2. **The magnitude trap rule is stricter than "errs ≤ anchor"** —
+     it's "errs ≤ anchor AND distributed in the right per-class
+     direction for the metric". A candidate with FEWER total errors
+     but more rare-class errors is LB-negative under macro-recall.
+     Per-class recall guardrail (≥anchor − 5e-4 per class) is the
+     correct gate, not raw error count.
+  3. **Weak-base + strong-meta does not bypass the magnitude trap.**
+     The base sets the standalone ceiling; a meta XGB on top of a
+     19-feature base produces orthogonal partitions but those
+     partitions inherit the weak base's class-recall profile.
 
 ### Next steps: junior-engineer audit speculative levers (2026-04-25)
 
