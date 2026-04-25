@@ -399,6 +399,16 @@ kernel_audit*/
 !scripts/artifacts/test_recipe_pseudolabel_tau099.npy
 !scripts/artifacts/recipe_pseudolabel_tau099_results.json
 
+# A1 blend gate diagnostic + τ-substituted primary candidates (all NULL on
+# G4: substituted primary OOF < current primary 0.98084 for every τ).
+!scripts/artifacts/a1_tau_blend_gate_results.json
+!scripts/artifacts/oof_primary_sub_tau095.npy
+!scripts/artifacts/test_primary_sub_tau095.npy
+!scripts/artifacts/oof_primary_sub_tau097.npy
+!scripts/artifacts/test_primary_sub_tau097.npy
+!scripts/artifacts/oof_primary_sub_tau099.npy
+!scripts/artifacts/test_primary_sub_tau099.npy
+
 # Missed-High detector (binary XGB, P(y=H ∧ teacher_pred ∈ {L,M})) —
 # AUC 0.9711 (ranking signal real) but deploy precision 6.5% at N=200
 # vs 8.8% break-even → override strictly net-negative. Closes the
@@ -614,6 +624,24 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_xgb_metastack_v4.npy
 !scripts/artifacts/test_xgb_metastack_v4.npy
 
+# 2026-04-25 N3 (5-shuffle OTE concat reduced to K=2 for compute fit):
+# per-fold checkpoints written incrementally via RUN_FOLD env var. Each
+# fold ~18min CPU; checkpoints whitelisted so partial progress survives
+# container rehydrate. Final aggregated OOF = oof_recipe_2shuffle.npy
+# (after n3_aggregate.py).
+!scripts/artifacts/oof_recipe_2shuffle.npy
+!scripts/artifacts/test_recipe_2shuffle.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold1.npy
+!scripts/artifacts/test_recipe_2shuffle_fold1.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold2.npy
+!scripts/artifacts/test_recipe_2shuffle_fold2.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold3.npy
+!scripts/artifacts/test_recipe_2shuffle_fold3.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold4.npy
+!scripts/artifacts/test_recipe_2shuffle_fold4.npy
+!scripts/artifacts/oof_recipe_2shuffle_fold5.npy
+!scripts/artifacts/test_recipe_2shuffle_fold5.npy
+
 # J3 adversarial-validation: closes train↔test shift hypothesis.
 # AUC=0.50247 ⇒ train/test indistinguishable, residual gap is structural.
 !scripts/artifacts/j3_av_p.npy
@@ -699,3 +727,54 @@ kaggle_kernel/*/dist/
 # weight composition is not obviously suboptimal at the objective level.
 !scripts/artifacts/oof_j6_qp_blend.npy
 !scripts/artifacts/test_j6_qp_blend.npy
+
+# 2026-04-25 N1 OvR-XGB on V10 recipe (imbalanced-classification session):
+# 3 binary:logistic heads with scale_pos_weight=neg/pos + per-class
+# OOF iso-cal + softmax-renormalize. Standalone tuned 0.97927; LOWEST
+# standalone errs of any candidate (9327 vs LB-best meta-stack 9415,
+# −88). Blend NULL across all 5 anchors (Jaccard 0.83 vs meta — the
+# meta-stacker already absorbs the OvR signal via xgb_nonrule_iso).
+# Raw 3-channel head outputs preserved separately for future
+# meta-stacker variants. Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_xgb_ovr_recipe.npy
+!scripts/artifacts/test_xgb_ovr_recipe.npy
+!scripts/artifacts/oof_xgb_ovr_recipe_raw.npy
+!scripts/artifacts/test_xgb_ovr_recipe_raw.npy
+# 2026-04-25 N2 class-balanced effective-number focal (Cui CVPR 2019):
+# alpha via (1-beta)/(1-beta^n_c) with beta=0.99999 → [1.0, 1.07, 5.15]
+# (3.4× milder than invfreq's [1.0, 1.55, 17.6]), gamma=1, esr=400.
+# Best_iter 1478-2381 (vs prior invfreq null's 59-200) confirms the
+# textbook fix optimizes correctly. Tuned bias [1.23, 1.27, 3.40] —
+# High bias matches recipe exactly. Standalone tuned 0.97785; LOWEST
+# Jaccard ever (0.74-0.76 vs LB-best stack). Blend still NULL across
+# all 5 anchors — same Pareto-frontier ceiling: orthogonality alone
+# is insufficient when meta-stack already captures the signal channel.
+!scripts/artifacts/oof_recipe_focal_effnum.npy
+!scripts/artifacts/test_recipe_focal_effnum.npy
+
+# 2026-04-25 Mamba (mambular tabular SSM) PROBE — 14th NN-family null.
+# 100k subsample fold 1 (pure-PyTorch fallback because mamba_ssm CUDA
+# wheels failed to install on Kaggle). Standalone tuned 0.9632 vs LB-4
+# 0.9799 = -0.017 BUT Jaccard 0.491 vs LB-4 (LOWEST EVER for any NN
+# family on this problem). Magnitude trap: errs 2432 > 1.05x anchor
+# 1914 (+27%). Blend monotone-negative from a=0.05. Kept for cross-
+# branch diagnostic — record-low NN Jaccard is unique even though it
+# didn't transfer.
+!scripts/artifacts/oof_mamba_probe.npy
+!scripts/artifacts/test_mamba_probe.npy
+
+# 2026-04-25 J2 bootstrap-bagged meta-stacker — 5th saturation
+# confirmation at LB 0.98094. N=10 bags, fraction=0.5 (bag_size=34),
+# clean 69-component pool (drops 19 circular meta outputs / submission
+# subs / LB regressors / pseudo τ-sweep variants). Per-bag iso OOF
+# spread 0.98011-0.98059 (std 0.00015 — bagging produced consistent
+# metas, low variance to reduce). Bag-mean iso standalone OOF 0.98050
+# vs LB-best 4-stack 0.98084 (Δ -0.00034, BELOW anchor). Jaccard 0.92
+# vs anchor (high redundancy). Strategy A peak α=0.15 → +0.00003 OOF
+# (calibration-projected LB ~0.98040, regression -0.00054). Strategy
+# B (replace meta_iso) Δ -0.00006. Gate FAILED. NULL — saturation
+# confirmed: bigger pool with new components (RealMLP n_ens=4,
+# leaf_ote v1+v2, ET, kNN, recipe_2shuffle, focal x4, OvR x2) does
+# NOT lift; bagging produces near-identical metas at fraction=0.5.
+!scripts/artifacts/oof_xgb_metastack_j2bag.npy
+!scripts/artifacts/test_xgb_metastack_j2bag.npy

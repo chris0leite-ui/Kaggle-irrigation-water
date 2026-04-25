@@ -1,0 +1,119 @@
+{
+  "stage_1": {
+    "errs": 10039,
+    "bal_at_recipe_bias": 0.9798712145011718
+  },
+  "current_primary": {
+    "bal_at_recipe_bias": 0.9808424406412425,
+    "errs": 9415,
+    "recall": {
+      "L": 0.9955341333326124,
+      "M": 0.9695073491889541,
+      "H": 0.9774858394021609
+    }
+  },
+  "tau_results": {
+    "tau095": {
+      "standalone": {
+        "bal_at_recipe_bias": 0.98015533909811,
+        "tuned_bal": 0.9802758171523736,
+        "tuned_bias": [
+          1.6324411632360971,
+          1.568946691946548,
+          3.3007689020440885
+        ],
+        "errs": 10161
+      },
+      "jaccard_vs_stage1": 0.8221179866498286,
+      "jaccard_vs_lb3": 0.8454310980103169,
+      "substituted_primary": {
+        "bal_at_recipe_bias": 0.980741952883147,
+        "errs": 9413,
+        "recall": {
+          "L": 0.9955449465690952,
+          "M": 0.9695282632155734,
+          "H": 0.9771526488647723
+        },
+        "delta_bal_vs_current": -0.00010048775809545774,
+        "delta_errs_vs_current": -2
+      },
+      "gates": {
+        "G1_tuned_gt_stage1": true,
+        "G2_errs_le_stage1": false,
+        "G3_jaccard_lt_085": true,
+        "G4_subprimary_gt_current": false,
+        "G5_subprimary_errs_le_current": true,
+        "G6_recall_floor": true,
+        "all_pass": false
+      }
+    },
+    "tau097": {
+      "standalone": {
+        "bal_at_recipe_bias": 0.9799477497051693,
+        "tuned_bal": 0.9800093819582321,
+        "tuned_bias": [
+          0.9324411632360975,
+          0.9689466919465479,
+          2.8007689020440885
+        ],
+        "errs": 9919
+      },
+      "jaccard_vs_stage1": 0.8261506084728704,
+      "jaccard_vs_lb3": 0.8504113687359761,
+      "substituted_primary": {
+        "bal_at_recipe_bias": 0.9807138457584258,
+        "errs": 9348,
+        "recall": {
+          "L": 0.9955611664238194,
+          "M": 0.9698085111722731,
+          "H": 0.9767718596791851
+        },
+        "delta_bal_vs_current": -0.00012859488281669051,
+        "delta_errs_vs_current": -67
+      },
+      "gates": {
+        "G1_tuned_gt_stage1": true,
+        "G2_errs_le_stage1": true,
+        "G3_jaccard_lt_085": true,
+        "G4_subprimary_gt_current": false,
+        "G5_subprimary_errs_le_current": true,
+        "G6_recall_floor": true,
+        "all_pass": false
+      }
+    },
+    "tau099": {
+      "standalone": {
+        "bal_at_recipe_bias": 0.9801258721559973,
+        "tuned_bal": 0.9801258721559973,
+        "tuned_bias": [
+          1.0324411632360975,
+          1.068946691946548,
+          3.000768902044088
+        ],
+        "errs": 9854
+      },
+      "jaccard_vs_stage1": 0.826051037268221,
+      "jaccard_vs_lb3": 0.8462330369677118,
+      "substituted_primary": {
+        "bal_at_recipe_bias": 0.9807463270392448,
+        "errs": 9349,
+        "recall": {
+          "L": 0.9955341333326124,
+          "M": 0.9698377908095401,
+          "H": 0.9768670569755818
+        },
+        "delta_bal_vs_current": -9.611360199768271e-05,
+        "delta_errs_vs_current": -66
+      },
+      "gates": {
+        "G1_tuned_gt_stage1": true,
+        "G2_errs_le_stage1": true,
+        "G3_jaccard_lt_085": true,
+        "G4_subprimary_gt_current": false,
+        "G5_subprimary_errs_le_current": true,
+        "G6_recall_floor": true,
+        "all_pass": false
+      }
+    }
+  }
+}
