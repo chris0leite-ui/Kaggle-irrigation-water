@@ -9855,3 +9855,107 @@ model wave**:
   - `scripts/artifacts/j3_av_w.npy` (importance weights p/(1-p))
   - `scripts/artifacts/j3_av_results.json` (per-fold AUC + percentiles)
 
+### 2026-04-25 — J6 constraint-aware QP for blend weights: NULL (objective misalignment)
+
+- Goal: J6 from the J3-J7 junior-engineer audit. Greedy + LR are
+  myopic local-optimizers on the simplex; a global convex log-blend
+  solver might surface a config greedy missed. Closes whether the
+  search procedure (greedy/LR) is the bottleneck vs the objective
+  itself.
+- Mechanism: minimize macro-balanced cross-entropy on log-blend
+  probs over the simplex (`w ≥ 0`, `Σw = 1`). Convex objective:
+  ```
+  L(w) = (1/3) Σ_k (1/N_k) Σ_{i:y_i=k} (logsumexp(z_i) − z_{i,k})
+         where z_i = Σ_c w_c · log p_c[i] + bias
+  ```
+  This IS convex in w (log-sum-exp convex; linear inside;
+  minus-linear convex). SLSQP solver (scipy.optimize) with analytic
+  gradient.
+- Changed: `scripts/j6_qp_blend.py` (155 lines, modular per CLAUDE.md
+  rule). Uses `tier1b_helpers.build_lbbest_stack` for LB-best 4-stack
+  reconstruction.
+- Two pool variants tested:
+
+  **Variant 1 — 10-pool with meta-stackers**
+  (recipe + pseudo_s1 + pseudo_s7 + RealMLP + xgb_nonrule +
+  xgb_metastack + xgb_metastack_v3 + lgbm_te_orig + xgb_corn +
+  xgb_dist_digits):
+  ```
+  QP weights:                       0.27 xgb_metastack
+                                    0.27 xgb_metastack_v3
+                                    0.25 pseudo_s7
+                                    0.08 RealMLP
+                                    0.07 xgb_nonrule
+                                    0.06 pseudo_s1
+                                    (recipe / corn / digits / lgbm_te_orig: 0)
+
+  LB-best 4-stack OOF                  0.98084
+  QP variant 1 OOF                     0.98064  Δ = −0.00020
+  Per-class recall Δ                   [+0.00002, +0.00079, −0.00143]
+  Guardrail (Δ ≥ −5e-4 each class)     FAIL  (High −0.00143)
+  ```
+  QP heavily double-dipped on meta-stackers (combined weight 0.54)
+  — both consume overlapping signal from the same component bank,
+  so the QP's "global optimum" doubled the meta-stacker contribution
+  past what's healthy.
+
+  **Variant 2 — 8-pool, meta-stackers excluded**:
+  ```
+  QP weights:                       0.39 pseudo_s7
+                                    0.23 pseudo_s1
+                                    0.12 recipe_full_te
+                                    0.10 xgb_nonrule
+                                    0.10 RealMLP
+                                    0.04 xgb_corn
+                                    0.02 xgb_dist_digits
+                                    (lgbm_te_orig: 0)
+
+  QP variant 2 OOF                     0.98055  Δ = −0.00029
+  Per-class recall Δ                   [−0.00003, −0.00041, −0.00043]
+  Guardrail                            PASS (all within −5e-4)
+  ```
+  Drops the double-dip but still strictly worse than LB-best 4-stack
+  on macro-recall.
+- **Verdict — NULL across both variants.** Per-row gradient + global
+  solver on a convex surrogate produces blends that are WORSE on the
+  actual macro-recall metric than greedy/LR's local optima.
+- **Diagnosis — objective misalignment**: the convex log-loss
+  surrogate optimizes per-row predicted-class log-likelihood AFTER
+  the fixed bias `[1.43, 1.47, 3.40]` is added. But macro-recall
+  under that bias has a class-asymmetric mapping (the bias boosts
+  High predictions structurally; many rows that the QP makes
+  log-likelihood-optimal end up flipping to High under the bias,
+  trading log-loss gain for macro-recall loss). The two metrics
+  diverge precisely because the bias is non-uniform.
+- **What this closes** (informative-null):
+  1. **Search-procedure suboptimality is NOT the bottleneck.** A
+     global convex solver does worse than greedy/LR on the actual
+     macro-recall objective. This is indirect evidence that the
+     LB 0.98094 ceiling is structural at the **objective level**,
+     not at the search level.
+  2. **The LB-best 4-stack weight composition (0.30 meta_iso +
+     0.70 LB-3-stack) is NOT obviously suboptimal under the QP's
+     convex surrogate.** The QP's chosen weights are different
+     (and worse on macro-recall), so greedy didn't miss a better
+     QP-style optimum.
+  3. **Convex log-loss is the wrong surrogate for macro-recall +
+     fixed-bias decision rules.** Future blend-weight work should
+     directly optimize macro-recall (gradient-free or via a custom
+     surrogate that accounts for the bias), not log-loss-on-simplex.
+- **Portable rule** (LEARNINGS.md candidate): "Convex log-loss
+  minimization on the simplex is a misaligned surrogate when the
+  decision rule includes a fixed per-class bias offset. Greedy / LR
+  / direct macro-recall optimization (even if myopic) outperforms
+  the global log-loss optimum under such bias because the bias
+  creates a class-asymmetric mapping from probabilities to
+  predictions that the convex surrogate doesn't capture."
+- LB delta: n/a (no submission warranted; both variants strictly
+  below LB-best 4-stack on macro-recall). LB best unchanged at
+  **0.98094** via `submission_tier1b_greedy_meta.csv`. LB budget
+  unchanged.
+- Artefacts (gitignore-whitelisted for cross-branch reuse):
+  - `scripts/j6_qp_blend.py` (155 lines)
+  - `scripts/artifacts/oof_j6_qp_blend.npy` (variant 1 with metas)
+  - `scripts/artifacts/test_j6_qp_blend.npy` (variant 1 test side)
+  - `scripts/artifacts/j6_qp_blend_results.json` (weights + deltas)
+
