@@ -10653,3 +10653,92 @@ model wave**:
   — the most-tuned and most-likely public-LB-overfit element of
   the primary). Half the premium, materially better insurance
   against meta-stacker overfit on private LB.
+
+### 2026-04-25 — narrow 5-input meta-stacker (cherry-pick from claude/simplify-ml-solution-Q2Zll): NULL — wide bank IS pulling weight
+
+- Goal: cherry-pick NEXT_STEPS #2 from the simplify branch — test the
+  hypothesis "most of the 63 components in the wide meta-stacker
+  contribute near-zero". Build a narrow XGB stacker on
+  `[recipe_oof(3), pseudo_oof(3), dgp_score, sm_dist, rf_dist]` =
+  9 features, same heavy-reg HPs as tier1b, same 5-fold seed=42 split.
+  If narrow recovers most of the wide stacker's +0.00086 LB lift,
+  validates the simplify framing and we can ship a 200-line repo at
+  ~LB 0.98094.
+- Idea #1 from the same NEXT_STEPS (stage-2 with 2-way labeler) was
+  already on main from 2026-04-23: `oof_recipe_pseudolabel_stage2.npy`
+  + `recipe_pseudolabel_stage2_results.json` exist; result was
+  OOF 0.98002 → LB 0.97997 NULL. Nothing to cherry-pick.
+- Changed: `scripts/tier1c_narrow_metastack.py` (~140 lines), reuses
+  `tier1b_helpers.iso_cal/build_lbbest_stack/load_y/bal_at_bias` and
+  `common.add_distance_features` for `dgp_score / sm_dist / rf_dist`.
+  SMOKE first (20k×2-fold, ~30 s) then production (5-fold, ~70 s).
+- Standalone results (5-fold OOF seed=42):
+  - per-fold best_iter 280-481 (well below 3000 cap)
+  - argmax 0.97275  (wide standalone 0.96995, narrow +0.00280 argmax)
+  - **tuned 0.97983**  bias=[0.632, 0.969, 3.401]
+    (wide tuned 0.98041, **narrow −0.00058** behind wide)
+  - iso-cal'd argmax 0.97255
+- **Blend gate vs LB-best 3-stack (anchor 0.98061, the meta-target)**:
+  ```
+  α       blend OOF   Δ vs anchor
+  0.000  0.98061     +0.00000   ← peak
+  0.025  0.98056     -0.00005
+  0.050  0.98051     -0.00010
+  0.100  0.98044     -0.00017
+  0.200  0.98038     -0.00023
+  0.300  0.98032     -0.00029
+  0.500  0.98008     -0.00053
+  ```
+  Strict monotone-negative from α=0.025. Wide meta at α=0.30 gave
+  +0.00023 OOF / +0.00086 LB on the same anchor; narrow gives
+  −0.00029 OOF at the same α. **Falsified.**
+- **Blend gate vs LB-best 4-stack (anchor 0.98084, the wide+3stack
+  target — tests "does narrow add anything on top of wide?")**:
+  same monotone-negative pattern from α=0.025 (Δ −0.00004 to
+  −0.00080 across α∈[0.025, 0.5]). Narrow contributes nothing
+  even when wide is already in the blend.
+- **Verdict: NULL on both anchors.** Hypothesis "most components
+  are noise" is **falsified** — the 63-component bank is genuinely
+  pulling the wide meta's +0.00086 LB lift; a tight 9-feature
+  stacker captures none of it.
+- Read-out — why narrow is structurally weaker than wide:
+  1. **Standalone tuned 0.97983 < wide's 0.98041** (Δ −0.00058
+     before any blend). The narrow stacker sees only 6 prob cols +
+     3 raw features; it misses signal channels the wide bank carries
+     (RealMLP NN orthogonality, xgb_nonrule_iso class-rebalanced
+     logits, specialist binary heads, etc).
+  2. **Wide bank's 63 components are NOT noise** — they're a richly
+     correlated set where the heavy-reg meta XGB extracts pairwise
+     disagreement signal between components that no individual
+     component carries alone. The 2026-04-25 J2 bootstrap-bagged
+     experiment already showed bagging at fraction=0.5 saturates
+     because each bag still sees most of the dominant signal
+     channels — that's the same property here, just confirmed via
+     extreme reduction (~7% of the bank vs 50%).
+  3. **The simplify branch's "perm-importance pointed at 5 dominant
+     components" framing under-counts pairwise interaction terms.**
+     A heavy-reg XGB on the wide bank picks up "row where component
+     A says High AND component B says Medium" splits that capture
+     calibration disagreement; reducing to a flat 9-feature input
+     loses every such interaction.
+- LB delta: n/a (sweep monotone-negative on both anchors; no probe
+  warranted). Per the audit's user direction "ALWAYS ASK FIRST"
+  rule, no submission emitted.
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- 6th independent saturation confirmation at LB 0.98094 (joining
+  Tier 1c greedy / meta-on-meta v2 / meta-XGB-seed-bag /
+  cross-poll v3 / SMOTE-NC v2/v3 / J2 bootstrap-bag / LR
+  meta-stacker / N2 v4 ET+kNN bank-extension / N3 K=2 OTE).
+- **Portable rule** (LEARNINGS.md candidate): "On a saturated
+  meta-stacker bank with negative OOF→LB gap, you cannot
+  retroactively prune components by perm-importance — the
+  pairwise-interaction signal between low-importance components
+  contributes to the heavy-reg XGB's lift even when each component
+  is individually weak. The bank is the unit of contribution,
+  not the components."
+- Artefacts committed (whitelisted via .gitignore):
+  - `scripts/tier1c_narrow_metastack.py`
+  - `scripts/artifacts/oof_xgb_metastack_narrow.npy` (7.2 MB)
+  - `scripts/artifacts/test_xgb_metastack_narrow.npy` (3.1 MB)
+  - `scripts/artifacts/tier1c_narrow_metastack_results.json`

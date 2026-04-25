@@ -730,3 +730,13 @@ kaggle_kernel/*/dist/
 # NOT lift; bagging produces near-identical metas at fraction=0.5.
 !scripts/artifacts/oof_xgb_metastack_j2bag.npy
 !scripts/artifacts/test_xgb_metastack_j2bag.npy
+
+# Narrow 5-input meta-stacker (cherry-pick from claude/simplify-ml-solution-Q2Zll
+# NEXT_STEPS #2) — 9-feature meta on [recipe softprob, pseudo softprob, dgp_score,
+# sm_dist, rf_dist] vs the 63-component wide meta. Tested whether "most components
+# are noise". Standalone tuned 0.97983 (vs wide 0.98041 → iso 0.98059); blend gate
+# vs LB-best 3-stack AND 4-stack both monotone-negative from α=0. NULL —
+# falsifies the simplify hypothesis: the wide bank IS pulling weight.
+!scripts/artifacts/oof_xgb_metastack_narrow.npy
+!scripts/artifacts/test_xgb_metastack_narrow.npy
+!scripts/artifacts/tier1c_narrow_metastack_results.json
