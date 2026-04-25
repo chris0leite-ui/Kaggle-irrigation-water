@@ -8170,3 +8170,56 @@ read time has surfaced every real lever we've found. Start there.
   oof_spec_lm_v3_score3.npy + test   (L↔M specialist, marginal)
   submissions/submission_tier1b_greedy_meta.csv  (LB 0.98094)
   ```
+
+### 2026-04-25 — final-selection lock (post-LB-0.98094 reframe)
+
+Context: parallel session pushed Tier-1b XGB meta-stacker isotonic blend
+to LB **0.98094** (+0.00086 over prior 0.98008). Pack 0.98114 only
++0.00020 above. The earlier hedge audit (2026-04-24, primary = 3-way at
+LB 0.98005, hedge = CatBoost) is stale — primary moved.
+
+**Final-selection locked**:
+
+  PRIMARY: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+    - composition: lb3 + RealMLP α=0.20 + xgb_nonrule__iso α=0.075
+                   + xgb_metastack__iso α=0.300
+    - OOF 0.98084, gap **−0.00010** (LB above OOF — meta-stacker
+      CV-pessimism property)
+    - per-class recall: L 0.9955 / M 0.9695 / **H 0.9775**
+    - errs 9,415 (−157 vs LB-best 3-stack)
+
+  HEDGE: `submission_recipe_full_te.csv` → **LB 0.97939**
+    - composition: pure single-model XGB-on-recipe with class-balanced
+      sample-weight + post-hoc log-bias [1.43, 1.47, 3.40]
+    - OOF 0.97967, gap +0.00028 (clean calibration)
+    - NO blend, NO isotonic, NO meta-stacker — independent of every
+      stacking ingredient in the primary
+
+Hedge rationale: the primary depends on a 63-component XGB meta-stacker
+trained over the full OOF bank. If any single component overfits private
+LB, the meta-stacker amplifies that overfit through the +0.00086 blend
+lever. The 2026-04-24 CatBoost-hedge recommendation favored model-family
+diversity, but the new primary already includes RealMLP (NN family) +
+xgb_nonrule_iso (calibration-corrected XGB) + meta-stacker (XGB over 63
+components). Adding CatBoost as a hedge over-diversifies — the primary
+itself is already maximally diverse on the model-family axis.
+
+The cleanest hedge against meta-stacker overfit is therefore a candidate
+that does NOT touch the meta-stacker pool at all: pure single-model
+recipe XGB. Premium = −0.00155 LB vs primary; the gap +0.00028 is
+honest CV calibration (no negative-gap CV-pessimism artefact).
+
+Alternative hedges considered and rejected:
+  - `submission_lb3_realmlp_nonruleiso.csv` (LB 0.98008): the
+    foundation the meta-stacker builds on. Too closely correlated.
+  - `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005): shares
+    pseudo_s1 + pseudo_s7 with the meta-stacker pool.
+  - `submission_recipe_full_te_catboost.csv` (LB 0.97935): different
+    model family but the primary already has NN diversity. Premium
+    cost (−0.00159) only fractionally larger than recipe-XGB hedge
+    (−0.00155) for less marginal value.
+
+Pack 0.98114 still +0.00020 above primary. With 6 days to deadline and
+7 LB submissions remaining today (3/10 used), one more LB-probe slot
+is reserved for either: (a) the SMOTE-NC follow-up if it lifts, or
+(b) a tighter primary if a meta-stacker variant adds another +0.0002.
