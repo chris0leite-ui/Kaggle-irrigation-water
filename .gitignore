@@ -1038,3 +1038,44 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
+
+# 2026-04-26 — three "reopen and dig deeper" candidates per senior-engineer
+# review (CLAUDE.md "do all 3" entry). All produced as 5-fold OOF/test
+# pairs aligned with StratifiedKFold(seed=42).
+#
+# 1. KAN (Kolmogorov-Arnold Networks) on recipe-style FE [157 feat_dim],
+#    5-fold complete on Kaggle P100, OOF tuned 0.96604, blend gate NULL
+#    (Jaccard 0.586 vs LB-best 4-stack but +11% errs and -0.046 High recall
+#    at recipe bias — magnitude trap). 16th NN-family null on this problem.
+!scripts/artifacts/oof_kan.npy
+!scripts/artifacts/test_kan.npy
+!scripts/artifacts/kan_results.json
+
+# 2. Multi-task XGB at base level (multitask_common.py + multitask_xgb.py).
+#    Custom xgb.train num_class=6 obj: 3 main softmax CE + 3 sigmoid BCE
+#    on flipped/missed_high/missed_med aux targets. Aux signals inserted at
+#    TRAINING TIME so trees split to minimize joint loss directly.
+!scripts/artifacts/oof_multitask_xgb.npy
+!scripts/artifacts/test_multitask_xgb.npy
+!scripts/artifacts/multitask_xgb_results.json
+
+# 3. Leak-eliminated soft-distillation. Per-outer-fold teacher OOFs:
+#    inner-CV restricted to (full_train \ V_outer) so the teacher targets
+#    for student-fold-f's training rows come from a teacher that never
+#    saw V_f. Closes the structural leak source behind the persistent
+#    +0.00201 to +0.00246 OOF→LB gap across all prior distill capacities.
+!scripts/artifacts/oof_recipe_leakfree_outer1.npy
+!scripts/artifacts/test_recipe_leakfree_outer1.npy
+!scripts/artifacts/oof_recipe_leakfree_outer2.npy
+!scripts/artifacts/test_recipe_leakfree_outer2.npy
+!scripts/artifacts/oof_recipe_leakfree_outer3.npy
+!scripts/artifacts/test_recipe_leakfree_outer3.npy
+!scripts/artifacts/oof_recipe_leakfree_outer4.npy
+!scripts/artifacts/test_recipe_leakfree_outer4.npy
+!scripts/artifacts/oof_recipe_leakfree_outer5.npy
+!scripts/artifacts/test_recipe_leakfree_outer5.npy
+!scripts/artifacts/leakfree_teacher_oof_results.json
+!scripts/artifacts/oof_leakfree_distill.npy
+!scripts/artifacts/test_leakfree_distill.npy
+!scripts/artifacts/leakfree_distill_results.json
+!scripts/artifacts/blend_gate_3way_results.json

@@ -46,8 +46,12 @@ from recipe_full_te import load_and_engineer, TARGET  # noqa: E402
 from recipe_ote import OrderedTE  # noqa: E402
 
 SEED = 42
-N_OUTER = 5
-N_INNER = 5
+# N_INNER=3 default (down from 5) to fit ~2.5h wall budget with N_OUTER=5.
+# The leak-free property holds for any n_inner ≥ 2; only teacher quality
+# changes (larger inner folds → less per-fold variance, slightly cleaner
+# soft labels). Override via env var if quality matters more than wall.
+N_OUTER = int(os.environ.get("N_OUTER", "5"))
+N_INNER = int(os.environ.get("N_INNER", "3"))
 SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_OUTER = 2
