@@ -34,7 +34,12 @@
     "extra_decimal": 0,
     "extra_w8": 0,
     "gby": 0,
-    "instab": 0
+    "instab": 0,
+    "ood": 0,
+    "knn10k": 0,
+    "ood9": 0,
+    "three_way": 0,
+    "nndist": 0
   },
   "te_col_count": 117
 }

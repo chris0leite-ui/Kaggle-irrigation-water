@@ -31,7 +31,10 @@ from tier1b_helpers import (  # noqa: E402
 )
 
 # Discover the candidate file dynamically (suffix encodes K + σ + threshold).
-_btta = sorted(ART.glob("oof_recipe_full_te_btta*.npy"))
+# Filter out per-fold checkpoints (`_foldN.npy`) which are partial-shape.
+import re
+_btta = [p for p in sorted(ART.glob("oof_recipe_full_te_btta*.npy"))
+         if not re.search(r"_fold\d+\.npy$", p.name)]
 if not _btta:
     raise SystemExit("no btta candidate found in scripts/artifacts/")
 CAND_PATH = _btta[-1]  # latest
@@ -231,7 +234,8 @@ def main():
         print(f"  EMIT: wrote {sub_path}")
         print(f"        OOF {lb4_tta_score:.5f} (Δ vs primary {delta:+.5f})")
 
-    out = ART / "blend_gate_btta_results.json"
+    # Filename matches gitignore whitelist convention.
+    out = ART / f"mech_a_blend_gate_{CAND_NAME.replace('recipe_full_te_', '')}_results.json"
     with open(out, "w") as f:
         json.dump(summary, f, indent=2)
     print(f"\nwrote {out}")
