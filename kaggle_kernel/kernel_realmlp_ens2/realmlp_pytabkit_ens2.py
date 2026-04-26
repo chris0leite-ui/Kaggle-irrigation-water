@@ -152,7 +152,7 @@ OUT_DIR.mkdir(exist_ok=True, parents=True)
 # IS_SMOKE: top-level override for Kaggle pushes (env vars aren't
 # settable at push time). Flip to False for production push AFTER
 # the SMOKE kernel has completed successfully (CLAUDE.md SMOKE-first rule).
-IS_SMOKE = True   # smoke-first; flip to False for production after green
+IS_SMOKE = False  # production (post-smoke)
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2

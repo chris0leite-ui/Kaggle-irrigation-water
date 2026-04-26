@@ -1,0 +1,21 @@
+{
+  "overall_argmax_bal_acc": 0.823669122220115,
+  "tuned_log_bias_bal_acc": 0.8806477364460994,
+  "log_bias": [
+    1.1309433006850917,
+    1.3710109440743883,
+    3.003700511880274
+  ],
+  "fold_ba": [
+    0.8333183049739249,
+    0.8140478250327735
+  ],
+  "n_folds": 2,
+  "folds_completed": 2,
+  "seed": 42,
+  "smoke": true,
+  "feature_counts": {
+    "base_cols": 30,
+    "combo_cols": 8
+  }
+}
