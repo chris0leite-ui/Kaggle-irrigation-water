@@ -1378,16 +1378,19 @@ all of them on the same model.
   not re-blending existing components.** This profile has been
   unmatched in 30+ tests on this competition.
 
-- **Bash retry-loops over `kaggle competitions submit` MUST use
-  case-insensitive pattern matching for the success marker.** Kaggle
-  CLI prints `Successfully submitted to ...` (capital S). A loop
-  using `grep -q "successfully submitted"` (lowercase) never matches
-  and retries forever — every retry consumes an LB slot from the
-  daily 10 budget. On 2026-04-26 this bug burned 4 redundant slots
-  on `submission_v6_full_a350.csv` (07:09:31, 07:10:04, 07:14:44,
-  07:15:22) — all returning the same deterministic LB 0.98012, but
-  spending 3 of 10 daily probes on noise. Correct pattern:
-  `grep -qiE "successfully submitted|already used"` (note `-i`
-  flag) OR copy the EXACT Kaggle string verbatim. Always
-  dry-test the terminating condition against a known-success
-  output before arming the loop.
+- **NEVER wrap `kaggle competitions submit` in any retry, `until`,
+  `while`, `for`, or background loop — even on transient errors.**
+  Every loop iteration is a NEW LB submission against the daily
+  quota. The case-insensitive grep fix (which previously seemed to
+  rescue the pattern) is NOT sufficient: a single misplaced `&&`,
+  pipe SIGPIPE quirk, or unexpected Kaggle output line still leaks
+  duplicate submissions. The cost asymmetry is too severe — daily
+  budget is 10, deadline-day budget is 2 final slots, and a wasted
+  slot cannot be recovered. Always submit ONE invocation at a time
+  and let the user manually re-issue the command on transient
+  failures. Read-only monitors (e.g. polling
+  `kaggle competitions submissions -v` for score availability) are
+  fine; only the WRITE command is forbidden in loops. On 2026-04-26
+  a lowercase-grep loop burned 4 redundant slots on the same
+  `submission_v6_full_a350.csv` (LB 0.98012 deterministic) before
+  being killed — 3 wasted slots from a 10/day budget.

@@ -64,7 +64,7 @@ Concrete rules for future GPU kernels:
 4. Prefer CPU pipelines. Most own-pipeline levers on this problem
    worked fine on 12-16 core CPU in under 2h wall.
 
-## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST
+## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST, NEVER LOOP
 
 **Never upload a submission CSV to Kaggle without explicit user
 confirmation for that specific submission.** Building candidate
@@ -76,6 +76,37 @@ expected LB outcome to the user and wait for a go-ahead before
 submitting. This rule applies even when a blend's OOF beats the
 current best — the LB is an adversarial split and OOF-to-LB
 calibration can drift.
+
+**Never wrap `kaggle competitions submit` in a retry / `until` /
+`while` / `for` loop, ever — even on transient errors (503, network
+timeouts, OAuth failures).** Every loop iteration is a NEW LB
+submission against the daily quota. On 2026-04-26 a `until ... |
+grep -q "successfully submitted"` retry loop with a case-mismatch
+in the success marker burned 4 redundant slots on
+`submission_v6_full_a350.csv` (07:09:31, 07:10:04, 07:14:44,
+07:15:22 — all returning the same deterministic LB 0.98012). 3 LB
+slots wasted because the loop's terminator never matched Kaggle's
+"Successfully submitted" capital-S string.
+
+Concrete rules going forward:
+1. **One submission per `kaggle competitions submit` invocation.**
+   Run the command exactly once, report the result, wait for next
+   user instruction. NEVER auto-retry on any failure.
+2. **If Kaggle returns a transient error (503 / network),** report
+   the error to the user verbatim and ask whether to retry. The
+   user decides if/when to retry, manually.
+3. **If a submission needs to be revised** (different α, different
+   weights, different CSV), build the new CSV locally, present the
+   diagnostic, and wait for a fresh user go-ahead. Each revision is
+   a separate one-shot submit invocation.
+4. **No Monitor / background loop / `until` / cron may include the
+   `kaggle competitions submit` command** — period. Monitors that
+   POLL submission status (read-only, e.g. `kaggle competitions
+   submissions -v`) are fine. Monitors that WRITE submissions are
+   forbidden.
+5. The cost asymmetry is severe: a wasted slot can't be recovered
+   today, and on the final day-of-deadline a wasted slot may cost
+   the competition. The cost of pausing and asking is zero.
 
 ## ⚠️ NEVER SUGGEST PUBLIC-CSV / OTHER-PEOPLE'S-SUBMISSIONS BLENDING
 
