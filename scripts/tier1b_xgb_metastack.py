@@ -127,9 +127,13 @@ def build_lbbest_stack(y):
 
 def load_pool(y):
     pool = {}
+    n_train = len(y)
     for oof_p in sorted(ART.glob("oof_*.npy")):
         name = oof_p.stem.replace("oof_", "", 1)
         if name in EXCLUDE:
+            continue
+        # Skip per-fold checkpoint files (e.g. *_fold1, *_fold2 ...).
+        if name.endswith(tuple(f"_fold{f}" for f in range(1, 11))):
             continue
         test_p = ART / f"test_{name}.npy"
         if not test_p.exists():
@@ -140,6 +144,11 @@ def load_pool(y):
         except Exception:
             continue
         if o.ndim != 2 or o.shape[1] != 3:
+            continue
+        if o.shape[0] != n_train:
+            continue
+        # Detect partial-fold OOFs (zero rows where some folds didn't run).
+        if (o.sum(1) < 1e-3).any():
             continue
         pool[name] = (_normed(o), _normed(t))
     return pool
