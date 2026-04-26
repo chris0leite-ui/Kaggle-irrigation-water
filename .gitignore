@@ -772,6 +772,24 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_mamba_probe.npy
 !scripts/artifacts/test_mamba_probe.npy
 
+# 2026-04-26 TabM (pytabkit TabM_D) PROBE — 15th NN family null on this
+# feature set. Fold-1 wall 122 min on Kaggle P100 with tabm_k=32 +
+# n_epochs=25 (5-fold projects to ~10h, way over 1h GPU cap → cannot
+# run production). Standalone fold-1 argmax 0.96753, tuned 0.97496
+# (bias [1.63, 1.47, 3.40] matches recipe family). Errs 2298 vs LB-best
+# 4-stack's 1914 (+20% magnitude trap). Jaccard vs LB-best 4-stack 0.578
+# (between RealMLP's 0.62 and Trompt's 0.53 — good orthogonality).
+# Blend sweep monotone-negative from α=0.05 (peak at α=0). Same failure
+# pattern as Trompt PROBE (0.53/+8%) and Mamba PROBE (0.49/+27%): all
+# three NN PROBEs hit the same Jaccard-orthogonal-but-magnitude-trapped
+# corner. Closes lever. Kept for cross-branch reuse — 0.578 Jaccard is
+# unique in the bank and may be useful in future blends with leaner
+# anchor stacks.
+!scripts/artifacts/oof_tabm.npy
+!scripts/artifacts/test_tabm.npy
+!scripts/artifacts/tabm_probe_results.json
+!scripts/artifacts/blend_tabm_results.json
+
 # 2026-04-25 J2 bootstrap-bagged meta-stacker — 5th saturation
 # confirmation at LB 0.98094. N=10 bags, fraction=0.5 (bag_size=34),
 # clean 69-component pool (drops 19 circular meta outputs / submission

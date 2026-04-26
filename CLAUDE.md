@@ -12362,6 +12362,63 @@ other. Ranked by expected EV / cost:
 
 - **Updated NN-family null table** (15 nulls now, structural pattern
   cemented):
+
+### 2026-04-26 — TabM (pytabkit TabM_D) PROBE: 15th NN family null at LB 0.98094 (compute-bound + magnitude trap)
+
+- Goal: execute the highest-EV remaining untried NN architecture from
+  the kernel-audit lever bank — TabM-D (ICLR 2025, Gorishniy et al.
+  Yandex Research). Mirrors `kernel_realmlp_ens4` exactly except for
+  the model swap. Per CLAUDE.md GPU 1h cap rule + user instruction
+  "check after 1 fold to not waste GPU" — SMOKE-first then PROBE
+  (1 fold), not direct 5-fold push.
+- Changed: `kaggle_kernel/kernel_tabm/` (single-file kernel mirror of
+  kernel_realmlp_ens4 + IS_PROBE flag + per-fold checkpoint save +
+  fold-1 standalone abort gate), `scripts/blend_tabm.py` (blend-gate
+  mirror of blend_mamba.py: Jaccard + magnitude vs LB-best 4-stack +
+  fixed-bias α-sweep + PASS/WARN/REDUNDANT/MAGNITUDE-TRAP verdict).
+- Three pushes per CLAUDE.md SMOKE-first rule:
+  1. **SMOKE v1** (IS_SMOKE=True, tabm_k=8, n_epochs=3, 20k×2-fold):
+     ERROR — `TypeError: TabMConstructorMixin.__init__() got an
+     unexpected keyword argument 'n_ens'`. Fix: pytabkit's TabM_D has
+     BatchEnsemble built-in via `tabm_k` kwarg (default 32), not
+     `n_ens` like RealMLP_TD. Removed n_ens; verified accepted kwargs
+     via local introspection.
+  2. **SMOKE v2** (same config minus n_ens): PASSED in ~5 min wall.
+     Per-fold timing 3.7s on 10k × 3 epochs × tabm_k=8.
+  3. **PROBE** (IS_PROBE=True, tabm_k=32, n_epochs=25, 1 fold × 504k):
+     completed but **122 min wall on Kaggle P100** — way over the
+     1h GPU cap. Fold-1 wall-time abort triggered, fold 1 saved.
+- Standalone results (PROBE fold-1 = 126,000 val rows):
+  - argmax bal_acc = **0.96753** (RealMLP fold-1 0.96978 / Trompt
+    0.96092 / Mamba 0.95740)
+  - tuned bal_acc = **0.97496**, bias [1.6324, 1.4689, 3.4008]
+    (High bias 3.40 matches recipe family exactly)
+  - errors = 2,298 vs LB-best 4-stack's 1,914 (+20% magnitude)
+- Anchor comparison on same 126k val rows:
+  - LB-best 3-stack: 0.97926, errs 2,014
+  - LB-best 4-stack: 0.97994, errs 1,914
+  - TabM:            0.97491, errs 2,298 (Δ −0.00503, +20% errs)
+- **Jaccards (the headline finding)**:
+  - vs LB-best 3-stack: **0.5589**
+  - vs LB-best 4-stack: **0.5781** ← good orthogonality
+    (between RealMLP n_ens=1's 0.62 and Trompt's 0.53 fold-1)
+  - vs RealMLP n_ens=1: 0.6067
+- Fixed-bias α-sweep vs LB-best 4-stack (filled rows): **monotone
+  negative from α=0.05** (Δ −0.00016 to −0.00067 across α∈[0.05, 0.35]).
+  Peak at α=0.000 (no blend).
+- **Verdict: NULL on both axes**:
+  1. **Compute-bound**: 122 min/fold × 5 = ~10 hours wall, infeasible
+     even with leaner config. Production 5-fold cannot fit any GPU
+     budget reasonable for this competition.
+  2. **Magnitude-trap**: same failure mode as 14 prior NN nulls. TabM
+     has the right Jaccard (0.58) for orthogonal blend signal, but
+     +20% more errors than anchor flips the macro-recall trade
+     against the rare class.
+- LB delta: n/a — no LB probe warranted (no α > 0 lifts above
+  LB-best 4-stack OOF). LB best unchanged at **0.98094**. LB budget
+  unchanged.
+- Pattern reinforced (now **15 consecutive NN-family nulls** on this
+  feature set):
   ```
   NN family            Jaccard vs anchor   errs vs anchor    LB outcome
   ----------          ------------------- ------------------ --------------------
@@ -12449,3 +12506,59 @@ other. Ranked by expected EV / cost:
     confirmations + 15 NN nulls + the strongest closure signal possible
     on the remaining "untested at scale" lever, the marginal LB-probe
     EV is minimal. Lock primary + hedge as final.
+  TabPFN               0.81                +1485             NULL
+  Pretrain-FT MLP      0.65                +3615             NULL
+  DAE SwapNoise        0.84                similar           NULL
+  RealMLP n_ens=1      0.62                +358              LB +0.00003 (3-stack)
+  RealMLP n_ens=4      0.62                +485              NULL
+  Trompt               0.53                +169              NULL (compute-bound + magnitude)
+  Mambular SSM         0.49 (record low)   +518 (+27%)       NULL
+  **TabM-D (k=32)      0.58                +384 (+20%)       NULL (compute + magnitude)**
+  ```
+  Only RealMLP n_ens=1 has ever cleared the magnitude bar (+358 errs
+  = +3.7% over anchor) AND produced an LB lift. Every other NN family
+  is permanently closed at this feature set. **Jaccard ≤ 0.62 + errs
+  ≤ 1.05× anchor** is the necessary-and-still-not-sufficient blend
+  fingerprint we've never re-found since.
+
+- **Portable rules** (LEARNINGS.md candidates):
+  1. **TabM-D via pytabkit's `tabm_k=32` is wall-time-prohibitive on
+     Kaggle P100 for production 5-fold at full epoch budget.** 122 min
+     fold-1 wall (504k rows × 25 epochs) projects to ~10h for 5-fold,
+     vs the 1h GPU cap in CLAUDE.md. Must reduce to tabm_k≤16 +
+     n_epochs≤15 for any 5-fold attempt — but at that lean config,
+     standalone OOF will likely drop below the 0.97 floor that's been
+     the consistent NN failure threshold on this problem.
+  2. **pytabkit's TabM_D and RealMLP_TD have DIFFERENT signatures.**
+     TabM_D doesn't accept `n_ens` (it has built-in BatchEnsemble via
+     `tabm_k`, default 32). Always introspect the constructor before
+     porting kernel HPs across pytabkit families.
+  3. **Three NN PROBE attempts (Trompt, Mamba, TabM) all converge on
+     the same Jaccard-orthogonal-but-magnitude-trapped corner.** TabM's
+     Jaccard 0.58 + errs +20% mirrors Trompt's 0.53 + errs +8% (also
+     compute-killed at fold 1) and Mamba's 0.49 + errs +27%. The
+     pattern is not architecture-specific — it's a property of how NNs
+     trained on this 19-50 feature recipe-mirror set distribute errors
+     on the held-out fold. Future synthetic tabular comps should
+     SMOKE-then-PROBE NN families with a strict 5-min wall budget for
+     SMOKE + 30-min wall budget for PROBE, and close the lever fast on
+     magnitude trap. Don't sink GPU budget into 5-fold production
+     before the magnitude bar is cleared.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `kaggle_kernel/kernel_tabm/{tabm_pytabkit.py,kernel-metadata.json}`
+  - `scripts/blend_tabm.py` (~210 lines, modular per CLAUDE.md rule)
+  - `scripts/artifacts/oof_tabm.npy` (7.2 MB, fold 1 only)
+  - `scripts/artifacts/test_tabm.npy` (3.1 MB)
+  - `scripts/artifacts/tabm_probe_results.json` (per-fold + tuned +
+    abort_reason)
+  - `scripts/artifacts/blend_tabm_results.json` (Jaccards + α-sweep)
+- **Final-selection lock unchanged** (4 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+     (gap −0.00010, anomalous LB > OOF)
+  2. **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` →
+     **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer)
+- Pack 0.98114 still +0.00020 above; leader 0.98219 still +0.00125
+  above. Reachable only via public-CSV blending (banned by top-of-file
+  rule). With 15 NN nulls now in the log, the own-pipeline ceiling at
+  LB 0.98094 is structurally exhausted across architecture classes.
