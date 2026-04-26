@@ -119,6 +119,20 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # interpreted as label noise. Suffix "_anchwα{α}" on outputs.
 ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
 
+# Mech A: boundary-confined test-time augmentation. When set, identify
+# boundary rows via max_prob(LB-best 4-stack) < TTA_BOUNDARY_THRESH (default
+# 0.95) and replace their val/test predictions with the K-perturbation
+# average. Perturbations are σ × IQR Gaussian on the 4 rule axes
+# (Soil_Moisture, Rainfall_mm, Temperature_C, Wind_Speed_kmh); axis-derived
+# FE (sm/rf/tc/ws_dist + abs, dry/norain/hot/windy, dgp_score, LR-formula
+# logits) is recomputed per perturbation. Digits/num_as_cat/OTE keys are
+# NOT recomputed (perturbations are small enough that key changes are rare).
+# Suffix "_btta" on outputs. Mutually exclusive with anchor weight + cleanlab.
+TTA_BOUNDARY = os.environ.get("TTA_BOUNDARY", "") == "1"
+TTA_BOUNDARY_THRESH = float(os.environ.get("TTA_BOUNDARY_THRESH", "0.95"))
+TTA_K = int(os.environ.get("TTA_K", "10"))
+TTA_SIGMA = float(os.environ.get("TTA_SIGMA", "0.05"))
+
 DROP_SCORES = os.environ.get("DROP_SCORES", "")
 DROP_SCORE_SET: set[int] = set()
 if DROP_SCORES:
@@ -150,6 +164,8 @@ if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
+if TTA_BOUNDARY:
+    _parts.append(f"btta{int(TTA_BOUNDARY_THRESH*100):03d}k{TTA_K}s{int(TTA_SIGMA*100):03d}")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -333,7 +349,114 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     return train, test, info, test_ids
 
 
-_anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B active
+_anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B / Mech A active
+_anchor_uncertainty_test: np.ndarray | None = None  # populated when Mech A active
+
+
+def _build_anchor_uncertainty_test(n_test: int = -1) -> np.ndarray:
+    """Test-side anchor uncertainty (for Mech A boundary-row identification).
+
+    Returns zero-vector under SMOKE since test is subsampled and we can't
+    recover the indices here. TTA mask = 0 → boundary mask all False →
+    no perturbation applied (test_pred unchanged).
+    """
+    sys.path.insert(0, str(Path(__file__).parent))
+    from common import log_blend  # noqa: E402
+    from sklearn.isotonic import IsotonicRegression  # noqa: E402
+
+    def _normed(a):
+        return a / np.clip(a.sum(1, keepdims=True), 1e-9, None)
+
+    def _iso_cal(oof, test_arr, y_lab):
+        oo = np.zeros_like(oof, dtype=np.float32)
+        tt = np.zeros_like(test_arr, dtype=np.float32)
+        for c in range(3):
+            ir = IsotonicRegression(out_of_bounds="clip", y_min=1e-6, y_max=1 - 1e-6)
+            ir.fit(oof[:, c], (y_lab == c).astype(np.float32))
+            oo[:, c] = ir.predict(oof[:, c])
+            tt[:, c] = ir.predict(test_arr[:, c])
+        return _normed(oo), _normed(tt)
+
+    train_full = pd.read_csv("data/train.csv")
+    y_full = train_full[TARGET].map(CLS_MAP).to_numpy().astype(np.int32)
+    r_o = _normed(np.load(ART / "oof_recipe_full_te.npy"))
+    r_t = _normed(np.load(ART / "test_recipe_full_te.npy"))
+    s1_o = _normed(np.load(ART / "oof_recipe_pseudolabel.npy"))
+    s1_t = _normed(np.load(ART / "test_recipe_pseudolabel.npy"))
+    s7_o = _normed(np.load(ART / "oof_recipe_pseudolabel_seed7labeler.npy"))
+    s7_t = _normed(np.load(ART / "test_recipe_pseudolabel_seed7labeler.npy"))
+    rm_o = _normed(np.load(ART / "oof_realmlp.npy"))
+    rm_t = _normed(np.load(ART / "test_realmlp.npy"))
+    nr_o = _normed(np.load(ART / "oof_xgb_nonrule.npy"))
+    nr_t = _normed(np.load(ART / "test_xgb_nonrule.npy"))
+    nr_o_iso, nr_t_iso = _iso_cal(nr_o, nr_t, y_full)
+    mv_o = _normed(np.load(ART / "oof_xgb_metastack.npy"))
+    mv_t = _normed(np.load(ART / "test_xgb_metastack.npy"))
+    mv_o_iso, mv_t_iso = _iso_cal(mv_o, mv_t, y_full)
+    lb3_t = log_blend([r_t, s1_t, s7_t], np.array([0.25, 0.35, 0.40]))
+    s2_t = log_blend([lb3_t, rm_t], np.array([0.8, 0.2]))
+    s3_t = log_blend([s2_t, nr_t_iso], np.array([0.925, 0.075]))
+    lb4_t = log_blend([s3_t, mv_t_iso], np.array([0.7, 0.3]))
+    out = (1.0 - lb4_t.max(axis=1)).astype(np.float32)
+    if n_test > 0 and out.shape[0] != n_test:
+        # SMOKE subsample mismatch — return zero so boundary mask is empty.
+        return np.zeros(n_test, dtype=np.float32)
+    return out
+
+
+def _apply_btta(model, feat_cols, base_pred, X_df, mask, fold_seed):
+    """Replace predictions at boundary rows with K-perturbation average.
+
+    Perturbations: σ × IQR Gaussian on 4 axis numerics. Recompute the
+    directly-derived axis FE (sm/rf/tc/ws_dist + abs + tres flags +
+    dgp_score + LR-formula logits) per perturbation. Predict via model,
+    average K predictions, replace base_pred[mask] in-place via copy.
+    """
+    if mask.sum() == 0:
+        return base_pred
+    out = base_pred.copy()
+    sub = X_df.iloc[mask].copy().reset_index(drop=True)
+    rng = np.random.default_rng(SEED + fold_seed * 11)
+
+    # IQR per axis from the train OR test slice we have at hand
+    iqrs = {}
+    for ax in ("Soil_Moisture", "Rainfall_mm", "Temperature_C", "Wind_Speed_kmh"):
+        v = X_df[ax].astype(float).to_numpy()
+        iqrs[ax] = float(np.quantile(v, 0.75) - np.quantile(v, 0.25))
+
+    accum = np.zeros((mask.sum(), 3), dtype=np.float32)
+    for k in range(TTA_K):
+        pert = sub.copy()
+        for ax in iqrs:
+            pert[ax] = (sub[ax].astype(float).to_numpy()
+                        + rng.normal(0, TTA_SIGMA * iqrs[ax], size=len(sub))).astype(np.float32)
+        # Recompute axis-derived FE
+        sm = pert["Soil_Moisture"].astype(float).to_numpy()
+        rf = pert["Rainfall_mm"].astype(float).to_numpy()
+        tc = pert["Temperature_C"].astype(float).to_numpy()
+        ws = pert["Wind_Speed_kmh"].astype(float).to_numpy()
+        pert["sm_dist"] = (sm - 25.0).astype(np.float32)
+        pert["rf_dist"] = (rf - 300.0).astype(np.float32)
+        pert["tc_dist"] = (tc - 30.0).astype(np.float32)
+        pert["ws_dist"] = (ws - 10.0).astype(np.float32)
+        for col in ("sm_dist", "rf_dist", "tc_dist", "ws_dist"):
+            pert[col.replace("_dist", "_abs")] = np.abs(pert[col].to_numpy()).astype(np.float32)
+        dry = (sm < 25.0).astype(np.int8)
+        norain = (rf < 300.0).astype(np.int8)
+        hot = (tc > 30.0).astype(np.int8)
+        windy = (ws > 10.0).astype(np.int8)
+        nomulch = pert["nomulch"].to_numpy() if "nomulch" in pert.columns else np.zeros(len(pert), dtype=np.int8)
+        kc_act = pert["kc_active"].to_numpy() if "kc_active" in pert.columns else np.zeros(len(pert), dtype=np.int8)
+        pert["dry"] = dry
+        pert["norain"] = norain
+        pert["hot"] = hot
+        pert["windy"] = windy
+        pert["dgp_score"] = (2 * (dry + norain) + hot + windy + nomulch + 2 * kc_act).astype(np.int8)
+
+        prd = model.predict_proba(pert[feat_cols]).astype(np.float32)
+        accum += prd / TTA_K
+    out[mask] = accum
+    return out
 
 
 def _build_anchor_uncertainty(n_train: int) -> np.ndarray:
@@ -390,14 +513,19 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
     y = train[TARGET].to_numpy()
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
 
-    # Mech B: precompute anchor-uncertainty weights ONCE (full-train);
-    # indexed per-fold inside the loop.
-    global _anchor_uncertainty
-    if ANCHOR_WEIGHT_ALPHA != 0:
+    # Mech B / Mech A: precompute anchor-uncertainty weights ONCE
+    # (full-train); indexed per-fold inside the loop.
+    global _anchor_uncertainty, _anchor_uncertainty_test
+    if ANCHOR_WEIGHT_ALPHA != 0 or TTA_BOUNDARY:
         _anchor_uncertainty = _build_anchor_uncertainty(len(train))
-        log(f"  Mech B: anchor-uncertainty precomputed, "
+        log(f"  Mech B/A: anchor-uncertainty precomputed, "
             f"mean={_anchor_uncertainty.mean():.4f} "
             f"(0 means SMOKE-fallback or zero-input)")
+    if TTA_BOUNDARY:
+        _anchor_uncertainty_test = _build_anchor_uncertainty_test(len(test))
+        log(f"  Mech A: test-side anchor-uncertainty precomputed, "
+            f"mean={_anchor_uncertainty_test.mean():.4f}, "
+            f"boundary mask = (1-max_p) > {1.0 - TTA_BOUNDARY_THRESH}")
 
     # Load cleanlab mask + teacher (if relabel) once, up-front.
     cleanlab_mask = None
@@ -578,6 +706,23 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         )
         vp = model.predict_proba(X_va[feat_cols]).astype(np.float32)
         tp = model.predict_proba(X_te[feat_cols]).astype(np.float32)
+
+        # Mech A: boundary-confined TTA. Replace predictions at boundary
+        # rows with K-perturbation average; non-boundary predictions stay
+        # untouched. Boundary defined by anchor max-prob threshold.
+        if TTA_BOUNDARY:
+            au_va = _anchor_uncertainty[va_idx]  # uncertainty = 1 − max_prob
+            mask_va = au_va > (1.0 - TTA_BOUNDARY_THRESH)
+            au_te = _anchor_uncertainty_test
+            mask_te = au_te > (1.0 - TTA_BOUNDARY_THRESH)
+            n_b_va = int(mask_va.sum())
+            n_b_te = int(mask_te.sum())
+            log(f"  TTA: boundary rows va={n_b_va}/{len(va_idx)} ({100*n_b_va/len(va_idx):.1f}%), "
+                f"te={n_b_te}/{len(test)} ({100*n_b_te/len(test):.1f}%)  σ={TTA_SIGMA} K={TTA_K}")
+            if n_b_va > 0 or n_b_te > 0:
+                vp = _apply_btta(model, feat_cols, vp, X_va, mask_va, fold)
+                tp = _apply_btta(model, feat_cols, tp, X_te, mask_te, fold + 100)
+
         oof[va_idx] = vp
         test_pred += tp / N_FOLDS
         # checkpoint immediately for rehydrate resilience
