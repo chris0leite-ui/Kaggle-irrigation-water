@@ -1052,3 +1052,17 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_xgb_metastack_n5b_both.npy
 !scripts/artifacts/tier1b_xgb_metastack_n5b_both_results.json
 !scripts/artifacts/n5b_bankadd_both_results.json
+# 2026-04-26 N5b deployments #1, #3 + bank-add (11th saturation conf at LB 0.98094)
+!scripts/artifacts/oof_recipe_full_te_ood.npy
+!scripts/artifacts/test_recipe_full_te_ood.npy
+!scripts/artifacts/recipe_full_te_ood_results.json
+!scripts/artifacts/oof_recipe_full_te_knn10k.npy
+!scripts/artifacts/test_recipe_full_te_knn10k.npy
+!scripts/artifacts/recipe_full_te_knn10k_results.json
+!scripts/artifacts/oof_xgb_metastack_n5b_both.npy
+!scripts/artifacts/test_xgb_metastack_n5b_both.npy
+!scripts/artifacts/tier1b_xgb_metastack_n5b_both_results.json
+!scripts/artifacts/n5b_bankadd_both_results.json
+!scripts/artifacts/n5b_blend_gate_ood_results.json
+!scripts/artifacts/n5b_blend_gate_knn10k_results.json
+!scripts/artifacts/n5b_ood_diag_results.json
