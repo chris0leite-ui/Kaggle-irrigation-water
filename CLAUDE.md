@@ -11064,6 +11064,126 @@ model wave**:
   - `scripts/artifacts/j7_conformal_spec6_results.json` (Wilson CI +
     train override stats + test override count + gate decision)
 
+### 2026-04-26 — own-CSV ensemble lever: NULL (subs too nested; refutes "ensemble of ensembles" hypothesis)
+
+- Goal: execute the highest-EV remaining own-pipeline lever from the
+  post-saturation brainstorm — vote/blend across our own LB-validated
+  submission CSVs (treating each as opaque). Public-CSV blenders use
+  this exact mechanism on others' submissions; we apply it to our own.
+  Bayesian prior 20-25% it produces a candidate with the right
+  Jaccard+magnitude+rare-class profile — every prior experiment
+  ensembled COMPONENTS; nothing has ensembled SUBMISSIONS.
+- Branch: `claude/advanced-ensemble-methods-vQrhS`. Files:
+  `own_ensemble_helpers.py` (reconstructs OOF/test for 6 LB-validated
+  subs via deterministic log-blend chains), `own_ensemble_strategies.py`
+  (5 strategies: equal log, LB-weighted log, hard-vote, soft-vote,
+  greedy forward), `own_ensemble_subset_probe.py` (3 follow-up probes:
+  3-view subset, fine α-grid greedy, hard-vote 3-view).
+
+- Reconstructed 6 LB-validated subs and verified each matches its
+  documented LB score within calibration ladder:
+  ```
+  name                     OOF tuned    LB        gap
+  primary                  0.980842    0.98094   +0.00010
+  stack2 (lb3+rm+nr_iso)   0.980609    0.98008   -0.00053
+  m3_seed (3-way recipe)   0.980286    0.98005   -0.00024
+  m2_pseudo (2-way 50/50)  0.980123    0.97998   -0.00014
+  recipe_full_te           0.979665    0.97939   -0.00028
+  catboost_iso (iso-cal'd) 0.979070    0.97935   +0.00216
+  ```
+  All Jaccards vs primary: recipe 0.83, catboost_iso 0.81, m2_pseudo
+  0.89, stack2 0.96, m3_seed 0.90. **Catboost is the most
+  orthogonal** (Jaccard 0.81); stack2 is the most redundant (0.96 —
+  it's a strict subset of primary).
+
+- **5 strategies — every result NULL**:
+  ```
+  Strategy                       OOF tuned    Δ vs primary   errs vs primary    Jaccard
+  ─────────────────────────────────────────────────────────────────────────────────────
+  PRIMARY (anchor)              0.980842     0              9415 (anchor)        1.0000
+  S1 equal log-blend (1/6 each) 0.980196    -0.00065        +233                 0.92
+  S2 LB-weighted τ=100          0.980252    -0.00059        +224                 0.92
+  S2 LB-weighted τ=1000         0.980380    -0.00046        +159                 0.95
+  S3 hard-vote (LB tie-break)   0.980503    -0.00034        +193                 0.96
+  S4 soft-vote (arithmetic)     0.980247    -0.00060        +311                 0.92
+  S5 greedy fwd (α=0.05 grid)   0.980853    +0.00001        +26                  0.9951
+  ```
+  All except S5 strictly worse than primary. S5 picked m3_seed at
+  α=0.05 → +0.00001 OOF (within noise).
+
+- **3 follow-up probes — confirm null**:
+  - 3-view {primary, recipe, catboost_iso} 2D log-blend grid: best
+    weights (1.00, 0.00, 0.00) — primary alone. Adding recipe or
+    catboost at any positive weight HURTS macro-recall.
+  - Greedy forward with FINE α-grid (0.005-0.05 + 0.05-0.55):
+    step 1 + m2_pseudo at α=0.035 → 0.980865 (Δ +0.00002).
+    No further additions improve. Final: 0.980865, errs 9421
+    (+6 vs primary), Jaccard 0.9958. **Best lever result of session.**
+  - Hard-vote 3-view {primary, recipe, catboost_iso}: 0.980121
+    (Δ −0.00072). Hard-vote loses calibration info.
+
+- **Best candidate's per-class trade is tiny but in the RIGHT direction
+  for once**: greedy_fine PCR [0.99552, 0.96949, 0.97758] vs primary
+  [0.99553, 0.96951, 0.97749] — Low/Med essentially flat, **High recall
+  +0.00009**. First own-pipeline candidate in this branch with
+  improved-on-rare-class direction. But the magnitude (+9e-5 H recall,
+  +2e-5 macro-recall) is 25x below the +5e-4 emit gate.
+
+- **Linear-projection rule** (per CLAUDE.md): primary's gap −0.00010 (LB>OOF).
+  Greedy_fine projected LB = 0.980865 + 0.00010 = 0.980965, only
+  +0.00002 above current LB-best 0.98094 — well within fold noise.
+  No LB probe warranted.
+
+- **Mechanism — why the lever fails**: our 6 LB-validated subs are
+  HEAVILY NESTED. They all share the recipe → pseudo_s1 → (pseudo_s7) →
+  RealMLP → nonrule_iso → meta_iso backbone. Specifically:
+    - `recipe_full_te` ⊂ `m2_pseudo` ⊂ `m3_seed` ⊂ `stack2` ⊂ `primary`
+    - Only `catboost_iso` is genuinely model-family-distinct.
+  Public-CSV blenders' wins come from INDEPENDENT pipelines built by
+  different teams (different model families, different FE, different
+  hyperparameters, different seeds). Our 6 subs are 6 DEPTHS of one
+  pipeline plus 1 alternate model (catboost). Ensembling them
+  amounts to per-row weighted reweighting along the same depth axis —
+  same operating point as the deepest sub (primary).
+
+- **Portable rule** (LEARNINGS.md candidate): **"Own-CSV ensemble of
+  hierarchically-nested submissions cannot beat the deepest sub.**
+  When sub_A is a strict subset of sub_B (B uses A as a backbone +
+  additional components), ensembling them produces predictions
+  between A and B's operating points. Since B already chose the
+  rare-class-favoring corner of the macro-recall Pareto frontier,
+  pulling toward A dilutes that corner. For 'ensemble of own
+  submissions' to lift, the subs must be from STRUCTURALLY
+  INDEPENDENT pipelines (different model families AND different FE
+  AND different fold splits). Six depths of one pipeline don't qualify."
+
+- LB delta: n/a (no LB probe — every candidate sub-gate). LB best
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget unchanged.
+
+- **Strategic implication**: this closes the only structurally-
+  novel ensembling lever remaining in the post-saturation
+  brainstorm. Combined with the 10 prior saturation confirmations
+  and the 4 mechanism-distinct ensembling nulls from earlier today,
+  the own-pipeline LB ceiling at 0.98094 is now exhaustively
+  established. To break it requires either:
+  (a) a NEW pipeline (different model family + different FE + truly
+      independent training procedure) producing a sub at LB > 0.978
+      with errors orthogonal to primary's. Concrete shortlist:
+      adversarial-trained recipe XGB, NN with custom rare-class loss,
+      external-feature transplant from physics-based agronomy model.
+  (b) public-CSV blending (banned by top-of-file rule).
+
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - 7 OOF + 7 test pairs: `oof_own_S1_equal_log`,
+    `oof_own_S2_lb_weighted_tau{100,200,500,1000}`, `oof_own_S3_hard_vote`,
+    `oof_own_S4_soft_vote`, `oof_own_S5_greedy_forward`,
+    `oof_own_3view`, `oof_own_greedy_fine` + corresponding test_*.npy
+  - 4 results JSONs: `own_ensemble_strategies_results.json`,
+    `own_ensemble_subset_probe_results.json`, plus 2 blend-gate JSONs
+  - 3 scripts (≤200 lines each): `own_ensemble_helpers.py`,
+    `own_ensemble_strategies.py`, `own_ensemble_subset_probe.py`
+
 ### 2026-04-26 — advanced-ensemble-methods session (gated MoE + CMA-ES + per-cell + joint w+b): 4 nulls + 10th saturation confirmation, with mathematical proof of constant-weight ceiling
 
 - Goal: at user request "is there a new or better approach to ensemble our

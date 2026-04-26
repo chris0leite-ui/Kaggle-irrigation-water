@@ -893,3 +893,30 @@ kaggle_kernel/*/dist/
 # 0.98030, errs 9324 (-91) but H recall -0.0020. Blend NULL.
 !scripts/artifacts/oof_joint_blend.npy
 !scripts/artifacts/test_joint_blend.npy
+
+# 2026-04-26 own-CSV ensemble lever — 5 strategies + 3 subset probes over 6
+# LB-validated submissions. ALL NULL (best +0.00002 OOF over primary, well
+# below +5e-4 emit gate). Refutes "ensemble of ensembles" hypothesis: our
+# subs share recipe-pseudo-meta backbone (Jaccard 0.83-0.96 vs primary).
+# Public-CSV blenders win via INDEPENDENT pipelines from different teams;
+# 6 depths of one pipeline don't qualify. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_own_S1_equal_log.npy
+!scripts/artifacts/test_own_S1_equal_log.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau100.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau100.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau200.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau200.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau500.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau500.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau1000.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau1000.npy
+!scripts/artifacts/oof_own_S3_hard_vote.npy
+!scripts/artifacts/test_own_S3_hard_vote.npy
+!scripts/artifacts/oof_own_S4_soft_vote.npy
+!scripts/artifacts/test_own_S4_soft_vote.npy
+!scripts/artifacts/oof_own_S5_greedy_forward.npy
+!scripts/artifacts/test_own_S5_greedy_forward.npy
+!scripts/artifacts/oof_own_3view.npy
+!scripts/artifacts/test_own_3view.npy
+!scripts/artifacts/oof_own_greedy_fine.npy
+!scripts/artifacts/test_own_greedy_fine.npy
