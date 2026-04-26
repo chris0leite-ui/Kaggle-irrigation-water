@@ -1027,3 +1027,14 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
+
+# 2026-04-26 N5b 10k-as-anchor lever family — feature artifacts shared
+# across deployments #1 (recipe + 3 OOD scores), #2 (OOD-gated score=6
+# override), #3 (recipe + 8 kNN-from-10k features).
+!scripts/artifacts/oof_ood3_train.npy
+!scripts/artifacts/test_ood3.npy
+!scripts/artifacts/oof_knn10k_train.npy
+!scripts/artifacts/test_knn10k.npy
+!scripts/artifacts/n5b_d2_score6_ood_gate_results.json
+!scripts/artifacts/n5b_blend_gate_ood_results.json
+!scripts/artifacts/n5b_blend_gate_knn10k_results.json

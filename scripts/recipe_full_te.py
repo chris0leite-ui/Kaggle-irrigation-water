@@ -76,6 +76,13 @@ FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
 # replacing "oof_" → "test_". When set, the K columns are added as extra
 # numerics. Integration for A2 / P1.
 DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
+# 10k-anchor features (built by build_10k_anchor_features.py).
+# EXTRA_OOD=1   -> +3 cols [GMM_neg_logp, IsoForest, kNN_dist] from
+#                 oof_ood3_train.npy + test_ood3.npy
+# EXTRA_KNN10K=1-> +8 cols [p_low,p_med,p_high,nbr0_y,d_low,d_med,d_high,margin]
+#                 from oof_knn10k_train.npy + test_knn10k.npy
+EXTRA_OOD = os.environ.get("EXTRA_OOD", "") == "1"
+EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -125,6 +132,10 @@ if CLEANLAB_TREATMENT:
     _parts.append(f"cl{CLEANLAB_TREATMENT}")
 if DAE_EMBED_PATH:
     _parts.append("dae")
+if EXTRA_OOD:
+    _parts.append("ood")
+if EXTRA_KNN10K:
+    _parts.append("knn10k")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -279,6 +290,35 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
             train[c] = dae_tr[:, i]
             test[c] = dae_te[:, i]
 
+    # 10k-anchor features (built by build_10k_anchor_features.py).
+    ood_cols: list[str] = []
+    knn10k_cols: list[str] = []
+    if EXTRA_OOD:
+        log("loading 10k-OOD features (GMM, IsoForest, kNN-density)")
+        a_tr = np.load("scripts/artifacts/oof_ood3_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_ood3.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 3) and a_te.shape == (len(test), 3)
+        ood_cols = ["ood_gmm", "ood_iso", "ood_knn"]
+        for i, c in enumerate(ood_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(ood_cols)} OOD cols")
+    if EXTRA_KNN10K:
+        log("loading kNN-from-10k geometric features (k=20)")
+        a_tr = np.load("scripts/artifacts/oof_knn10k_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_knn10k.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 8) and a_te.shape == (len(test), 8)
+        knn10k_cols = ["k10_pL","k10_pM","k10_pH","k10_nbr0",
+                       "k10_dL","k10_dM","k10_dH","k10_margin"]
+        for i, c in enumerate(knn10k_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(knn10k_cols)} kNN10k cols")
+
     info = dict(
         nums=nums, cats=cats, combos=combos, digits=digits,
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
@@ -286,6 +326,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
         gby=gby_cols,
+        ood=ood_cols, knn10k=knn10k_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
@@ -343,7 +384,9 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_domain", [])
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
-                     + info.get("gby", []))
+                     + info.get("gby", [])
+                     + info.get("ood", [])
+                     + info.get("knn10k", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
