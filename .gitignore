@@ -911,6 +911,31 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/score6_manifold_stage1d_results.json
 !scripts/artifacts/score6_manifold_stage1e_results.json
 
+# 2026-04-26 user-requested deep dive: #3 multi-task aux XGBs + #4 polynomial
+# FE + #6 self-supervised masked-feature embeddings, all combined into a v6
+# meta-stacker with new aux + masked + poly inputs (82 components, 283-col
+# meta-feature matrix). Standalone v6_iso 0.98150 (+0.00091 vs v1_iso 0.98059).
+# Peak blend Δ vs LB-best 4-stack primary = +0.00038 OOF at α=0.30.
+# LB probed at α=0.30 → 0.98059 (Δ -0.00035) and α=0.40 → 0.98060 (tied).
+# Bank-extension lever closed: 11th saturation confirmation at LB 0.98094.
+!scripts/artifacts/oof_aux_flipped_from_rule.npy
+!scripts/artifacts/test_aux_flipped_from_rule.npy
+!scripts/artifacts/oof_aux_missed_high.npy
+!scripts/artifacts/test_aux_missed_high.npy
+!scripts/artifacts/oof_aux_missed_medium.npy
+!scripts/artifacts/test_aux_missed_medium.npy
+!scripts/artifacts/multitask_aux_results.json
+!scripts/artifacts/oof_poly_fe.npy
+!scripts/artifacts/test_poly_fe.npy
+!scripts/artifacts/poly_fe_results.json
+!scripts/artifacts/oof_masked_resid.npy
+!scripts/artifacts/test_masked_resid.npy
+!scripts/artifacts/masked_resid_results.json
+!scripts/artifacts/oof_xgb_metastack_v6_combined.npy
+!scripts/artifacts/test_xgb_metastack_v6_combined.npy
+!scripts/artifacts/combined_meta_eval_results.json
+!scripts/artifacts/combined_v6_emit_results.json
+
 # 2026-04-26 advanced-ensemble-methods session: 4 mechanism-distinct
 # attacks against LB 0.98094 ceiling. ALL NULL on blend gate vs LB-best
 # 4-stack — every alternative finds a fewer-error solution that trades
