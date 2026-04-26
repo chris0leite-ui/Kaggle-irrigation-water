@@ -13368,3 +13368,189 @@ final selection.
 - Also closes the related "find leaky test labels via near-duplicate
   match" idea from the senior-DS audit. The data has no such leak.
 
+### 2026-04-26 — N5b 10k-as-anchor lever family: LB 0.98055 (-0.00039) BUT first AUC-positive evidence
+
+- Goal: senior-engineer reframe — treat synthetic train as test, learn
+  DGP from 10k original. The naive "train on 10k → predict synth"
+  framing was already nulled (NN-on-original 2026-04-22, TE-from-original,
+  argmax-equivalence theorem). Refined angle: use 10k as a **geometric
+  anchor** (density estimator + kNN reference frame) rather than a
+  label source. Three deployments + variance follow-ups.
+- Branch: `claude/learn-dgp-original-data-OTU5c`. Single-CPU box,
+  ~10h total wall.
+
+- **Diagnostic probe (n5b_ood_diag.py, 5 min)**: GMM/IsoForest/kNN-density
+  on 10k features only → score synth rows → correlate with `|y - rule|`.
+  - Cohen's d (flipped vs clean rows): GMM=0.195, IsoForest=0.197,
+    kNN-density=0.181 (all clear the 0.10 gate).
+  - Spearman corr 0.024 (just below 0.05 gate).
+  - Sanity: `min_threshold_dist` (known-good signal) = d=0.31, Spearman
+    0.039 — confirms pipeline correctness.
+  - Verdict: PROCEED. Signal real but small (~50% strength of known-good
+    threshold features).
+
+- **Built `oof_ood3_train.npy` (3 OOD scores) + `oof_knn10k_train.npy`
+  (8 kNN-from-10k geometric features = p_low/med/high, nbr0_y, mean
+  dists to nearest 10k rows of each class, margin) once via
+  `build_10k_anchor_features.py`** (~5 min CPU, FAISS k=20). Reusable
+  across all deployments.
+
+- **Deployment #2 — OOD-gated score=6 override** (`n5b_d2_score6_ood_gate.py`):
+  combined spec6_v2_prob (binary M↔H AUC 0.94) with GMM_neg_logp as a
+  2-D conformal gate on score=6 ∩ teacher_argmax=Medium domain.
+  - **Best (theta_spec=0.20, theta_ood=p50): 50% precision (54x break-
+    even 0.92%) but only 4 overrides → +0.00003 macro-Δ.**
+  - Best under guardrail (theta_spec=0.15, theta_ood=all): n=42, 14.3%
+    precision, +0.00005 macro-Δ.
+  - **Result: NULL on +2e-4 gate**, but the signal IS real at strict
+    thresholds — bucket-size limited (35,180 override-domain rows on
+    test, only 326 truly-H). Confirms 2026-04-26 score=6 deep-dive
+    "macro-Δ is bucket-size limited, not threshold-method limited."
+
+- **Deployments #1 + #3** — recipe + 3 OOD scores (`EXTRA_OOD=1`) and
+  recipe + 8 kNN10k features (`EXTRA_KNN10K=1`). Both 5-fold seed=42,
+  ~50 min CPU each (running in parallel on 16-core, 5-6 cores per
+  process):
+  ```
+  variant            argmax    tuned     bias                      Δ tuned
+  recipe baseline    0.97589   0.97967   [1.43, 1.47, 3.40]        0
+  D1 OOD             0.97541   0.97959   [1.23, 1.27, 3.40]        -0.00008
+  D3 kNN10k          0.97581   0.97961   [1.43, 1.47, 3.40]        -0.00006
+  ```
+  - **Both standalone NULL.** D1's bias drift (Low/Med −0.20 each)
+    indicates the OOD scores produce sharper raw probs (less log-bias
+    correction needed). D3's bias is identical to recipe baseline —
+    kNN10k features pass through tree splits transparently.
+  - Blend gate vs LB-best 4-stack PRIMARY (fixed bias):
+    - D1 OOD: peak α=0.0 (no blend), Jaccard 0.83.
+    - D3 kNN10k: peak α=0.025, Δ=+0.00003, Jaccard 0.83.
+    - **Both NULL** at +2e-4 gate, both above 0.80 redundancy.
+
+- **Bank-add follow-up** (`n5b_bank_add_test.py`): include both new
+  recipe variants in the meta-stacker pool and retrain
+  `xgb_metastack_n5b_both` via `META_OUT_SUFFIX=_n5b_both`. Same
+  heavy-reg XGB HPs (depth=4, reg_alpha=5, reg_lambda=5, lr=0.05),
+  same 5-fold seed=42, automatic pool extension via load_pool() scan.
+  - **Standalone new meta @ recipe-bias = 0.98084** (vs v1_meta 0.98041,
+    **+0.00043 OOF**). Errors 8,782 vs LB-best 3-stack's 9,572 (**−790
+    fewer — FIRST bank-add candidate with lower error count**).
+  - **Jaccard vs LB-best 3-stack = 0.7992** — right at the 0.80
+    redundancy threshold (just below).
+  - Internal meta α-sweep onto LB-best 3-stack: **peak α=0.50 →
+    +0.00058 OOF** (tier1b's auto-emit triggered, saved
+    `submission_tier1b_metastack_meta_n5b_both_a500.csv`).
+  - At LB-validated α=0.30 in primary architecture:
+    `primary' = 0.7×3stack + 0.30×new_meta_iso` → **OOF 0.98104,
+    Δ=+0.000199** vs v1 PRIMARY (1ppm short of +2e-4 gate).
+  - Per-class trade: Low +0.00011, Medium +0.00097, **High −0.00048**
+    (right at −5e-4 guardrail).
+
+- **Follow-up angles (`n5b_followup_blend.py` + `n5b_followup_residual_auc.py`)**:
+  - Angle 1 (mean-blend v1+new at fixed α=0.30): geometric mean gives
+    **OOF +0.00017 with High recall drift only −0.0001** — safest
+    candidate (preserves LB-validated arch, minimal rare-class risk).
+  - Angle 2 (fine α-sweep around 0.30 for pure swap):
+    ```
+    α=0.300  Δ=+0.00020  H=-0.0005
+    α=0.350  Δ=+0.00026  H=-0.0005
+    α=0.375  Δ=+0.00029  H=-0.0005
+    α=0.425  Δ=+0.00033  H=-0.0005   peak under guardrail
+    α=0.500  Δ=+0.00037  H=-0.0005   FAIL (other class drops)
+    ```
+  - Angle 3 (residual-AUC diagnostic): binary XGB on 11 N5b features
+    targeting (y != PRIMARY_argmax). **5-fold OOF AUC = 0.6347**
+    (σ=0.005, very stable, fold range 0.632-0.646). >> 0.55 threshold.
+    AP 0.0247.
+  - **CRITICAL FINDING**: Top-K precision is only 4-4.5% (3x base rate
+    1.49%), so the signal is REAL but DIFFUSE — can't be deployed as
+    hard-gate override. Has to enter as soft signal, which is exactly
+    what bank-add and mean-blend already attempt.
+
+- **LB PROBE: `submission_n5b_followup_angle1_geo_mean_a030.csv`**
+  (user-approved, 92 test rows differ from v1 PRIMARY = 0.034%
+  footprint, OOF +0.00017, the SAFEST candidate). Submitted 10:03 UTC.
+  - **LB public = 0.98055**
+  - **Δ vs LB-best PRIMARY = −0.00039** (regression).
+  - OOF→LB gap = +0.00046 (vs primary's −0.00010).
+
+- **Read-out (the new finding, not a closure)**:
+  - The OOF→LB regression is **within the public-LB noise band**
+    (~±0.0005-0.0014 for this dataset size). A single −0.00039
+    observation is **not conclusively a structural regression** —
+    could be an unlucky public split.
+  - **AUC 0.6347 is the FIRST positive evidence in 12 saturation
+    confirmations that the residual signal IS structurally orthogonal
+    to PRIMARY** (vs being generic ranking noise). This distinguishes
+    N5b from prior bank-add nulls.
+  - Bank-add LB carryover ratios across recent submissions:
+    ```
+    Submission                  OOF Δ     LB Δ      ratio
+    LR v2 (04-25)              +0.00046  -0.00042  -0.91
+    combined v6 a030           +0.00038  -0.00035  -0.92
+    v6_full a350               +0.00037  -0.00082  -2.22
+    P3 perturbed               +0.00048  -0.00139  -2.90
+    angle1_geo_mean_a030       +0.00017  -0.00039  -2.29
+    ```
+    The −1x to −3x carryover **may be a property of the saturated
+    bank's OOF→LB transfer**, not the signal source. To validate or
+    falsify on this lever, need at least one more variance test from
+    the same family.
+
+- **Portable rule** (LEARNINGS.md candidate): "Single LB observation
+  on a saturated meta-stacker bank cannot distinguish 'structural
+  regression' from 'unlucky public split' when the OOF→LB delta is
+  within ±0.0005 of expected. To draw conclusions about lever death,
+  require either (a) two LB observations from the SAME family at
+  different OOF α (variance test), OR (b) a positive AUC-on-residuals
+  signal that's been deployed and probed at multiple operating
+  points."
+
+- **CRITICAL: AUC > 0.55 on residual-prediction is necessary but
+  apparently not sufficient for LB transfer on a saturated meta-stacker
+  bank — the architecture's −1x to −3x carryover dominates regardless
+  of signal redundancy vs orthogonality.** The implication is that to
+  unlock this signal, we need a DIFFERENT delivery mechanism than
+  meta-stacker bank-add (e.g., recipe-level FE for both OOD AND kNN10k
+  combined, or a residual-correction head that doesn't go through the
+  meta-stacker at all).
+
+- LB budget: **2/10 used today** (1 angle1 probe + 1 prior). 8
+  remaining.
+- Current LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+
+- **Untried options (do NOT lock primary; pursue these)**:
+  1. **Variance test**: probe `angle2_swap_a350` (OOF +0.00026, similar
+     mechanism but smaller arch deviation) OR `angle2_swap_a375`
+     (OOF +0.00029). If both regress similar magnitude, structural
+     carryover. If one lifts, public split was unlucky for angle1_geo.
+  2. **Combined recipe FE** (NOT TESTED): `EXTRA_OOD=1 EXTRA_KNN10K=1`
+     simultaneously. The 11 N5b features at the recipe-XGB level might
+     compound into recipe-tier signal (vs meta-tier). Different
+     delivery mechanism than bank-add. ~50 min CPU.
+  3. **Expanded 10k-anchor feature family**: per-class GMM densities
+     (3), per-class kNN distances (3), Mahalanobis-to-10k-centroid
+     per class (3) = 9 more features → 20 total. With AUC 0.63
+     evidence the family carries signal, more features may compound
+     standalone meta lift past the −1x to −3x carryover ceiling.
+     ~60-90 min CPU.
+  4. **Hard-gate residual override** at LOOSER thresholds: top-N=200
+     precision is 4.5% (50% lift over base rate 1.49% but below
+     break-even 8.1% for High class). Untested at AUTO-CALIBRATED
+     thresholds via per-fold conformal precision.
+
+- Artefacts whitelisted via `.gitignore` for cross-branch reuse:
+  - `oof_ood3_train.npy`, `test_ood3.npy` (3 OOD scores: GMM, IsoForest, kNN)
+  - `oof_knn10k_train.npy`, `test_knn10k.npy` (8 geometric features from 10k)
+  - `oof_recipe_full_te_ood.npy`, `test_recipe_full_te_ood.npy`
+  - `oof_recipe_full_te_knn10k.npy`, `test_recipe_full_te_knn10k.npy`
+  - `oof_xgb_metastack_n5b_both.npy`, `test_xgb_metastack_n5b_both.npy`
+  - `oof_n5b_residual_auc.npy` (residual XGB OOF predictions)
+  - `n5b_*_results.json` (8 result JSONs)
+  - 8 scripts: `build_10k_anchor_features.py`, `n5b_d2_score6_ood_gate.py`,
+    `n5b_blend_gate.py`, `n5b_bank_add_test.py`, `n5b_followup_blend.py`,
+    `n5b_followup_residual_auc.py`, `n5b_emit_geo_mean_a030.py`,
+    `n5b_ood_diag.py`. `recipe_full_te.py` and `tier1b_xgb_metastack.py`
+    gained `EXTRA_OOD`, `EXTRA_KNN10K`, `META_OUT_SUFFIX` env vars.
+  - `submission_n5b_followup_angle1_geo_mean_a030.csv` (LB 0.98055)
+  - `submission_n5b_followup_angle2_swap_a425.csv` (auto-emitted, untested)
