@@ -1,0 +1,20 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "probe": true,
+  "smoke": false,
+  "fold_scores_argmax": [
+    0.9763118194939747
+  ],
+  "overall_argmax_bal_acc": 0.9763118194939747,
+  "n_features": 443,
+  "folds_completed": 1,
+  "n_epochs": 25,
+  "device": "cuda",
+  "tuned_log_bias_bal_acc": 0.976484639647273,
+  "log_bias": [
+    2.232441163236097,
+    2.168946691946548,
+    1.900768902044088
+  ]
+}
