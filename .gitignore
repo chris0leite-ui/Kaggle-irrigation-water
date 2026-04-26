@@ -1069,3 +1069,8 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n5b_followup_blend_results.json
 !scripts/artifacts/n5b_followup_residual_auc_results.json
 !scripts/artifacts/oof_n5b_residual_auc.npy
+!scripts/artifacts/n5b_residual_head_results.json
+!scripts/artifacts/oof_n5b_residual_head.npy
+!scripts/artifacts/test_n5b_residual_head.npy
+!scripts/artifacts/oof_ood9_train.npy
+!scripts/artifacts/test_ood9.npy
