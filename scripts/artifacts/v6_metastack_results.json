@@ -1,0 +1,39 @@
+{
+  "n_components": 108,
+  "feature_dim": 363,
+  "agg_names": [
+    "agg_mean_L",
+    "agg_std_L",
+    "agg_max_L",
+    "agg_min_L",
+    "agg_med_L",
+    "agg_mean_M",
+    "agg_std_M",
+    "agg_max_M",
+    "agg_min_M",
+    "agg_med_M",
+    "agg_mean_H",
+    "agg_std_H",
+    "agg_max_H",
+    "agg_min_H",
+    "agg_med_H",
+    "agg_ent_mean",
+    "agg_disagree_n",
+    "agg_std_logit_MH",
+    "agg_std_logit_LM",
+    "agg_skew_L",
+    "agg_skew_M",
+    "agg_skew_H"
+  ],
+  "best_iters": [
+    222,
+    197,
+    201,
+    208,
+    227
+  ],
+  "meta_argmax_oof": 0.9751365228707206,
+  "meta_tuned_oof": 0.9807787843504213,
+  "lb_best_oof": 0.9806090685483349,
+  "elapsed_sec": 279.63159942626953
+}
