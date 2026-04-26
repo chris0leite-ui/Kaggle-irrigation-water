@@ -11858,3 +11858,95 @@ more folds / HP tuning" as a forward lever:
   - `scripts/artifacts/blend_gate_dropscores_results.json`
   - `submissions/submission_recipe_full_te_ds012.csv` (diagnostic, NOT
     for LB probe)
+
+### Next steps: senior-DS EDA proposals (2026-04-26)
+
+Fresh-eyes EDA over the LB-best 4-stack confusion + 17-component OOF
+disagreement structure surfaced one **measured-orthogonal residual
+signal** + two structurally-untried mechanisms. Findings:
+
+- Aggregate stats over the 60+ saved OOFs (per-class mean/std/max/
+  min/median, entropy of mean-prob, argmax disagreement count) carry
+  AUC 0.91 standalone for missed-H detection in the pred=Med override
+  domain. **Aggregate ⊥ existing meta-stacker AUC = 0.6714** — that's
+  measured residual signal beyond what the 63-component depth-4 meta-
+  XGB extracts.
+- `xgb_nonrule` is the most-orthogonal leg in the bank (corr ≤ 0.13
+  with mamba/kan, ≤ 0.30 with all others on P(High)). Used at α=0.075
+  in primary; signal extraction bounded.
+- Score=3 M→L errors (4303 = 45.7% of total): Cohen's d=+0.27 on
+  Soil_Moisture, +0.09 on Rainfall_mm. Within-bucket SINGLE-feature
+  AUCs are weak (0.43-0.48) — model needs interactions.
+- Score=6 missed-H vs found-H: Cohen's d on Rainfall +0.43, SM −0.29,
+  Temp −0.24. Strong RAW-feature distinguishability, not just
+  teacher_PH (contradicts the 2026-04-26 stage-1d "feature-
+  indistinguishable" finding when restricted to z-distance from
+  teacher_PH).
+- Direct-override path remains closed: top-K precision in pred=Med
+  override domain peaks at 4.3% vs break-even 8.1%. Same magnitude
+  trap as J7 conformal closure.
+
+**Three executable proposals** (ranked by EV / cost / mechanism novelty):
+
+  **P1. Aggregate-stats meta-stacker v6** (top pick, ~10 min CPU).
+  Re-train tier1b-style heavy-reg XGB meta-stacker on existing 63-
+  component bank PLUS 22 aggregate features computed across the bank:
+  per-class {mean, std, max, min, median} (15) + entropy of mean-prob
+  (1) + per-row argmax disagreement count (1) + per-class skew across
+  components (3) + pair-margin variance (2). Distinct from every prior
+  meta variant (v1-v5, LR, J2 bagged) — all extended via per-component
+  features; none added bank-aggregate stats. Iso-cal + blend into LB-
+  best 3-stack at α=0.30. Gate: standalone iso ≥ 0.98080, errs ≤ 9550,
+  per-class recall ≥ [0.9950, 0.9690, 0.9770]. Expected: +0.0001 to
+  +0.0004 OOF, LB-transfer ~30-50%, realistic upside 0.98098-0.98114.
+
+  **P2. Bucket-aware soft-blend with FE-targeted heads** (~30 min CPU).
+  Two binary specialists with FE matched to today's empirical Cohen's
+  d patterns:
+    - score=3 head: P(y=Med | x), features = recipe + log(SM/25), log
+      (Rainfall/300), Humidity·SM, Humidity·PrevIrrig, sample_weight
+      tuned for Med minority.
+    - score=6 head: P(y=High | x), features = recipe + log(SM/25), log
+      (Rainfall/300), Soil_pH−6.5, Wind−10, Rainfall·Temp_C.
+  Deploy as **soft logit-add** into LB-best 4-stack class column for
+  that bucket only (NOT hard override — precision floor 39% for L↔M
+  unreachable, 8% for M↔H borderline). λ tuned via fixed-bias macro-
+  recall + per-class recall guardrail.
+  Expected: +0.0001 to +0.0005 OOF, LB-transfer ~40%. Risk: prior
+  spec_3 was null on plain dist features; differentiator is engineered
+  FE matching the +0.27 Cohen's d signal + soft mixing.
+
+  **P3. Counterfactual rule-instability features + retrain primary**
+  (~80 min CPU). For each row, compute `rule_instability` = number of
+  flips in `dgp_score` under {±2%, ±5%, ±10%, ±20%} × {SM, Rain, Temp,
+  Wind} = 32 perturbations + 4 axis-specific instabilities = 5 new
+  features. Captures multi-axis simultaneous closeness to ANY rule-
+  cell boundary — distinct from existing per-axis distances. Add to
+  recipe → retrain → add to meta-stacker bank. Expected: +0.0001 to
+  +0.0005 OOF. Risk: recipe FE additions saturated at Jaccard 0.83+
+  in 6 prior tests; differentiator is cell-topology instead of feature
+  values.
+
+  **P4. Honorable mention — original-NN-distance features** (~1h CPU,
+  deferred). FAISS k-NN distance from each synth row to 10k-original
+  rows. 4 features: min/mean dist, fraction of NN with Med/High labels.
+  Run only if P1-P3 all yield <+0.0001.
+
+  **P5. Honorable mention — orthogonality-weighted greedy** (~10 min
+  CPU on saved OOFs). Diversity-aware step rule: rank candidates by
+  (OOF Δ at α*) × (1 − max-Jaccard-with-existing). Sanity check on
+  CMA-ES saturation claim; will likely confirm.
+
+**Execution order**: P1 first (cheapest + strongest measured residual
+signal). If P1 lifts ≥ +0.0001 OOF AND passes per-class guardrail,
+LB-probe. If null, P3 next (mechanism most distinct from prior nulls).
+P2 last among the three. Lock final-selection unchanged until P1-P3
+produce LB-validated lift. Reserve ≥4 LB submissions for end-of-comp
+variance check (3 days to deadline 2026-04-30).
+
+**Skip on principled grounds** (already exhausted):
+- Further meta variants (v6 with same component features, LR with
+  different HPs, J2 at fraction ≠ 0.5) — saturated.
+- Direct missed-H override at any threshold — break-even precision
+  unreachable in the override domain (top-K caps at 4-7%).
+- Public-CSV blending (banned by top-of-file rule).
