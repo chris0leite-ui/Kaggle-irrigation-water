@@ -11981,3 +11981,105 @@ variance check (3 days to deadline 2026-04-30).
 - Direct missed-H override at any threshold — break-even precision
   unreachable in the override domain (top-K caps at 4-7%).
 - Public-CSV blending (banned by top-of-file rule).
+
+### Next steps: post-13th-saturation brainstorm (2026-04-26 evening)
+
+After P1 v6_full (LB 0.98012, regress), P1 v6_lbpool (NULL G4),
+P3 instability (NULL G4), and P2 bucket FE specialists (NULL G2/G4)
+all closed today, this is the 13th independent saturation
+confirmation at LB 0.98094. The Pareto frontier interpretation
+held: P2's score=6 specialist hit competition-record AUC 0.852
+within bucket but got λ_6=0 weight in the soft-logit-add — H
+boundary signal is fully absorbed by the LB-best 4-stack at the
+operating point. Per the "NEVER GIVE UP" rule, 5 NEW mechanisms
+not yet on the hypothesis board:
+
+  **A. Boundary-confined TTA** (top pick, ~30 min CPU). Re-attempts
+  the 2026-04-24 P1 TTA, which closed with the rule "perturbation
+  noise scales with N (far-row noise) while boundary-smoothing gain
+  scales with ~2% boundary fraction." Identify boundary rows via
+  `max_prob(LB-best 4-stack) < 0.95` (~5-10% of N). Gaussian σ × IQR
+  perturbation on the 4 rule-axis numerics (Soil_Moisture,
+  Rainfall_mm, Temperature_C, Wind_Speed_kmh) ONLY for those rows,
+  K=10 perturbations. Recompute recipe FE on perturbed rows
+  (sm_dist/abs, rule flags, dgp_score, axis-specific digit features).
+  Run frozen fold booster, average. Replace OOF only at boundary
+  rows; non-boundary OOF stays identical to vanilla recipe.
+  Mechanism: noise/signal ratio inverts vs prior TTA — noise scales
+  with K × n_boundary (~5% of N) instead of K × N. Closes the
+  prior TTA rule definitively.
+  Cost ~30-50 min CPU (recipe rerun with TTA hook in val-prediction
+  step). Helper file `scripts/mech_a_btta.py` already scaffolded
+  with `boundary_mask` / `axis_iqrs` / `perturb_axes` /
+  `recompute_axis_dependent_features` and a 3-row smoke pass.
+  Decision gate: G1-G4 same as P1/P3, but compute on the recipe-leg
+  substituted into the LB-best stack reconstruction.
+
+  **B. Anchor-uncertainty-weighted re-training** (~50 min CPU).
+  Inverse of cleanlab confident-learning (which DOWN-weighted
+  ambiguous rows and produced NULL): use
+    `sample_weight[i] = 1 + α × (1 − max_prob_LB4stack[i])`
+  with α ∈ {1, 2, 5}. Up-weights boundary rows where the anchor is
+  uncertain. Train recipe XGB on this — focuses model capacity on
+  anchor's weak regions. Resulting OOF should have orthogonal errors
+  specifically AT boundary rows by construction. Different from
+  cleanlab (which interpreted uncertain rows as label noise — they
+  are deterministic NN flips per 2026-04-21 EDA). Expected upside
+  +0.0002-0.0008 OOF if boundary rows have learnable structure
+  the anchor missed; null if anchor already saturates the boundary.
+
+  **C. Synthetic rule-only label augmentation** (~70 min CPU).
+  Different from SMOTE-NC (which interpolated minority class and
+  was LB-regressive 2026-04-25) and cleanlab-relabel (which removed
+  ambiguous rows). Sample 100k feature vectors via stratified
+  resample of train's joint distribution. Apply the deterministic
+  DGP rule to generate rule-perfect labels (no NN flips) on these
+  synthetic rows. Concat to training, retrain recipe XGB on
+  augmented 730k rows. Mechanism: anchors recipe XGB more strongly
+  on the rule's core, freeing model capacity for within-cell flip
+  variation. Synthetic rows have NO label noise → regularize
+  toward the rule baseline. Risk: distorts calibration of the flip
+  signal. Expected +0.0001-0.0005 OOF.
+
+  **D. Per-row attention over component bank** (~30 min CPU).
+  Different from MoE (K=6 experts, NULL via collapse to fixed
+  weights, 2026-04-26): per-row attention over the FULL 60+
+  component bank. For each row, learn a 60-dim weight vector via
+  a small attention layer. Input: row's distance features +
+  dgp_score + LB-best 4-stack probs. Output: softmax over 60
+  component weights. Loss: macro-recall surrogate at fixed bias.
+  Expected +0.0001-0.0003 OOF if there is row-conditional
+  component preference the heavy-reg meta-stacker misses; null
+  if the meta already learned this internally.
+
+  **E. Fuzzy-threshold rule features** (~50 min CPU). Different
+  from P3 instability (count of cell-flips under perturbation,
+  NULL on G4 because redundant with hard-threshold features).
+  This adds CONTINUOUS sigmoid soft transitions rather than
+  discretized aggregates: `fuzzy_dry = sigmoid((25 − sm) / τ)` for
+  τ ∈ {0.5, 1.0, 2.0, 5.0} and same for the 3 other axes = 16
+  fuzzy features. Captures continuous transition near rule
+  boundaries that hard `sm < 25` indicators discretize. The XGB
+  at depth 4 sees finer resolution than its discrete splits
+  naturally provide. Expected +0.0001-0.0003 OOF; likely null per
+  P3 redundancy pattern but with a different mechanism (smooth
+  surrogate vs discrete count).
+
+**Execution priority** (EV/cost ranking):
+  1. A (Boundary-confined TTA) — top pick, cheapest, diagnostic
+     value high (closes prior TTA rule definitively). Helper
+     scaffolded as `scripts/mech_a_btta.py`.
+  2. B (Uncertainty-weighted retrain) — highest upside, novel
+     mechanism (inverse of cleanlab).
+  3. D (Per-row attention) — fast, mechanism orthogonal to MoE
+     because it spans full bank with row-conditional gates.
+  4. C (Synthetic rule-only aug) — high upside, high downside
+     risk on calibration.
+  5. E (Fuzzy thresholds) — likely redundant per P3 pattern
+     but cheap; useful as last sanity check before locking
+     final selection.
+
+If A clears the gate, follow with B as compounding lever. If A
+nulls, B remains the highest-upside untried lever. If both A + B
+null, lock the final selection (3 days to deadline; reserve 4
+remaining LB probes for end-of-comp variance check).
