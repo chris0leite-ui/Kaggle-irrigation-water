@@ -133,6 +133,8 @@ def main():
         "angle_b_recipe_dae": ("oof_recipe_full_te_dae.npy", "test_recipe_full_te_dae.npy"),
         "angle_c_mixup": ("oof_angle_c_mixup.npy", "test_angle_c_mixup.npy"),
         "angle_c2_mixup": ("oof_angle_c2_mixup.npy", "test_angle_c2_mixup.npy"),
+        "angle_c3a_mixup": ("oof_angle_c3a_mixup.npy", "test_angle_c3a_mixup.npy"),
+        "angle_c3b_mixup": ("oof_angle_c3b_mixup.npy", "test_angle_c3b_mixup.npy"),
     }
     out = dict(
         anchor_oof=anc_bal, anchor_errs=anc_errs,
