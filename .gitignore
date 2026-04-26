@@ -947,3 +947,14 @@ kaggle_kernel/*/dist/
 scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9].npy
 scripts/artifacts/test_xgb_metastack_v6*_fold[0-9].npy
 scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9]_meta.json
+
+# v6 aggregate-stats meta-stacker (P1 from 2026-04-26 senior-DS proposals).
+# v6_lbpool: 62-pool + 22 aggregates, iso OOF 0.98065 (+0.00006 vs tier1b
+# v1's 0.98059 standalone), but blend Δ vs LB-best 4-stack only +0.00002
+# at peak α (gate fail on G4 ≥+2e-4). Aggregate features add tiny
+# standalone signal but redundant with what tier1b v1 already extracts.
+# Kept for cross-branch diagnostic + future stacking research.
+!scripts/artifacts/oof_xgb_metastack_v6lb.npy
+!scripts/artifacts/test_xgb_metastack_v6lb.npy
+!scripts/artifacts/oof_xgb_metastack_v6.npy
+!scripts/artifacts/test_xgb_metastack_v6.npy
