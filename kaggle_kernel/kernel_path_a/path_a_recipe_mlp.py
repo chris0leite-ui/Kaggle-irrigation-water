@@ -36,6 +36,30 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+# P100 sm_60 shim: pre-installed torch on Kaggle kernels often lacks
+# kernel images for Pascal GPUs. Install cu121 build BEFORE importing torch.
+def _gpu_arch():
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+            text=True, timeout=10,
+        ).strip().splitlines()
+        return [x.strip() for x in out if x.strip()]
+    except Exception as e:
+        print(f"[boot] nvidia-smi error: {e}", flush=True)
+        return []
+
+_arches = _gpu_arch()
+print(f"[boot] gpu compute_cap = {_arches}", flush=True)
+if any(a in ("6.0", "6.1") for a in _arches):
+    print("[boot] sm_60/61 detected - pinning torch+torchvision cu121", flush=True)
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--quiet",
+        "--upgrade", "--force-reinstall", "--no-deps",
+        "torch==2.5.1", "torchvision==0.20.1",
+        "--index-url", "https://download.pytorch.org/whl/cu121",
+    ])
+
 try:
     import torch
     print(f"[boot] torch {torch.__version__}  cuda={torch.cuda.is_available()}", flush=True)
