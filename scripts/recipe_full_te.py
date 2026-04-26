@@ -83,6 +83,10 @@ DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
 #                 from oof_knn10k_train.npy + test_knn10k.npy
 EXTRA_OOD = os.environ.get("EXTRA_OOD", "") == "1"
 EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
+# EXTRA_OOD9=1 -> +9 cols (per-class GMM density + per-class kNN dist +
+# per-class Mahalanobis to centroid) from oof_ood9_train.npy + test_ood9.npy
+# Built by build_expanded_10k_anchor.py.
+EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -136,6 +140,8 @@ if EXTRA_OOD:
     _parts.append("ood")
 if EXTRA_KNN10K:
     _parts.append("knn10k")
+if EXTRA_OOD9:
+    _parts.append("ood9")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -318,6 +324,20 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         for i, c in enumerate(knn10k_cols):
             train[c] = a_tr[:, i]; test[c] = a_te[:, i]
         log(f"  +{len(knn10k_cols)} kNN10k cols")
+    ood9_cols: list[str] = []
+    if EXTRA_OOD9:
+        log("loading expanded 10k-anchor features (per-class GMM/kNN/Maha)")
+        a_tr = np.load("scripts/artifacts/oof_ood9_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_ood9.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 9) and a_te.shape == (len(test), 9)
+        ood9_cols = ["gmm_L","gmm_M","gmm_H","knn_d_L","knn_d_M","knn_d_H",
+                     "maha_L","maha_M","maha_H"]
+        for i, c in enumerate(ood9_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(ood9_cols)} ood9 cols")
 
     info = dict(
         nums=nums, cats=cats, combos=combos, digits=digits,
@@ -326,7 +346,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
         gby=gby_cols,
-        ood=ood_cols, knn10k=knn10k_cols,
+        ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
@@ -386,7 +406,8 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_w8", [])
                      + info.get("gby", [])
                      + info.get("ood", [])
-                     + info.get("knn10k", []))
+                     + info.get("knn10k", [])
+                     + info.get("ood9", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
