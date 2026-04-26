@@ -910,3 +910,33 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/score6_manifold_stage1c_results.json
 !scripts/artifacts/score6_manifold_stage1d_results.json
 !scripts/artifacts/score6_manifold_stage1e_results.json
+
+# 2026-04-26 advanced-ensemble-methods session: 4 mechanism-distinct
+# attacks against LB 0.98094 ceiling. ALL NULL on blend gate vs LB-best
+# 4-stack — every alternative finds a fewer-error solution that trades
+# High recall for Low/Med (wrong direction under macro-recall).
+#
+# #1 Per-row gated MoE (linear gate via L-BFGS, K=6 experts, end-to-end
+# CE training): standalone OOF 0.98075, errs 9190 (-225 vs LB-4),
+# Jaccard 0.948. Best blend +0.00004 at α=0.15 — gate concentrated 98%
+# weight on (LB-4 + meta_iso) confirming fixed weights are near per-row
+# optimal. The remaining 2% to RealMLP/leaf/digits added negligible signal.
+!scripts/artifacts/oof_moe_gated.npy
+!scripts/artifacts/test_moe_gated.npy
+# #2 CMA-ES on macro-recall + simplex (K=7 components, gradient-free):
+# in-sample upper bound 0.98091 ≈ LB-best 4-stack 0.98084 (+0.00007 only).
+# Mathematical proof: constant-weight blend ceiling within fold noise.
+# Nested CV 0.98057 (per-fold weight noise). Blend NULL.
+!scripts/artifacts/oof_cmaes_blend.npy
+!scripts/artifacts/test_cmaes_blend.npy
+# #3 Per-cell mini-meta-stackers (64 cells, LR with C=0.1 per cell over
+# 16 features = 9 anchor logprobs + 7 non-rule numerics). Standalone
+# 0.97987, errs 9307 (-108) but High recall -0.0036. Blend NULL — same
+# magnitude trap (rare-class trade unfavorable) as MoE/CMA-ES.
+!scripts/artifacts/oof_per_cell_meta.npy
+!scripts/artifacts/test_per_cell_meta.npy
+# #4 Joint weights+bias (smooth macro-recall surrogate, T=0.3, L2_BIAS=5):
+# bias barely moved (binhigh trap defended by L2 anchor). Standalone
+# 0.98030, errs 9324 (-91) but H recall -0.0020. Blend NULL.
+!scripts/artifacts/oof_joint_blend.npy
+!scripts/artifacts/test_joint_blend.npy

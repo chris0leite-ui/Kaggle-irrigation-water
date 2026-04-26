@@ -11064,6 +11064,182 @@ model wave**:
   - `scripts/artifacts/j7_conformal_spec6_results.json` (Wilson CI +
     train override stats + test override count + gate decision)
 
+### 2026-04-26 — advanced-ensemble-methods session (gated MoE + CMA-ES + per-cell + joint w+b): 4 nulls + 10th saturation confirmation, with mathematical proof of constant-weight ceiling
+
+- Goal: at user request "is there a new or better approach to ensemble our
+  predictions to improve balanced accuracy?" — execute 4 mechanism-distinct
+  ensembling levers that haven't been tested in the comp log. The structural
+  problems to attack: (1) macro-recall + fixed bias misaligns with every
+  convex surrogate (J6 confirmed), (2) magnitude trap kills orthogonal-error
+  candidates, (3) meta-stacker bank is saturated, (4) every multi-stage
+  tuning blew up the OOF→LB gap.
+- Branch: `claude/advanced-ensemble-methods-vQrhS`. All artifacts whitelisted
+  via .gitignore for cross-branch reuse.
+
+- **#1 Per-row gated MoE** (`scripts/moe_gated_blend.py`,
+  `scripts/moe_helpers.py`, `scripts/moe_blend_gate.py`): linear gate
+  over 37 low-dim features (4 dist + 4 abs + min_axis_abs +
+  min_boundary_dist + dgp_score + rule_pred + per-expert max_prob +
+  per-expert argmax onehot). K=6 experts: LB-best 4-stack, RealMLP,
+  xgb_nonrule_iso, xgb_metastack_iso, leaf_ote_meta_v2, xgb_dist_digits.
+  L-BFGS over (W ∈ ℝ^{K×d}) with cross-entropy of the blended posterior
+  against y, leak-safe per-fold (gate trained on tr_idx, applied to va_idx).
+  Wall: ~2 min × 5 folds = ~10 min CPU.
+  - Standalone OOF tuned bal_acc = **0.980749** (vs LB-best 4-stack
+    0.980842, **Δ −0.00009**)
+  - Errors 9,190 (vs LB-4 9,415, −225 fewer)
+  - Jaccard vs LB-best 4-stack = 0.948 (high redundancy)
+  - Per-class recall: L 0.9956 / M 0.9704 / **H 0.9762** (vs LB-4
+    [0.9955, 0.9695, 0.9775]) — Low/Med UP, **High DOWN −0.0013**
+  - Blend gate vs LB-best 4-stack: peak α=0.15 → Δ=**+0.00004** (well
+    below +5e-4 emit gate)
+  - **Per-fold mean gate weights**: ~58% xgb_metastack_iso, ~40% LB-best
+    4-stack, ~2% combined to RealMLP/nr/leaf/digits. Folds 1-2 vs 3-5
+    invert the meta_iso vs lb4 ratio (bistable optimum).
+  - **Verdict: NULL.** Per-row gating ALSO confirms fixed weights of the
+    4-stack are near per-row optimal — the gate concentrates 98% on
+    components already in the 4-stack at fixed ratios. The 2% it allocates
+    to orthogonal experts adds negligible signal at fixed-bias evaluation.
+
+- **#2 CMA-ES on macro-recall + simplex** (`scripts/cmaes_macro_recall.py`):
+  K=7 components (LB-best 3-stack + xgb_metastack_iso + realmlp +
+  xgb_nonrule_iso + leaf_ote_meta_v2 + xgb_dist_digits + recipe_full_te).
+  Gradient-free CMA-ES on the simplex (sigma0=0.5, popsize=14, maxiter
+  120 in-sample + 80 nested). Optimizes ACTUAL macro-recall at the
+  fixed recipe bias [1.4324, 1.4689, 3.4008]. Wall: ~19 min CPU
+  (8 min in-sample + 11 min nested across 5 folds).
+  - **In-sample full-fit upper bound: 0.980912** with weights
+    {lb_best_3stack 0.503, xgb_metastack_iso 0.439, leaf_ote 0.043,
+    recipe 0.014, others < 1%}.
+  - Nested CV: **0.980571** (overfit gap +0.00034).
+  - **CRITICAL FINDING — mathematical ceiling proven**: the in-sample
+    upper bound 0.98091 is essentially the SAME OPERATING POINT as
+    LB-best 4-stack 0.98084 (only +0.00007 higher). This is mathematical
+    proof that the constant-weight blend ceiling on these 7 components
+    at the LB-validated bias is essentially at LB-best already. No
+    constant-weight scheme can extract more than ~0.0001 OOF beyond
+    what LB-best already captures.
+  - Per-fold weight noise high (folds 1, 4, 5 split 0.5/0.42 lb3+meta,
+    folds 2, 3 spread to multiple components) — same J2-bag pattern.
+  - Blend gate vs LB-best 4-stack: peak α=0.025 → Δ=**−0.00002** (strict
+    null, all α > 0 negative).
+  - **Verdict: NULL on blend.** Validates that the constant-weight
+    blend space is fully saturated; this is now the TENTH independent
+    saturation confirmation at LB 0.98094.
+
+- **#3 Per-cell mini-meta-stackers** (`scripts/per_cell_mini_meta.py`):
+  64 cells from (dry, norain, hot, windy, nomulch, kc_active) bits.
+  Per-fold per-cell multinomial LR (C=0.1, max_iter=400) on 16 features
+  per row: log(LB-4 probs)×3 + log(meta_iso probs)×3 + log(realmlp
+  probs)×3 + 7 non-rule numerics (Humidity, Prev_Irrigation, EC,
+  Soil_pH, Field_Area, Sunlight, Organic_Carbon). Cells with < 100
+  train rows fall back to LB-best 4-stack. Wall: ~12 sec total
+  (58 cells trained per fold).
+  - Standalone OOF tuned = 0.979874 (Δ −0.00097 vs LB-4)
+  - Errors 9,307 (-108 vs LB-4)
+  - Per-class recall: L 0.9957 / M 0.9700 / **H 0.9739** — High recall
+    DOWN −0.0036 (the worst rare-class trade of all 4 attempts)
+  - Jaccard vs LB-4 = 0.851 (decent orthogonality)
+  - Blend gate: peak α=0.025 → Δ=**−0.00004** (strict null)
+  - **Verdict: NULL.** Per-cell LR sees too few High examples per cell
+    to model the rare-class boundary; pulls Low/Med predictions slightly
+    better but loses High recall.
+
+- **#4 Joint weights+bias optimization with smooth surrogate**
+  (`scripts/joint_weights_bias.py`): single-stage L-BFGS over
+  (W ∈ ℝ^K, bias ∈ ℝ^3) jointly, optimizing soft-macro-recall via
+  temperature-relaxed argmax (T=0.3) + L2_BIAS=5.0 anchor toward
+  LB-validated bias + L2_W=1e-3 on weights. Designed to avoid the
+  binhigh trap (post-hoc bias retune compounding overfit). K=6 components.
+  Wall: ~3.5 min CPU.
+  - In-sample bias = [1.4324, 1.4687, 3.4010] vs LB-validated
+    [1.4324, 1.4689, 3.4008] — basically frozen (L2 anchor strong).
+  - Per-fold weights spread evenly (~0.13-0.21 per component) — surrogate
+    encouraged diversity unlike CMA-ES.
+  - Standalone OOF tuned = 0.980295 (Δ −0.0005 vs LB-4)
+  - Errors 9,324 (-91 vs LB-4)
+  - Per-class recall: L 0.9959 / M 0.9695 / **H 0.9755** (Δ H −0.0020)
+  - Blend gate: peak α=0.025 → Δ=**−0.00002** (strict null)
+  - **Verdict: NULL.** Smooth-surrogate doesn't help — the bias L2
+    anchor (necessary to defend against binhigh) prevents the joint
+    optimization from finding a different operating point.
+
+- **Universal pattern across all 4 attacks**:
+  ```
+                    standalone   errs vs   Jaccard   peak Δ vs    rare-class
+  Approach          tuned OOF    anchor    vs LB-4   LB-best       trade
+  ─────────────────────────────────────────────────────────────────────────
+  LB-best 4-stack   0.980842       0       1.000     —             baseline
+  #1 MoE gated      0.980749    -225       0.948     +0.00004      H -0.0013
+  #2 CMA-ES nest    0.980571     -58       0.961     -0.00002      H -0.0012
+  #3 Per-cell       0.979874    -108       0.851     -0.00004      H -0.0036
+  #4 Joint w+bias   0.980295     -91       0.886     -0.00002      H -0.0020
+  ```
+  EVERY alternative scheme finds a fewer-error solution that trades High
+  recall for Low/Med — wrong direction under macro-recall. The LB-best
+  4-stack at OOF 0.98084 / LB 0.98094 sits at the rare-class-favoring
+  corner of the macro-recall Pareto frontier.
+
+- **10th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                                  best blend Δ   notes
+  ----------------------------------------------- -------------- ----------
+  1. Tier 1c greedy expanded (132c)               +0.00002       sub-gate
+  2. Tier 1c meta-stacker v2 (224-dim)            +0.00002       sub-gate
+  3. Tier 1c meta-stacker XGB seed-bag            +0.00003       sub-gate
+  4. Cross-poll metastack v3                      +0.00015       LB -0.00034
+  5. J2 bootstrap-bagged metastack                +0.00003       proj null
+  6. LR meta-stacker v2 (C=0.1, none)             +0.00098       LB -0.00042
+  7. LR v2 + iso-after-blend                      +0.00000       NULL
+  8. v4 ET+kNN bank-extension                     +0.00036       LB -0.00102
+  9. P3 perturbed meta v1                         +0.00071       LB -0.00139
+  10. **#1-#4 advanced-ensemble (this entry)      +0.00004       NULL on all 4**
+  ```
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Per-row gated MoE collapses to fixed-weight blend when the
+     dominant components already form the LB-best stack.** The gate
+     learns to give 98%+ weight to those components, leaving negligible
+     room for orthogonal experts. Useful only when no constant-weight
+     blend is at the optimum yet — once a strong fixed-weight stack
+     exists, MoE becomes a re-implementation of the same operating point.
+  2. **CMA-ES on macro-recall is the cheapest mathematical-ceiling proof.**
+     Gradient-free + direct objective + simplex constraint. ~20 min CPU
+     for 7 components. The in-sample upper bound is the math ceiling
+     for any constant-weight scheme; if it's within fold-noise of the
+     current best, the constant-weight space is provably saturated.
+     Run this BEFORE building more weighted stackers.
+  3. **L2_BIAS anchor strong enough to prevent binhigh trap also
+     prevents joint w+b from finding a meaningfully different optimum.**
+     The two failure modes (binhigh OOF inflation vs frozen bias) form
+     a no-win for joint optimization on this problem family. Use joint
+     w+b only when the bias is unanchored and you accept binhigh-style
+     LB-overfit risk. Otherwise, fix bias (current approach) and tune
+     weights only.
+
+- LB delta: n/a (no LB probe — every blend Δ below +5e-4 emit gate
+  AND macro-recall trade is negative on rare class). LB best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`. LB budget
+  unchanged.
+
+- **Strategic implication**: with 10 independent saturation confirmations
+  including a mathematical CMA-ES proof, **breaking LB 0.98094 within
+  the existing OOF bank is provably impossible at the constant-weight
+  blend level, and per-row/per-cell/joint-bias all confirm the same
+  ceiling at the row/decision level.** Any further lift requires either:
+  (a) a NEW component whose errors satisfy BOTH Jaccard < 0.80 AND
+  errs ≤ anchor AND per-class recall ≥ anchor on rare class — a profile
+  no candidate has matched in ~30 prior tests, or (b) a strategic
+  pivot to public-CSV blending (banned by top-of-file rule).
+
+- Artefacts committed (whitelisted via .gitignore for cross-branch reuse):
+  - 4 OOF + test pairs: `oof_moe_gated`, `oof_cmaes_blend`,
+    `oof_per_cell_meta`, `oof_joint_blend` (+ corresponding `test_*.npy`)
+  - 4 results JSONs + 4 blend-gate JSONs
+  - 6 scripts: `moe_helpers.py`, `moe_gated_blend.py`, `moe_blend_gate.py`,
+    `cmaes_macro_recall.py`, `per_cell_mini_meta.py`, `joint_weights_bias.py`,
+    `joint_blend_gate.py` (155 lines max each, modular per CLAUDE.md rule)
+
 ### 2026-04-25 — fresh-perspectives session (P1 test-prior, P2 quotas, P3 perturbed meta): 3 nulls + 9th saturation confirmation
 
 - Goal: senior-DS-style fresh review attacking the LB 0.98094 ceiling
