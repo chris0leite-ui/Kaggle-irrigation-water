@@ -1038,7 +1038,6 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
-
 # v6 aggregate-stats meta-stacker per-fold checkpoints (transient,
 # regenerated from scratch on rerun; only the consolidated
 # oof_xgb_metastack_v6{,lb}.npy is committed via the standard pool rules)
@@ -1122,3 +1121,31 @@ scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
 !scripts/artifacts/test_mech_d.npy
 !scripts/artifacts/mech_d_results.json
 !scripts/artifacts/mech_d_blend_gate_results.json
+
+# Angles A/B/C — fresh-perspective levers (2026-04-26).
+# Three angles + four mixup follow-ups, all NULL on blend gate vs
+# LB-best 4-stack. 13th saturation confirmation. See CLAUDE.md.
+!scripts/artifacts/oof_angle_a_residual.npy
+!scripts/artifacts/test_angle_a_residual.npy
+!scripts/artifacts/oof_angle_a_residual_raw.npy
+!scripts/artifacts/test_angle_a_residual_raw.npy
+!scripts/artifacts/angle_a_residual_results.json
+!scripts/artifacts/oof_angle_b_recon.npy
+!scripts/artifacts/test_angle_b_recon.npy
+!scripts/artifacts/angle_b_dae_results.json
+!scripts/artifacts/oof_angle_c_mixup.npy
+!scripts/artifacts/test_angle_c_mixup.npy
+!scripts/artifacts/angle_c_mixup_results.json
+!scripts/artifacts/angles_blend_gate_results.json
+!scripts/artifacts/oof_recipe_full_te_dae.npy
+!scripts/artifacts/test_recipe_full_te_dae.npy
+!scripts/artifacts/recipe_full_te_dae_results.json
+!scripts/artifacts/oof_angle_c2_mixup.npy
+!scripts/artifacts/test_angle_c2_mixup.npy
+!scripts/artifacts/angle_c2_mixup_results.json
+!scripts/artifacts/oof_angle_c3a_mixup.npy
+!scripts/artifacts/test_angle_c3a_mixup.npy
+!scripts/artifacts/angle_c3a_mixup_results.json
+!scripts/artifacts/oof_angle_c3b_mixup.npy
+!scripts/artifacts/test_angle_c3b_mixup.npy
+!scripts/artifacts/angle_c3b_mixup_results.json
