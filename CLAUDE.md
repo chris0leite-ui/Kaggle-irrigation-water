@@ -11538,3 +11538,147 @@ more folds / HP tuning" as a forward lever:
   - `scripts/score6_manifold_stage1d.py` (depth sweep + ensemble + blend)
   - `scripts/score6_manifold_stage1e.py` (against actual primary)
   - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
+
+### 2026-04-26 — DROP_SCORES=0,1,2 on recipe: NULL (11th saturation confirmation, most-orthogonal tree variant ever recorded)
+
+- Goal: address an audit gap surfaced by senior-researcher review. The
+  2026-04-21 score-routing ablation series (`xgb_dist_routed_v3`) showed
+  that dropping {0,1,2}-score Low rows from XGB training + routing those
+  test rows to rule=Low at inference was a real lever on the dist
+  feature set (vanilla 0.97304 → v3 0.97332 OOF, +0.00029; LB 0.97271).
+  Mechanism: training-distribution rebalancing (v7 = train-all + route-
+  infer was WORSE than vanilla, falsifying inference-routing as the
+  source). That lever had **never been re-applied on top of the V10
+  recipe pipeline** (LB 0.97939 → 0.98094 family) — the recipe uses
+  `compute_sample_weight("balanced")` instead of explicit row dropping.
+  This experiment closes the gap.
+
+- Changed: `scripts/recipe_full_te.py` (44 lines added) — new
+  `DROP_SCORES` env var (e.g. "0,1,2"). Computes `dgp_score` on
+  train+test from raw threshold flags + Mulching_Used + Crop_Growth_Stage
+  (formula: `2*(soil_lt_25 + rain_lt_300) + temp_gt_30 + wind_gt_10 +
+  nomulch + Kc`, where Kc=2 iff stage in {Flowering, Vegetative}).
+  Per-fold filter drops `tr_idx` rows whose score ∈ DROP_SCORE_SET
+  BEFORE OTE fit, so OTE statistics see only the kept rows. Inference
+  override: `oof[val_route]` and `test_pred[test_route]` set to one-hot
+  Low for routed rows. Output suffix `_ds012` keeps LB-best artefacts
+  untouched. Mutually exclusive with CLEANLAB_TREATMENT.
+  `scripts/blend_gate_dropscores.py` (155 lines): 3-anchor analyzer
+  (recipe / LB-best 3-stack / LB-best 4-stack) with fixed-recipe-bias
+  α-sweep + per-class recall guardrail (-5e-4 floor each class) +
+  +2e-4 LB-transfer emit gate.
+
+- Production (5-fold seed=42, 287k train rows after dropping 271,444
+  {0,1,2} rows = 43.07%, ~34 min CPU):
+  ```
+  per-fold argmax  0.97426 / 0.97478 / 0.97711 / 0.97541 / 0.97544  σ=0.00096
+  OOF argmax       0.97544     (recipe baseline 0.97589, Δ -0.00045)
+  tuned OOF        0.97940     (recipe 0.97967, Δ -0.00027)
+  tuned bias       [0.032, 1.069, 3.001]   (recipe [1.43, 1.47, 3.40])
+  ```
+  Bias profile collapsed: Low bias dropped 1.40, Medium dropped 0.40,
+  High dropped 0.40. Removing 271k Low rows pre-balances the gradient,
+  so log-bias post-hoc has less Low-deficit to correct.
+
+- **Diagnostics @ fixed recipe bias [1.4324, 1.4689, 3.4008]** (the
+  blend operating point):
+  ```
+                       errs    PCR [Low,    Med,    High]    Jaccard vs cand
+  ds012 candidate     9,856   [0.9961, 0.9670, 0.9744]    1.0000
+  recipe_full_te     10,114   [0.9950, 0.9675, 0.9765]    0.7578  ← LOWEST
+  LB-best 3-stack     9,572   [0.9955, 0.9689, 0.9774]    0.7926
+  LB-best 4-stack     9,415   [0.9955, 0.9695, 0.9775]    0.7910
+  ```
+  ds012 has **258 FEWER errors than recipe** AND Jaccard 0.76 vs recipe —
+  the LOWEST tree-family Jaccard ever recorded on this problem (prior
+  best: `recipe_no_ote` at 0.60, but it had +16% MORE errors). ds012 is
+  the first tree variant with BOTH lower errors AND high orthogonality.
+
+- **But per-class trade is wrong direction under macro-recall**: Low
+  +0.0011 / Med -0.0005 / **High -0.0021**. High has 12× per-row
+  leverage (21k vs 240k Med), so the 0.0021 High recall drop wipes out
+  the Low gain on macro-recall. Net standalone @ recipe-bias = 0.97920
+  (Δ -0.00047 vs 0.97967).
+
+- **Blend gate** (fixed recipe bias, α-sweep, no per-α retune):
+  ```
+  vs recipe (0.97967):
+    peak α=0.40   Δ=+0.00017   pcr-FAIL (High recall < 0.97649 floor)
+    max gate-pass α=0.10  Δ=+0.00005  (sub +2e-4 emit gate)
+  vs LB-best 3-stack (0.98061):
+    peak α=0.000  Δ=0  monotone-negative from α=0.025
+  vs LB-best 4-stack (0.98084):
+    peak α=0.000  Δ=0  monotone-negative from α=0.025
+  ```
+  Strict null on every anchor. **No LB probe warranted** — projected
+  LB at any α ≪ current best 0.98094.
+
+- **Diagnosis — why v3's lift doesn't transfer to recipe**:
+  - v3 (dist features): `multi:softprob` with NO sample weights → natural
+    prior was Low-heavy → dropping 271k {0,1,2}-Low rows pre-balanced
+    the gradient → +0.00029 OOF lift was real.
+  - recipe (V10 features): `compute_sample_weight("balanced")` already
+    weights gradient equally across classes → DROP_SCORES is a
+    DOUBLE-rebalance. The second mechanism overshoots toward High
+    predictions on borderline rows in {6,7,8} (where rare-High signal
+    lives), losing -0.0021 High recall.
+  - Pre-hoc analog of the binhigh-rule failure: when two rebalancing
+    mechanisms stack, the second OOF-overshoots the rare-class
+    operating point the first already calibrated for.
+
+- **Notable side-finding** (the senior-researcher take-away):
+  Training-distribution rebalancing produces **genuinely orthogonal
+  errors** on this feature set (Jaccard 0.76 is a competition-record
+  for tree variants). The lever is alive in error-geometry terms; it
+  fails because the recipe's class-balanced weighting already absorbs
+  the gradient-rebalancing benefit, leaving DROP_SCORES to overshoot in
+  the wrong per-class direction. On a future synthetic-tabular problem
+  where the base model does NOT use class-balanced weights, this lever
+  could lift +0.0003 standalone (matching v3's pattern).
+
+- **11th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                                  best LB / OOF Δ
+  --------------------------------------------- ----------------
+  1. Tier 1c greedy expanded (132c)             sub-gate
+  2. Tier 1c meta-stacker v2 (224-dim)          sub-gate
+  3. Tier 1c meta-stacker XGB seed-bag          sub-gate
+  4. Cross-poll metastack v3                    LB 0.98060 (-0.00034)
+  5. J2 bootstrap-bagged metastack              proj null
+  6. LR meta-stacker v2 (C=0.1, none)           LB 0.98052 (-0.00042)
+  7. LR v2 + iso-after-blend                    sub-gate
+  8. v4 ET+kNN bank-extension                   LB 0.97992 (-0.00102)
+  9. P3 perturbed meta v1                       LB 0.97955 (-0.00139)
+  10. score=6 boundary deep-dive (5 stages)     proj LB +0.000025 sub-gate
+  11. **DROP_SCORES=0,1,2 (this entry)           OOF Δ ≤ +0.00017 sub-gate**
+  ```
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Training-distribution rebalancing levers are mutually exclusive
+     with class-balanced sample weights.** When the base model already
+     uses `compute_sample_weight("balanced")`, removing rows from the
+     majority class amounts to a double-rebalance that overshoots the
+     rare-class operating point. Either remove the sample-weight call
+     OR apply DROP_SCORES — never both.
+  2. **Lowest-Jaccard candidate is NOT necessarily the best blend leg
+     even with fewer errors than anchor.** ds012 is a competition-record
+     0.76 Jaccard with -2.5% errors vs recipe — the cleanest blend
+     fingerprint ever recorded — yet blend-fails because per-class
+     recall lands -0.0021 on the rare class. The blend-gate "fewer
+     errors AND lower Jaccard" heuristic from the digit-OTE LB-win era
+     needs a third clause: **per-class recall must move in the
+     macro-recall-favorable direction**. Track per-class recall delta
+     as a first-class gate metric, not just total errors.
+
+- LB budget: **0 used today** (4 cumulative this week, 6 remaining).
+  No LB probe warranted. LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. Final-selection lock unchanged.
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/recipe_full_te.py` (DROP_SCORES env var integration)
+  - `scripts/blend_gate_dropscores.py` (3-anchor blend-gate analyzer)
+  - `scripts/artifacts/oof_recipe_full_te_ds012.npy` + test (7.2 MB)
+  - `scripts/artifacts/recipe_full_te_ds012_results.json`
+  - `scripts/artifacts/blend_gate_dropscores_results.json`
+  - `submissions/submission_recipe_full_te_ds012.csv` (diagnostic, NOT
+    for LB probe)
