@@ -105,7 +105,7 @@ def _find_one(pattern: str) -> Path:
         return p
     raise FileNotFoundError(f"no match for {pattern} under {KAGGLE_INPUT}")
 
-SMOKE = os.environ.get("SMOKE", "1") == "1"  # FIRST PUSH: SMOKE on by default
+SMOKE = os.environ.get("SMOKE", "0") == "1"  # promoted to PROBE after smoke pass
 PROBE = os.environ.get("PROBE", "1") == "1"  # default: 1-fold PROBE
 if SMOKE:
     N_FOLDS = 2
