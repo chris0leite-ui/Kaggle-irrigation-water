@@ -863,3 +863,11 @@ kaggle_kernel/*/dist/
 # mechanism contributes ZERO signal at fixed bank size.
 !scripts/artifacts/oof_meta_perturbed_62_v1.npy
 !scripts/artifacts/test_meta_perturbed_62_v1.npy
+
+# 2026-04-26 LP / Bayes-optimal decision-rule probe — 10th independent
+# saturation confirmation at LB 0.98094. Closes "log-bias coord-ascent
+# is overfit" hypothesis: closed-form Bayes-optimal under train prior
+# loses 0.00012 vs coord-ascent. Richer (T,b) family lifts +0.00009
+# (below +2e-4 gate). LP cardinality cap loses 0.00646 (matches P2
+# quota null mechanism). No LB probe warranted.
+!scripts/artifacts/lp_decision_rule_results.json
