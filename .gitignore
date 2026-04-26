@@ -1109,3 +1109,16 @@ scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
 !scripts/artifacts/test_recipe_full_te_anchw20.npy
 !scripts/artifacts/recipe_full_te_anchw20_results.json
 !scripts/artifacts/mech_b_blend_gate_anchw20_results.json
+
+# 2026-04-26 Mech D per-row attention over 62-component LB-best bank (NULL).
+# Architecture: context (15d) → MLP(64) → softmax(62) attention weights →
+# convex blend of component log-probs. Lands on OPPOSITE side of Pareto
+# frontier from LB-best 4-stack: PCR Med +0.00252, High -0.00400. Net Δ
+# -0.00056 standalone, all blends monotone-negative. CE loss + class
+# imbalance pushes attention toward Medium-confident predictions; without
+# macro-recall surrogate the convex constraint collapses wrong direction.
+# 15th saturation confirmation. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_mech_d.npy
+!scripts/artifacts/test_mech_d.npy
+!scripts/artifacts/mech_d_results.json
+!scripts/artifacts/mech_d_blend_gate_results.json
