@@ -174,6 +174,13 @@ def main():
                                 random_state=SEED)
     summary_rows = []
     for outer, (tr_outer, va_outer) in enumerate(skf_outer.split(train, y), 1):
+        oof_path = ART / f"oof_recipe_leakfree_outer{outer}.npy"
+        test_path = ART / f"test_recipe_leakfree_outer{outer}.npy"
+        # Resume: skip outer fold if both artifacts already exist on disk.
+        if oof_path.exists() and test_path.exists():
+            log(f"=== outer fold {outer}/{N_OUTER}  SKIPPED (artifacts exist) ===")
+            summary_rows.append(dict(outer=outer, status="resumed"))
+            continue
         log(f"=== outer fold {outer}/{N_OUTER}  "
             f"|tr_outer|={len(tr_outer):,}  |va_outer|={len(va_outer):,} ===")
         # Inner CV inside tr_outer ONLY → no leak from V_outer.
