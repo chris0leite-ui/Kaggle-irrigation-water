@@ -1027,3 +1027,19 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
+# Angles A/B/C — fresh-perspective levers (2026-04-26)
+!scripts/artifacts/oof_angle_a_residual.npy
+!scripts/artifacts/test_angle_a_residual.npy
+!scripts/artifacts/oof_angle_a_residual_raw.npy
+!scripts/artifacts/test_angle_a_residual_raw.npy
+!scripts/artifacts/angle_a_residual_results.json
+!scripts/artifacts/oof_angle_b_recon.npy
+!scripts/artifacts/test_angle_b_recon.npy
+!scripts/artifacts/angle_b_dae_results.json
+!scripts/artifacts/oof_angle_c_mixup.npy
+!scripts/artifacts/test_angle_c_mixup.npy
+!scripts/artifacts/angle_c_mixup_results.json
+!scripts/artifacts/angles_blend_gate_results.json
+!scripts/artifacts/oof_recipe_full_te_dae.npy
+!scripts/artifacts/test_recipe_full_te_dae.npy
+!scripts/artifacts/recipe_full_te_dae_results.json

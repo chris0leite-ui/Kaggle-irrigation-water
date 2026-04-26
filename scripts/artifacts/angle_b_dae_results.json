@@ -1,0 +1,12 @@
+{
+  "smoke": false,
+  "n_epochs": 30,
+  "rule_correct_count": 619696,
+  "rule_flipped_count": 10304,
+  "recon_mse_rule_correct_mean": 0.06456910818815231,
+  "recon_mse_rule_flipped_mean": 0.0709208995103836,
+  "recon_mse_correct_p99": 0.1592503935098648,
+  "recon_mse_flipped_p50": 0.06581422686576843,
+  "separation_ratio": 1.0983719846915398,
+  "wall_min": 2.7283809542655946
+}
