@@ -11866,6 +11866,245 @@ more folds / HP tuning" as a forward lever:
   - `scripts/score6_manifold_stage1e.py` (against actual primary)
   - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
 
+### 2026-04-26 — fresh-angles A+B+C trio (residual / rule-correct DAE / within-cell mixup): 3 NULLs, 12th saturation confirmation
+
+- Goal: user-requested execution of three fresh-perspective levers proposed
+  as the only mechanisms not yet exercised in the comp log. Each attacks the
+  magnitude-trap from a structurally distinct angle.
+
+- **Angle A — residual-correction XGB on (one_hot(y) − primary_softprob)**
+  (`scripts/angle_a_residual.py`, ~115 lines, 30 sec wall):
+  - LB-best primary reconstructed: `lb_best_3stack ⊗ xgb_metastack_iso α=0.30`
+    → OOF 0.98084 exactly (matches documented value, sanity-check passed).
+  - Residual XGB: 33 features = 28 dist + 3 primary probs + max_prob + entropy.
+    5-fold seed=42, three independent reg trees (one per class) on
+    sum-to-zero residual targets.
+  - α-sweep at fixed recipe bias [1.4324, 1.4689, 3.4008]:
+    ```
+    α       OOF       Δ vs primary baseline
+    0.000  0.98084   +0.00000   ← peak
+    0.025  0.98079   −0.00005
+    0.050  0.98076   −0.00008
+    0.100  0.98077   −0.00008
+    0.300  0.98084   −0.00000
+    0.500  0.98075   −0.00009
+    ```
+    Monotone-flat below baseline. Per-fold residuals range −0.00115 to
+    +0.00088 (cancel globally at any single shared α).
+  - **Verdict: NULL.** Per-row residual fits don't transfer to held-out
+    fold under macro-recall + fixed bias. Different folds want different
+    α; a global α can't satisfy all.
+
+- **Angle B — rule-correct-only autoencoder anomaly-score feature**
+  (`scripts/angle_b_dae.py` + `scripts/recipe_full_te.py DAE_EMBED_PATH`,
+  ~13 min DAE training + ~43 min recipe retrain):
+  - DAE config: 4-layer encoder-decoder MLP (in→64→64→16→64→64→out), GELU+
+    LayerNorm, 30 epochs, batch=2048, AdamW 1e-3, cosine schedule.
+    Trained on 588,712 rule-correct fit rows / 30,984 rule-correct val rows.
+    SwapNoise p=0.15 on numerics+cats during training.
+  - Reconstruction MSE separation: rule-correct mean 0.0646 (p99=0.16),
+    rule-flipped mean 0.0709 (p50=0.066). **Separation ratio 1.098×** —
+    real signal at row level but small magnitude.
+  - Recipe retrain with 1-d recon-error feature added to numerics (444
+    total features, otherwise identical to LB-best 0.97939 recipe pipeline):
+    ```
+    Per-fold argmax: 0.97565 / 0.97597 / 0.97695 / 0.97419 / 0.97506
+    Overall argmax: 0.97557 (recipe baseline 0.97589, Δ −0.00032)
+    Tuned bal_acc:  0.97955 (recipe baseline 0.97967, Δ −0.00012)
+    Bias:           [1.4324, 1.3689, 3.4008]   (High bias 3.40 = recipe's exactly)
+    ```
+  - Blend gate vs LB-best 4-stack (anchor 0.98084, errs 9415):
+    ```
+    standalone @ recipe bias:  errs 10042  (+6.7%)  Jaccard 0.828
+    per-class recall:          L 0.9949 (−0.0006) M 0.9680 (−0.0015) H 0.9756 (−0.0019)
+    α-sweep:                   0.98084 → 0.98025 (monotone-negative across α∈[0,0.5])
+    ```
+  - **Verdict: NULL** on both axes. The 1-d recon-error feature is
+    redundant with the recipe's existing 443 features (Jaccard 0.83 in
+    the redundancy zone), AND its standalone errors land +6.7% over
+    anchor with all three per-class recalls slightly worse. Same failure
+    mode as the 2026-04-24 128-d SwapNoise DAE on full train+test —
+    rule-correctness conditioning didn't unlock the orthogonal-error
+    profile we hoped for.
+
+- **Angle C — within-cell rule-disagreement mixup augmentation**
+  (`scripts/angle_c_mixup.py`, ~8 min wall, dist-feature base):
+  - 6-bit rule_cell packing (dry, norain, hot, windy, nomulch, kc_active)
+    → 64 cells. Per-cell pair construction: cap 4000 rows/cell, permute,
+    keep cross-class (y_i ≠ y_j) pairs only. Result: **8,299 within-cell
+    cross-class pairs** → K=3 β(0.4, 0.4) mixup → **24,897 mixup rows**.
+  - Mixup mechanism: convex combo on numerics, Bernoulli sampling on
+    cats by α, soft labels (1-α)·onehot(y_i) + α·onehot(y_j). Hard target
+    via argmax + sample_weight = soft_max for confidence attenuation.
+  - 5-fold seed=42 on dist-feature base (35 cols), per-fold filter to
+    only include mixup rows whose donors are both in tr_idx (~64% kept).
+    XGB: max_depth=4, max_leaves=30, lr=0.1, n_est=1500, reg_alpha=5,
+    reg_lambda=5, balanced sample_weight × confidence-weighted mix_w.
+  - Standalone results:
+    ```
+    Per-fold argmax: 0.96917 / 0.97079 / 0.97177 / 0.96930 / 0.97056
+    Overall argmax:  0.97032   tuned: 0.97136
+    Bias:            [2.232, 2.069, 2.601]  (sharper Low/Med than recipe;
+                                             milder High)
+    ```
+  - Blend gate vs LB-best 4-stack (anchor 0.98084, errs 9415):
+    ```
+    standalone @ recipe bias:  errs 20745 (+120% magnitude)
+    Jaccard vs anchor:         0.376  ← BEST tree-family orthogonality on this problem
+                                       (lower than NN families except KAN 0.13 / TabPFN-10k 0.21)
+    per-class recall:          L 0.9948 / M 0.9231 (−0.046!) / H 0.9791
+    α-sweep:                   peak α=0.025 Δ=+0.00000;
+                                monotone fall to α=0.5 Δ=−0.0021
+    ```
+  - **Verdict: NULL** — magnitude trap dominates. The mechanism IS alive
+    (Jaccard 0.376 is unprecedented for tree-family on this feature set),
+    but the dist-base XGB has 2.2× more errors than anchor, AND the
+    mixup pushes Medium predictions toward High aggressively (Medium
+    recall −0.046 vs anchor). The mixup mechanism would need a recipe-
+    base XGB (errs ~10k vs anchor's 9.4k) AND careful per-class
+    sample-weight balancing to thread the needle. Future-session retry
+    target: scale to recipe-base, run with Medium-protective sample
+    weighting (down-weight pairs that flip Medium-to-High by 0.3-0.5×),
+    and re-test the magnitude+per-class profile.
+
+- **12th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                                  best blend Δ vs LB-best 4-stack
+  ----------------------------------------------- -----------------------------
+  1. Tier 1c greedy expanded (132c)               +0.00002
+  2. Tier 1c meta-stacker v2 (224-dim)            +0.00002
+  3. Tier 1c meta-stacker XGB seed-bag            +0.00003
+  4. Cross-poll metastack v3                      +0.00015 (LB -0.00034)
+  5. J2 bootstrap-bagged metastack                +0.00003 (proj null)
+  6. LR meta-stacker v2 (C=0.1, none)             +0.00098 (LB -0.00042)
+  7. LR v2 + iso-after-blend                      +0.00000
+  8. v4 ET+kNN bank-extension                     +0.00036 (LB -0.00102)
+  9. P3 perturbed meta v1                         +0.00071 (LB -0.00139)
+  10. score=6 boundary deep-dive (5 stages)       +0.000086 (proj +0.000025 LB)
+  11. DROP_SCORES=0,1,2 + 4-stack saturation      +0.00017 (sub-gate)
+  12. **A residual / B DAE-recon / C mixup        +0.00000 across all three**
+  ```
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Per-row residual-correction models cannot transfer per-fold
+     residual signal under macro-recall + fixed bias.** Even with
+     leak-safe OOF residuals as targets, different folds want different
+     correction magnitudes; a single global α can't satisfy them.
+     The fix would require per-fold-α (which is selection-bias prone)
+     or per-row gating (already nulled via 2026-04-26 MoE experiment).
+  2. **1-dimensional anomaly-score features added to a saturated
+     443-feature recipe pipeline are absorbed without lift.** The
+     recipe's tree splits already capture rule-correctness through
+     factorized rule_pred + dist features + OTE on rule cells; an
+     external anomaly score is informationally redundant. Rule-
+     correct conditioning on the DAE training set didn't change
+     this — the conditioning narrows what the DAE learns but
+     doesn't widen the channel through which the recipe can use it.
+  3. **Within-cell rule-disagreement mixup IS a fresh orthogonality
+     mechanism (Jaccard 0.376 vs anchor)** but the magnitude trap
+     applies pre-emptively when the base model is significantly
+     weaker than the anchor. To use the mechanism: pair it with a
+     recipe-strength base AND per-class sample-weight balancing
+     that prevents the mixup from distorting majority-class probs
+     (here: Medium recall −0.046 was the killer).
+
+- LB delta: n/a (no submission warranted; all three sweeps strictly
+  negative or flat). LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. LB budget unchanged.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/{angle_a_residual,angle_b_dae,angle_c_mixup,angles_blend_gate}.py`
+  - `scripts/artifacts/oof/test_angle_a_residual{,_raw}.npy`
+  - `scripts/artifacts/oof/test_angle_b_recon.npy`
+  - `scripts/artifacts/oof/test_angle_c_mixup.npy`
+  - `scripts/artifacts/oof/test_recipe_full_te_dae.npy` (1-d recon variant;
+    overwrites prior 128-d SwapNoise DAE artefact)
+  - 4 results JSONs
+
+### 2026-04-26 — Angle-C follow-ups C2/C3a/C3b: closed family at NULL (recipe-base mixup on 4-stack anchor)
+
+- Goal: rescue Angle-C (within-cell mixup) from its dist-base magnitude
+  trap (errs +120%) by porting to the recipe pipeline. Three iterations:
+  - **C2**: recipe-base + drop M↔H pairs (Medium-protect) + confidence-
+    gate (primary max_prob<0.95, drops clean×clean) + K=1 + β(0.2, 0.2).
+    3,909 pairs → 3,909 mixup rows (~0.62% of train).
+  - **C3a**: same as C2 but DROP confidence-gate to test whether the
+    gate was a productive filter or redundant. 4,808 pairs (+899
+    clean×clean) → 4,808 mixup rows.
+  - **C3b**: same as C2 but K=3 (volume amplifier) instead of K=1.
+    3,909 pairs → 11,727 mixup rows (~3.4× more volume).
+- Standalone tuned OOF (recipe baseline 0.97967):
+  ```
+  variant   conf_gate   K    n_mix     OOF tuned   bias                   Δ vs C2
+  C2        0.95        1    3,909    0.97983     [0.83, 1.07, 3.20]     —
+  C3a       OFF         1    4,808    0.97944     [0.83, 0.97, 2.90]    -0.00039
+  C3b       0.95        3    11,727   0.97951     [1.03, 1.27, 3.40]    -0.00032
+  ```
+  - **C3a confirms conf-gate was productive**: removing it (adding 899
+    clean×clean pairs where both donors are confident) regresses
+    standalone tuned by −0.00039 vs C2. The gate was filtering noise.
+  - **C3b confirms K-volume doesn't unlock orthogonality at recipe
+    base**: 3× more mixup rows actually drops standalone, the extra
+    volume adds noise (more Beta-interpolated pseudo-points the
+    model has to absorb) without sharpening the boundary.
+
+- Unified blend-gate vs LB-best 4-stack (anchor OOF 0.98084, errs 9415):
+  ```
+  variant       errs vs anchor   Jaccard   bestα   Δ           emit
+  C  (dist+K=3)  +120%           0.376     0.025   +0.00000    N (magnitude trap)
+  C2 (recipe+gate+K=1) +6.4%     0.819     0.000   +0.00000    N (redundancy)
+  C3a (recipe -gate K=1) +5.7%   0.814     0.000   +0.00000    N (redundancy)
+  C3b (recipe gate K=3) +8.4%    0.809     0.025   +0.00004    N (sub-gate)
+  ```
+  - C3b is the FIRST C-variant where bestα > 0 (α=0.025, Δ=+0.00004).
+    Microscopic but technically positive — K=3 volume DOES add a tiny
+    sliver of orthogonal signal at very low blend weight. Two orders
+    of magnitude below the +0.0005 LB-probe threshold.
+  - **No LB submission warranted on any C-variant.**
+
+- **Closure conclusion**: the within-cell mixup mechanism is fundamentally
+  trapped between two regimes:
+  1. **Dist-base** (C v1): Jaccard 0.38 (excellent orthogonality) but
+     errs +120% (catastrophic magnitude trap).
+  2. **Recipe-base** (C2/C3a/C3b): Jaccard ~0.81 (in redundancy zone)
+     and errs ≤+8% (magnitude OK). The base is too similar to the
+     anchor (LB-best is built ON recipe), so mixup-induced perturbation
+     gets absorbed into existing splits rather than producing new
+     decision-surface geometry.
+  No mixup configuration we tested threads the (Jaccard < 0.80, errs ≤
+  +5%) blend-gate window. The mechanism is alive at the dist scale but
+  too weak; it's redundant at the recipe scale.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Confidence-gating mixup pairs is a productive filter, not
+     redundant overhead.** Removing the gate (allowing clean×clean
+     pairs where both donors have primary max_prob > 0.95) regressed
+     C3a's standalone OOF by −0.00039 vs C2. Mechanism: clean-confident
+     pairs encode redundant rule-aligned info that mixup interpolation
+     just smears across decision boundaries the model already has
+     correct. Always confidence-gate when the primary model is much
+     stronger than the mixup base.
+  2. **K-volume scaling on within-cell mixup hits diminishing returns
+     fast at recipe-base scale.** K=3 (3× pair multiplication) added
+     7,818 extra mixup rows but the standalone tuned OOF dropped
+     −0.00032 vs K=1. The first synthesized point per pair captures
+     the boundary perturbation; additional K samples from β(0.2, 0.2)
+     add noise (multiple α∈[0,1] re-weightings of the same donor pair)
+     rather than new geometric variation. Stick with K=1 unless mixup
+     volume relative to train pool is < 0.5%.
+
+- **13th independent saturation confirmation at LB 0.98094** (C-family
+  closure joins the 12 prior saturation entries documented above).
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/angle_c2_helpers.py`, `scripts/angle_c2_recipe_mixup.py`
+    (parameterized via `OUT_SUFFIX`, `DROP_MH`, `CONF_THRESH`, `K_MIX`,
+    `BETA_A` env vars)
+  - `scripts/artifacts/oof_angle_{c2,c3a,c3b}_mixup.npy` + test (6 files)
+  - `scripts/artifacts/angle_{c2,c3a,c3b}_mixup_results.json`
+  - `submissions/submission_angle_{c2,c3a,c3b}_mixup.csv` (diagnostic,
+    not for LB probe)
+
 ### 2026-04-26 — combined v6 meta-stacker (#3+#4+#6 deep dive): LB 0.98059 = 11th saturation confirmation
 
 - Goal: user-requested deep dive on three structurally distinct levers added
