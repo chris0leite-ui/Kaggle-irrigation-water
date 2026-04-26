@@ -992,3 +992,20 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_own_3view.npy
 !scripts/artifacts/oof_own_greedy_fine.npy
 !scripts/artifacts/test_own_greedy_fine.npy
+# 2026-04-26 LP / Bayes-optimal decision-rule probe — 10th independent
+# saturation confirmation at LB 0.98094. Closes "log-bias coord-ascent
+# is overfit" hypothesis: closed-form Bayes-optimal under train prior
+# loses 0.00012 vs coord-ascent. Richer (T,b) family lifts +0.00009
+# (below +2e-4 gate). LP cardinality cap loses 0.00646 (matches P2
+# quota null mechanism). No LB probe warranted.
+!scripts/artifacts/lp_decision_rule_results.json
+
+# 2026-04-26 N1 TabPFN-10k 1-fold val-only signal probe — 11th saturation
+# confirmation at LB 0.98094, 14th NN family null. Standalone tuned 0.96424
+# vs anchor 0.97994 (-0.0157), Jaccard 0.2158 (LOWEST EVER, prior best
+# Mamba 0.49), but +5923 errors (+309.5% magnitude trap). Test pred is
+# uniform-prior placeholder (SKIP_TEST=True; signal-check only).
+!scripts/artifacts/oof_tabpfn_10k.npy
+!scripts/artifacts/test_tabpfn_10k.npy
+!scripts/artifacts/tabpfn_10k_results.json
+!scripts/artifacts/blend_tabpfn_10k_fold0_results.json

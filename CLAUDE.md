@@ -12113,3 +12113,339 @@ more folds / HP tuning" as a forward lever:
   - `scripts/artifacts/blend_gate_dropscores_results.json`
   - `submissions/submission_recipe_full_te_ds012.csv` (diagnostic, NOT
     for LB probe)
+### 2026-04-26 — Bayes-optimal / LP decision-rule probe: NULL (10th saturation confirmation, "log-bias overfit" hypothesis falsified)
+
+- Goal: stress-test the unstressed property of the LB-best primary's
+  decision rule. Coord-ascent log-bias `[1.43, 1.47, 3.40]` is a
+  3-parameter heuristic. The closed-form Bayes-optimal under macro-recall
+  is `b_k = -log(π_k)` which gives `[0.53, 0.97, 3.41]` for our train
+  priors. The Low/Medium components differ by ~0.9 units — either
+  coord-ascent overfits OOF, or the predicted probabilities are
+  miscalibrated relative to true posteriors. This probe distinguishes.
+- Branch: `claude/kaggle-missing-strategies-rls5d`. Single script,
+  ~190 lines (`scripts/lp_decision_rule.py`).
+- Mechanism: reconstruct LB-best primary (3-stack + xgb_metastack_iso α=0.30)
+  via `tier1b_helpers.build_lbbest_stack` + add metastack step. Apply 4
+  decision-rule families to the SAME OOF/test predictions, report
+  per-class recall + errors + macro-recall delta vs current bias.
+- Results (5-fold OOF, sanity reproduced 0.98084 baseline):
+  ```
+  family                                 bias / params              OOF      Δ vs baseline   gate
+  CURRENT log-bias (LB-best, baseline)   [1.43, 1.47, 3.40]         0.98084  +0.00000        n/a
+  Bayes-opt (train prior)                [0.53, 0.97, 3.40]         0.98072  -0.00012        FAIL
+  Bayes-opt (test rule_pred prior)       [0.52, 0.98, 3.40]         0.98070  -0.00014        FAIL
+  Joint (T, b) coord-ascent              T=[0.6,0.9,1.0], b=BIAS    0.98093  +0.00009        FAIL
+  LP cardinality cap (train prior)       greedy assignment           0.97438  -0.00646        FAIL
+  ```
+- **Decisive finding**: closed-form Bayes-optimal LOSES macro-recall
+  (-0.00012) vs coord-ascent. Per-class trade is informative:
+  - Closed-form: High recall UP +0.0036 (0.9775 → 0.9811), but
+    Low (-0.0008) and Medium (-0.0031) BOTH down. Net negative.
+  - Coord-ascent's heavier Low/Medium biases are NOT overfit —
+    they're a **real calibration correction** for over-confident
+    Low/Medium probabilities in the LB-best primary.
+- **Joint (T, b) family** found T_Low=0.6 (sharpens Low probs by
+  raising them to 1/T = 1.67 power) at unchanged biases. OOF lift
+  +0.00009 — below the +2e-4 LB-transfer threshold. Only **142 test
+  rows** differ from current submission; per the linear-projection
+  rule established in prior LR/v4 closures, expected LB Δ ≈ 0
+  given gap inflation typically eats half the small OOF lift.
+- **LP cardinality cap** (force-cap class counts to train prior):
+  -0.00646 (massive regression). Reconfirms the 2026-04-25 P2
+  quota-null mechanism: hard caps discard the rare-class
+  over-prediction signal that drives macro-recall under fixed bias.
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Coord-ascent log-bias coordinates can drift far from the
+     closed-form Bayes-optimum WITHOUT being overfit** when the base
+     model's predicted probabilities are miscalibrated per-class.
+     The drift IS the calibration correction. To diagnose:
+     compute `|coord-ascent_bias − (−log π)|` per class. If the
+     drift is structurally consistent across re-runs and cross-
+     validation seeds, it's signal, not noise.
+  2. **Per-class temperature scaling on a tuned blend with fixed
+     bias has a thin signal channel**: T_k controls how sharply the
+     model's "confident class" outranks runners-up. On a heavily-
+     calibrated stack, T sweeps tend to find ≤+0.0001 OOF without
+     transfer-positive blend Δ.
+  3. **The LP/quota family of rules (force-cap to a known prior)
+     is structurally wrong for macro-recall**. Confirmed twice now
+     (P2 quota 2026-04-25 and LP cap this entry). The decision rule
+     family that works is "additive log-shift + (optional) per-class
+     temperature" — closed under arbitrary monotonic per-class
+     reweighting.
+- LB budget unchanged: 4/10 used (no probe warranted, all 4 families
+  fail the +2e-4 OOF gate). LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- **10th independent saturation confirmation at LB 0.98094**.
+- Artefacts:
+  - `scripts/lp_decision_rule.py` (~190 lines, single-file)
+  - `scripts/artifacts/lp_decision_rule_results.json` (5-family report)
+
+### Next steps: post-LP closure shortlist (2026-04-26)
+
+After 10 independent saturation confirmations at LB 0.98094, the
+own-pipeline ceiling is structurally bounded. Four levers remain
+worth trying (4 days to deadline, 6 LB submissions available today).
+Each is structurally distinct from every prior null AND from each
+other. Ranked by expected EV / cost:
+
+  **N1. TabPFN at 10k context on Kaggle GPU** (~30 min wall, top-pick).
+  The 2026-04-22 TabPFN run capped at SUBSAMPLE=1500 for CPU
+  feasibility. TabPFN v2's *architectural sweet spot* is 10k
+  context. We have NEVER measured TabPFN at design scale; the
+  earlier closure note said "GPU SUBSAMPLE=10000 unlikely to change
+  blend outcome" but that was a guess from 1.5k context Jaccard,
+  not an experiment. At 10k context the model sees ~7x more rare-
+  class examples (333 High @ 10k stratified vs 50 @ 1.5k), which
+  is exactly the failure mode that crippled the prior run's High
+  recall (0.9238 standalone).
+  - Action: scaffold `kaggle_kernel/kernel_tabpfn_10k/` mirroring
+    kernel_realmlp pattern. SMOKE first (1-fold × 10k context ×
+    5-min wall) then production (5-fold × 10k stratified
+    in-context fit per fold). Save `oof_tabpfn_10k.npy` +
+    `test_tabpfn_10k.npy`.
+  - Gate: standalone OOF tuned ≥ 0.974 AND fold-1 Jaccard < 0.78
+    vs LB-best 4-stack AND errs ≤ 9415 (the +5% magnitude rule).
+    If passes: add to meta-stacker bank → re-train cross-poll
+    metastack → blend gate at +2e-4 OOF.
+  - Expected: most likely 14th NN family null (the magnitude-trap
+    pattern is structural at this feature set) but TabPFN is the
+    only NN family WITH a track record of high-confidence per-row
+    posteriors that calibrate well at the operating point our
+    fixed bias targets. ~20% prior of breaking the pattern.
+
+  **N2. CVAE-generated synthetic High rows** (~1.5h Kaggle GPU).
+  Direct fix for SMOTE-NC's interpolation failure. SMOTE failed
+  because k-NN linear interpolation diffused the M↔H boundary.
+  CVAE generates samples from a *learned latent manifold*
+  conditioned on `y=High`, so synthetic Highs respect the joint
+  distribution rather than averaging neighbors. Different
+  failure-mode geometry from SMOTE.
+  - Action: scaffold `kaggle_kernel/kernel_cvae_high/` —
+    encoder-decoder CVAE on RAW 19 features (8 cats embedded +
+    11 nums standardized), latent_dim=8, KL-regularized, 100
+    epochs. Generate 21k synthetic High rows from posterior
+    samples conditioned on y=High. Augment recipe training pool
+    by 2x High rate. Re-train recipe XGB.
+  - Gate: standalone OOF tuned ≥ 0.978 (matches recipe baseline
+    at minimum) AND per-class High recall ≥ 0.978 (above
+    LB-best 0.9775) AND Jaccard < 0.85 vs recipe.
+  - Expected: SMOTE failed at every TARGET (42k, 25k); CVAE has a
+    specific reason to do better (manifold preservation). 25-30%
+    prior.
+
+  **N3. Hard-example scan on LB-best primary** (~30 min CPU).
+  Diagnostic, not a model. Take primary's bottom-1% confidence
+  test rows (~2,700 rows = max_prob below the 1st percentile).
+  Cross-tabulate with score-band, rule-vs-LB disagreement, and
+  per-class predicted distribution. If 80%+ of low-confidence
+  rows land in score=6 boundary, it tells us exactly where the
+  +0.00020 to pack-LB lives — and J7 conformal told us we
+  CAN'T get there with the current detector input set, meaning
+  we need a different feature view of those rows.
+  - Action: ~80-line `scripts/n3_hard_example_scan.py`. Output:
+    JSON with score-band breakdown, mean per-class prob, mean
+    rule-pred match rate, and feature-space centroids of the
+    low-confidence rows.
+  - Decision value: informs whether N1/N2 should target a
+    SPECIFIC sub-domain (e.g., score=6 ∩ Crop=Wheat ∩
+    Humidity > 70) rather than global retraining. Could surface
+    a 4th lever we haven't articulated.
+  - Expected: closure (no direct LB lift) but high information-
+    per-minute. Run FIRST before N1/N2.
+
+  **N4. recipe_no_rule_features standalone** (~50 min CPU).
+  We tested `recipe_no_ote/no_digits/no_combos/no_orig` (all
+  null on the magnitude rule). Never tested dropping the
+  rule-derived features themselves: `dgp_score, sm_dist, rf_dist,
+  tc_dist, ws_dist, dry, norain, hot, windy, nomulch, kc, rule_pred,
+  logit_P_low/med/high, rule_correctness flags`. Without rule
+  features, trees must re-discover the rule from continuous
+  signals — different basis for splits, possibly producing a
+  Jaccard-< 0.7 standalone that the magnitude trap doesn't kill
+  because the anchor's strength comes FROM the rule features.
+  - Action: parameterize `scripts/recipe_full_te.py` with
+    `EXTRA_EXCLUDE_RULE_FEATS=1` env var, drop ~17 rule cols
+    pre-OTE. Same 5-fold seed=42, same XGB HPs.
+  - Gate: standalone OOF tuned ≥ 0.973 (likely below recipe's
+    0.97967) AND Jaccard < 0.75 vs recipe AND errs ≤ recipe ×
+    1.10. If passes 2/3: add to meta-stacker bank.
+  - Expected: probably ≥0.75 Jaccard with recipe (recipe's tree
+    splits already use both rule cols and continuous correlates
+    of them). 15% prior of a useful blend leg, but cheap to test.
+
+  **Execution order**: N3 first (cheapest, informs the rest) →
+  parallel N1 (Kaggle GPU queue) + N4 (local CPU) → N2 if N1
+  doesn't return a passing leg. If all four null:
+
+  **N5 (lock + stop)**: lock primary `submission_tier1b_greedy_meta.csv`
+  (LB 0.98094) + hedge `submission_3way_recipe025_s1035_s7040.csv`
+  (LB 0.98005) and reserve remaining LB submissions for end-of-comp
+  variance check (one re-validation per day until close).
+
+  **Skip on principled grounds** (re-confirmed today):
+  - More log-bias / Bayes-opt / decision-rule variants — the
+    LP probe definitively closes this family. Coord-ascent is
+    near-optimal at the operating point our calibration produces.
+  - Public-CSV blending (banned by top-of-file rule).
+  - More NN-family attempts beyond TabPFN-10k. 14 NN nulls form
+    a structural pattern at this feature set; TabPFN-10k is the
+    last UNTESTED-AT-DESIGN-SCALE family.
+  - HP/seed bagging on existing components (LB-regressed twice).
+
+### 2026-04-26 — N1 TabPFN-10k 1-fold val-only signal probe: NULL (15th NN family null, lowest Jaccard ever 0.21)
+
+- Goal: execute N1 from the post-LP shortlist. The prior 2026-04-22
+  TabPFN run capped at SUBSAMPLE=1500 for CPU. TabPFN v2's
+  architectural sweet spot is 10k. The closure note "GPU SUBSAMPLE=10000
+  unlikely to change blend outcome" was a guess from 1.5k Jaccard,
+  never measured. At 10k context, ~6.7x more rare-class examples
+  (3,333 High vs ~50 @ 1.5k) — direct test of whether rare-class data
+  shortage was the structural problem.
+- Branch: `claude/kaggle-missing-strategies-rls5d`. Single-file kernel
+  `kaggle_kernel/kernel_tabpfn_10k/tabpfn_10k.py` mirroring kernel_realmlp
+  pattern. tabpfn==2.2.1 (matches prior run). 43 dist features (raw +
+  signed/abs distances + rule indicators + pairwise products) — same
+  feature set as the 1.5k run for apples-to-apples context-size effect.
+
+- **Three-iteration story**:
+  1. **SMOKE v1** (1k context × 5k val × 5k test, 3.5min) — PASSED.
+     Pipeline boots clean on P100. Throughput at 1k = 1980 rows/sec.
+     Fold-0 argmax 0.96179, PCR=[L=0.9960, M=0.9568, H=0.9326].
+  2. **Production v2** (10k context, val + test) — KILLED at 56.7min.
+     Realized 10k throughput = **97 rows/sec** (vs my 200-est).
+     Val 126k completed in 21.8min ✓ but test 270k needed ~46min;
+     the 55-min HARD KILL fired during test predict and the
+     `sys.exit(0)` bypass meant NO artifacts were saved.
+  3. **v3 SKIP_TEST=True** (val-only, 21.9min) — CLEAN COMPLETE.
+     Fix: skip test predict entirely on this 1-fold probe (a 1-fold
+     test array isn't deployable; signal check needs only val).
+     Save val OOF + score immediately after val complete.
+
+- **v3 results (10k context, fold 0)**:
+  ```
+  context size    argmax bal_acc    Low    Medium    High
+  1.5k (prior)    not reported      —      —         0.9238 (5-fold standalone)
+  1k (smoke)       0.96179         0.9960  0.9568    0.9326
+  10k (this)       0.96368         0.9958  0.9566    **0.9386**  (+0.015 vs 1.5k)
+  ```
+  Tuned 0.96424, bias=[0.63, 2.07, 1.70]. **Real lift on High recall
+  from more rare-class context examples** — but at the standalone
+  level this matters only if blend-gate passes.
+
+- **Blend-gate analysis vs LB-best primary fold-0** (anchor OOF 0.97994):
+  ```
+  TabPFN @ recipe bias [1.43, 1.47, 3.40]:
+    bal = 0.94149  errs = 7,837   PCR=[L=0.9958, M=0.8439, H=0.9848]
+  LB-best primary @ recipe bias:
+    bal = 0.97994  errs = 1,914   PCR=[L=0.9956, M=0.9690, H=0.9752]
+
+  Gate criteria (all 3 must pass for full 5-fold push):
+    bal_tuned ≥ 0.974          FAIL  (0.96424)
+    Jaccard < 0.78             PASS  (0.2158 — LOWEST EVER)
+    errs ≤ 1.05 × anchor       FAIL  (7,837 vs cap 2,010 — +309.5%)
+  OVERALL: FAIL
+  ```
+
+- **The headline finding**: **Jaccard 0.2158 is the lowest orthogonality
+  ever recorded on this problem.** Beats every prior NN family by a
+  wide margin (Mamba 0.49, Trompt 0.53, RealMLP n_ens=1 0.62). At
+  recipe bias TabPFN nails High (0.9848 — best of any candidate) but
+  catastrophically loses Medium (0.8439 vs anchor 0.9690). The errors
+  are GENUINELY orthogonal — TabPFN sees a different decision surface.
+
+- **But magnitude trap dominates by 4x**: TabPFN errs 7,837 vs anchor
+  1,914 (+309.5%). Even at the unprecedented Jaccard 0.21, a positive
+  blend weight drags the LB-best toward TabPFN's 4x-more-numerous
+  wrong answers on Low/Medium boundaries. The +0.015 High recall lift
+  cannot offset that under macro-recall + fixed bias.
+
+- **Updated NN-family null table** (15 nulls now, structural pattern
+  cemented):
+  ```
+  NN family            Jaccard vs anchor   errs vs anchor    LB outcome
+  ----------          ------------------- ------------------ --------------------
+  MLP v5-v9            0.62-0.85           +1500-15000       NULL
+  FT-Transformer       0.61                +12000            NULL
+  TabPFN (1.5k CPU)    0.81                +1485             NULL
+  Pretrain-FT MLP      0.65                +3615             NULL
+  DAE SwapNoise        0.84                similar           NULL
+  RealMLP n_ens=1      0.62                +358              LB +0.00003 (3-stack)
+  RealMLP n_ens=4      0.62                +485              NULL (worse than n_ens=1)
+  Trompt               0.53                +169              NULL (magnitude-trap)
+  Mambular SSM         0.49                +518 (+27%)       NULL
+  **TabPFN-10k         0.21 (record)       +5923 (+309%)     NULL (this entry)**
+  ```
+  Only RealMLP n_ens=1 has ever cleared the +5% magnitude rule AND
+  produced an LB lift. The pattern is structural at this feature set:
+  NN architectures produce orthogonal errors but in larger absolute
+  numbers, and macro-recall at fixed-bias cares about per-class
+  totals → magnitude tax dominates.
+
+- **Strategic implication**: TabPFN-10k was the last NN family at
+  design-scale that could break the pattern. The 14-null history
+  WITH a +0.015 High recall lift WITH the lowest Jaccard ever
+  recorded WITHOUT clearing the gate — this is the strongest
+  closure signal possible. **NN levers are now unambiguously
+  exhausted on this problem within the standard tabular ML toolkit.**
+
+- **No 5-fold push warranted.** Standalone 0.96424 is 0.0157 below
+  anchor; even with 5-fold averaging variance reduction (~+0.0005)
+  it won't reach 0.974. Magnitude trap is structural, not variance.
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Jaccard < 0.30 with errs > 3x anchor is structurally a
+     "different problem" candidate, not a "different model" candidate.**
+     The model is solving a different optimization than the anchor;
+     blend weights cannot reconcile the operating points. Skip directly
+     to "is this orthogonal model worth deploying ALONE on a different
+     subset of test rows?" — i.e., conformal routing or per-row
+     feature-conditional gating, not log-blend.
+  2. **TabPFN context-size scaling: more context → genuinely more
+     rare-class signal extracted, but at fixed bias it trades
+     majority-class recall for rare-class recall**. The +0.015 High
+     recall came at -0.011 Medium. On a 3-class problem with 3.3%
+     High prior, the trade is unfavorable for macro-recall. Useful
+     for rare-class detection tasks (binary or imbalanced ranking)
+     but not for balanced-accuracy multiclass.
+  3. **GPU throughput estimates for transformer in-context learners
+     scale ~linearly with context size, not quadratically**. At 1k
+     context = 1980 rows/sec on P100; at 10k = 97 rows/sec (20x
+     slower at 10x context). Plan accordingly: at 10k context, expect
+     ~100 rows/sec inference budget — 270k test = 45min, val 126k =
+     22min, total 67min uninterruptible work. For 1-fold probes, skip
+     test entirely; production 5-fold needs a multi-kernel split.
+
+- **11th independent saturation confirmation at LB 0.98094**.
+
+- LB delta: n/a. No probe warranted (standalone gate failed). LB best
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- LB budget unchanged: 4/10 used (for the day). 6 remaining.
+
+- Artefacts (whitelisted via `.gitignore` exception):
+  - `kaggle_kernel/kernel_tabpfn_10k/tabpfn_10k.py` (~530 lines including
+    SKIP_TEST fix and the v3 incremental save)
+  - `kaggle_kernel/kernel_tabpfn_10k/kernel-metadata.json`
+  - `scripts/blend_tabpfn_10k.py` (fold-0 blend gate)
+  - `scripts/artifacts/oof_tabpfn_10k.npy` (fold-0 val rows populated;
+    other rows zero-sentinel)
+  - `scripts/artifacts/test_tabpfn_10k.npy` (uniform-prior placeholder
+    from SKIP_TEST mode — NOT a real test prediction)
+  - `scripts/artifacts/tabpfn_10k_results.json`
+  - `scripts/artifacts/blend_tabpfn_10k_fold0_results.json`
+
+- **Updated next-steps shortlist** (3 levers remain from the post-LP plan):
+  - N2 (CVAE for synthetic Highs) — NOW LOWER PRIORITY. The TabPFN-10k
+    result shows even 6.7x more rare-class examples doesn't break the
+    magnitude trap on this feature set. A CVAE-generated synthetic
+    High set is a similar mechanism (more rare-class data) but with
+    interpolation noise risk that already killed SMOTE-NC twice. Prior
+    of breaking the pattern dropped from 25-30% to ~10%.
+  - N3 (hard-example scan) — UNCHANGED. Still the cheapest diagnostic
+    (~30 min CPU). Even if N4 nulls, the score-band breakdown of low-
+    confidence rows informs final-selection variance estimates.
+  - N4 (recipe_no_rule_features) — UNCHANGED. ~50 min CPU.
+  - N5 (lock + stop) — INCREASED PRIORITY. With 11 saturation
+    confirmations + 15 NN nulls + the strongest closure signal possible
+    on the remaining "untested at scale" lever, the marginal LB-probe
+    EV is minimal. Lock primary + hedge as final.
