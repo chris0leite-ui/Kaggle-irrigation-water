@@ -154,6 +154,15 @@ kernel_audit*/
 # Kept for cross-branch diagnostic reuse.
 !scripts/artifacts/oof_recipe_full_te_fexboth.npy
 !scripts/artifacts/test_recipe_full_te_fexboth.npy
+# DROP_SCORES=0,1,2 routed-XGB lever ported from 2026-04-21 v3 onto the
+# recipe pipeline. Tuned OOF 0.97940 (Δ -0.00027 vs recipe). Jaccard
+# vs recipe 0.7578 (LOWEST tree-family Jaccard ever recorded) BUT
+# per-class High recall drops -0.0021 vs recipe at fixed bias —
+# unfavourable trade under macro-recall. Blend gate FAILS on every
+# anchor (peak Δ +0.00017 vs recipe but pcr-fail; null vs LB-best
+# 3-stack and 4-stack). Kept for cross-branch diagnostic reuse.
+!scripts/artifacts/oof_recipe_full_te_ds012.npy
+!scripts/artifacts/test_recipe_full_te_ds012.npy
 # GBY rohit8527 group-by cat×num stats (176 extra numerics from
 # per-cat-group mean/std on synthetic 630k pool). Null vs recipe
 # (Δ −0.00008) and vs LB-best anchors (Jaccard 0.83-0.87, blend Δ
