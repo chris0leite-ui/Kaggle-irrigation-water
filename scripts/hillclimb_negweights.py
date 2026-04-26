@@ -146,12 +146,12 @@ def main():
             log(f"step {step}: +Δ={d:+.4f} on '{names[i]}' (w={weights[i]:+.4f})  "
                 f"bal={best:.5f}  active={(weights != 0).sum()}/{K}  "
                 f"elapsed={time.time()-t0:.0f}s")
-        # Checkpoint every 5 steps (rehydrate resilience).
-        if step % 5 == 0:
-            np.savez(state_path,
-                     K=np.array(K), names=np.array(names),
-                     weights=weights, history=np.array(history, dtype=object),
-                     next_step=np.array(step + 1))
+        # Checkpoint EVERY step (rehydrate resilience — container kills as fast
+        # as ~5 min idle).
+        np.savez(state_path,
+                 K=np.array(K), names=np.array(names),
+                 weights=weights, history=np.array(history, dtype=object),
+                 next_step=np.array(step + 1))
     log(f"hill climb done: {step} steps, final bal = {best:.5f}, "
         f"elapsed = {time.time()-t0:.0f}s")
 

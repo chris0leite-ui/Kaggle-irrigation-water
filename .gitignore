@@ -1149,3 +1149,15 @@ scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
 !scripts/artifacts/oof_angle_c3b_mixup.npy
 !scripts/artifacts/test_angle_c3b_mixup.npy
 !scripts/artifacts/angle_c3b_mixup_results.json
+
+# Experiment B (L3 XGB-meta + MLP-meta) — OOFs needed for downstream stacking
+!scripts/artifacts/oof_mlp_metastack.npy
+!scripts/artifacts/test_mlp_metastack.npy
+!scripts/artifacts/oof_meta_l3_xgb_mlp.npy
+!scripts/artifacts/test_meta_l3_xgb_mlp.npy
+# Experiment C (distill_no_rule)
+!scripts/artifacts/oof_distill_no_rule.npy
+!scripts/artifacts/test_distill_no_rule.npy
+# Experiment D (hillclimb negative weights)
+!scripts/artifacts/oof_hillclimb_negweights.npy
+!scripts/artifacts/test_hillclimb_negweights.npy
