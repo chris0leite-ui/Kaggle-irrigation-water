@@ -11990,6 +11990,90 @@ more folds / HP tuning" as a forward lever:
     overwrites prior 128-d SwapNoise DAE artefact)
   - 4 results JSONs
 
+### 2026-04-26 — Angle-C follow-ups C2/C3a/C3b: closed family at NULL (recipe-base mixup on 4-stack anchor)
+
+- Goal: rescue Angle-C (within-cell mixup) from its dist-base magnitude
+  trap (errs +120%) by porting to the recipe pipeline. Three iterations:
+  - **C2**: recipe-base + drop M↔H pairs (Medium-protect) + confidence-
+    gate (primary max_prob<0.95, drops clean×clean) + K=1 + β(0.2, 0.2).
+    3,909 pairs → 3,909 mixup rows (~0.62% of train).
+  - **C3a**: same as C2 but DROP confidence-gate to test whether the
+    gate was a productive filter or redundant. 4,808 pairs (+899
+    clean×clean) → 4,808 mixup rows.
+  - **C3b**: same as C2 but K=3 (volume amplifier) instead of K=1.
+    3,909 pairs → 11,727 mixup rows (~3.4× more volume).
+- Standalone tuned OOF (recipe baseline 0.97967):
+  ```
+  variant   conf_gate   K    n_mix     OOF tuned   bias                   Δ vs C2
+  C2        0.95        1    3,909    0.97983     [0.83, 1.07, 3.20]     —
+  C3a       OFF         1    4,808    0.97944     [0.83, 0.97, 2.90]    -0.00039
+  C3b       0.95        3    11,727   0.97951     [1.03, 1.27, 3.40]    -0.00032
+  ```
+  - **C3a confirms conf-gate was productive**: removing it (adding 899
+    clean×clean pairs where both donors are confident) regresses
+    standalone tuned by −0.00039 vs C2. The gate was filtering noise.
+  - **C3b confirms K-volume doesn't unlock orthogonality at recipe
+    base**: 3× more mixup rows actually drops standalone, the extra
+    volume adds noise (more Beta-interpolated pseudo-points the
+    model has to absorb) without sharpening the boundary.
+
+- Unified blend-gate vs LB-best 4-stack (anchor OOF 0.98084, errs 9415):
+  ```
+  variant       errs vs anchor   Jaccard   bestα   Δ           emit
+  C  (dist+K=3)  +120%           0.376     0.025   +0.00000    N (magnitude trap)
+  C2 (recipe+gate+K=1) +6.4%     0.819     0.000   +0.00000    N (redundancy)
+  C3a (recipe -gate K=1) +5.7%   0.814     0.000   +0.00000    N (redundancy)
+  C3b (recipe gate K=3) +8.4%    0.809     0.025   +0.00004    N (sub-gate)
+  ```
+  - C3b is the FIRST C-variant where bestα > 0 (α=0.025, Δ=+0.00004).
+    Microscopic but technically positive — K=3 volume DOES add a tiny
+    sliver of orthogonal signal at very low blend weight. Two orders
+    of magnitude below the +0.0005 LB-probe threshold.
+  - **No LB submission warranted on any C-variant.**
+
+- **Closure conclusion**: the within-cell mixup mechanism is fundamentally
+  trapped between two regimes:
+  1. **Dist-base** (C v1): Jaccard 0.38 (excellent orthogonality) but
+     errs +120% (catastrophic magnitude trap).
+  2. **Recipe-base** (C2/C3a/C3b): Jaccard ~0.81 (in redundancy zone)
+     and errs ≤+8% (magnitude OK). The base is too similar to the
+     anchor (LB-best is built ON recipe), so mixup-induced perturbation
+     gets absorbed into existing splits rather than producing new
+     decision-surface geometry.
+  No mixup configuration we tested threads the (Jaccard < 0.80, errs ≤
+  +5%) blend-gate window. The mechanism is alive at the dist scale but
+  too weak; it's redundant at the recipe scale.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Confidence-gating mixup pairs is a productive filter, not
+     redundant overhead.** Removing the gate (allowing clean×clean
+     pairs where both donors have primary max_prob > 0.95) regressed
+     C3a's standalone OOF by −0.00039 vs C2. Mechanism: clean-confident
+     pairs encode redundant rule-aligned info that mixup interpolation
+     just smears across decision boundaries the model already has
+     correct. Always confidence-gate when the primary model is much
+     stronger than the mixup base.
+  2. **K-volume scaling on within-cell mixup hits diminishing returns
+     fast at recipe-base scale.** K=3 (3× pair multiplication) added
+     7,818 extra mixup rows but the standalone tuned OOF dropped
+     −0.00032 vs K=1. The first synthesized point per pair captures
+     the boundary perturbation; additional K samples from β(0.2, 0.2)
+     add noise (multiple α∈[0,1] re-weightings of the same donor pair)
+     rather than new geometric variation. Stick with K=1 unless mixup
+     volume relative to train pool is < 0.5%.
+
+- **13th independent saturation confirmation at LB 0.98094** (C-family
+  closure joins the 12 prior saturation entries documented above).
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/angle_c2_helpers.py`, `scripts/angle_c2_recipe_mixup.py`
+    (parameterized via `OUT_SUFFIX`, `DROP_MH`, `CONF_THRESH`, `K_MIX`,
+    `BETA_A` env vars)
+  - `scripts/artifacts/oof_angle_{c2,c3a,c3b}_mixup.npy` + test (6 files)
+  - `scripts/artifacts/angle_{c2,c3a,c3b}_mixup_results.json`
+  - `submissions/submission_angle_{c2,c3a,c3b}_mixup.csv` (diagnostic,
+    not for LB probe)
+
 ### 2026-04-26 — combined v6 meta-stacker (#3+#4+#6 deep dive): LB 0.98059 = 11th saturation confirmation
 
 - Goal: user-requested deep dive on three structurally distinct levers added
