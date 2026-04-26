@@ -59,8 +59,8 @@ def err_jaccard(a_pred, b_pred, y):
 
 def main() -> None:
     cand = os.environ.get("CAND", "")
-    assert cand in ("ood", "knn10k"), f"CAND must be 'ood' or 'knn10k', got {cand!r}"
-    suffix = {"ood": "_ood", "knn10k": "_knn10k"}[cand]
+    assert cand in ("ood", "knn10k", "ood_knn10k"), f"CAND must be 'ood'|'knn10k'|'ood_knn10k', got {cand!r}"
+    suffix = {"ood": "_ood", "knn10k": "_knn10k", "ood_knn10k": "_ood_knn10k"}[cand]
     cand_oof_path = ART / f"oof_recipe_full_te{suffix}.npy"
     cand_test_path = ART / f"test_recipe_full_te{suffix}.npy"
     assert cand_oof_path.exists(), f"missing {cand_oof_path}"
