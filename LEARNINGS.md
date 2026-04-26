@@ -1377,3 +1377,17 @@ all of them on the same model.
   direction (Jaccard < 0.80 AND errs ≤ anchor AND H recall ≥ anchor),
   not re-blending existing components.** This profile has been
   unmatched in 30+ tests on this competition.
+
+- **Bash retry-loops over `kaggle competitions submit` MUST use
+  case-insensitive pattern matching for the success marker.** Kaggle
+  CLI prints `Successfully submitted to ...` (capital S). A loop
+  using `grep -q "successfully submitted"` (lowercase) never matches
+  and retries forever — every retry consumes an LB slot from the
+  daily 10 budget. On 2026-04-26 this bug burned 4 redundant slots
+  on `submission_v6_full_a350.csv` (07:09:31, 07:10:04, 07:14:44,
+  07:15:22) — all returning the same deterministic LB 0.98012, but
+  spending 3 of 10 daily probes on noise. Correct pattern:
+  `grep -qiE "successfully submitted|already used"` (note `-i`
+  flag) OR copy the EXACT Kaggle string verbatim. Always
+  dry-test the terminating condition against a known-success
+  output before arming the loop.
