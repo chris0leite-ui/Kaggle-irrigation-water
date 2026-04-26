@@ -112,7 +112,7 @@ OUT_DIR.mkdir(exist_ok=True, parents=True)
 
 # Toggle for production push (Kaggle env vars don't propagate to script
 # kernels at push time; flip here BEFORE pushing).
-IS_SMOKE = True
+IS_SMOKE = False
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 
 # Context size: 10k for production probe; 1k for smoke.
