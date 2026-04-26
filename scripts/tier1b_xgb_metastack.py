@@ -51,6 +51,12 @@ CLASSES = ["Low", "Medium", "High"]
 # avoid clobbering the LB-validated v1 meta-stacker. Use this when adding
 # new components to the bank.
 META_OUT_SUFFIX = os.environ.get("META_OUT_SUFFIX", "")
+# CLASS_WEIGHTED=1 -> pass class-balanced sample_weight to xgb.train.
+# Forces the meta-stacker's tree splits to attend to rare-class disagreement
+# signal — the bottleneck identified after N5b's AUC 0.63 evidence didn't
+# transfer through uniform-weight meta-stacker. Audit kernels 5+6 use
+# class-weighted LR meta; this is the XGB analog.
+CLASS_WEIGHTED = os.environ.get("CLASS_WEIGHTED", "") == "1"
 
 EXCLUDE = {
     "soft_distill",              # LB regressor
@@ -207,7 +213,12 @@ def main():
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(X_tr, y)):
         t1 = time.time()
-        dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx])
+        if CLASS_WEIGHTED:
+            from sklearn.utils.class_weight import compute_sample_weight
+            sw_tr = compute_sample_weight("balanced", y[tr_idx])
+            dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx], weight=sw_tr)
+        else:
+            dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx])
         dva = xgb.DMatrix(X_tr[va_idx], label=y[va_idx])
         dte = xgb.DMatrix(X_te)
         booster = xgb.train(
