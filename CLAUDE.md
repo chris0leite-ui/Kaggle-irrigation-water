@@ -13554,3 +13554,72 @@ final selection.
     gained `EXTRA_OOD`, `EXTRA_KNN10K`, `META_OUT_SUFFIX` env vars.
   - `submission_n5b_followup_angle1_geo_mean_a030.csv` (LB 0.98055)
   - `submission_n5b_followup_angle2_swap_a425.csv` (auto-emitted, untested)
+
+### 2026-04-26 — N5b variance test CLOSED: 3-point monotone carryover proves structural regression (16th saturation confirmation)
+
+- Goal: ML-lead-driven variance test on the N5b family. Prior session
+  closed angle1_geo_mean_a030 (OOF +0.00017 → LB 0.98055, Δ −0.00039,
+  carryover −2.3x) but documented "single LB observation cannot
+  distinguish structural regression from unlucky public split."
+  Untested follow-ups remained on disk (`angle2_swap_a350`,
+  `angle2_swap_a425`). Probe both to resolve the open question.
+- Important context discovered during the session: **`angle2_swap_a350`
+  was already submitted at 10:13 UTC today (LB 0.98025) but never
+  logged on this branch.** The strategy review above recommended a
+  variance probe based on incomplete information; in practice the
+  variance test was already 1-of-2 complete before this session began.
+- Submitted: `submission_n5b_followup_angle2_swap_a425.csv` at 13:48
+  UTC. Result: **LB public = 0.97988**, Δ vs PRIMARY (0.98094) =
+  **−0.00106**, carryover ratio **−3.2x**.
+- **Three-point ladder, monotone in OOF lift AND carryover ratio**:
+  ```
+  variant                       OOF Δ      LB         LB Δ        carryover
+  --------------------------- ---------- --------- ---------- -----------
+  angle1_geo_mean_a030         +0.00017   0.98055   -0.00039     -2.3x
+  angle2_swap_a350             +0.00026   0.98025   -0.00069     -2.7x
+  angle2_swap_a425 (this)      +0.00033   0.97988   -0.00106     -3.2x
+  ```
+  Larger OOF lift produces strictly larger LB regression. Carryover
+  ratio worsens as more N5b signal is extracted. **Unambiguous
+  structural-carryover signature; no luck-of-split interpretation
+  survives three monotone observations.**
+- **N5b family CLOSED definitively.** The AUC 0.6347 residual signal
+  is genuinely orthogonal to PRIMARY (first measured-orthogonal
+  evidence in 12 prior saturation confirmations), but the meta-stacker
+  bank-add delivery mechanism inflates OOF without LB transfer at a
+  −1.5x to −3.2x rate that scales with extracted signal magnitude.
+- **16th independent saturation confirmation at LB 0.98094.**
+- **Open question downgraded — Priority 3 recipe-tier delivery**:
+  the residual AUC was measured at meta-tier; whether the same
+  features at recipe-XGB tier produce different carryover is now
+  open at lower prior. Cost ~50 min CPU to probe. Recommend skipping
+  unless other levers also close.
+- **Portable rule** (LEARNINGS.md candidate): "When a candidate
+  family produces 2-3 monotone-decreasing LB observations vs OOF
+  lift on a saturated meta-stacker bank, structural carryover is
+  proven and further variants in the same delivery mechanism will
+  null. Three data points spanning ≥2x OOF range is the minimum
+  for definitive closure when single observations sit within the
+  ±0.0005 noise band."
+- Also worth logging: a single LB observation that lands at the
+  noise-floor edge (here angle1's −0.00039) is insufficient to
+  close a lever, but the cost of one more variance probe (~5 min
+  + 1 LB slot) is well below the value of definitive closure.
+  This applies in reverse too: had any of the three N5b probes
+  REVERSED the monotone trend (e.g., angle2_a425 lifting), the
+  variance signature would falsify the structural-carryover
+  hypothesis. The test design is bidirectional.
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. LB budget: **3/10 used today**
+  (1 N5b probe this session + 2 from earlier), 7 remaining.
+- **Strategic posture (post-closure)**:
+  - Lock the safe pair on Kaggle UI (PRIMARY 0.98094 + HEDGE 3-way
+    multi-seed 0.98005 per audit F1 swap recommendation). Zero
+    compute, highest remaining EV.
+  - Stop further OOF-extraction experiments on the saturated bank.
+    Three carryover ratios above −2x prove the architecture's
+    transfer ceiling.
+  - Reserve 7 LB slots for end-of-comp variance check (~1 per day
+    until 2026-04-30 deadline).
+- Artefacts: `submissions/submission_n5b_followup_angle2_swap_a425.csv`
+  (LB 0.97988, the variance-test third data point).
