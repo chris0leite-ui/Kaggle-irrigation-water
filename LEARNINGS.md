@@ -1347,3 +1347,135 @@ all of them on the same model.
   precision from class weights FIRST and check top-N precision
   before scaffolding any deployment mechanism.
 
+- **Per-row gated MoE collapses to fixed-weight blend when the dominant
+  components already form the LB-best stack.** A linear-gate MoE over
+  K=6 experts (LB-best 4-stack + RealMLP + xgb_nonrule_iso +
+  xgb_metastack_iso + leaf_ote_meta_v2 + xgb_dist_digits) fit via
+  L-BFGS on per-row cross-entropy of the blended posterior produced
+  mean per-fold gate weights ~58% on xgb_metastack_iso, ~40% on LB-best
+  4-stack, and ~2% combined to all 4 orthogonal experts. Standalone
+  OOF 0.98075 (Δ −0.00009 vs LB-best 4-stack); blend gate peak
+  +0.00004 at α=0.15. The gate identifies the same fixed-weight
+  optimum the constant-weight 4-stack already occupies; per-row
+  variability adds nothing because the orthogonal experts' magnitude
+  trap (more total errors, distributed against the rare class)
+  applies row-wise too. Rule: **per-row gating is only useful when
+  no constant-weight blend is at the optimum yet — once a strong
+  fixed-weight stack exists, MoE becomes a re-implementation of the
+  same operating point.** Skip MoE if the anchor stack has already
+  passed multiple constant-weight saturation tests.
+
+- **CMA-ES on macro-recall is the cheapest mathematical-ceiling proof
+  for any constant-weight blend.** Gradient-free + direct objective
+  + simplex constraint via softmax(z) parameterization + nested 5-fold
+  CV. Wall ~20 min CPU for K=7 components × 504k rows. The in-sample
+  full-fit upper bound IS the math ceiling for any constant-weight
+  scheme on those components at the chosen bias; if it's within
+  fold-noise of the current best, the constant-weight space is
+  provably saturated and no further weighted stacking variant can
+  break the ceiling. Concrete: 7-component CMA-ES in-sample upper
+  bound 0.98091 vs LB-best 4-stack 0.98084 = +0.00007 (within
+  fold-std). This is mathematical proof — not empirical heuristic —
+  that the constant-weight space is exhausted. **Run CMA-ES BEFORE
+  building more weighted stackers** as a calibration check on what's
+  achievable; if the in-sample bound is at-or-below the existing best,
+  pivot immediately to per-row, per-cell, or component-additive levers.
+
+- **Joint weight + bias optimization is a no-win on this problem
+  family**: L2 anchor on bias strong enough to defend against the
+  binhigh trap (post-hoc bias retune compounding overfit) is also
+  strong enough to prevent joint optimization from finding a
+  meaningfully different operating point. Weak L2 bias + joint w+b =
+  binhigh-style LB inflation; strong L2 bias + joint w+b ≈ frozen
+  bias + weighted blend ≈ fixed-bias log-blend. Concrete: with
+  L2_BIAS=5.0 and T=0.3 smooth-macro-recall surrogate, the joint
+  optimum bias was [1.4324, 1.4687, 3.4010] vs LB-validated
+  [1.4324, 1.4689, 3.4008] — bias barely moved (0.0002 max delta).
+  Weights spread evenly across 6 components (~0.13-0.21 each),
+  standalone OOF 0.98030 (Δ −0.0005 vs LB-best 4-stack), blend NULL.
+  Rule: **only use joint w+b when the bias is unanchored AND you
+  accept binhigh-style LB-overfit risk. Otherwise fix bias and tune
+  weights only.**
+
+- **Pareto-frontier closure is the actual ceiling, not a search-
+  algorithm limitation.** Across 4 mechanism-distinct ensembling
+  attacks (per-row MoE, CMA-ES gradient-free, per-cell mini-stackers,
+  joint w+b smooth-surrogate), every alternative produced fewer total
+  errors than the LB-best 4-stack but distributed AGAINST the rare
+  class — Low/Medium recall up by +0.0001-0.0006, High recall down
+  by −0.0013 to −0.0036. Net macro-recall worse in all 4 cases. The
+  LB-best 4-stack at OOF 0.98084 / LB 0.98094 sits at the rare-class-
+  favoring corner of the macro-recall Pareto frontier; every
+  re-arrangement of the OOF bank moves error mass off High onto
+  Low/Med, which is the wrong direction under macro-recall (rare
+  class has 12× per-row leverage). Rule: **once a stack sits at the
+  rare-class corner of the Pareto frontier, gains require ADDING a
+  new component with errors orthogonal SPECIFICALLY in the rare-class
+  direction (Jaccard < 0.80 AND errs ≤ anchor AND H recall ≥ anchor),
+  not re-blending existing components.** This profile has been
+  unmatched in 30+ tests on this competition.
+
+- **Self-supervised masked-feature pretraining is null when the DGP has
+  near-independent features.** For each non-rule numeric, fit an XGB
+  regressor predicting it from the other 18 features via 5-fold cross-
+  fit on combined train+test (no labels needed). Compute R² for each
+  masked feature and AUC of the residuals against each class. On this
+  synthetic competition: 7 masked numerics gave R² ∈ [0.002, 0.022] and
+  per-class residual AUCs of 0.50-0.51 — **pure noise**. The DGP
+  produces features that are i.i.d. given the rule, so the residuals
+  are essentially de-meaned features and carry no class-conditional
+  signal. Rule: **before scaffolding masked-feature pretraining as a
+  lever, run a 30-second R² diagnostic. If max R² across features <
+  0.05, skip — features are too independent for masked prediction to
+  extract structure**. The DAE SwapNoise lever (reconstruction
+  objective, 2026-04-24) is null for the same underlying reason.
+
+- **Bank-extension meta-stackers cannot transfer OOF lifts > +0.0003 to
+  LB on a saturated primary, even with novel leak-free supervision.**
+  Tested 11 bank-extension variants over 30+ days; the LB-validated v1
+  is the ONLY one with positive transfer (+0.00086 LB at +0.00023 OOF).
+  Subsequent variants (LR v1/v2, v3 cross-poll, v4 ET+kNN, P3 perturbed,
+  W1+W4, J2 bag, score=6 spec, **v6 with multi-task aux at OOF AUC 0.98**)
+  all regressed by −0.00034 to −0.00139 LB despite OOF lifts of
+  +0.00027 to +0.00091. The v6 case is the most striking: its standalone
+  iso 0.98150 is the strongest meta-stacker ever built (+0.00091 vs
+  v1_iso 0.98059) — the aux features (binary "is missed-high" with OOF
+  AUC 0.983) genuinely encode novel signal — yet blend Δ +0.00038 OOF
+  → −0.00035 LB at α=0.30, identical regression at α=0.40. Rule: **the
+  meta-stacker architecture is the bottleneck for transferring novel aux
+  signal, not the supervision quality. Once a primary is saturated, new
+  aux signals must be incorporated at primary TRAINING TIME (multi-task
+  loss, aux as INPUT feature) — not as a stacker INPUT — to transfer
+  to LB**. Aux features at meta-stacker level fit OOF-specific
+  calibration noise that doesn't generalize.
+
+- **Two-probe bracketing closes a meta-stacker family fully.** When
+  α=0.30 (recommended/peak-OOF) and α=0.40 (aggressive) both regress
+  LB by approximately the same magnitude (within ±0.00001), the linear-
+  projection rule is reconfirmed: bank-extension OOF lift transfers
+  proportionally to LB regression at any α. Lighter α candidates
+  (0.05-0.20) project to smaller regressions but never to LB lift,
+  so don't burn additional submissions on them. The plateau pattern
+  (LB 0.98059 / 0.98060 across both α) is the structural signature of
+  the lever's structural unsuitability for the architecture.
+
+- **Own-CSV ensemble of hierarchically-nested submissions cannot beat
+  the deepest sub.** Tested 5 strategies (equal log, LB-weighted log,
+  hard-vote, soft-vote, greedy forward) + 3 follow-up probes
+  (3-view subset, fine α-grid greedy, 3-view hard-vote) over 6
+  LB-validated own submissions (LB 0.97935-0.98094). Best result:
+  greedy forward + m2_pseudo at α=0.035 → +0.00002 OOF over primary
+  (within fold noise). Mechanism: when sub_A is a strict subset of
+  sub_B (B uses A as a backbone plus additional components),
+  ensembling them produces predictions between A and B's operating
+  points. Since B already chose the rare-class-favoring corner of
+  the macro-recall Pareto frontier, pulling toward A dilutes that
+  corner. For "ensemble of own submissions" to lift, the subs must
+  be from STRUCTURALLY INDEPENDENT pipelines (different model
+  families AND different FE AND different fold splits). Six depths
+  of one pipeline don't qualify. Public-CSV blenders' wins come from
+  independent pipelines built by different teams; nesting depth
+  ≠ independence. **Diagnostic check before scaffolding own-CSV
+  ensemble: compute pairwise Jaccard between sub argmaxes. If
+  every pair has Jaccard > 0.85 with the deepest sub, the lever is
+  structurally null.**

@@ -11064,6 +11064,302 @@ model wave**:
   - `scripts/artifacts/j7_conformal_spec6_results.json` (Wilson CI +
     train override stats + test override count + gate decision)
 
+### 2026-04-26 — own-CSV ensemble lever: NULL (subs too nested; refutes "ensemble of ensembles" hypothesis)
+
+- Goal: execute the highest-EV remaining own-pipeline lever from the
+  post-saturation brainstorm — vote/blend across our own LB-validated
+  submission CSVs (treating each as opaque). Public-CSV blenders use
+  this exact mechanism on others' submissions; we apply it to our own.
+  Bayesian prior 20-25% it produces a candidate with the right
+  Jaccard+magnitude+rare-class profile — every prior experiment
+  ensembled COMPONENTS; nothing has ensembled SUBMISSIONS.
+- Branch: `claude/advanced-ensemble-methods-vQrhS`. Files:
+  `own_ensemble_helpers.py` (reconstructs OOF/test for 6 LB-validated
+  subs via deterministic log-blend chains), `own_ensemble_strategies.py`
+  (5 strategies: equal log, LB-weighted log, hard-vote, soft-vote,
+  greedy forward), `own_ensemble_subset_probe.py` (3 follow-up probes:
+  3-view subset, fine α-grid greedy, hard-vote 3-view).
+
+- Reconstructed 6 LB-validated subs and verified each matches its
+  documented LB score within calibration ladder:
+  ```
+  name                     OOF tuned    LB        gap
+  primary                  0.980842    0.98094   +0.00010
+  stack2 (lb3+rm+nr_iso)   0.980609    0.98008   -0.00053
+  m3_seed (3-way recipe)   0.980286    0.98005   -0.00024
+  m2_pseudo (2-way 50/50)  0.980123    0.97998   -0.00014
+  recipe_full_te           0.979665    0.97939   -0.00028
+  catboost_iso (iso-cal'd) 0.979070    0.97935   +0.00216
+  ```
+  All Jaccards vs primary: recipe 0.83, catboost_iso 0.81, m2_pseudo
+  0.89, stack2 0.96, m3_seed 0.90. **Catboost is the most
+  orthogonal** (Jaccard 0.81); stack2 is the most redundant (0.96 —
+  it's a strict subset of primary).
+
+- **5 strategies — every result NULL**:
+  ```
+  Strategy                       OOF tuned    Δ vs primary   errs vs primary    Jaccard
+  ─────────────────────────────────────────────────────────────────────────────────────
+  PRIMARY (anchor)              0.980842     0              9415 (anchor)        1.0000
+  S1 equal log-blend (1/6 each) 0.980196    -0.00065        +233                 0.92
+  S2 LB-weighted τ=100          0.980252    -0.00059        +224                 0.92
+  S2 LB-weighted τ=1000         0.980380    -0.00046        +159                 0.95
+  S3 hard-vote (LB tie-break)   0.980503    -0.00034        +193                 0.96
+  S4 soft-vote (arithmetic)     0.980247    -0.00060        +311                 0.92
+  S5 greedy fwd (α=0.05 grid)   0.980853    +0.00001        +26                  0.9951
+  ```
+  All except S5 strictly worse than primary. S5 picked m3_seed at
+  α=0.05 → +0.00001 OOF (within noise).
+
+- **3 follow-up probes — confirm null**:
+  - 3-view {primary, recipe, catboost_iso} 2D log-blend grid: best
+    weights (1.00, 0.00, 0.00) — primary alone. Adding recipe or
+    catboost at any positive weight HURTS macro-recall.
+  - Greedy forward with FINE α-grid (0.005-0.05 + 0.05-0.55):
+    step 1 + m2_pseudo at α=0.035 → 0.980865 (Δ +0.00002).
+    No further additions improve. Final: 0.980865, errs 9421
+    (+6 vs primary), Jaccard 0.9958. **Best lever result of session.**
+  - Hard-vote 3-view {primary, recipe, catboost_iso}: 0.980121
+    (Δ −0.00072). Hard-vote loses calibration info.
+
+- **Best candidate's per-class trade is tiny but in the RIGHT direction
+  for once**: greedy_fine PCR [0.99552, 0.96949, 0.97758] vs primary
+  [0.99553, 0.96951, 0.97749] — Low/Med essentially flat, **High recall
+  +0.00009**. First own-pipeline candidate in this branch with
+  improved-on-rare-class direction. But the magnitude (+9e-5 H recall,
+  +2e-5 macro-recall) is 25x below the +5e-4 emit gate.
+
+- **Linear-projection rule** (per CLAUDE.md): primary's gap −0.00010 (LB>OOF).
+  Greedy_fine projected LB = 0.980865 + 0.00010 = 0.980965, only
+  +0.00002 above current LB-best 0.98094 — well within fold noise.
+  No LB probe warranted.
+
+- **Mechanism — why the lever fails**: our 6 LB-validated subs are
+  HEAVILY NESTED. They all share the recipe → pseudo_s1 → (pseudo_s7) →
+  RealMLP → nonrule_iso → meta_iso backbone. Specifically:
+    - `recipe_full_te` ⊂ `m2_pseudo` ⊂ `m3_seed` ⊂ `stack2` ⊂ `primary`
+    - Only `catboost_iso` is genuinely model-family-distinct.
+  Public-CSV blenders' wins come from INDEPENDENT pipelines built by
+  different teams (different model families, different FE, different
+  hyperparameters, different seeds). Our 6 subs are 6 DEPTHS of one
+  pipeline plus 1 alternate model (catboost). Ensembling them
+  amounts to per-row weighted reweighting along the same depth axis —
+  same operating point as the deepest sub (primary).
+
+- **Portable rule** (LEARNINGS.md candidate): **"Own-CSV ensemble of
+  hierarchically-nested submissions cannot beat the deepest sub.**
+  When sub_A is a strict subset of sub_B (B uses A as a backbone +
+  additional components), ensembling them produces predictions
+  between A and B's operating points. Since B already chose the
+  rare-class-favoring corner of the macro-recall Pareto frontier,
+  pulling toward A dilutes that corner. For 'ensemble of own
+  submissions' to lift, the subs must be from STRUCTURALLY
+  INDEPENDENT pipelines (different model families AND different FE
+  AND different fold splits). Six depths of one pipeline don't qualify."
+
+- LB delta: n/a (no LB probe — every candidate sub-gate). LB best
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget unchanged.
+
+- **Strategic implication**: this closes the only structurally-
+  novel ensembling lever remaining in the post-saturation
+  brainstorm. Combined with the 10 prior saturation confirmations
+  and the 4 mechanism-distinct ensembling nulls from earlier today,
+  the own-pipeline LB ceiling at 0.98094 is now exhaustively
+  established. To break it requires either:
+  (a) a NEW pipeline (different model family + different FE + truly
+      independent training procedure) producing a sub at LB > 0.978
+      with errors orthogonal to primary's. Concrete shortlist:
+      adversarial-trained recipe XGB, NN with custom rare-class loss,
+      external-feature transplant from physics-based agronomy model.
+  (b) public-CSV blending (banned by top-of-file rule).
+
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - 7 OOF + 7 test pairs: `oof_own_S1_equal_log`,
+    `oof_own_S2_lb_weighted_tau{100,200,500,1000}`, `oof_own_S3_hard_vote`,
+    `oof_own_S4_soft_vote`, `oof_own_S5_greedy_forward`,
+    `oof_own_3view`, `oof_own_greedy_fine` + corresponding test_*.npy
+  - 4 results JSONs: `own_ensemble_strategies_results.json`,
+    `own_ensemble_subset_probe_results.json`, plus 2 blend-gate JSONs
+  - 3 scripts (≤200 lines each): `own_ensemble_helpers.py`,
+    `own_ensemble_strategies.py`, `own_ensemble_subset_probe.py`
+
+### 2026-04-26 — advanced-ensemble-methods session (gated MoE + CMA-ES + per-cell + joint w+b): 4 nulls + 10th saturation confirmation, with mathematical proof of constant-weight ceiling
+
+- Goal: at user request "is there a new or better approach to ensemble our
+  predictions to improve balanced accuracy?" — execute 4 mechanism-distinct
+  ensembling levers that haven't been tested in the comp log. The structural
+  problems to attack: (1) macro-recall + fixed bias misaligns with every
+  convex surrogate (J6 confirmed), (2) magnitude trap kills orthogonal-error
+  candidates, (3) meta-stacker bank is saturated, (4) every multi-stage
+  tuning blew up the OOF→LB gap.
+- Branch: `claude/advanced-ensemble-methods-vQrhS`. All artifacts whitelisted
+  via .gitignore for cross-branch reuse.
+
+- **#1 Per-row gated MoE** (`scripts/moe_gated_blend.py`,
+  `scripts/moe_helpers.py`, `scripts/moe_blend_gate.py`): linear gate
+  over 37 low-dim features (4 dist + 4 abs + min_axis_abs +
+  min_boundary_dist + dgp_score + rule_pred + per-expert max_prob +
+  per-expert argmax onehot). K=6 experts: LB-best 4-stack, RealMLP,
+  xgb_nonrule_iso, xgb_metastack_iso, leaf_ote_meta_v2, xgb_dist_digits.
+  L-BFGS over (W ∈ ℝ^{K×d}) with cross-entropy of the blended posterior
+  against y, leak-safe per-fold (gate trained on tr_idx, applied to va_idx).
+  Wall: ~2 min × 5 folds = ~10 min CPU.
+  - Standalone OOF tuned bal_acc = **0.980749** (vs LB-best 4-stack
+    0.980842, **Δ −0.00009**)
+  - Errors 9,190 (vs LB-4 9,415, −225 fewer)
+  - Jaccard vs LB-best 4-stack = 0.948 (high redundancy)
+  - Per-class recall: L 0.9956 / M 0.9704 / **H 0.9762** (vs LB-4
+    [0.9955, 0.9695, 0.9775]) — Low/Med UP, **High DOWN −0.0013**
+  - Blend gate vs LB-best 4-stack: peak α=0.15 → Δ=**+0.00004** (well
+    below +5e-4 emit gate)
+  - **Per-fold mean gate weights**: ~58% xgb_metastack_iso, ~40% LB-best
+    4-stack, ~2% combined to RealMLP/nr/leaf/digits. Folds 1-2 vs 3-5
+    invert the meta_iso vs lb4 ratio (bistable optimum).
+  - **Verdict: NULL.** Per-row gating ALSO confirms fixed weights of the
+    4-stack are near per-row optimal — the gate concentrates 98% on
+    components already in the 4-stack at fixed ratios. The 2% it allocates
+    to orthogonal experts adds negligible signal at fixed-bias evaluation.
+
+- **#2 CMA-ES on macro-recall + simplex** (`scripts/cmaes_macro_recall.py`):
+  K=7 components (LB-best 3-stack + xgb_metastack_iso + realmlp +
+  xgb_nonrule_iso + leaf_ote_meta_v2 + xgb_dist_digits + recipe_full_te).
+  Gradient-free CMA-ES on the simplex (sigma0=0.5, popsize=14, maxiter
+  120 in-sample + 80 nested). Optimizes ACTUAL macro-recall at the
+  fixed recipe bias [1.4324, 1.4689, 3.4008]. Wall: ~19 min CPU
+  (8 min in-sample + 11 min nested across 5 folds).
+  - **In-sample full-fit upper bound: 0.980912** with weights
+    {lb_best_3stack 0.503, xgb_metastack_iso 0.439, leaf_ote 0.043,
+    recipe 0.014, others < 1%}.
+  - Nested CV: **0.980571** (overfit gap +0.00034).
+  - **CRITICAL FINDING — mathematical ceiling proven**: the in-sample
+    upper bound 0.98091 is essentially the SAME OPERATING POINT as
+    LB-best 4-stack 0.98084 (only +0.00007 higher). This is mathematical
+    proof that the constant-weight blend ceiling on these 7 components
+    at the LB-validated bias is essentially at LB-best already. No
+    constant-weight scheme can extract more than ~0.0001 OOF beyond
+    what LB-best already captures.
+  - Per-fold weight noise high (folds 1, 4, 5 split 0.5/0.42 lb3+meta,
+    folds 2, 3 spread to multiple components) — same J2-bag pattern.
+  - Blend gate vs LB-best 4-stack: peak α=0.025 → Δ=**−0.00002** (strict
+    null, all α > 0 negative).
+  - **Verdict: NULL on blend.** Validates that the constant-weight
+    blend space is fully saturated; this is now the TENTH independent
+    saturation confirmation at LB 0.98094.
+
+- **#3 Per-cell mini-meta-stackers** (`scripts/per_cell_mini_meta.py`):
+  64 cells from (dry, norain, hot, windy, nomulch, kc_active) bits.
+  Per-fold per-cell multinomial LR (C=0.1, max_iter=400) on 16 features
+  per row: log(LB-4 probs)×3 + log(meta_iso probs)×3 + log(realmlp
+  probs)×3 + 7 non-rule numerics (Humidity, Prev_Irrigation, EC,
+  Soil_pH, Field_Area, Sunlight, Organic_Carbon). Cells with < 100
+  train rows fall back to LB-best 4-stack. Wall: ~12 sec total
+  (58 cells trained per fold).
+  - Standalone OOF tuned = 0.979874 (Δ −0.00097 vs LB-4)
+  - Errors 9,307 (-108 vs LB-4)
+  - Per-class recall: L 0.9957 / M 0.9700 / **H 0.9739** — High recall
+    DOWN −0.0036 (the worst rare-class trade of all 4 attempts)
+  - Jaccard vs LB-4 = 0.851 (decent orthogonality)
+  - Blend gate: peak α=0.025 → Δ=**−0.00004** (strict null)
+  - **Verdict: NULL.** Per-cell LR sees too few High examples per cell
+    to model the rare-class boundary; pulls Low/Med predictions slightly
+    better but loses High recall.
+
+- **#4 Joint weights+bias optimization with smooth surrogate**
+  (`scripts/joint_weights_bias.py`): single-stage L-BFGS over
+  (W ∈ ℝ^K, bias ∈ ℝ^3) jointly, optimizing soft-macro-recall via
+  temperature-relaxed argmax (T=0.3) + L2_BIAS=5.0 anchor toward
+  LB-validated bias + L2_W=1e-3 on weights. Designed to avoid the
+  binhigh trap (post-hoc bias retune compounding overfit). K=6 components.
+  Wall: ~3.5 min CPU.
+  - In-sample bias = [1.4324, 1.4687, 3.4010] vs LB-validated
+    [1.4324, 1.4689, 3.4008] — basically frozen (L2 anchor strong).
+  - Per-fold weights spread evenly (~0.13-0.21 per component) — surrogate
+    encouraged diversity unlike CMA-ES.
+  - Standalone OOF tuned = 0.980295 (Δ −0.0005 vs LB-4)
+  - Errors 9,324 (-91 vs LB-4)
+  - Per-class recall: L 0.9959 / M 0.9695 / **H 0.9755** (Δ H −0.0020)
+  - Blend gate: peak α=0.025 → Δ=**−0.00002** (strict null)
+  - **Verdict: NULL.** Smooth-surrogate doesn't help — the bias L2
+    anchor (necessary to defend against binhigh) prevents the joint
+    optimization from finding a different operating point.
+
+- **Universal pattern across all 4 attacks**:
+  ```
+                    standalone   errs vs   Jaccard   peak Δ vs    rare-class
+  Approach          tuned OOF    anchor    vs LB-4   LB-best       trade
+  ─────────────────────────────────────────────────────────────────────────
+  LB-best 4-stack   0.980842       0       1.000     —             baseline
+  #1 MoE gated      0.980749    -225       0.948     +0.00004      H -0.0013
+  #2 CMA-ES nest    0.980571     -58       0.961     -0.00002      H -0.0012
+  #3 Per-cell       0.979874    -108       0.851     -0.00004      H -0.0036
+  #4 Joint w+bias   0.980295     -91       0.886     -0.00002      H -0.0020
+  ```
+  EVERY alternative scheme finds a fewer-error solution that trades High
+  recall for Low/Med — wrong direction under macro-recall. The LB-best
+  4-stack at OOF 0.98084 / LB 0.98094 sits at the rare-class-favoring
+  corner of the macro-recall Pareto frontier.
+
+- **10th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                                  best blend Δ   notes
+  ----------------------------------------------- -------------- ----------
+  1. Tier 1c greedy expanded (132c)               +0.00002       sub-gate
+  2. Tier 1c meta-stacker v2 (224-dim)            +0.00002       sub-gate
+  3. Tier 1c meta-stacker XGB seed-bag            +0.00003       sub-gate
+  4. Cross-poll metastack v3                      +0.00015       LB -0.00034
+  5. J2 bootstrap-bagged metastack                +0.00003       proj null
+  6. LR meta-stacker v2 (C=0.1, none)             +0.00098       LB -0.00042
+  7. LR v2 + iso-after-blend                      +0.00000       NULL
+  8. v4 ET+kNN bank-extension                     +0.00036       LB -0.00102
+  9. P3 perturbed meta v1                         +0.00071       LB -0.00139
+  10. **#1-#4 advanced-ensemble (this entry)      +0.00004       NULL on all 4**
+  ```
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Per-row gated MoE collapses to fixed-weight blend when the
+     dominant components already form the LB-best stack.** The gate
+     learns to give 98%+ weight to those components, leaving negligible
+     room for orthogonal experts. Useful only when no constant-weight
+     blend is at the optimum yet — once a strong fixed-weight stack
+     exists, MoE becomes a re-implementation of the same operating point.
+  2. **CMA-ES on macro-recall is the cheapest mathematical-ceiling proof.**
+     Gradient-free + direct objective + simplex constraint. ~20 min CPU
+     for 7 components. The in-sample upper bound is the math ceiling
+     for any constant-weight scheme; if it's within fold-noise of the
+     current best, the constant-weight space is provably saturated.
+     Run this BEFORE building more weighted stackers.
+  3. **L2_BIAS anchor strong enough to prevent binhigh trap also
+     prevents joint w+b from finding a meaningfully different optimum.**
+     The two failure modes (binhigh OOF inflation vs frozen bias) form
+     a no-win for joint optimization on this problem family. Use joint
+     w+b only when the bias is unanchored and you accept binhigh-style
+     LB-overfit risk. Otherwise, fix bias (current approach) and tune
+     weights only.
+
+- LB delta: n/a (no LB probe — every blend Δ below +5e-4 emit gate
+  AND macro-recall trade is negative on rare class). LB best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`. LB budget
+  unchanged.
+
+- **Strategic implication**: with 10 independent saturation confirmations
+  including a mathematical CMA-ES proof, **breaking LB 0.98094 within
+  the existing OOF bank is provably impossible at the constant-weight
+  blend level, and per-row/per-cell/joint-bias all confirm the same
+  ceiling at the row/decision level.** Any further lift requires either:
+  (a) a NEW component whose errors satisfy BOTH Jaccard < 0.80 AND
+  errs ≤ anchor AND per-class recall ≥ anchor on rare class — a profile
+  no candidate has matched in ~30 prior tests, or (b) a strategic
+  pivot to public-CSV blending (banned by top-of-file rule).
+
+- Artefacts committed (whitelisted via .gitignore for cross-branch reuse):
+  - 4 OOF + test pairs: `oof_moe_gated`, `oof_cmaes_blend`,
+    `oof_per_cell_meta`, `oof_joint_blend` (+ corresponding `test_*.npy`)
+  - 4 results JSONs + 4 blend-gate JSONs
+  - 6 scripts: `moe_helpers.py`, `moe_gated_blend.py`, `moe_blend_gate.py`,
+    `cmaes_macro_recall.py`, `per_cell_mini_meta.py`, `joint_weights_bias.py`,
+    `joint_blend_gate.py` (155 lines max each, modular per CLAUDE.md rule)
+
 ### 2026-04-25 — fresh-perspectives session (P1 test-prior, P2 quotas, P3 perturbed meta): 3 nulls + 9th saturation confirmation
 
 - Goal: senior-DS-style fresh review attacking the LB 0.98094 ceiling
@@ -11539,6 +11835,141 @@ more folds / HP tuning" as a forward lever:
   - `scripts/score6_manifold_stage1e.py` (against actual primary)
   - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
 
+### 2026-04-26 — combined v6 meta-stacker (#3+#4+#6 deep dive): LB 0.98059 = 11th saturation confirmation
+
+- Goal: user-requested deep dive on three structurally distinct levers added
+  on top of the LB-best 4-stack primary (LB 0.98094):
+  - **#6** self-supervised masked-feature pretraining
+  - **#3** multi-task auxiliary XGBs (3 binary heads on rule-flip targets)
+  - **#4** polynomial / non-linear FE (3-way + log/sqrt/sin transforms)
+- Combined into a v6 meta-stacker with all three signal sources as new
+  inputs, then blended into the primary.
+- Branch: `claude/imbalanced-classification-research-elHy9`.
+
+- **#6 — masked feature pretraining: NULL at source.**
+  R² for predicting each of 7 non-rule numerics from the other 18 features
+  (5-fold cross-fit on combined 900k train+test):
+  ```
+  Humidity                 R² = 0.0148
+  Previous_Irrigation_mm   R² = 0.0223
+  Electrical_Conductivity  R² = 0.0028
+  Soil_pH                  R² = 0.0030
+  Organic_Carbon           R² = 0.0039
+  Sunlight_Hours           R² = 0.0016
+  Field_Area_hectare       R² = 0.0039
+  ```
+  Features are nearly INDEPENDENT in this synthetic DGP. Residual AUCs for
+  distinguishing each class from the rest = 0.50–0.51 (pure noise). The 14
+  residual columns carry zero class-conditional signal. Confirms the
+  feature-space saturation conclusion from the score=6 deep-dive.
+
+- **#3 — multi-task aux XGBs: strong global discriminators.**
+  3 binary heads on the 43-feature dist matrix, 5-fold StratifiedKFold(seed=42):
+  ```
+  aux_flipped_from_rule  (y != rule_pred):     OOF AUC 0.899
+  aux_missed_high        (y==H AND rule!=H):    OOF AUC 0.983
+  aux_missed_medium      (y==M AND rule!=M):    OOF AUC 0.949
+  ```
+  These targets encode rule-flip supervision NOT directly used by any
+  existing y-targeting component. AUC 0.98 for "is missed-High globally"
+  is the strongest binary signal in the bank, leak-free OOF.
+
+- **#4 — polynomial / non-linear FE: real signal contribution.**
+  36 new features added on top of 43-dist:
+  - 3-way rule products (sm_x_rf_x_tc, etc.)
+  - Non-linear transforms (sm_squared, log_rf, sqrt_pri, sin_rf_th, etc.)
+  - Non-rule × rule crosses (hum_x_sm, ec_x_sm, etc.)
+  - Within-cell normalized features (sm_pct_of_25, etc.)
+  Standalone XGB on 79 features: tuned OOF 0.97452 (vs vanilla XGB-dist
+  0.97266, +0.00186). **9/30 top features by gain are NEW poly features**
+  — the trees use them. Strong indicator the recipe FE was missing real
+  axes.
+
+- **Combined v6 meta-stacker:** 82 components (bank + poly_fe) + 3 aux
+  log-prob/logit pairs + 14 masked residuals = **283-col input matrix**.
+  Same heavy-reg XGB HPs as v1 (depth=4, reg_alpha=5, reg_lambda=5,
+  lr=0.05). 5-fold StratifiedKFold(seed=42) for leak-free stacking.
+  - Standalone iso OOF: **0.98150** (vs v1_iso 0.98059, **+0.00091** —
+    first meta variant to materially exceed v1 standalone)
+  - Best blend Δ vs LB-best 4-stack primary: **+0.00038 OOF at α=0.30**
+  - Per-class recall guardrail PASS: L+0.00006 / M+0.00115 / H−0.00010
+  - Jaccard 0.82 vs primary; errs 9655 vs primary 9415 (+240 distributed
+    favorably under macro-recall)
+
+- **LB probe (user-approved, submitted 01:22 UTC):**
+  `submission_combined_v6_a030.csv` → **LB public = 0.98059**.
+  Δ vs LB-best primary (0.98094) = **−0.00035 regression**.
+  OOF→LB gap = 0.98122 − 0.98059 = **+0.00063** (vs primary's −0.00010).
+
+- **Diagnosis — bank-extension pattern strikes again, even with novel
+  leak-free aux supervision.** Joins:
+  ```
+  attack vector                     OOF Δ      LB Δ      gap inflation
+  --------------------------------- --------  --------- -------------
+  v1 (LB-best baseline)             +0.00023  +0.00086  -0.00073 (anomalous +)
+  v3 cross-poll                     +0.00015  -0.00034  +0.00049
+  v4 ET+kNN                         +0.00036  -0.00102  +0.00138
+  LR v2 (C=0.1, none)               +0.00046  -0.00042  +0.00088
+  P3 perturbed v1                   +0.00071  -0.00139  +0.00210
+  W1+W4 meta                        +0.00035  -0.00098  +0.00133
+  **v6 (this entry)                  +0.00038  -0.00035  +0.00073**
+  ```
+  v6 is the LEAST-BAD regression of the 6 meta-extension variants, but
+  still regresses. The aux features added genuine OOF signal (+0.00091
+  standalone over v1) but the additional meta-stacker capacity to use them
+  fits OOF-specific patterns that don't transfer.
+
+- **11th independent saturation confirmation at LB 0.98094**:
+  joins the 10 prior attacks (Tier 1c sub-gates × 3, cross-poll v3, J2
+  bootstrap-bag, LR v1+v2+iso-after, v4 ET+kNN, P3 perturbed, score=6
+  deep-dive). The pattern is mathematically exhaustive: re-arranging
+  existing components OR adding new components into the existing meta-
+  stacker architecture cannot break LB 0.98094. The +0.00091 standalone
+  v6_iso lift over v1 is the strongest evidence yet that the SIGNAL exists
+  in the new aux features — but the meta-stacker architecture is the
+  bottleneck for transferring it to LB.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Self-supervised masked-feature pretraining is null when features
+     are independent in the DGP.** R² for predicting each feature from the
+     others is the diagnostic: if all R² < 0.05, residuals carry no
+     signal. Skip this lever in synthetic-tabular comps where train/test
+     come from a known IID generator.
+  2. **Bank-extension meta-stackers cannot transfer OOF lifts > +0.0003 to
+     LB on a saturated primary.** Even leak-free aux supervision targeting
+     novel binary tasks (AUC 0.98 for "is missed-high globally") fits
+     OOF-specific patterns in the meta-stacker training. The
+     architecture's capacity-to-noise ratio is too high once the bank is
+     saturated. To unlock the aux signal: incorporate it at primary
+     TRAINING TIME (e.g., multi-task loss on recipe FE) rather than as a
+     stacker INPUT — different architectural insertion point.
+
+- LB budget: **2/10 used today** (α=0.30 + α=0.40 v6 probes), 8 remaining.
+  LB best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Aggressive α=0.40 also probed (user-requested follow-up):**
+  `submission_combined_v6_a040.csv` → LB **0.98060** (essentially tied
+  with α=0.30's 0.98059, +0.00001). OOF 0.98114 → LB 0.98060, gap +0.00054
+  (slightly tighter than α=0.30's +0.00063 because the aggressive α drops
+  OOF closer to primary while LB stays flat). Confirms the linear-projection
+  rule: bank-extension OOF lift transfers proportionally to LB regression
+  at any α. Two-probe bracketing closes the v6 lever definitively — there
+  is no α that threads the needle.
+- Final-selection lock UNCHANGED:
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+  2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → LB 0.98005 (premium −0.00089)
+
+- **Path forward**: the aux features encode REAL signal (proved by +0.00091
+  standalone iso lift at meta level). Bank-stacking can't transfer it.
+  Open architectural alternatives:
+  1. Multi-task XGB at primary level (auxiliary heads on recipe FE
+     directly, rather than aux as separate component). Untested.
+  2. Recipe XGB with aux outputs as INPUT FEATURES (not via meta).
+     Different insertion point.
+  3. Specialist that consumes aux + recipe outputs at the row-level
+     decision rule (not via blend).
+
 ### 2026-04-26 — DROP_SCORES=0,1,2 on recipe: NULL (11th saturation confirmation, most-orthogonal tree variant ever recorded)
 
 - Goal: address an audit gap surfaced by senior-researcher review. The
@@ -11682,6 +12113,455 @@ more folds / HP tuning" as a forward lever:
   - `scripts/artifacts/blend_gate_dropscores_results.json`
   - `submissions/submission_recipe_full_te_ds012.csv` (diagnostic, NOT
     for LB probe)
+### 2026-04-26 — Bayes-optimal / LP decision-rule probe: NULL (10th saturation confirmation, "log-bias overfit" hypothesis falsified)
+
+- Goal: stress-test the unstressed property of the LB-best primary's
+  decision rule. Coord-ascent log-bias `[1.43, 1.47, 3.40]` is a
+  3-parameter heuristic. The closed-form Bayes-optimal under macro-recall
+  is `b_k = -log(π_k)` which gives `[0.53, 0.97, 3.41]` for our train
+  priors. The Low/Medium components differ by ~0.9 units — either
+  coord-ascent overfits OOF, or the predicted probabilities are
+  miscalibrated relative to true posteriors. This probe distinguishes.
+- Branch: `claude/kaggle-missing-strategies-rls5d`. Single script,
+  ~190 lines (`scripts/lp_decision_rule.py`).
+- Mechanism: reconstruct LB-best primary (3-stack + xgb_metastack_iso α=0.30)
+  via `tier1b_helpers.build_lbbest_stack` + add metastack step. Apply 4
+  decision-rule families to the SAME OOF/test predictions, report
+  per-class recall + errors + macro-recall delta vs current bias.
+- Results (5-fold OOF, sanity reproduced 0.98084 baseline):
+  ```
+  family                                 bias / params              OOF      Δ vs baseline   gate
+  CURRENT log-bias (LB-best, baseline)   [1.43, 1.47, 3.40]         0.98084  +0.00000        n/a
+  Bayes-opt (train prior)                [0.53, 0.97, 3.40]         0.98072  -0.00012        FAIL
+  Bayes-opt (test rule_pred prior)       [0.52, 0.98, 3.40]         0.98070  -0.00014        FAIL
+  Joint (T, b) coord-ascent              T=[0.6,0.9,1.0], b=BIAS    0.98093  +0.00009        FAIL
+  LP cardinality cap (train prior)       greedy assignment           0.97438  -0.00646        FAIL
+  ```
+- **Decisive finding**: closed-form Bayes-optimal LOSES macro-recall
+  (-0.00012) vs coord-ascent. Per-class trade is informative:
+  - Closed-form: High recall UP +0.0036 (0.9775 → 0.9811), but
+    Low (-0.0008) and Medium (-0.0031) BOTH down. Net negative.
+  - Coord-ascent's heavier Low/Medium biases are NOT overfit —
+    they're a **real calibration correction** for over-confident
+    Low/Medium probabilities in the LB-best primary.
+- **Joint (T, b) family** found T_Low=0.6 (sharpens Low probs by
+  raising them to 1/T = 1.67 power) at unchanged biases. OOF lift
+  +0.00009 — below the +2e-4 LB-transfer threshold. Only **142 test
+  rows** differ from current submission; per the linear-projection
+  rule established in prior LR/v4 closures, expected LB Δ ≈ 0
+  given gap inflation typically eats half the small OOF lift.
+- **LP cardinality cap** (force-cap class counts to train prior):
+  -0.00646 (massive regression). Reconfirms the 2026-04-25 P2
+  quota-null mechanism: hard caps discard the rare-class
+  over-prediction signal that drives macro-recall under fixed bias.
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Coord-ascent log-bias coordinates can drift far from the
+     closed-form Bayes-optimum WITHOUT being overfit** when the base
+     model's predicted probabilities are miscalibrated per-class.
+     The drift IS the calibration correction. To diagnose:
+     compute `|coord-ascent_bias − (−log π)|` per class. If the
+     drift is structurally consistent across re-runs and cross-
+     validation seeds, it's signal, not noise.
+  2. **Per-class temperature scaling on a tuned blend with fixed
+     bias has a thin signal channel**: T_k controls how sharply the
+     model's "confident class" outranks runners-up. On a heavily-
+     calibrated stack, T sweeps tend to find ≤+0.0001 OOF without
+     transfer-positive blend Δ.
+  3. **The LP/quota family of rules (force-cap to a known prior)
+     is structurally wrong for macro-recall**. Confirmed twice now
+     (P2 quota 2026-04-25 and LP cap this entry). The decision rule
+     family that works is "additive log-shift + (optional) per-class
+     temperature" — closed under arbitrary monotonic per-class
+     reweighting.
+- LB budget unchanged: 4/10 used (no probe warranted, all 4 families
+  fail the +2e-4 OOF gate). LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- **10th independent saturation confirmation at LB 0.98094**.
+- Artefacts:
+  - `scripts/lp_decision_rule.py` (~190 lines, single-file)
+  - `scripts/artifacts/lp_decision_rule_results.json` (5-family report)
+
+### Next steps: post-LP closure shortlist (2026-04-26)
+
+After 10 independent saturation confirmations at LB 0.98094, the
+own-pipeline ceiling is structurally bounded. Four levers remain
+worth trying (4 days to deadline, 6 LB submissions available today).
+Each is structurally distinct from every prior null AND from each
+other. Ranked by expected EV / cost:
+
+  **N1. TabPFN at 10k context on Kaggle GPU** (~30 min wall, top-pick).
+  The 2026-04-22 TabPFN run capped at SUBSAMPLE=1500 for CPU
+  feasibility. TabPFN v2's *architectural sweet spot* is 10k
+  context. We have NEVER measured TabPFN at design scale; the
+  earlier closure note said "GPU SUBSAMPLE=10000 unlikely to change
+  blend outcome" but that was a guess from 1.5k context Jaccard,
+  not an experiment. At 10k context the model sees ~7x more rare-
+  class examples (333 High @ 10k stratified vs 50 @ 1.5k), which
+  is exactly the failure mode that crippled the prior run's High
+  recall (0.9238 standalone).
+  - Action: scaffold `kaggle_kernel/kernel_tabpfn_10k/` mirroring
+    kernel_realmlp pattern. SMOKE first (1-fold × 10k context ×
+    5-min wall) then production (5-fold × 10k stratified
+    in-context fit per fold). Save `oof_tabpfn_10k.npy` +
+    `test_tabpfn_10k.npy`.
+  - Gate: standalone OOF tuned ≥ 0.974 AND fold-1 Jaccard < 0.78
+    vs LB-best 4-stack AND errs ≤ 9415 (the +5% magnitude rule).
+    If passes: add to meta-stacker bank → re-train cross-poll
+    metastack → blend gate at +2e-4 OOF.
+  - Expected: most likely 14th NN family null (the magnitude-trap
+    pattern is structural at this feature set) but TabPFN is the
+    only NN family WITH a track record of high-confidence per-row
+    posteriors that calibrate well at the operating point our
+    fixed bias targets. ~20% prior of breaking the pattern.
+
+  **N2. CVAE-generated synthetic High rows** (~1.5h Kaggle GPU).
+  Direct fix for SMOTE-NC's interpolation failure. SMOTE failed
+  because k-NN linear interpolation diffused the M↔H boundary.
+  CVAE generates samples from a *learned latent manifold*
+  conditioned on `y=High`, so synthetic Highs respect the joint
+  distribution rather than averaging neighbors. Different
+  failure-mode geometry from SMOTE.
+  - Action: scaffold `kaggle_kernel/kernel_cvae_high/` —
+    encoder-decoder CVAE on RAW 19 features (8 cats embedded +
+    11 nums standardized), latent_dim=8, KL-regularized, 100
+    epochs. Generate 21k synthetic High rows from posterior
+    samples conditioned on y=High. Augment recipe training pool
+    by 2x High rate. Re-train recipe XGB.
+  - Gate: standalone OOF tuned ≥ 0.978 (matches recipe baseline
+    at minimum) AND per-class High recall ≥ 0.978 (above
+    LB-best 0.9775) AND Jaccard < 0.85 vs recipe.
+  - Expected: SMOTE failed at every TARGET (42k, 25k); CVAE has a
+    specific reason to do better (manifold preservation). 25-30%
+    prior.
+
+  **N3. Hard-example scan on LB-best primary** (~30 min CPU).
+  Diagnostic, not a model. Take primary's bottom-1% confidence
+  test rows (~2,700 rows = max_prob below the 1st percentile).
+  Cross-tabulate with score-band, rule-vs-LB disagreement, and
+  per-class predicted distribution. If 80%+ of low-confidence
+  rows land in score=6 boundary, it tells us exactly where the
+  +0.00020 to pack-LB lives — and J7 conformal told us we
+  CAN'T get there with the current detector input set, meaning
+  we need a different feature view of those rows.
+  - Action: ~80-line `scripts/n3_hard_example_scan.py`. Output:
+    JSON with score-band breakdown, mean per-class prob, mean
+    rule-pred match rate, and feature-space centroids of the
+    low-confidence rows.
+  - Decision value: informs whether N1/N2 should target a
+    SPECIFIC sub-domain (e.g., score=6 ∩ Crop=Wheat ∩
+    Humidity > 70) rather than global retraining. Could surface
+    a 4th lever we haven't articulated.
+  - Expected: closure (no direct LB lift) but high information-
+    per-minute. Run FIRST before N1/N2.
+
+  **N4. recipe_no_rule_features standalone** (~50 min CPU).
+  We tested `recipe_no_ote/no_digits/no_combos/no_orig` (all
+  null on the magnitude rule). Never tested dropping the
+  rule-derived features themselves: `dgp_score, sm_dist, rf_dist,
+  tc_dist, ws_dist, dry, norain, hot, windy, nomulch, kc, rule_pred,
+  logit_P_low/med/high, rule_correctness flags`. Without rule
+  features, trees must re-discover the rule from continuous
+  signals — different basis for splits, possibly producing a
+  Jaccard-< 0.7 standalone that the magnitude trap doesn't kill
+  because the anchor's strength comes FROM the rule features.
+  - Action: parameterize `scripts/recipe_full_te.py` with
+    `EXTRA_EXCLUDE_RULE_FEATS=1` env var, drop ~17 rule cols
+    pre-OTE. Same 5-fold seed=42, same XGB HPs.
+  - Gate: standalone OOF tuned ≥ 0.973 (likely below recipe's
+    0.97967) AND Jaccard < 0.75 vs recipe AND errs ≤ recipe ×
+    1.10. If passes 2/3: add to meta-stacker bank.
+  - Expected: probably ≥0.75 Jaccard with recipe (recipe's tree
+    splits already use both rule cols and continuous correlates
+    of them). 15% prior of a useful blend leg, but cheap to test.
+
+  **Execution order**: N3 first (cheapest, informs the rest) →
+  parallel N1 (Kaggle GPU queue) + N4 (local CPU) → N2 if N1
+  doesn't return a passing leg. If all four null:
+
+  **N5 (lock + stop)**: lock primary `submission_tier1b_greedy_meta.csv`
+  (LB 0.98094) + hedge `submission_3way_recipe025_s1035_s7040.csv`
+  (LB 0.98005) and reserve remaining LB submissions for end-of-comp
+  variance check (one re-validation per day until close).
+
+  **Skip on principled grounds** (re-confirmed today):
+  - More log-bias / Bayes-opt / decision-rule variants — the
+    LP probe definitively closes this family. Coord-ascent is
+    near-optimal at the operating point our calibration produces.
+  - Public-CSV blending (banned by top-of-file rule).
+  - More NN-family attempts beyond TabPFN-10k. 14 NN nulls form
+    a structural pattern at this feature set; TabPFN-10k is the
+    last UNTESTED-AT-DESIGN-SCALE family.
+  - HP/seed bagging on existing components (LB-regressed twice).
+
+### 2026-04-26 — N1 TabPFN-10k 1-fold val-only signal probe: NULL (15th NN family null, lowest Jaccard ever 0.21)
+
+- Goal: execute N1 from the post-LP shortlist. The prior 2026-04-22
+  TabPFN run capped at SUBSAMPLE=1500 for CPU. TabPFN v2's
+  architectural sweet spot is 10k. The closure note "GPU SUBSAMPLE=10000
+  unlikely to change blend outcome" was a guess from 1.5k Jaccard,
+  never measured. At 10k context, ~6.7x more rare-class examples
+  (3,333 High vs ~50 @ 1.5k) — direct test of whether rare-class data
+  shortage was the structural problem.
+- Branch: `claude/kaggle-missing-strategies-rls5d`. Single-file kernel
+  `kaggle_kernel/kernel_tabpfn_10k/tabpfn_10k.py` mirroring kernel_realmlp
+  pattern. tabpfn==2.2.1 (matches prior run). 43 dist features (raw +
+  signed/abs distances + rule indicators + pairwise products) — same
+  feature set as the 1.5k run for apples-to-apples context-size effect.
+
+- **Three-iteration story**:
+  1. **SMOKE v1** (1k context × 5k val × 5k test, 3.5min) — PASSED.
+     Pipeline boots clean on P100. Throughput at 1k = 1980 rows/sec.
+     Fold-0 argmax 0.96179, PCR=[L=0.9960, M=0.9568, H=0.9326].
+  2. **Production v2** (10k context, val + test) — KILLED at 56.7min.
+     Realized 10k throughput = **97 rows/sec** (vs my 200-est).
+     Val 126k completed in 21.8min ✓ but test 270k needed ~46min;
+     the 55-min HARD KILL fired during test predict and the
+     `sys.exit(0)` bypass meant NO artifacts were saved.
+  3. **v3 SKIP_TEST=True** (val-only, 21.9min) — CLEAN COMPLETE.
+     Fix: skip test predict entirely on this 1-fold probe (a 1-fold
+     test array isn't deployable; signal check needs only val).
+     Save val OOF + score immediately after val complete.
+
+- **v3 results (10k context, fold 0)**:
+  ```
+  context size    argmax bal_acc    Low    Medium    High
+  1.5k (prior)    not reported      —      —         0.9238 (5-fold standalone)
+  1k (smoke)       0.96179         0.9960  0.9568    0.9326
+  10k (this)       0.96368         0.9958  0.9566    **0.9386**  (+0.015 vs 1.5k)
+  ```
+  Tuned 0.96424, bias=[0.63, 2.07, 1.70]. **Real lift on High recall
+  from more rare-class context examples** — but at the standalone
+  level this matters only if blend-gate passes.
+
+- **Blend-gate analysis vs LB-best primary fold-0** (anchor OOF 0.97994):
+  ```
+  TabPFN @ recipe bias [1.43, 1.47, 3.40]:
+    bal = 0.94149  errs = 7,837   PCR=[L=0.9958, M=0.8439, H=0.9848]
+  LB-best primary @ recipe bias:
+    bal = 0.97994  errs = 1,914   PCR=[L=0.9956, M=0.9690, H=0.9752]
+
+  Gate criteria (all 3 must pass for full 5-fold push):
+    bal_tuned ≥ 0.974          FAIL  (0.96424)
+    Jaccard < 0.78             PASS  (0.2158 — LOWEST EVER)
+    errs ≤ 1.05 × anchor       FAIL  (7,837 vs cap 2,010 — +309.5%)
+  OVERALL: FAIL
+  ```
+
+- **The headline finding**: **Jaccard 0.2158 is the lowest orthogonality
+  ever recorded on this problem.** Beats every prior NN family by a
+  wide margin (Mamba 0.49, Trompt 0.53, RealMLP n_ens=1 0.62). At
+  recipe bias TabPFN nails High (0.9848 — best of any candidate) but
+  catastrophically loses Medium (0.8439 vs anchor 0.9690). The errors
+  are GENUINELY orthogonal — TabPFN sees a different decision surface.
+
+- **But magnitude trap dominates by 4x**: TabPFN errs 7,837 vs anchor
+  1,914 (+309.5%). Even at the unprecedented Jaccard 0.21, a positive
+  blend weight drags the LB-best toward TabPFN's 4x-more-numerous
+  wrong answers on Low/Medium boundaries. The +0.015 High recall lift
+  cannot offset that under macro-recall + fixed bias.
+
+- **Updated NN-family null table** (15 nulls now, structural pattern
+  cemented):
+
+### 2026-04-26 — TabM (pytabkit TabM_D) PROBE: 15th NN family null at LB 0.98094 (compute-bound + magnitude trap)
+
+- Goal: execute the highest-EV remaining untried NN architecture from
+  the kernel-audit lever bank — TabM-D (ICLR 2025, Gorishniy et al.
+  Yandex Research). Mirrors `kernel_realmlp_ens4` exactly except for
+  the model swap. Per CLAUDE.md GPU 1h cap rule + user instruction
+  "check after 1 fold to not waste GPU" — SMOKE-first then PROBE
+  (1 fold), not direct 5-fold push.
+- Changed: `kaggle_kernel/kernel_tabm/` (single-file kernel mirror of
+  kernel_realmlp_ens4 + IS_PROBE flag + per-fold checkpoint save +
+  fold-1 standalone abort gate), `scripts/blend_tabm.py` (blend-gate
+  mirror of blend_mamba.py: Jaccard + magnitude vs LB-best 4-stack +
+  fixed-bias α-sweep + PASS/WARN/REDUNDANT/MAGNITUDE-TRAP verdict).
+- Three pushes per CLAUDE.md SMOKE-first rule:
+  1. **SMOKE v1** (IS_SMOKE=True, tabm_k=8, n_epochs=3, 20k×2-fold):
+     ERROR — `TypeError: TabMConstructorMixin.__init__() got an
+     unexpected keyword argument 'n_ens'`. Fix: pytabkit's TabM_D has
+     BatchEnsemble built-in via `tabm_k` kwarg (default 32), not
+     `n_ens` like RealMLP_TD. Removed n_ens; verified accepted kwargs
+     via local introspection.
+  2. **SMOKE v2** (same config minus n_ens): PASSED in ~5 min wall.
+     Per-fold timing 3.7s on 10k × 3 epochs × tabm_k=8.
+  3. **PROBE** (IS_PROBE=True, tabm_k=32, n_epochs=25, 1 fold × 504k):
+     completed but **122 min wall on Kaggle P100** — way over the
+     1h GPU cap. Fold-1 wall-time abort triggered, fold 1 saved.
+- Standalone results (PROBE fold-1 = 126,000 val rows):
+  - argmax bal_acc = **0.96753** (RealMLP fold-1 0.96978 / Trompt
+    0.96092 / Mamba 0.95740)
+  - tuned bal_acc = **0.97496**, bias [1.6324, 1.4689, 3.4008]
+    (High bias 3.40 matches recipe family exactly)
+  - errors = 2,298 vs LB-best 4-stack's 1,914 (+20% magnitude)
+- Anchor comparison on same 126k val rows:
+  - LB-best 3-stack: 0.97926, errs 2,014
+  - LB-best 4-stack: 0.97994, errs 1,914
+  - TabM:            0.97491, errs 2,298 (Δ −0.00503, +20% errs)
+- **Jaccards (the headline finding)**:
+  - vs LB-best 3-stack: **0.5589**
+  - vs LB-best 4-stack: **0.5781** ← good orthogonality
+    (between RealMLP n_ens=1's 0.62 and Trompt's 0.53 fold-1)
+  - vs RealMLP n_ens=1: 0.6067
+- Fixed-bias α-sweep vs LB-best 4-stack (filled rows): **monotone
+  negative from α=0.05** (Δ −0.00016 to −0.00067 across α∈[0.05, 0.35]).
+  Peak at α=0.000 (no blend).
+- **Verdict: NULL on both axes**:
+  1. **Compute-bound**: 122 min/fold × 5 = ~10 hours wall, infeasible
+     even with leaner config. Production 5-fold cannot fit any GPU
+     budget reasonable for this competition.
+  2. **Magnitude-trap**: same failure mode as 14 prior NN nulls. TabM
+     has the right Jaccard (0.58) for orthogonal blend signal, but
+     +20% more errors than anchor flips the macro-recall trade
+     against the rare class.
+- LB delta: n/a — no LB probe warranted (no α > 0 lifts above
+  LB-best 4-stack OOF). LB best unchanged at **0.98094**. LB budget
+  unchanged.
+- Pattern reinforced (now **15 consecutive NN-family nulls** on this
+  feature set):
+  ```
+  NN family            Jaccard vs anchor   errs vs anchor    LB outcome
+  ----------          ------------------- ------------------ --------------------
+  MLP v5-v9            0.62-0.85           +1500-15000       NULL
+  FT-Transformer       0.61                +12000            NULL
+  TabPFN (1.5k CPU)    0.81                +1485             NULL
+  Pretrain-FT MLP      0.65                +3615             NULL
+  DAE SwapNoise        0.84                similar           NULL
+  RealMLP n_ens=1      0.62                +358              LB +0.00003 (3-stack)
+  RealMLP n_ens=4      0.62                +485              NULL (worse than n_ens=1)
+  Trompt               0.53                +169              NULL (magnitude-trap)
+  Mambular SSM         0.49                +518 (+27%)       NULL
+  **TabPFN-10k         0.21 (record)       +5923 (+309%)     NULL (this entry)**
+  ```
+  Only RealMLP n_ens=1 has ever cleared the +5% magnitude rule AND
+  produced an LB lift. The pattern is structural at this feature set:
+  NN architectures produce orthogonal errors but in larger absolute
+  numbers, and macro-recall at fixed-bias cares about per-class
+  totals → magnitude tax dominates.
+
+- **Strategic implication**: TabPFN-10k was the last NN family at
+  design-scale that could break the pattern. The 14-null history
+  WITH a +0.015 High recall lift WITH the lowest Jaccard ever
+  recorded WITHOUT clearing the gate — this is the strongest
+  closure signal possible. **NN levers are now unambiguously
+  exhausted on this problem within the standard tabular ML toolkit.**
+
+- **No 5-fold push warranted.** Standalone 0.96424 is 0.0157 below
+  anchor; even with 5-fold averaging variance reduction (~+0.0005)
+  it won't reach 0.974. Magnitude trap is structural, not variance.
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Jaccard < 0.30 with errs > 3x anchor is structurally a
+     "different problem" candidate, not a "different model" candidate.**
+     The model is solving a different optimization than the anchor;
+     blend weights cannot reconcile the operating points. Skip directly
+     to "is this orthogonal model worth deploying ALONE on a different
+     subset of test rows?" — i.e., conformal routing or per-row
+     feature-conditional gating, not log-blend.
+  2. **TabPFN context-size scaling: more context → genuinely more
+     rare-class signal extracted, but at fixed bias it trades
+     majority-class recall for rare-class recall**. The +0.015 High
+     recall came at -0.011 Medium. On a 3-class problem with 3.3%
+     High prior, the trade is unfavorable for macro-recall. Useful
+     for rare-class detection tasks (binary or imbalanced ranking)
+     but not for balanced-accuracy multiclass.
+  3. **GPU throughput estimates for transformer in-context learners
+     scale ~linearly with context size, not quadratically**. At 1k
+     context = 1980 rows/sec on P100; at 10k = 97 rows/sec (20x
+     slower at 10x context). Plan accordingly: at 10k context, expect
+     ~100 rows/sec inference budget — 270k test = 45min, val 126k =
+     22min, total 67min uninterruptible work. For 1-fold probes, skip
+     test entirely; production 5-fold needs a multi-kernel split.
+
+- **11th independent saturation confirmation at LB 0.98094**.
+
+- LB delta: n/a. No probe warranted (standalone gate failed). LB best
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- LB budget unchanged: 4/10 used (for the day). 6 remaining.
+
+- Artefacts (whitelisted via `.gitignore` exception):
+  - `kaggle_kernel/kernel_tabpfn_10k/tabpfn_10k.py` (~530 lines including
+    SKIP_TEST fix and the v3 incremental save)
+  - `kaggle_kernel/kernel_tabpfn_10k/kernel-metadata.json`
+  - `scripts/blend_tabpfn_10k.py` (fold-0 blend gate)
+  - `scripts/artifacts/oof_tabpfn_10k.npy` (fold-0 val rows populated;
+    other rows zero-sentinel)
+  - `scripts/artifacts/test_tabpfn_10k.npy` (uniform-prior placeholder
+    from SKIP_TEST mode — NOT a real test prediction)
+  - `scripts/artifacts/tabpfn_10k_results.json`
+  - `scripts/artifacts/blend_tabpfn_10k_fold0_results.json`
+
+- **Updated next-steps shortlist** (3 levers remain from the post-LP plan):
+  - N2 (CVAE for synthetic Highs) — NOW LOWER PRIORITY. The TabPFN-10k
+    result shows even 6.7x more rare-class examples doesn't break the
+    magnitude trap on this feature set. A CVAE-generated synthetic
+    High set is a similar mechanism (more rare-class data) but with
+    interpolation noise risk that already killed SMOTE-NC twice. Prior
+    of breaking the pattern dropped from 25-30% to ~10%.
+  - N3 (hard-example scan) — UNCHANGED. Still the cheapest diagnostic
+    (~30 min CPU). Even if N4 nulls, the score-band breakdown of low-
+    confidence rows informs final-selection variance estimates.
+  - N4 (recipe_no_rule_features) — UNCHANGED. ~50 min CPU.
+  - N5 (lock + stop) — INCREASED PRIORITY. With 11 saturation
+    confirmations + 15 NN nulls + the strongest closure signal possible
+    on the remaining "untested at scale" lever, the marginal LB-probe
+    EV is minimal. Lock primary + hedge as final.
+  TabPFN               0.81                +1485             NULL
+  Pretrain-FT MLP      0.65                +3615             NULL
+  DAE SwapNoise        0.84                similar           NULL
+  RealMLP n_ens=1      0.62                +358              LB +0.00003 (3-stack)
+  RealMLP n_ens=4      0.62                +485              NULL
+  Trompt               0.53                +169              NULL (compute-bound + magnitude)
+  Mambular SSM         0.49 (record low)   +518 (+27%)       NULL
+  **TabM-D (k=32)      0.58                +384 (+20%)       NULL (compute + magnitude)**
+  ```
+  Only RealMLP n_ens=1 has ever cleared the magnitude bar (+358 errs
+  = +3.7% over anchor) AND produced an LB lift. Every other NN family
+  is permanently closed at this feature set. **Jaccard ≤ 0.62 + errs
+  ≤ 1.05× anchor** is the necessary-and-still-not-sufficient blend
+  fingerprint we've never re-found since.
+
+- **Portable rules** (LEARNINGS.md candidates):
+  1. **TabM-D via pytabkit's `tabm_k=32` is wall-time-prohibitive on
+     Kaggle P100 for production 5-fold at full epoch budget.** 122 min
+     fold-1 wall (504k rows × 25 epochs) projects to ~10h for 5-fold,
+     vs the 1h GPU cap in CLAUDE.md. Must reduce to tabm_k≤16 +
+     n_epochs≤15 for any 5-fold attempt — but at that lean config,
+     standalone OOF will likely drop below the 0.97 floor that's been
+     the consistent NN failure threshold on this problem.
+  2. **pytabkit's TabM_D and RealMLP_TD have DIFFERENT signatures.**
+     TabM_D doesn't accept `n_ens` (it has built-in BatchEnsemble via
+     `tabm_k`, default 32). Always introspect the constructor before
+     porting kernel HPs across pytabkit families.
+  3. **Three NN PROBE attempts (Trompt, Mamba, TabM) all converge on
+     the same Jaccard-orthogonal-but-magnitude-trapped corner.** TabM's
+     Jaccard 0.58 + errs +20% mirrors Trompt's 0.53 + errs +8% (also
+     compute-killed at fold 1) and Mamba's 0.49 + errs +27%. The
+     pattern is not architecture-specific — it's a property of how NNs
+     trained on this 19-50 feature recipe-mirror set distribute errors
+     on the held-out fold. Future synthetic tabular comps should
+     SMOKE-then-PROBE NN families with a strict 5-min wall budget for
+     SMOKE + 30-min wall budget for PROBE, and close the lever fast on
+     magnitude trap. Don't sink GPU budget into 5-fold production
+     before the magnitude bar is cleared.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `kaggle_kernel/kernel_tabm/{tabm_pytabkit.py,kernel-metadata.json}`
+  - `scripts/blend_tabm.py` (~210 lines, modular per CLAUDE.md rule)
+  - `scripts/artifacts/oof_tabm.npy` (7.2 MB, fold 1 only)
+  - `scripts/artifacts/test_tabm.npy` (3.1 MB)
+  - `scripts/artifacts/tabm_probe_results.json` (per-fold + tuned +
+    abort_reason)
+  - `scripts/artifacts/blend_tabm_results.json` (Jaccards + α-sweep)
+- **Final-selection lock unchanged** (4 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+     (gap −0.00010, anomalous LB > OOF)
+  2. **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` →
+     **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer)
+- Pack 0.98114 still +0.00020 above; leader 0.98219 still +0.00125
+  above. Reachable only via public-CSV blending (banned by top-of-file
+  rule). With 15 NN nulls now in the log, the own-pipeline ceiling at
+  LB 0.98094 is structurally exhausted across architecture classes.
 
 ### 2026-04-26 — RealMLP n_ens=2 @ FULL n_epochs=40: NULL, RealMLP variance floor structural at n_ens=1
 

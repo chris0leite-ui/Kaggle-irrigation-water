@@ -1,0 +1,11 @@
+{
+  "smoke": false,
+  "n_features": 79,
+  "oof_tuned_bal_acc": 0.9745192296487121,
+  "tuned_bias": [
+    1.6324411632360976,
+    1.7689466919465482,
+    3.3007689020440885
+  ],
+  "poly_features_in_top_30": 9
+}
