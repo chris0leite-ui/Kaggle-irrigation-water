@@ -1038,3 +1038,11 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n5b_d2_score6_ood_gate_results.json
 !scripts/artifacts/n5b_blend_gate_ood_results.json
 !scripts/artifacts/n5b_blend_gate_knn10k_results.json
+
+# 2026-04-26 N5b deployments #1 (OOD) and #3 (kNN10k) recipe variants
+!scripts/artifacts/oof_recipe_full_te_ood.npy
+!scripts/artifacts/test_recipe_full_te_ood.npy
+!scripts/artifacts/oof_recipe_full_te_knn10k.npy
+!scripts/artifacts/test_recipe_full_te_knn10k.npy
+!scripts/artifacts/recipe_full_te_ood_results.json
+!scripts/artifacts/recipe_full_te_knn10k_results.json
