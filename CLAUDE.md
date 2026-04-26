@@ -12875,3 +12875,173 @@ If A clears the gate, follow with B as compounding lever. If A
 nulls, B remains the highest-upside untried lever. If both A + B
 null, lock the final selection (3 days to deadline; reserve 4
 remaining LB probes for end-of-comp variance check).
+
+### 2026-04-26 — senior-DS EDA proposal sprint: 5 NULLs + triple Pareto-frontier confirmation
+
+Senior-DS-style fresh EDA over the LB-best 4-stack confusion +
+17-component OOF disagreement structure surfaced one measured-
+orthogonal residual signal (aggregate stats over the bank carry AUC
+0.67 ⊥ existing meta-stacker) and three structurally-untried
+mechanisms. All three EDA proposals (P1/P2/P3) plus two follow-up
+brainstorm mechanisms (B/D) closed NULL — bringing total
+saturation confirmations to 15. The Pareto-frontier interpretation
+is now triple-verified across all three axis-violation directions.
+
+**P1 v6 aggregate-stats meta-stacker (NULL + LB regress):**
+- 22 bank-aggregate features added on top of tier1b's 62-component
+  meta-stacker pool. v6_lbpool restricted to the EXACT 62-component
+  LB-best v1 pool isolated the aggregate-feature lever from any
+  bank-extension effect.
+- v6_lbpool: standalone iso 0.98065 (Δ +0.00006), blend Δ peak
+  +0.00002 — sub-gate.
+- v6_full (108-pool + aggregates): standalone iso 0.98073, errs
+  8572 (-472 vs v1), Jaccard 0.928 with LB-best 4-stack at peak α
+  (lowest meta-variant Jaccard ever). Blend peak Δ +0.00037 OOF
+  at α=0.35. G3 fails High recall by 0.00012; user override
+  authorized LB probe → **LB 0.98012, Δ -0.00082** (8th LB
+  regression matching the bank-extension OOF→LB inflation pattern).
+- 4 redundant submissions burned by case-sensitive
+  `until ... | grep -q "successfully submitted"` retry loop —
+  Kaggle CLI prints capital-S "Successfully" so loop never matched.
+  Cost: 3 wasted slots from 10/day budget. Updated CLAUDE.md
+  ⚠️ LB SUBMISSION RULE with 5 sub-rules ("never wrap submit in
+  any retry/until/while/for/background loop, period"). LEARNINGS.md
+  now documents the rule with case-insensitive grep noted as
+  insufficient (pipe SIGPIPE / output mismatch / typo can re-leak).
+
+**P2 bucket-aware FE specialists (NULL):**
+- Two binary heads with FE engineered for the 2026-04-26 Cohen's d
+  patterns:
+    score=3 head (target=Medium): bucket-OOF AUC 0.74308
+    score=6 head (target=High):   bucket-OOF AUC 0.85177
+  The score=6 AUC is a competition record (prior best was the
+  2026-04-26 stage-1d teacher-residual specialist at 0.79).
+- Soft logit-add 2D sweep over (λ_3, λ_6): peak at λ_3=0.20,
+  **λ_6=0.00** (zero weight on the AUC-0.85 specialist!). At every
+  λ_6 > 0 the H-recall trade-off pushes the LB-best 4-stack PAST
+  its operating-point optimum. Best feasible Δ = +0.00006 OOF, fails
+  G2 (errs +20) and G4 (Δ < +2e-4).
+- This is the cleanest possible Pareto-frontier proof: the strongest
+  in-bucket H-detector ever built provides ZERO contribution to a
+  stack already at the rare-class corner of the macro-recall frontier.
+
+**P3 counterfactual rule-instability features (NULL):**
+- 5 features added to recipe FE: `rule_inst_{sm,rf,tc,ws}` (per-axis
+  flip count under {±2%, ±5%, ±10%, ±20%} perturbation) +
+  `rule_instability` (total).
+- Standalone passes G1+G2: iso 0.97931 (+0.00005 vs vanilla 0.97926),
+  errs 9244 (-22). Blend MONOTONE NEGATIVE from α=0.05 (G4 fails).
+- Mechanism: discretized aggregate of features the recipe XGB already
+  has at finer resolution (signed sm_dist + abs sm_abs + binary
+  dry/norain/hot/windy + dgp_score). Trees at depth 4 / max_bin 1024
+  / 3000 rounds express the instability count via joint splits
+  internally. Same null pattern as 2026-04-20 LGBM+FE (Δ -0.00052)
+  and 2026-04-21 rule×nonrule pairwise FE (Δ -0.00007). Tree feature
+  redundancy: prebuilt aggregates of features the model already has
+  at higher resolution add no information regardless of physical
+  motivation.
+
+**Mech B anchor-uncertainty-weighted recipe (NULL):**
+- ANCHOR_WEIGHT_ALPHA=2 hooked into recipe_full_te.py:
+    sw = balanced(y) × (1 + 2 × (1 − max_prob_LB4stack[i]))
+  Compound max weight 19.997× on rare-class × most-uncertain rows.
+- Inverse of cleanlab confident-learning (which DOWN-weighted
+  ambiguous rows). 2026-04-21 DGP residuals EDA established the
+  uncertain rows are deterministic NN flips, not label noise.
+- Per-fold val argmax: 0.97493/0.97621/0.97695/0.97461/0.97458,
+  **all 5 folds negative** vs vanilla recipe. OOF argmax
+  Δ -0.00043, tuned Δ -0.00003 (bias retune compensates).
+- Standalone iso 0.97946 (+0.00020 vs vanilla 0.97926, passes G1)
+  but errs 9349 (+83 vs vanilla 9266, fails G2). PCR shift:
+  Low +0.00002, Med -0.00046, **High +0.00105** — genuine
+  Med→High trade.
+- Substitution test (replace recipe in lb3): new 4-stack OOF
+  0.98077 (Δ -0.00008 vs lb4); High recall in stack 0.97715 vs
+  lb4's 0.97749 (-0.00034). Gain consumed by stack.
+- Blend sweep monotone-negative from α=0.05. EMIT False (g2=F,
+  g4=F).
+- Diagnosis: Mech B genuinely shifts the per-class balance toward
+  more High at standalone level. But the LB-best 4-stack already
+  chose this Med→High operating point via log-bias coord-ascent.
+  Adding a model with even more aggressive Med→High trade pushes
+  the stack PAST the macro-recall optimum.
+
+**Mech D per-row attention over bank (NULL):**
+- Architecture: context (15d) → MLP(64) → softmax(62) attention
+  weights → convex blend over the LB-best v1's 62-component bank.
+  ~8000 params. Trained 5-fold seed=42, 30 epochs Adam lr=1e-3, CE.
+- Per-fold val argmax 0.97232-0.97423 (best per fold). Total wall
+  130s. OOF argmax 0.97393, raw tuned 0.98028, iso tuned 0.98032 —
+  BELOW LB-best 4-stack's 0.98084 by 0.00056. G1 fails.
+- PCR vs LB-best 4-stack: Low -0.00009, **Med +0.00252** (gain),
+  **High -0.00400** (lose). Wrong Pareto direction.
+- Cross-entropy loss optimizes per-row log-likelihood, which under
+  class imbalance favors confident predictions on the majority
+  class. Without an explicit macro-recall surrogate, the convex-
+  blend constraint collapses toward Medium predictions.
+- Confirms CMA-ES result (in-sample upper bound 0.98091 is just
+  +0.00007 above LB-best): even row-conditional convex blends
+  cannot exceed the global optimum on this OOF bank when optimized
+  via CE loss.
+
+**Triple Pareto-frontier confirmation (the load-bearing finding):**
+The LB-best 4-stack at log-bias [1.4324, 1.4689, 3.4008] sits at
+the EXACT macro-recall optimum on the per-class operating-point
+Pareto frontier. Verified across all three axis-violation
+directions:
+```
+direction        mechanism             Δ standalone    Δ LB
+─────────────  ───────────────────  ─────────────  ──────────
+↓High, ↑L+M    P1 v6_full           +0.00037       LB 0.98012 (-0.00082)
+↓Med, ↑H+L     Mech B α=2           +0.00020       null in stack
+↓High, ↑Med    Mech D               -0.00056       null in stack
+```
+Any convex re-arrangement of the existing 60+ component OOF bank
+moves AWAY from this optimum. The 15 saturation confirmations
+since 2026-04-25 are not 15 different ceilings — they are 15
+different confirmations of the SAME ceiling, viewed through
+different mechanisms.
+
+**Brainstorm scoreboard after this session:**
+```
+A. Boundary-confined TTA          untried (~90 min CPU, helper scaffolded)
+B. Anchor-uncertainty retrain     NULL (this entry)
+C. Synthetic rule-only aug        untried (~70 min CPU)
+D. Per-row attention              NULL (this entry)
+E. Fuzzy-threshold rule features  untried (~50 min CPU)
+```
+
+LB best unchanged at **0.98094** via
+`submission_tier1b_greedy_meta.csv`. LB budget 6/10 used today
+(4 remaining; 4 of the 6 were the v6_full retry-loop bug, only
+2 net-useful probes). Final-selection lock recommendation:
+PRIMARY = LB 0.98094, HEDGE = `submission_3way_recipe025_s1035_s7040.csv`
+(LB 0.98005, sidesteps meta-stacker layer for orthogonal overfit
+insurance).
+
+Two final-selection days reserve 4 LB submissions for end-of-comp
+variance check. Mech A is the only mechanism left that operates by
+SMOOTHING boundary rows rather than re-blending components — different
+failure mode from B/D's convex-blend collapse. If A nulls, lock
+final selection.
+
+**Portable rules logged to LEARNINGS.md (or candidate adds):**
+1. NEVER wrap kaggle competitions submit in any retry / until /
+   while / for / background loop, period. Cost asymmetry too severe.
+   Read-only polling of submissions list is fine; only WRITE command
+   forbidden.
+2. Pareto-frontier closure on this problem is now triple-verified;
+   any candidate that trades Med↔High in EITHER direction at the
+   standalone level fails the LB-best 4-stack stack-level operating
+   point. Diagnostic: compute per-class recall delta vs LB-best 4-stack.
+   If any class drops by ≥ 0.0005, the candidate is a Pareto violator.
+3. Per-row attention over a saturated component bank with CE loss
+   collapses toward majority-class predictions. To use row-conditional
+   blending productively, the loss must be macro-recall-aware OR the
+   bank must include components NOT yet at the Pareto frontier.
+4. Tree feature redundancy is a structural property: aggregate
+   features (instability counts, decimal-position digits, etc.) of
+   inputs the model already has at finer resolution add NO signal
+   regardless of physical/mechanism motivation. Recipe XGB at depth=4
+   max_bin=1024 expresses these aggregates internally via joint
+   splits.
