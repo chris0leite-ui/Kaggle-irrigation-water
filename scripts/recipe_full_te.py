@@ -99,6 +99,16 @@ GBY = os.environ.get("GBY", "") == "1"
 # axis. Captures multi-axis simultaneous closeness to the rule-cell topology
 # in a way per-axis distance features cannot. Suffix "_instab" on outputs.
 INSTAB = os.environ.get("INSTAB", "") == "1"
+# THREE_WAY_OTE: senior-FE 3-way OTE keys (cat × cat × digit triples).
+# Adds 15 high-card combo cols to te_cols so OrderedTE encodes them as
+# 45 new per-class TE features on top of recipe's 351-col OTE. Untried
+# in 13 saturation confirmations. Suffix "_3way" on outputs.
+THREE_WAY_OTE = os.environ.get("THREE_WAY_OTE", "") == "1"
+# NN_DIST_PATH: optional path to FAISS k-NN distance features w.r.t. 10k
+# original. .npy of shape (n_train, K). The matching test array is derived
+# by replacing "oof_" → "test_". When set, the K columns are added as
+# extra numerics. Suffix "_nndist" on outputs.
+NN_DIST_PATH = os.environ.get("NN_DIST_PATH", "")
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -140,6 +150,10 @@ if INSTAB:
     _parts.append("instab")
 if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
+if THREE_WAY_OTE:
+    _parts.append("3way")
+if NN_DIST_PATH:
+    _parts.append("nndist")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -236,13 +250,25 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     log("adding digit features")
     digits = add_digit_features(train, test, orig, nums)
 
+    # 3-way OTE combos (cat × cat × digit) — built BEFORE num_as_cat /
+    # FREQ / orig-stats so the combo cols are available for OTE keys.
+    three_way_combos: list[str] = []
+    if THREE_WAY_OTE:
+        from three_way_keys import add_three_way_combos
+        log("adding 3-way OTE combos (15 cat×cat×digit triples)")
+        three_way_combos = add_three_way_combos(train, test, orig)
+        # Sanity card report on a sample to confirm signal density.
+        from three_way_keys import cardinality_report
+        rep = cardinality_report(train, three_way_combos[:3])
+        log(f"  card sample: {rep}")
+
     # Num-as-cat (factorized across combined).
     log("adding num-as-cat")
     num_as_cat = add_num_as_cat(train, test, orig, nums)
 
-    # FREQ per raw cat + per combo (computed on train+test+orig combined).
+    # FREQ per raw cat + per combo + 3-way combo (combined train+test+orig).
     log("adding FREQ features")
-    freq = add_freq_features(train, test, orig, cats + combos)
+    freq = add_freq_features(train, test, orig, cats + combos + three_way_combos)
 
     # ORIG mean/std per column (leak-free — external source only).
     log("adding ORIG mean/std per col")
@@ -302,6 +328,26 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
             train[c] = dae_tr[:, i]
             test[c] = dae_te[:, i]
 
+    # Senior-FE NN-distance features (FAISS k-NN to 10k original).
+    nndist_cols: list[str] = []
+    if NN_DIST_PATH:
+        log(f"loading NN-distance features from {NN_DIST_PATH}")
+        nnd_tr = np.load(NN_DIST_PATH).astype(np.float32)
+        nnd_te = np.load(NN_DIST_PATH.replace("oof_", "test_")).astype(np.float32)
+        log(f"  nndist_train={nnd_tr.shape}  nndist_test={nnd_te.shape}")
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            nnd_tr = nnd_tr[train_subset_idx]
+            nnd_te = nnd_te[test_subset_idx]
+            log(f"  SMOKE-subsampled nndist: {nnd_tr.shape}, {nnd_te.shape}")
+        assert nnd_tr.shape[0] == len(train), (nnd_tr.shape, len(train))
+        assert nnd_te.shape[0] == len(test), (nnd_te.shape, len(test))
+        n_nnd = nnd_tr.shape[1]
+        nndist_cols = [f"nndist_{i}" for i in range(n_nnd)]
+        for i, c in enumerate(nndist_cols):
+            train[c] = nnd_tr[:, i]
+            test[c] = nnd_te[:, i]
+
     info = dict(
         nums=nums, cats=cats, combos=combos, digits=digits,
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
@@ -309,7 +355,8 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
         gby=gby_cols, instab=instab_cols,
-        te_cols=cats + combos + digits + num_as_cat + tres,
+        three_way=three_way_combos, nndist=nndist_cols,
+        te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
     )
     log(f"  feature groups: "
         f"cats={len(cats)} combos={len(combos)} digits={len(digits)} "
@@ -319,6 +366,8 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
         f"extra_w8={len(extra_w8)} "
         f"gby={len(gby_cols)} "
+        f"three_way={len(three_way_combos)} "
+        f"nndist={len(nndist_cols)} "
         f"te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
 
@@ -367,7 +416,8 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
                      + info.get("gby", [])
-                     + info.get("instab", []))
+                     + info.get("instab", [])
+                     + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
