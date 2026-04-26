@@ -1,0 +1,33 @@
+{
+  "smoke": false,
+  "seed": 42,
+  "n_folds": 5,
+  "n_train": 630000,
+  "n_test": 270000,
+  "masked_feats": [
+    "Humidity",
+    "Previous_Irrigation_mm",
+    "Electrical_Conductivity",
+    "Soil_pH",
+    "Organic_Carbon",
+    "Sunlight_Hours",
+    "Field_Area_hectare"
+  ],
+  "feat_names": [
+    "Humidity_resid",
+    "Humidity_abs_resid",
+    "Previous_Irrigation_mm_resid",
+    "Previous_Irrigation_mm_abs_resid",
+    "Electrical_Conductivity_resid",
+    "Electrical_Conductivity_abs_resid",
+    "Soil_pH_resid",
+    "Soil_pH_abs_resid",
+    "Organic_Carbon_resid",
+    "Organic_Carbon_abs_resid",
+    "Sunlight_Hours_resid",
+    "Sunlight_Hours_abs_resid",
+    "Field_Area_hectare_resid",
+    "Field_Area_hectare_abs_resid"
+  ],
+  "n_output_cols": 14
+}
