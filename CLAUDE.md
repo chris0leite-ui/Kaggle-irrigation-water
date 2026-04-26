@@ -10925,3 +10925,198 @@ model wave**:
   scale mismatch BEFORE blending) but NEVER on the blend output."
 - LB delta: n/a. No probe. LB-best unchanged at **0.98094**.
 - LB budget unchanged: 6/10 used today, 4 remaining.
+
+### 2026-04-25 → 04-26 — J7 conformal-gated overrides + J4 KAN PROBE + W_RECIPE=1.0 distill: 3 NULLs, distill family fully closed
+
+Three diagnostics from the post-Tier-1c "open-items" list, all NULL,
+with two adding portable rules and definitively closing the
+soft-distillation lever family.
+
+#### J7 — conformal-gated overrides on score=6 (NULL, both mechanisms)
+
+- Goal: replace the OOF-overfit-prone raw-θ threshold sweep with a
+  principled coverage-guaranteed override. spec6_mh_v2 (AUC 0.938)
+  ranked correctly but raw-θ peak at +0.00009 OOF was selection-bias
+  manufactured. Two independent variants tested:
+  1. **Wilson-lower-bound precision-gated** (already on origin/main
+     commit c20fa1b): tau=0.148, 45 train overrides at 13.3% precision,
+     delta_oof=+0.00004, gate_pass=FALSE.
+  2. **Mondrian split-conformal** (this branch, `scripts/j7_conformal_spec6.py`):
+     per-fold leak-safe calibration, alpha sweep ∈ [0.01, 0.50] for
+     coverage of True-High class. Best operating point alpha=0.50:
+     3,755 overrides, 4.5% precision, delta=−0.00230. No safe positive
+     operating point at any alpha.
+- Both confirm the 2026-04-24 Pareto-frontier closure on per-class
+  High recall: under macro-recall, override break-even precision is
+  H/(M+H) ≈ 8.1%. spec6_mh_v2's top-ranked picks plateau at 6.5%
+  precision regardless of how the threshold is chosen. The detector
+  knows, but its ranks aren't sharp enough for deployment.
+- LB delta: n/a (no probe; both monotone-negative or sub-gate).
+
+#### J4 — KAN (Kolmogorov-Arnold Networks) PROBE: 15th NN null with RECORD-LOW Jaccard 0.1267
+
+- Goal: 15th NN-family attempt. The 2026-04-21 DGP-residuals EDA
+  established the host label generator is a smooth NN function; KAN's
+  per-edge B-spline parameterisation is uniquely suited to fit smooth,
+  non-axis-aligned boundaries. Different inductive bias from all 14
+  prior NN nulls (MLP / FT-T / TabPFN / DAE / RealMLP / Trompt / Mamba)
+  which use attention or pure feed-forward.
+- Implementation: efficient-kan (Blealtan, MIT, GitHub-only — not on
+  PyPI). ~10× faster than original pykan, pure PyTorch (no CUDA toolkit
+  needed). 19 raw features (8 cats one-hot + 11 nums standardised) to
+  keep Jaccard apples-to-apples with sister NN kernels.
+- PROBE config (`kaggle_kernel/kernel_kan/`): 1 fold × 504k train + 10k
+  orig × 12 epochs × KAN [43, 192, 96, 48, 3] (314k params, grid_size=5,
+  spline_order=3). Wall: ~5 min on Kaggle P100, ~3.4 sec/epoch. SMOKE
+  GREEN locally first (CPU, 138k params, 2 folds × 20k × 2 epochs =
+  ~3 sec).
+- Standalone results (fold-1 only):
+  ```
+  argmax bal_acc        0.93286   (training plateau evident; loss flat)
+  tuned bal_acc (own)   0.93868   bias=[2.13, 1.97, 2.00] (uniform shift)
+  errs at anchor bias   12,217    vs anchor 1,944 = 6.28× anchor
+  ```
+- **Jaccard analysis** (vs LB-best 3-stack, fold-1, 126k val rows):
+  ```
+  Jaccard(KAN errs, anchor errs) = 0.1267    ← RECORD LOW orthogonality
+  prior best NN orthogonality:    Mambular   0.491
+                                  Trompt     0.534 (fold-1)
+                                  RealMLP    0.621
+  ```
+  KAN's spline-on-edge inductive bias DOES find a fundamentally
+  different decision surface — this is the most orthogonal predictor
+  any NN family has produced on this problem.
+- **Blend gate FAILS on magnitude**: errs ratio 6.28× crushes the
+  ≤1.05× threshold by an order of magnitude. Sweep monotone-negative
+  from α=0.025 (Δ=−0.00003) through α=0.50 (Δ=−0.00504). 15th NN null
+  in a uniquely orthogonal way.
+- **Pattern hardened across 15 NN families**:
+  ```
+  family            Jaccard vs anchor    errs vs anchor    LB outcome
+  ----------       ------------------- ------------------ ------------
+  MLP v5-v9         0.62-0.85           +1500-15000       NULL
+  FT-Transformer    0.61                +12000            NULL
+  TabPFN            0.81                +1485             NULL
+  RealMLP n_ens=1   0.62                +358              LB +0.00003
+  RealMLP n_ens=4   0.62                +485              NULL
+  Trompt (probe)    0.53                +169              NULL
+  Mambular SSM      0.49                +518 (+27%)       NULL
+  KAN (probe)       **0.13**            +10,273 (+528%)   NULL
+  ```
+  KAN broke the orthogonality rule (4× lower Jaccard than the next
+  best NN family) but FAILED the magnitude rule by an order of
+  magnitude vs the typical 1.05–1.50× band. Confirms: **the magnitude
+  rule is the binding structural constraint, not orthogonality.**
+- Decision: do NOT push full 5-fold. Capacity scaling is the same
+  lever RealMLP n_ens=4 tested and nulled. The structural ceiling is
+  NN standalone bal_acc on the 19-raw-feature one-hot representation,
+  not architecture choice.
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  `oof_kan_probe.npy`, `test_kan_probe.npy`, `blend_kan_results.json`.
+  The Jaccard-0.13 mark may be useful from a different/weaker anchor
+  in future stacking work.
+
+#### Option 2 — leak-eliminated W_RECIPE=1.0 distill: distill family FULLY CLOSED
+
+- Goal: deferred Option-2 diagnostic from the U0OEQ session. Tests
+  whether the soft-distill OOF→LB gap (small variant: OOF 0.98066 →
+  LB 0.97865, gap +0.00201) is caused by the pseudo-label component
+  leaking calibration noise vs being structural to teacher OOF
+  construction.
+- Configuration: `SOFT_SUFFIX=recipeonly W_RECIPE=1.0 XGB_DEPTH=3
+  XGB_NROUND=1500 XGB_MAX_LEAVES=15 python scripts/soft_distill_xgb.py`
+  Teacher = recipe_full_te alone (no pseudolabel component).
+  ~42 min CPU wall, 5-fold StratifiedKFold(seed=42).
+- Per-fold argmax bal_acc: 0.97496 / 0.97572 / 0.97624 / 0.97462 /
+  0.97525 (mean 0.97536 ± 0.00057). Best_iter at 1485-1499 of 1500
+  cap on every fold — student still learning at cutoff.
+- **Tuned OOF: 0.98074** with bias [0.932, 1.269, 3.401].
+- Comparison ladder (distill family across 4 capacity points + 2
+  teacher compositions):
+  ```
+  variant            d  leaves  rds   teacher       OOF tuned  errs    PCR L/M/H
+  -----------       --- ------ ----- -------------  ---------- ------ -------------------------
+  distill (orig)     4  30     3000  0.5r + 0.5p   0.98096    9,520  0.9942 / 0.9685 / 0.9774
+                                                                                  → LB 0.97850 (gap +0.00246)
+  distill_small      3  15     1500  0.5r + 0.5p   0.98066    9,739  0.9945 / 0.9698 / 0.9777
+                                                                                  → LB 0.97865 (gap +0.00201)
+  distill_tiny       2  7       500  0.5r + 0.5p   0.97975    ?      ?            (not probed)
+  recipeonly (NEW)   3  15     1500  1.0r          0.98074    10,228 0.9949 / 0.9669 / 0.9805
+                                                                                  (not probed)
+  LB-best 3-stack    -  -       -    -             0.98061    9,572  0.9955 / 0.9689 / 0.9774
+  ```
+- Three smoking guns that pseudo is **NOT** the leak source:
+  1. OOF went UP +0.00008 vs distill_small (would expect DOWN if
+     pseudo leaked encoded noise — leak removal lowers encoded noise
+     → lowers OOF).
+  2. Errs went UP +489 (recipeonly is less-calibrated despite higher
+     bal_acc; trades Medium recall −0.0029 for High recall +0.0028).
+  3. Jaccard(recipeonly, small) = **0.8928** — ~89% of errors are
+     SHARED regardless of teacher composition. Pseudo-component
+     contributes only marginal per-row variation, not the dominant
+     overfit signal.
+- **CONCLUSION: distill family FULLY CLOSED.** The OOF→LB gap is
+  structural to teacher OOF construction itself (CV-aggregated OOFs
+  inherit fold-specific calibration noise that any equal-or-greater-
+  capacity student memorizes), NOT specific to the pseudo-label
+  component. To produce a leak-free teacher would require retraining
+  each teacher component with the student's training row held out
+  of EVERY component — O(N²) retrains, computationally prohibitive
+  at production scale.
+- No LB probe warranted — recipeonly OOF 0.98074 < LB-best 4-stack
+  0.98094, projected LB ≤ 0.97874 at gap +0.002 carryover.
+- LB best unchanged: **LB 0.98094** via
+  `submission_tier1b_greedy_meta.csv`. Pack 0.98114 still +0.00020
+  above. Hedge swap recommendation unchanged: prefer
+  `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005, premium
+  −0.00089) over `recipe_full_te.csv` (LB 0.97939, premium −0.00155)
+  — sidesteps the meta-stacker layer.
+
+#### Realistic forward EV on NN HP-tuning (analysis, not experiment)
+
+After 15 NN-family nulls, computed honest EV for "more capacity /
+more folds / HP tuning" as a forward lever:
+
+  - Empirical NN ceiling on 19-raw-feature one-hot representation:
+    ~0.965-0.976 standalone tuned bal_acc (only RealMLP n_ens=1 has
+    crossed 0.97).
+  - Magnitude floor for blend viability: errs ≤ 1.05× anchor →
+    standalone ≥ ~0.984. No NN ever reached this on this feature set.
+  - 2026-04-22 XGB Optuna 80-trial sweep (smaller HP space than NNs):
+    inner-val lift +0.00193 to +0.01019, outer-CV realized 30-65%,
+    LB regressed -0.00016 to -0.00021. Documents structural-
+    generalization null.
+  - Best-case forward outcome: +0.00010 LB at ~10% probability
+  - Median: 0 LB at ~50%
+  - Worst: -0.00020 LB at ~30% (LR-meta-style overfit)
+  - EV: +0.00001 to +0.00003 LB on ~15h compute spend
+
+- Decision: skip further NN investment. The expected value is ~3 bp
+  LB for half-day to full-day GPU; pack 0.98114 (+0.00020 above) is
+  reachable at ~10-15% probability, not worth burning compute or
+  LB slots given structural saturation evidence.
+
+#### Final-selection state (5 days to deadline)
+
+- **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB **0.98094**
+  (gap −0.00010, anomalous LB > OOF). Composition: lb3 + RealMLP α=0.20
+  + xgb_nonrule_iso α=0.075 + xgb_metastack_iso α=0.30.
+- **HEDGE (recommended swap)**:
+  `submission_3way_recipe025_s1035_s7040.csv` → LB **0.98005** (gap
+  +0.00024, premium −0.00089). Sidesteps meta-stacker layer for
+  private-LB overfit insurance.
+
+#### Remaining open items (low-EV, kept for completeness)
+
+  - **A3 Mixup XGB** (~1h CPU): training-time augmentation distinct
+    from SMOTE's k-NN interpolation. Mechanism-novel; expected null.
+  - **B3 Multi-task XGB** (~1h CPU): joint heads on y, dgp_score,
+    rule_pred, cell_id. Untested.
+  - **J5 TabDDPM** (~1.5h GPU): diffusion-augmented synthetic Highs.
+    Different failure mode from SMOTE.
+  - **C1 100+ XGB stack** (~8h GPU): NVIDIA-grandmaster scale on top
+    of saturated bank. Bounded EV.
+  - **TabM via pytabkit** (~1h GPU): only architecturally novel NN
+    family remaining; flagged in audit round 5 (mikhailnaumov import-
+    but-not-used pattern). 16th NN attempt likely null.
+
