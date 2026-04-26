@@ -1244,3 +1244,69 @@ all of them on the same model.
   that consumed the prior bank already extracts the available signal
   channels; iso-cal of the new meta over the extended bank rebalances
   per-class scales without surfacing new orthogonal information.
+
+- **The blend-magnitude rule is the binding structural constraint
+  for NN-family blend legs, not orthogonality.** 15 NN families
+  tested on the 19-raw-feature one-hot representation cluster in
+  Jaccard 0.13-0.85 with errs +18% to +528% over the LB-best anchor.
+  Only RealMLP n_ens=1 ever passed magnitude (errs +18%) — and it
+  only contributed +0.00003 LB, only because xgb_nonrule_iso was
+  added on top. KAN broke the orthogonality rule (Jaccard 0.13 —
+  4× lower than the next-best NN, Mambular SSM at 0.49) but failed
+  the magnitude rule by an order of magnitude (+528% errs). **For
+  future tabular comps with a stacked tree-anchor at >0.98 OOF: do
+  NOT optimize NN architectures for orthogonality alone. Standalone
+  bal_acc reaching anchor − 0.005 is the binding criterion. Below
+  that threshold no orthogonality wins the blend at fixed bias.**
+
+- **Soft-target distillation from a teacher built from CV-OOF
+  probabilities has a structural OOF→LB gap regardless of teacher
+  composition.** 4-capacity-point × 2-teacher-composition study on
+  this problem: distill (d=4, r=3000), distill_small (d=3, r=1500),
+  distill_tiny (d=2, r=500), distill_recipeonly (d=3, r=1500, recipe
+  alone with no pseudo). All produce gap +0.0010 to +0.0025. The
+  recipe-only variant (W_RECIPE=1.0) had OOF +0.00008 ABOVE the
+  50/50 teacher's small variant — proving pseudo-component is NOT
+  the leak source. Jaccard between the two students' errors = 0.89,
+  meaning ~89% of errors are SHARED regardless of teacher
+  composition. Mechanism: every CV-OOF inherits fold-specific
+  calibration noise from its base learner, and any equal-or-greater-
+  capacity student memorizes that noise. The leak is in the teacher
+  OOF aggregation procedure itself, not its components. To produce
+  a truly leak-free teacher requires retraining each component
+  with the student's training row held out of EVERY component
+  (O(N²) retrains, prohibitive at production scale). Distillation
+  from bagged-OOF teachers is bounded on this problem family.
+
+- **NN HP-tuning EV is bounded by NN standalone-bal_acc structural
+  ceiling, not by HP space.** On this competition, 15 NN families
+  × multiple capacity tiers each (50k → 1M params, 3-30 epochs,
+  varying hidden, varying schedule) plateau at 0.93-0.97 standalone
+  tuned bal_acc on the 19-raw-feature one-hot representation. The
+  2026-04-22 XGB Optuna 80-trial sweep (smaller HP space than NNs)
+  hit inner-val +0.001 to +0.010 lift but LB-regressed −0.00016
+  to −0.00021 — structural-generalization null, not selection-bias
+  null. NN HP space is 5-10× larger, so selection bias is
+  amplified. Forward EV: +0.00001 to +0.00003 LB on ~15h compute
+  spend, with ~10-15% probability of clearing a +0.00020 target.
+  Below the cost-of-variance threshold for a 5-day-to-deadline
+  endgame.
+
+- **Conformal calibration cannot rescue a binary detector whose
+  top-N precision is below break-even under the target metric.**
+  spec6_mh_v2 had AUC 0.938 ranking on the score=6 missed-High
+  override space (35,180 rows, 331 truly-High). Two principled-
+  threshold variants tested: (a) Wilson-lower-bound precision
+  guarantee, (b) Mondrian split-conformal with True-High coverage
+  1−α. Both NULL. Reason: under macro-recall, override break-even
+  precision is H/(M+H) = 0.081, but the detector's top-200 rank
+  precision plateaus at 0.065. No threshold-selection mechanism
+  (raw-θ sweep, Wilson, conformal) can produce a positive-delta
+  operating point when the underlying ranking lacks sharpness. AUC
+  ≥ 0.95 with <0.1% prevalence is a known false-promise indicator
+  (the AUC integrates ranking quality across all thresholds; only
+  top-N precision matters for deployment, and it can be far
+  below AUC's implication). Compute the metric-specific break-even
+  precision from class weights FIRST and check top-N precision
+  before scaffolding any deployment mechanism.
+
