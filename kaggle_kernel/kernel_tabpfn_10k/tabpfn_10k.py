@@ -102,6 +102,14 @@ TARGET = "Irrigation_Need"
 CLS_MAP = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS_MAP.items()}
 
+# v3 fix: skip test prediction entirely on this 1-fold probe.
+# Reason: at 10k context the realized GPU throughput is ~97 rows/sec
+# (vs my earlier 200-est), so test 270k → 46 min on top of val 22 min
+# blows the 55-min cap. A 1-fold probe needs ONLY val signal; a
+# blendable test prediction requires 5-fold averaging anyway. Skipping
+# test here saves ~46 min and produces a clean signal-check artifact.
+SKIP_TEST = True
+
 KAGGLE_INPUT = Path("/kaggle/input")
 _DEFAULT_OUT = Path("/kaggle/working")
 if _DEFAULT_OUT.exists() or _DEFAULT_OUT.parent.exists():
@@ -309,6 +317,48 @@ def run_fold0(train, test, feature_cols):
             log(f"    val {i + chunk:,}/{len(X_va):,}  "
                 f"({rate:.0f} rows/sec)")
     log(f"  val predict done in {time.time() - t0:.1f}s")
+
+    # v3: SKIP_TEST path saves val artifacts immediately + early-exits
+    # without running test predict. Eliminates 46-min test pass that
+    # killed v2 mid-way.
+    if SKIP_TEST:
+        log("SKIP_TEST=True — saving val OOF + bailing before test predict")
+        # Build OOF in 630k-row sentinel layout for cross-branch alignment.
+        oof_full = np.zeros((len(train), 3), dtype=np.float32)
+        oof_full[va_idx] = proba_va
+        np.save(OUT_DIR / "oof_tabpfn_10k.npy", oof_full)
+        # Test placeholder = uniform prior so downstream blend code sees
+        # a valid (270k, 3) array that sums to 1 per row. Blend gate uses
+        # ONLY val OOF rows for signal check.
+        test_placeholder = np.full((len(test), 3), 1.0 / 3.0, dtype=np.float32)
+        np.save(OUT_DIR / "test_tabpfn_10k.npy", test_placeholder)
+        log(f"wrote oof_tabpfn_10k.npy ({len(va_idx)} val rows populated)")
+        log(f"wrote test_tabpfn_10k.npy (PLACEHOLDER — uniform; SKIP_TEST mode)")
+        # Compute val score + per-class recall here so it's visible in log
+        pred_va = proba_va.argmax(1)
+        ba = balanced_accuracy_score(y_va, pred_va)
+        cm = confusion_matrix(y_va, pred_va, labels=[0, 1, 2])
+        rec = cm.diagonal() / np.maximum(cm.sum(axis=1), 1)
+        log(f"VAL ARGMAX bal_acc = {ba:.5f}  "
+            f"PCR=[L={rec[0]:.4f}, M={rec[1]:.4f}, H={rec[2]:.4f}]")
+        # Save partial JSON now (early-exit safe).
+        partial = dict(
+            subsample=SUBSAMPLE, n_estimators=N_ESTIMATORS,
+            fold_run=FOLD_TO_RUN, skip_test=True,
+            fold_argmax_bal_acc=float(ba),
+            fold_per_class_recall=[float(r) for r in rec],
+            n_val_rows=int(len(va_idx)),
+            wall_min=(time.time() - T_START) / 60.0,
+            tabpfn_version=getattr(_tp, "__version__", "unknown"),
+        )
+        (OUT_DIR / "tabpfn_10k_results.json").write_text(json.dumps(partial, indent=2))
+        log(f"wrote tabpfn_10k_results.json (partial; SKIP_TEST mode)")
+        return dict(
+            oof=oof_full, test=test_placeholder,
+            fold_ba=float(ba), fold_recalls=[float(r) for r in rec],
+            va_idx=va_idx, n_va=int(len(va_idx)),
+            skip_test=True,
+        )
 
     log(f"  predicting test ({len(X_te):,} rows)")
     proba_te = np.zeros((len(X_te), 3), dtype=np.float32)
