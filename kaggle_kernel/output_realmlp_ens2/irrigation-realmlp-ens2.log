@@ -1,104 +1,187 @@
-[{"stream_name":"stdout","time":0.741664988,"data":"[boot] gpu compute_cap = ['6.0']\n"}
-,{"stream_name":"stdout","time":0.741712812,"data":"[boot] sm_60/61 detected - pinning torch+torchvision cu121\n"}
-,{"stream_name":"stdout","time":13.630793287,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":18.98514469,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 4.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":61.791521436,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.8/44.8 kB 3.0 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":62.815643466,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 364.0/364.0 kB 15.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":62.84332675,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 853.6/853.6 kB 47.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":66.781440031,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 4.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":66.921539911,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 91.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":67.114213057,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 78.8 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":67.137490926,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 52.0 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":74.030046273,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.8 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":79.91548555,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 1.9 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":80.406498461,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 34.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":81.681238706,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 15.0 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":83.486386425,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 9.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":85.453127658,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.7/188.7 MB 9.9 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":85.471135344,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 8.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":85.536959215,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 106.1 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":88.227370357,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.6/209.6 MB 7.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stderr","time":176.010668715,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
-,{"stream_name":"stderr","time":176.010756989,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.5.1+cu121 which is incompatible.\n"}
-,{"stream_name":"stdout","time":191.776166452,"data":"[boot] pytabkit unknown\n"}
-,{"stream_name":"stdout","time":191.801538509,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
-,{"stream_name":"stdout","time":191.801644518,"data":"[05:38:12] loading train / test / orig\n"}
-,{"stream_name":"stdout","time":194.73600098,"data":"[05:38:15] SMOKE=1 — subsampling\n"}
-,{"stream_name":"stdout","time":194.781782495,"data":"[05:38:15]   train=20,000  test=10,000  orig=10,000\n"}
-,{"stream_name":"stdout","time":194.838768811,"data":"[05:38:15]   building 15 pair combos\n"}
-,{"stream_name":"stdout","time":194.894271641,"data":"[05:38:16]   skipped Soil_Moisture_x_Temperature_C (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":194.94577801,"data":"[05:38:16]   skipped Soil_Moisture_x_Wind_Speed_kmh (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":194.97369335,"data":"[05:38:16]   skipped Soil_Moisture_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":195.065942735,"data":"[05:38:16]   skipped Crop_Growth_Stage_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":195.116747713,"data":"[05:38:16]   skipped Temperature_C_x_Wind_Speed_kmh (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":195.143566577,"data":"[05:38:16]   skipped Temperature_C_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":195.218334554,"data":"[05:38:16]   skipped Wind_Speed_kmh_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
-,{"stream_name":"stdout","time":195.218386413,"data":"[05:38:16]   kept 8 combo cols\n"}
-,{"stream_name":"stdout","time":195.226130965,"data":"[05:38:16] === fold 1/2 ===\n"}
-,{"stream_name":"stdout","time":195.232913728,"data":"[05:38:16]   fitting TargetEncoder on 8 combos\n"}
-,{"stream_name":"stdout","time":195.340364218,"data":"[05:38:16]   fitting RealMLP_TD on 54 features, 10,000 rows\n"}
-,{"stream_name":"stderr","time":195.341273679,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":195.341294526,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":195.350761581,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":195.350785884,"data":"  warnings.warn(\n"}
-,{"stream_name":"stdout","time":195.393622794,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23']\n"}
-,{"stream_name":"stdout","time":195.393671864,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
-,{"stream_name":"stderr","time":196.08536545,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":196.086369783,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":196.087086131,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":196.088134812,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stderr","time":197.2760368,"data":"`Trainer.fit` stopped: `max_epochs=3` reached.\n"}
-,{"stream_name":"stdout","time":197.284560789,"data":"[05:38:18]   RealMLP fit in 1.9s\n"}
-,{"stream_name":"stderr","time":197.284846932,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":197.284860472,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":197.37984349,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":197.379873703,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":197.380019639,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":197.382824902,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stderr","time":197.423904646,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":197.423932566,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":197.509740132,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":197.509773631,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":197.509881642,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":197.512474225,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stdout","time":197.562106245,"data":"[05:38:18]   fold 1 argmax bal_acc = 0.83332  (elapsed 0.0m)\n"}
-,{"stream_name":"stdout","time":197.56250375,"data":"[05:38:18] === fold 2/2 ===\n"}
-,{"stream_name":"stdout","time":197.570859658,"data":"[05:38:18]   fitting TargetEncoder on 8 combos\n"}
-,{"stream_name":"stdout","time":197.671515543,"data":"[05:38:18]   fitting RealMLP_TD on 54 features, 10,000 rows\n"}
-,{"stream_name":"stderr","time":197.67164965,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":197.671663891,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":197.679266025,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":197.679308192,"data":"  warnings.warn(\n"}
-,{"stream_name":"stdout","time":197.716022689,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23']\n"}
-,{"stream_name":"stdout","time":197.71605922,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
-,{"stream_name":"stderr","time":197.895885188,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":197.895921304,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":197.895927141,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":197.896848906,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stderr","time":198.949959526,"data":"`Trainer.fit` stopped: `max_epochs=3` reached.\n"}
-,{"stream_name":"stdout","time":198.95578224,"data":"[05:38:20]   RealMLP fit in 1.3s\n"}
-,{"stream_name":"stderr","time":198.95607798,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":198.956088437,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":199.042582926,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":199.04262946,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":199.042635136,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":199.045447752,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stderr","time":199.089294948,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
-,{"stream_name":"stderr","time":199.089326286,"data":"  warnings.warn(\n"}
-,{"stream_name":"stderr","time":199.17537765,"data":"GPU available: True (cuda), used: True\n"}
-,{"stream_name":"stderr","time":199.175411621,"data":"TPU available: False, using: 0 TPU cores\n"}
-,{"stream_name":"stderr","time":199.175419541,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
-,{"stream_name":"stderr","time":199.177980128,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
-,{"stream_name":"stdout","time":199.228579678,"data":"[05:38:20]   fold 2 argmax bal_acc = 0.81405  (elapsed 0.1m)\n"}
-,{"stream_name":"stdout","time":199.240705655,"data":"[05:38:20] === OOF argmax = 0.82367 (2/2 folds, mean fold 0.82368 ± 0.00964)\n"}
-,{"stream_name":"stdout","time":199.559194949,"data":"[05:38:20] tuned OOF bal_acc = 0.88065  bias=[1.1309, 1.371, 3.0037]  (2/2 folds scored)\n"}
-,{"stream_name":"stdout","time":199.559913791,"data":"[05:38:20] wrote oof_realmlp_ens2.npy + test_realmlp_ens2.npy\n"}
-,{"stream_name":"stdout","time":199.576130744,"data":"[05:38:20] wrote /kaggle/working/submission_realmlp_ens2_tuned.csv\n"}
-,{"stream_name":"stdout","time":199.576334283,"data":"[05:38:20] wrote realmlp_ens2_results.json\n"}
-,{"stream_name":"stderr","time":202.872717187,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
-,{"stream_name":"stderr","time":202.87274467,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
-,{"stream_name":"stderr","time":203.10110093,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
-,{"stream_name":"stderr","time":203.10113055,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
-,{"stream_name":"stderr","time":203.802072171,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
-,{"stream_name":"stderr","time":205.008234986,"data":"[NbConvertApp] Writing 358344 bytes to __results__.html\n"}
+[{"stream_name":"stdout","time":0.824234083,"data":"[boot] gpu compute_cap = ['6.0']\n"}
+,{"stream_name":"stdout","time":0.824322759,"data":"[boot] sm_60/61 detected - pinning torch+torchvision cu121\n"}
+,{"stream_name":"stdout","time":11.509802736,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":17.37816982,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 2.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":58.265263064,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.8/44.8 kB 2.9 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":59.471128078,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 364.0/364.0 kB 12.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":59.518311812,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 853.6/853.6 kB 37.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":63.640526441,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 4.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":63.782332862,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 100.8 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":64.023423694,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 70.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":64.0567723,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 48.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":71.503859696,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":74.077114693,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 5.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":78.126187147,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 2.8 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":79.643723068,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 14.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":81.726158877,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 9.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":83.760548185,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.7/188.7 MB 9.8 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":83.785164206,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 7.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":83.867314132,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 89.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":86.008435603,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.6/209.6 MB 8.9 MB/s eta 0:00:00\n"}
+,{"stream_name":"stderr","time":173.925604806,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":173.925659357,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.5.1+cu121 which is incompatible.\n"}
+,{"stream_name":"stdout","time":189.760450229,"data":"[boot] pytabkit unknown\n"}
+,{"stream_name":"stdout","time":189.7862573,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":189.786468589,"data":"[05:42:55] loading train / test / orig\n"}
+,{"stream_name":"stdout","time":192.634271242,"data":"[05:42:58]   train=630,000  test=270,000  orig=10,000\n"}
+,{"stream_name":"stdout","time":193.675717136,"data":"[05:42:59]   building 15 pair combos\n"}
+,{"stream_name":"stdout","time":195.153753964,"data":"[05:43:00]   skipped Soil_Moisture_x_Temperature_C (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":196.5768299,"data":"[05:43:02]   skipped Soil_Moisture_x_Wind_Speed_kmh (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":197.34535288,"data":"[05:43:02]   skipped Soil_Moisture_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":201.120884028,"data":"[05:43:06]   skipped Temperature_C_x_Wind_Speed_kmh (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":201.93185679,"data":"[05:43:07]   skipped Temperature_C_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":203.884436209,"data":"[05:43:09]   skipped Wind_Speed_kmh_x_Rainfall_mm (nunique \u003e N/2, uninformative)\n"}
+,{"stream_name":"stdout","time":203.884497071,"data":"[05:43:09]   kept 9 combo cols\n"}
+,{"stream_name":"stdout","time":204.003786274,"data":"[05:43:09] === fold 1/5 ===\n"}
+,{"stream_name":"stdout","time":204.243662714,"data":"[05:43:09]   fitting TargetEncoder on 9 combos\n"}
+,{"stream_name":"stdout","time":207.038473377,"data":"[05:43:12]   fitting RealMLP_TD on 57 features, 504,000 rows\n"}
+,{"stream_name":"stderr","time":207.039670758,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":207.039688351,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":207.16784528,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":207.167879636,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":208.520524274,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23', 'te_24', 'te_25', 'te_26']\n"}
+,{"stream_name":"stdout","time":208.520578201,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
+,{"stream_name":"stderr","time":210.128653032,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":210.129324521,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":210.129951017,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":210.130888497,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":899.271010422,"data":"`Trainer.fit` stopped: `max_epochs=40` reached.\n"}
+,{"stream_name":"stdout","time":899.287662425,"data":"[05:54:44]   RealMLP fit in 692.2s\n"}
+,{"stream_name":"stderr","time":899.287963488,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":899.287974564,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":899.614337866,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":899.614371723,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":899.614383176,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":899.617663285,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":900.036615993,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":900.03664215,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":900.694127789,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":900.694163735,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":900.694168497,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":900.698274411,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stdout","time":901.70644476,"data":"[05:54:47]   fold 1 argmax bal_acc = 0.96980  (elapsed 11.6m)\n"}
+,{"stream_name":"stdout","time":901.713035983,"data":"[05:54:47] === fold 2/5 ===\n"}
+,{"stream_name":"stdout","time":902.069519105,"data":"[05:54:47]   fitting TargetEncoder on 9 combos\n"}
+,{"stream_name":"stdout","time":904.634353866,"data":"[05:54:50]   fitting RealMLP_TD on 57 features, 504,000 rows\n"}
+,{"stream_name":"stderr","time":904.634790334,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":904.634806565,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":904.762130366,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":904.762173682,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":906.009867465,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23', 'te_24', 'te_25', 'te_26']\n"}
+,{"stream_name":"stdout","time":906.009932504,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
+,{"stream_name":"stderr","time":907.054599437,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":907.054639551,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":907.054683045,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":907.055562948,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":1564.733509994,"data":"`Trainer.fit` stopped: `max_epochs=40` reached.\n"}
+,{"stream_name":"stdout","time":1564.74626124,"data":"[06:05:50]   RealMLP fit in 660.1s\n"}
+,{"stream_name":"stderr","time":1564.74652761,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":1564.746540449,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":1565.0499134,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":1565.049947143,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":1565.049987703,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":1565.053131302,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":1565.473420608,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":1565.473447373,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":1566.101705585,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":1566.101737443,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":1566.101743463,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":1566.1059966,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stdout","time":1567.044051157,"data":"[06:05:52]   fold 2 argmax bal_acc = 0.96960  (elapsed 22.7m)\n"}
+,{"stream_name":"stdout","time":1567.050037769,"data":"[06:05:52] === fold 3/5 ===\n"}
+,{"stream_name":"stdout","time":1567.317830114,"data":"[06:05:52]   fitting TargetEncoder on 9 combos\n"}
+,{"stream_name":"stdout","time":1569.838439072,"data":"[06:05:55]   fitting RealMLP_TD on 57 features, 504,000 rows\n"}
+,{"stream_name":"stderr","time":1569.838522957,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":1569.838532569,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":1569.957342887,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":1569.957383408,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":1571.161450956,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23', 'te_24', 'te_25', 'te_26']\n"}
+,{"stream_name":"stdout","time":1571.161499624,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
+,{"stream_name":"stderr","time":1572.195745276,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":1572.195778431,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":1572.195784795,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":1572.196610044,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":2230.057719486,"data":"`Trainer.fit` stopped: `max_epochs=40` reached.\n"}
+,{"stream_name":"stdout","time":2230.070655362,"data":"[06:16:55]   RealMLP fit in 660.2s\n"}
+,{"stream_name":"stderr","time":2230.070984239,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2230.070995765,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2230.369670985,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2230.3697176699998,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2230.369778599,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2230.372932588,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":2230.802074333,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2230.802109,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2231.435002969,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2231.435051489,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2231.435061465,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2231.439158229,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stdout","time":2232.405906571,"data":"[06:16:58]   fold 3 argmax bal_acc = 0.97133  (elapsed 33.8m)\n"}
+,{"stream_name":"stdout","time":2232.411970022,"data":"[06:16:58] === fold 4/5 ===\n"}
+,{"stream_name":"stdout","time":2232.678931183,"data":"[06:16:58]   fitting TargetEncoder on 9 combos\n"}
+,{"stream_name":"stdout","time":2235.204514756,"data":"[06:17:00]   fitting RealMLP_TD on 57 features, 504,000 rows\n"}
+,{"stream_name":"stderr","time":2235.204787395,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2235.204799802,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2235.325880004,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2235.325918168,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":2236.458926312,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23', 'te_24', 'te_25', 'te_26']\n"}
+,{"stream_name":"stdout","time":2236.458981132,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
+,{"stream_name":"stderr","time":2237.464784386,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2237.464818917,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2237.464825256,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2237.465490892,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":2891.695167868,"data":"`Trainer.fit` stopped: `max_epochs=40` reached.\n"}
+,{"stream_name":"stdout","time":2891.70782313,"data":"[06:27:57]   RealMLP fit in 656.5s\n"}
+,{"stream_name":"stderr","time":2891.708005082,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2891.708080094,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2892.017210406,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2892.017245978,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2892.017273932,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2892.020491561,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":2892.44692506,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2892.446967956,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2893.078942552,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2893.078979735,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2893.078989365,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2893.08303631,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stdout","time":2894.043928329,"data":"[06:27:59]   fold 4 argmax bal_acc = 0.96863  (elapsed 44.8m)\n"}
+,{"stream_name":"stdout","time":2894.05005408,"data":"[06:27:59] === fold 5/5 ===\n"}
+,{"stream_name":"stdout","time":2894.313103759,"data":"[06:27:59]   fitting TargetEncoder on 9 combos\n"}
+,{"stream_name":"stdout","time":2896.850816413,"data":"[06:28:02]   fitting RealMLP_TD on 57 features, 504,000 rows\n"}
+,{"stream_name":"stderr","time":2896.851140955,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2896.851944592,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":2896.97030046,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":2896.970342224,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":2898.088373809,"data":"Columns classified as continuous: ['Soil_pH_raw', 'Soil_Moisture_raw', 'Organic_Carbon_raw', 'Electrical_Conductivity_raw', 'Temperature_C_raw', 'Humidity_raw', 'Rainfall_mm_raw', 'Sunlight_Hours_raw', 'Wind_Speed_kmh_raw', 'Field_Area_hectare_raw', 'Previous_Irrigation_mm_raw', 'te_0', 'te_1', 'te_2', 'te_3', 'te_4', 'te_5', 'te_6', 'te_7', 'te_8', 'te_9', 'te_10', 'te_11', 'te_12', 'te_13', 'te_14', 'te_15', 'te_16', 'te_17', 'te_18', 'te_19', 'te_20', 'te_21', 'te_22', 'te_23', 'te_24', 'te_25', 'te_26']\n"}
+,{"stream_name":"stdout","time":2898.088451559,"data":"Columns classified as categorical: ['Soil_Type', 'Crop_Type', 'Crop_Growth_Stage', 'Season', 'Irrigation_Type', 'Water_Source', 'Mulching_Used', 'Region', 'Soil_pH', 'Soil_Moisture', 'Organic_Carbon', 'Electrical_Conductivity', 'Temperature_C', 'Humidity', 'Rainfall_mm', 'Sunlight_Hours', 'Wind_Speed_kmh', 'Field_Area_hectare', 'Previous_Irrigation_mm']\n"}
+,{"stream_name":"stderr","time":2899.116727413,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":2899.116761744,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":2899.116769414,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":2899.117483913,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":3552.007413159,"data":"`Trainer.fit` stopped: `max_epochs=40` reached.\n"}
+,{"stream_name":"stdout","time":3552.020278013,"data":"[06:38:57]   RealMLP fit in 655.2s\n"}
+,{"stream_name":"stderr","time":3552.0205225,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":3552.020535727,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":3552.317876595,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":3552.317930765,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":3552.317938075,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":3552.321162142,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stderr","time":3552.73396119,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/utils/deprecation.py:151: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.\n"}
+,{"stream_name":"stderr","time":3552.733988364,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":3553.356082721,"data":"GPU available: True (cuda), used: True\n"}
+,{"stream_name":"stderr","time":3553.356129242,"data":"TPU available: False, using: 0 TPU cores\n"}
+,{"stream_name":"stderr","time":3553.356224314,"data":"💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.\n"}
+,{"stream_name":"stderr","time":3553.360427237,"data":"LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]\n"}
+,{"stream_name":"stdout","time":3554.304551473,"data":"[06:38:59]   fold 5 argmax bal_acc = 0.96820  (elapsed 55.8m)\n"}
+,{"stream_name":"stdout","time":3554.304586531,"data":"[06:38:59] !! TOTAL WALL-TIME KILL: 55.8m \u003e 55m. 5/5 folds done.\n"}
+,{"stream_name":"stdout","time":3554.606781729,"data":"[06:39:00] === OOF argmax = 0.96951 (5/5 folds, mean fold 0.96951 ± 0.00109)\n"}
+,{"stream_name":"stdout","time":3567.615995898,"data":"[06:39:13] tuned OOF bal_acc = 0.97594  bias=[1.3324, 1.3689, 3.4008]  (5/5 folds scored)\n"}
+,{"stream_name":"stdout","time":3567.622928235,"data":"[06:39:13] wrote oof_realmlp_ens2.npy + test_realmlp_ens2.npy\n"}
+,{"stream_name":"stdout","time":3567.877148944,"data":"[06:39:13] wrote /kaggle/working/submission_realmlp_ens2_tuned.csv\n"}
+,{"stream_name":"stdout","time":3567.877345923,"data":"[06:39:13] wrote realmlp_ens2_results.json\n"}
+,{"stream_name":"stderr","time":3570.950999007,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":3570.95103715,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":3571.158018216,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":3571.158042125,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":3571.82140813,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":3572.968660745,"data":"[NbConvertApp] Writing 358314 bytes to __results__.html\n"}
 ]

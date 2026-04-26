@@ -444,6 +444,17 @@ kernel_audit*/
 !scripts/artifacts/oof_realmlp_ens4.npy
 !scripts/artifacts/test_realmlp_ens4.npy
 
+# RealMLP n_ens=2 @ FULL n_epochs=40 (2026-04-26 diagnostic). Tested
+# whether n_ens=4's NULL was under-convergence (n_epochs=25) or variance
+# floor. Result: n_ens=2 STRICTLY WORSE than n_ens=1 across every metric
+# — standalone tuned 0.97583 vs n_ens=1 0.97633 (-0.00050), errs +429,
+# 3-stack peak 0.98054 vs n_ens=1 3-stack 0.98061 (-0.00007). Falsifies
+# under-convergence hypothesis for n_ens=4: adding heads at full epochs
+# still doesn't help. Variance floor structural at n_ens=1 on this
+# feature set. Lever CLOSED. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_realmlp_ens2.npy
+!scripts/artifacts/test_realmlp_ens2.npy
+
 # Trompt PROBE (1-fold full-cap): 13th NN-family attempt. Fold-1 argmax
 # 0.96092 (below RealMLP fold-1 0.96978), Jaccard vs LB-best 3-way
 # = 0.5340 (LOWEST NN orthogonality ever seen) but errs +169 vs anchor
