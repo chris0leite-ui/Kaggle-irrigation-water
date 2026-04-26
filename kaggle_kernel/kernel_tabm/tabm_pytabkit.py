@@ -265,14 +265,13 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         log(f"  fitting TabM_D on {tr_frame.shape[1]} features, "
             f"{len(tr_frame):,} rows")
         t0 = time.time()
-        # TabM_D defaults: BatchEnsemble + parameter-efficient k=32 heads.
-        # Use n_ens=1 (single TabM model with internal k=32 BatchEnsemble);
-        # n_epochs lowered if SMOKE, otherwise pytabkit default.
-        # Per CLAUDE.md GPU 1h cap: SMOKE 3 epochs, PROBE/PROD 25 epochs
-        # (matched to RealMLP n_ens=4 budget — TabM internal k=32 means
-        # similar effective ensembling at similar wall time).
+        # TabM_D has BatchEnsemble built in (tabm_k controls width;
+        # default 32). No n_ens kwarg — pytabkit's TabM_D_Classifier
+        # signature differs from RealMLP_TD_Classifier.
+        # SMOKE: tabm_k=8 + 3 epochs (cuts compute ~4x for end-to-end check).
+        # PROBE/PROD: default tabm_k=32 + 25 epochs (CLAUDE.md 1h GPU cap).
         kwargs = dict(
-            n_cv=1, n_refit=0, n_ens=1,
+            n_cv=1, n_refit=0,
             device="cuda",
             val_metric_name="class_error",
             random_state=SEED,
@@ -280,6 +279,7 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         )
         if SMOKE:
             kwargs["n_epochs"] = 3
+            kwargs["tabm_k"] = 8
         else:
             kwargs["n_epochs"] = 25
         model = TabM_D_Classifier(**kwargs)
