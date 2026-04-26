@@ -1066,3 +1066,6 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/n5b_blend_gate_ood_results.json
 !scripts/artifacts/n5b_blend_gate_knn10k_results.json
 !scripts/artifacts/n5b_ood_diag_results.json
+!scripts/artifacts/n5b_followup_blend_results.json
+!scripts/artifacts/n5b_followup_residual_auc_results.json
+!scripts/artifacts/oof_n5b_residual_auc.npy
