@@ -92,15 +92,32 @@ def main():
     weights = np.zeros(K, dtype=np.float64)
     weights[0] = 1.0  # anchor at full weight
 
+    # Resume from checkpoint if present (rehydrate-resilient).
+    state_path = ART / "hillclimb_state.npz"
+    history: list[dict] = []
+    start_step = 1
+    if state_path.exists():
+        st = np.load(state_path, allow_pickle=True)
+        if int(st["K"]) == K and list(st["names"]) == names:
+            weights = st["weights"].astype(np.float64)
+            history = list(st["history"])
+            start_step = int(st["next_step"])
+            log(f"  resume: loaded checkpoint @ step {start_step - 1}, "
+                f"active={int((weights != 0).sum())}")
+        else:
+            log(f"  checkpoint dim mismatch (K={int(st['K'])} vs {K}); ignoring")
+
     # Hill climb loop.
     blend_oof = (weights[:, None, None] * O).sum(0)
     blend_oof = normed_clip(blend_oof)
     best = metric(blend_oof, y, BIAS)
-    log(f"start bal_acc = {best:.5f}  (anchor only)")
+    log(f"start bal_acc = {best:.5f}  (active={int((weights != 0).sum())})")
+    if not history:
+        history = [{"step": 0, "best": best,
+                    "weights_active": int((weights != 0).sum())}]
 
-    history = [{"step": 0, "best": best, "weights_active": int((weights != 0).sum())}]
     t0 = time.time()
-    for step in range(1, MAX_STEPS + 1):
+    for step in range(start_step, MAX_STEPS + 1):
         # Scan all (i, Δ) candidates; pick the best improvement.
         best_gain = 0.0
         best_pick = None
@@ -129,6 +146,12 @@ def main():
             log(f"step {step}: +Δ={d:+.4f} on '{names[i]}' (w={weights[i]:+.4f})  "
                 f"bal={best:.5f}  active={(weights != 0).sum()}/{K}  "
                 f"elapsed={time.time()-t0:.0f}s")
+        # Checkpoint every 5 steps (rehydrate resilience).
+        if step % 5 == 0:
+            np.savez(state_path,
+                     K=np.array(K), names=np.array(names),
+                     weights=weights, history=np.array(history, dtype=object),
+                     next_step=np.array(step + 1))
     log(f"hill climb done: {step} steps, final bal = {best:.5f}, "
         f"elapsed = {time.time()-t0:.0f}s")
 

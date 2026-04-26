@@ -174,14 +174,39 @@ def main():
     test_mlp = np.zeros((len(X_te), 3), dtype=np.float32)
     n_epochs = 5 if SMOKE else 30
 
+    # Per-fold checkpoint pattern (rehydrate-resilient).
+    ck_prefix = "mlp_metastack" + ("_smoke" if SMOKE else "")
+    cached: set[int] = set()
+    for fold_check in range(1, N_FOLDS + 1):
+        ck_oof = ART / f"oof_{ck_prefix}_fold{fold_check}.npy"
+        ck_test = ART / f"test_{ck_prefix}_fold{fold_check}.npy"
+        if ck_oof.exists() and ck_test.exists():
+            cached.add(fold_check)
+    if cached:
+        log(f"  resume: {len(cached)} fold(s) cached: {sorted(cached)}")
+
     for fold, (tr_idx, va_idx) in enumerate(skf.split(X_tr, y)):
         t1 = time.time()
         log(f"=== fold {fold+1}/{N_FOLDS} ===")
+        if (fold + 1) in cached:
+            ck_oof = ART / f"oof_{ck_prefix}_fold{fold+1}.npy"
+            ck_test = ART / f"test_{ck_prefix}_fold{fold+1}.npy"
+            vp = np.load(ck_oof)
+            tp = np.load(ck_test)
+            oof_mlp[va_idx] = vp
+            test_mlp += tp / N_FOLDS
+            b_arg = balanced_accuracy_score(y[va_idx], vp.argmax(1))
+            log(f"  fold {fold+1} CACHED  val_argmax_bal_acc = {b_arg:.5f}")
+            continue
         vp, mu, sd, model = train_mlp(
             X_tr[tr_idx], y[tr_idx], X_tr[va_idx], y[va_idx],
             n_epochs=n_epochs, seed=SEED + fold)
+        tp = predict_mlp(model, X_te, mu, sd).astype(np.float32)
         oof_mlp[va_idx] = vp
-        test_mlp += predict_mlp(model, X_te, mu, sd) / N_FOLDS
+        test_mlp += tp / N_FOLDS
+        # checkpoint immediately for rehydrate resilience
+        np.save(ART / f"oof_{ck_prefix}_fold{fold+1}.npy", vp)
+        np.save(ART / f"test_{ck_prefix}_fold{fold+1}.npy", tp)
         b_arg = balanced_accuracy_score(y[va_idx], vp.argmax(1))
         log(f"  fold {fold+1} val_argmax_bal_acc = {b_arg:.5f}  wall = {time.time()-t1:.1f}s")
 

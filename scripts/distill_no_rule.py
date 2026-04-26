@@ -105,10 +105,34 @@ def main() -> None:
         early_stopping_rounds=50 if SMOKE else 200, verbosity=0,
     )
 
+    # Per-fold checkpoint pattern (rehydrate-resilient): saves each fold's
+    # val OOF + test pred immediately after training. On rerun, completed folds
+    # are loaded from disk and skipped.
+    ck_prefix = f"distill_no_rule{SUFFIX}"
+    cached: set[int] = set()
+    for fold_check in range(1, N_FOLDS + 1):
+        ck_oof = ART / f"oof_{ck_prefix}_fold{fold_check}.npy"
+        ck_test = ART / f"test_{ck_prefix}_fold{fold_check}.npy"
+        if ck_oof.exists() and ck_test.exists():
+            cached.add(fold_check)
+    if cached:
+        log(f"  resume: {len(cached)} fold(s) cached: {sorted(cached)}")
+
     # Stratify on TRUE y so val-fold class composition is consistent with the
     # downstream blend gate (which evaluates against true labels).
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y_true), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
+        if fold in cached:
+            ck_oof = ART / f"oof_{ck_prefix}_fold{fold}.npy"
+            ck_test = ART / f"test_{ck_prefix}_fold{fold}.npy"
+            vp = np.load(ck_oof)
+            tp = np.load(ck_test)
+            oof[va_idx] = vp
+            test_pred += tp / N_FOLDS
+            bal = balanced_accuracy_score(y_true[va_idx], vp.argmax(1))
+            fold_scores.append(bal)
+            log(f"  fold {fold} CACHED  argmax_bal_acc = {bal:.5f}")
+            continue
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)
@@ -147,6 +171,9 @@ def main() -> None:
         tp = model.predict_proba(X_te[feat_cols]).astype(np.float32)
         oof[va_idx] = vp
         test_pred += tp / N_FOLDS
+        # checkpoint immediately for rehydrate resilience
+        np.save(ART / f"oof_{ck_prefix}_fold{fold}.npy", vp)
+        np.save(ART / f"test_{ck_prefix}_fold{fold}.npy", tp)
         bal = balanced_accuracy_score(y_true[va_idx], vp.argmax(1))
         fold_scores.append(bal)
         log(f"  fold {fold} argmax_bal_acc = {bal:.5f}  best_iter={model.best_iteration}")
