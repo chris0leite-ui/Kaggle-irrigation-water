@@ -940,3 +940,10 @@ kaggle_kernel/*/dist/
 # 0.98030, errs 9324 (-91) but H recall -0.0020. Blend NULL.
 !scripts/artifacts/oof_joint_blend.npy
 !scripts/artifacts/test_joint_blend.npy
+
+# v6 aggregate-stats meta-stacker per-fold checkpoints (transient,
+# regenerated from scratch on rerun; only the consolidated
+# oof_xgb_metastack_v6{,lb}.npy is committed via the standard pool rules)
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/test_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9]_meta.json
