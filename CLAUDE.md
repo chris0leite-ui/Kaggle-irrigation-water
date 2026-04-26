@@ -11682,3 +11682,91 @@ more folds / HP tuning" as a forward lever:
   - `scripts/artifacts/blend_gate_dropscores_results.json`
   - `submissions/submission_recipe_full_te_ds012.csv` (diagnostic, NOT
     for LB probe)
+
+### 2026-04-26 — RealMLP n_ens=2 @ FULL n_epochs=40: NULL, RealMLP variance floor structural at n_ens=1
+
+- Goal: one-shot diagnostic between the two hypotheses for n_ens=4's NULL
+  (CLAUDE.md 2026-04-25 RealMLP retry):
+  (a) **under-convergence** — n_epochs=25 was forced by the 1h Kaggle GPU
+      cap with 4 BatchEnsemble heads; each head saw less gradient than
+      the n_ens=1 working config's 40 epochs.
+  (b) **variance floor** — n_ens=1 already at the per-row variance floor
+      on this feature set, so additional heads add bias drift (per-head
+      converges to slightly different local minima → averaging them
+      moves the prediction surface AWAY from the floor) rather than
+      useful variance reduction.
+  Approach: n_ens=2 with FULL n_epochs=40, fitting cleanly under the 1h
+  cap. Beats n_ens=1 → (a). Plateaus at n_ens=1 → (b).
+- Changed: `kaggle_kernel/kernel_realmlp_ens2/` (mirrors `kernel_realmlp_ens4`
+  scaffold; only `n_ens=2, n_epochs=40` differ from ens4's `n_ens=4, n_epochs=25`),
+  `scripts/blend_realmlp_ens2.py` (3-stack blend gate vs n_ens=1, partial-
+  OOF aware, auto-emit submission only if 3-stack OOF > anchor 0.98061 +
+  +2e-4 LB-transfer threshold). SMOKE-first discipline enforced.
+- SMOKE (Kaggle v1, IS_SMOKE=True, 2-fold × 20k × 3 epochs): GREEN in
+  ~3.3 min wall, GPU used (cuda), pytabkit + lightning installed cleanly.
+- Production (Kaggle v2, IS_SMOKE=False, 5-fold × 504k × 40 epochs): all
+  5/5 folds completed inside the 55-min hard kill budget.
+- **Standalone results** (5-fold OOF, seed=42):
+  ```
+                          n_ens=1  n_ens=2  Δ
+  per-fold argmax mean    0.97055  0.96951  -0.00104
+  tuned OOF               0.97633  0.97583  -0.00050
+  errs at recipe bias     10472    10901    +429
+  Jaccard vs LB-best 3-way 0.6206  0.6173   ~tied (both still
+                                              best-in-class NN ortho)
+  log-bias                [1.2324, [1.3324,  ~tied
+                           1.4689,  1.3689,
+                           3.4008]  3.4008]
+  ```
+  n_ens=2 with full epochs is **strictly worse** than n_ens=1 at every
+  level. σ across folds remains ~0.001 (similar to n_ens=1) — not the
+  signature of a converging-but-incomplete run; it's the signature of
+  a different attractor.
+- **3-stack peak** (LB-best 3-way + RealMLP@α + nonrule_iso@0.075,
+  fixed recipe bias):
+  ```
+                  n_ens=1                n_ens=2
+  best α          0.200                  0.250
+  3-stack OOF     0.98061                0.98054   (-0.00007)
+  3-stack errs    9572                   9601      (+29)
+  ```
+  Even at the best α, the 3-stack falls 0.00007 below the n_ens=1
+  3-stack — well under the +2e-4 LB-transfer emit gate. Strict null.
+- **Verdict: hypothesis (b) variance floor is correct.** n_ens=1
+  already sits at the relevant local minimum for this feature set + 40
+  epochs. Adding more heads (whether at full or reduced epochs) doesn't
+  help because they converge to **different** local minima — the average
+  is a bias-shifted blend, not a variance-reduced ensemble. Same root
+  cause as n_ens=4's NULL; just confirmed cleanly with full-epoch
+  budget for the first time.
+- Implication: drops the previously-suggested overnight `n_ens=4 @
+  n_epochs=40` follow-up. Same mechanism would produce the same NULL.
+  RealMLP family fully closed across n_ens ∈ {1, 2, 4}; n_ens=1 is
+  the only configuration that ever transferred (LB +0.00003 in
+  3-stack, 2026-04-24).
+- LB delta: n/a. No LB probe (gate failed cleanly). LB-best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- **Two portable rules** (logging to LEARNINGS.md):
+  1. **BatchEnsemble at fixed feature set + capacity has a variance
+     floor that scaling n_ens past 1 cannot break.** When n_ens=1
+     produces a model already converged at the relevant SGD minimum,
+     additional heads converge to nearby but distinct minima; the
+     ensemble average shifts the prediction surface in bias space
+     rather than reducing per-row variance. Test the variance-floor
+     hypothesis with `n_ens=2 @ full_epochs` BEFORE planning longer
+     `n_ens=4` runs — if n_ens=2 already plateaus or regresses, the
+     entire ensemble dimension is closed for this feature set.
+  2. **NN-family lever-existence cost ≤ 1h GPU when SMOKE-first
+     discipline is enforced.** The end-to-end loop (commit kernel
+     scaffold → SMOKE push → flip IS_SMOKE flag → production push →
+     pull artifacts → run blend gate → commit) takes ~70-90 min total
+     calendar time on a 50-min production wall. SMOKE catches
+     install-path / dataset-path / GPU-init bugs in ~5 min, not in
+     a 55-min wasted production run.
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `kaggle_kernel/kernel_realmlp_ens2/` (kernel + metadata + README)
+  - `scripts/blend_realmlp_ens2.py`
+  - `scripts/artifacts/oof_realmlp_ens2.npy` (7.2 MB, 5-fold OOF)
+  - `scripts/artifacts/test_realmlp_ens2.npy` (3.1 MB)
+  - `scripts/artifacts/realmlp_ens2_results.json`
+  - `kaggle_kernel/output_realmlp_ens2/irrigation-realmlp-ens2.log`

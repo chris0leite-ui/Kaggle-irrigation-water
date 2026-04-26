@@ -1,5 +1,43 @@
 # Next steps
 
+## ✅ 2026-04-26 — RealMLP family fully closed across n_ens ∈ {1,2,4}
+
+`claude/find-hidden-tips-ajIRk` ran the one-shot diagnostic flagged
+in the prior NEXT_STEPS / CLAUDE.md ("test n_ens=2 @ n_epochs=40
+before planning a longer n_ens=4 run"). Result: **NULL — variance
+floor, not under-convergence**.
+
+| metric                    | n_ens=1 | n_ens=2 (NEW) | n_ens=4 |
+|---------------------------|--------:|--------------:|--------:|
+| n_epochs                  |      40 |            40 |      25 |
+| standalone tuned OOF      | 0.97633 |   **0.97583** | 0.97631 |
+| standalone errs           |   10472 |     **10901** |   10597 |
+| 3-stack peak OOF          | 0.98061 |   **0.98054** | 0.98050 |
+| 3-stack peak errs         |    9572 |          9601 |    9505 |
+| Jaccard vs LB-best 3-way  |  0.6206 |        0.6173 |  0.6243 |
+
+n_ens=2 @ FULL n_epochs=40 is **strictly worse than n_ens=1 across
+every metric**. Falsifies the under-convergence hypothesis: adding
+heads at full per-head epoch budget does not help. Per-head SGD
+converges to nearby-but-distinct local minima at full epochs;
+averaging produces a bias drift, not variance reduction, because
+n_ens=1 already sits at the relevant SGD attractor. Planned
+overnight `n_ens=4 @ n_epochs=40` retry **DROPPED** — same mechanism
+will produce the same NULL.
+
+**RealMLP lever fully closed** across n_ens ∈ {1, 2, 4}. The only
+configuration that ever transferred was n_ens=1 (LB +0.00003 in
+3-stack, 2026-04-24).
+
+LB-best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+Pack 0.98114 still +0.00020 above; leader 0.98219 still +0.00125 above.
+
+Artifacts (whitelisted): `scripts/artifacts/{oof,test}_realmlp_ens2.npy`,
+`realmlp_ens2_results.json`, `kaggle_kernel/kernel_realmlp_ens2/`,
+`scripts/blend_realmlp_ens2.py`, `kaggle_kernel/output_realmlp_ens2/`.
+
+---
+
 ## 🚧 Work in flight (as of 2026-04-25 — wild-step W1-W8 brainstorm)
 
 `claude/improve-predictions-with-dgp-d0ADN` is currently executing **W1
