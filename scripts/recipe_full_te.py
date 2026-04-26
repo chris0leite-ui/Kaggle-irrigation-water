@@ -92,6 +92,13 @@ assert EXTRA_FE in ("", "domain", "decimal", "both", "w8"), (
 # 10k original. 8 cats x 11 nums x 2 stats = 176 extra numeric features.
 # Suffix "_gby" on outputs.
 GBY = os.environ.get("GBY", "") == "1"
+
+# INSTAB: P3 counterfactual rule-instability features. When set to "1", adds
+# 5 features (rule_instability total + per-axis flips for sm/rf/tc/ws) that
+# count cell-flips under {±2%, ±5%, ±10%, ±20%} perturbation of each rule
+# axis. Captures multi-axis simultaneous closeness to the rule-cell topology
+# in a way per-axis distance features cannot. Suffix "_instab" on outputs.
+INSTAB = os.environ.get("INSTAB", "") == "1"
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -129,6 +136,8 @@ if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
     _parts.append("gby")
+if INSTAB:
+    _parts.append("instab")
 if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
@@ -247,6 +256,20 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         gby_cols = add_groupby_cat_num_stats(train, test, cats, nums)
         log(f"  gby_cols={len(gby_cols)}")
 
+    # P3 counterfactual rule-instability (~5 cols). Pure function of raw
+    # numerics + Mulching_Used + Crop_Growth_Stage; safe to compute pre-fold
+    # and pre-factorize. Must run BEFORE the cat-factorize block below since
+    # it reads Mulching_Used / Crop_Growth_Stage as strings.
+    instab_cols: list[str] = []
+    if INSTAB:
+        from p3_instability import add_instability
+        log("adding P3 rule-instability features")
+        train = add_instability(train)
+        test = add_instability(test)
+        instab_cols = ["rule_inst_sm", "rule_inst_rf", "rule_inst_tc",
+                       "rule_inst_ws", "rule_instability"]
+        log(f"  instab_cols={len(instab_cols)}")
+
     # Factorize raw cats AFTER all FE that needs string values is done.
     # (OrderedTE groupby handles int keys just fine.)
     for c in cats:
@@ -285,7 +308,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
-        gby=gby_cols,
+        gby=gby_cols, instab=instab_cols,
         te_cols=cats + combos + digits + num_as_cat + tres,
     )
     log(f"  feature groups: "
@@ -343,12 +366,25 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_domain", [])
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
-                     + info.get("gby", []))
+                     + info.get("gby", [])
+                     + info.get("instab", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
     fold_scores = []
+
+    # Per-fold checkpoints (rehydrate-resilient): saves each fold's val
+    # OOF + test pred immediately on completion, restores on rerun.
+    ck_prefix = f"recipe_full_te{VARIANT_SUFFIX}"
+    cached = set()
+    for fold_check in range(1, N_FOLDS + 1):
+        ck_oof = ART / f"oof_{ck_prefix}_fold{fold_check}.npy"
+        ck_test = ART / f"test_{ck_prefix}_fold{fold_check}.npy"
+        if ck_oof.exists() and ck_test.exists():
+            cached.add(fold_check)
+    if cached:
+        log(f"  resume: {len(cached)} folds cached: {sorted(cached)}")
 
     # GPU recipe uses max_bin=10000 / n_est=50000. On CPU we cap both to
     # keep wall-time feasible while preserving most of the split quality
@@ -381,6 +417,17 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
+        if fold in cached:
+            ck_oof = ART / f"oof_{ck_prefix}_fold{fold}.npy"
+            ck_test = ART / f"test_{ck_prefix}_fold{fold}.npy"
+            vp = np.load(ck_oof)
+            tp = np.load(ck_test)
+            oof[va_idx] = vp
+            test_pred += tp / N_FOLDS
+            bal = balanced_accuracy_score(y[va_idx], vp.argmax(1))
+            fold_scores.append(bal)
+            log(f"  fold {fold} CACHED  argmax_bal_acc = {bal:.5f}")
+            continue
         # Training-distribution rebalancing: drop rows whose dgp_score is in
         # DROP_SCORE_SET. Mirrors the 2026-04-21 v3 routed-XGB lever; OTE is
         # then fitted on the filtered training set so its statistics see only
@@ -450,9 +497,14 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             eval_set=[(X_va[feat_cols], y[va_idx])],
             verbose=500,
         )
-        oof[va_idx] = model.predict_proba(X_va[feat_cols]).astype(np.float32)
-        test_pred += model.predict_proba(X_te[feat_cols]).astype(np.float32) / N_FOLDS
-        bal = balanced_accuracy_score(y[va_idx], oof[va_idx].argmax(1))
+        vp = model.predict_proba(X_va[feat_cols]).astype(np.float32)
+        tp = model.predict_proba(X_te[feat_cols]).astype(np.float32)
+        oof[va_idx] = vp
+        test_pred += tp / N_FOLDS
+        # checkpoint immediately for rehydrate resilience
+        np.save(ART / f"oof_{ck_prefix}_fold{fold}.npy", vp)
+        np.save(ART / f"test_{ck_prefix}_fold{fold}.npy", tp)
+        bal = balanced_accuracy_score(y[va_idx], vp.argmax(1))
         fold_scores.append(bal)
         log(f"  fold {fold} argmax_bal_acc = {bal:.5f}  best_iter={model.best_iteration}")
 

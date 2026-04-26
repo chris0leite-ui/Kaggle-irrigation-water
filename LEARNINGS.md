@@ -1479,3 +1479,20 @@ all of them on the same model.
   ensemble: compute pairwise Jaccard between sub argmaxes. If
   every pair has Jaccard > 0.85 with the deepest sub, the lever is
   structurally null.**
+
+- **NEVER wrap `kaggle competitions submit` in any retry, `until`,
+  `while`, `for`, or background loop — even on transient errors.**
+  Every loop iteration is a NEW LB submission against the daily
+  quota. The case-insensitive grep fix (which previously seemed to
+  rescue the pattern) is NOT sufficient: a single misplaced `&&`,
+  pipe SIGPIPE quirk, or unexpected Kaggle output line still leaks
+  duplicate submissions. The cost asymmetry is too severe — daily
+  budget is 10, deadline-day budget is 2 final slots, and a wasted
+  slot cannot be recovered. Always submit ONE invocation at a time
+  and let the user manually re-issue the command on transient
+  failures. Read-only monitors (e.g. polling
+  `kaggle competitions submissions -v` for score availability) are
+  fine; only the WRITE command is forbidden in loops. On 2026-04-26
+  a lowercase-grep loop burned 4 redundant slots on the same
+  `submission_v6_full_a350.csv` (LB 0.98012 deterministic) before
+  being killed — 3 wasted slots from a 10/day budget.

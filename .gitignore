@@ -1038,3 +1038,56 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
+
+# v6 aggregate-stats meta-stacker per-fold checkpoints (transient,
+# regenerated from scratch on rerun; only the consolidated
+# oof_xgb_metastack_v6{,lb}.npy is committed via the standard pool rules)
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/test_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9]_meta.json
+
+# 2026-04-26 v6 aggregate-stats meta-stacker (P1 from senior-DS proposals).
+# v6_lbpool: 62-pool + 22 aggregates, iso OOF 0.98065 (+0.00006 vs tier1b
+# v1's 0.98059 standalone), but blend Δ vs LB-best 4-stack only +0.00002
+# at peak α (G4 fail). v6_full: 108-pool + 22 aggregates, iso OOF 0.98073
+# (+0.00014), G3 fails by 0.00012 on High recall floor; LB probe regressed
+# 0.98012 (-0.00082). Aggregate features add tiny standalone signal but
+# redundant with what tier1b v1 already extracts. Kept for cross-branch
+# diagnostic + future stacking research.
+!scripts/artifacts/oof_xgb_metastack_v6lb.npy
+!scripts/artifacts/test_xgb_metastack_v6lb.npy
+!scripts/artifacts/oof_xgb_metastack_v6.npy
+!scripts/artifacts/test_xgb_metastack_v6.npy
+!scripts/artifacts/v6_metastack_results.json
+!scripts/artifacts/v6_lbpool_results.json
+!scripts/artifacts/v6_compare_results.json
+!scripts/artifacts/v6_blend_gate_results.json
+
+# 2026-04-26 P3 counterfactual rule-instability features (NULL on G4).
+# Recipe + 5 instability cols (rule_inst_{sm,rf,tc,ws} + total flip count).
+# Standalone iso 0.97931 (+0.00005 vs vanilla 0.97926, passes G1+G2) but
+# blend monotone-negative from α=0.05 (G4 fail). Tree feature redundancy:
+# aggregate of features the model already has at finer resolution.
+# Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_recipe_full_te_instab.npy
+!scripts/artifacts/test_recipe_full_te_instab.npy
+!scripts/artifacts/recipe_full_te_instab_results.json
+!scripts/artifacts/p3_blend_gate_results.json
+# Per-fold checkpoints for recipe + INSTAB (rehydrate-resilient resume,
+# regenerated on rerun; only consolidated artifacts above are tracked).
+scripts/artifacts/oof_recipe_full_te_instab_fold[0-9].npy
+scripts/artifacts/test_recipe_full_te_instab_fold[0-9].npy
+
+# 2026-04-26 P2 bucket-aware FE specialists (NULL on G2/G4).
+# score=3 head (target=Medium): bucket-OOF AUC 0.74308.
+# score=6 head (target=High):   bucket-OOF AUC 0.85177 (competition record).
+# Soft logit-add into LB-best 4-stack: best feasible (λ_3=0.20, λ_6=0)
+# gives Δ +0.00006 OOF (below +2e-4 gate). λ_6=0 weight on the AUC-0.85
+# specialist confirms Pareto-frontier: H-boundary signal absorbed by
+# LB-best 4-stack at the operating point. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_p2_score3.npy
+!scripts/artifacts/test_p2_score3.npy
+!scripts/artifacts/oof_p2_score6.npy
+!scripts/artifacts/test_p2_score6.npy
+!scripts/artifacts/p2_specialists_results.json
+!scripts/artifacts/p2_blend_gate_results.json
