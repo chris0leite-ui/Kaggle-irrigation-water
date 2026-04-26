@@ -1,0 +1,58 @@
+{
+  "primary_macro_oof": 0.9806655757115924,
+  "domain_primary": {
+    "n": 35326,
+    "H": 330
+  },
+  "domain_3way": {
+    "n": 35180,
+    "H": 331
+  },
+  "primary_caught": 50,
+  "primary_caught_h": 7,
+  "primary_introduced": 196,
+  "primary_introduced_h": 6,
+  "v2_vs_primary": {
+    "auc": 0.7891766418326597,
+    "topn": {
+      "n_5": {
+        "correct": 2,
+        "wrong_m": 3,
+        "prec": 0.4,
+        "macro_delta": 2.754962680838616e-05
+      },
+      "n_10": {
+        "correct": 3,
+        "wrong_m": 7,
+        "prec": 0.3,
+        "macro_delta": 3.783876910935039e-05
+      },
+      "n_25": {
+        "correct": 5,
+        "wrong_m": 20,
+        "prec": 0.2,
+        "macro_delta": 5.144571150482118e-05
+      },
+      "n_50": {
+        "correct": 6,
+        "wrong_m": 44,
+        "prec": 0.12,
+        "macro_delta": 3.384948497995462e-05
+      },
+      "n_100": {
+        "correct": 6,
+        "wrong_m": 94,
+        "prec": 0.06,
+        "macro_delta": -3.586393708462232e-05
+      },
+      "n_200": {
+        "correct": 6,
+        "wrong_m": 194,
+        "prec": 0.03,
+        "macro_delta": -0.0001752907812137762
+      }
+    },
+    "best_n": "n_25",
+    "best_macro_delta": 5.144571150482118e-05
+  }
+}

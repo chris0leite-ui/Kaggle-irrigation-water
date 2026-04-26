@@ -863,3 +863,16 @@ kaggle_kernel/*/dist/
 # mechanism contributes ZERO signal at fixed bank size.
 !scripts/artifacts/oof_meta_perturbed_62_v1.npy
 !scripts/artifacts/test_meta_perturbed_62_v1.npy
+
+# 2026-04-26 score=6 boundary deep-dive: 5-stage manifold characterization
+# of the score=6 ∩ teacher_argmax=Medium override domain. Senior-engineer
+# hypothesis "AUC 0.94 → 0.98 unlocks ~200 overrides" falsified at every
+# stage. Information ceiling diagnosed: missed-H rows are feature-
+# indistinguishable from M rows in the available FE (z<0.32 from M mean
+# vs found-H z=3.01). Override macro-delta capped at +0.000051 against
+# actual LB-best primary. 10th saturation confirmation at LB 0.98094.
+!scripts/artifacts/score6_manifold_stage1_results.json
+!scripts/artifacts/score6_manifold_stage1b_results.json
+!scripts/artifacts/score6_manifold_stage1c_results.json
+!scripts/artifacts/score6_manifold_stage1d_results.json
+!scripts/artifacts/score6_manifold_stage1e_results.json

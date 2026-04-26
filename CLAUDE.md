@@ -11190,3 +11190,157 @@ model wave**:
      → **LB 0.98005** (premium -0.00089, sidesteps meta-stacker layer)
 - Pack 0.98114 still +0.00020 above primary; leader 0.98219 still
   +0.00125 above. Reachable only via public-CSV blending (banned).
+
+### 2026-04-26 — score=6 boundary deep-dive: 5-stage info-ceiling closure (10th saturation confirmation)
+
+- Goal: senior-engineer-style deep dive into what was identified as the
+  highest-EV remaining lever — the score=6 ∩ teacher_argmax=Medium override
+  domain, which carries 70% of all missed-High mass and is the only
+  bottleneck whose math projects above pack 0.98114. Hypothesis: lift
+  specialist AUC from 0.94 (spec6_v2 against rule-Medium) to 0.97+ via
+  better feature engineering + ensemble + cost-sensitive training, unlock
+  ~200 overrides at >> break-even precision = ~+0.0010 LB.
+- Approach: 5-stage rigorous characterization rather than build-and-hope.
+- Branch: `claude/imbalanced-classification-research-elHy9`.
+
+- **Stage 1a — characterize loose override domain** (`scripts/score6_manifold_stage1.py`):
+  rule_pred=Medium ∩ score=6, n=38,416, 1549 truly-H, 0 truly-L.
+  v2 specialist top-200 precision = **91.5%** (way above break-even
+  8.1%). Looks great in isolation. But this is the WRONG domain — the
+  teacher already correctly catches most of these as H.
+
+- **Stage 1b — actual override target** (`scripts/score6_manifold_stage1b.py`):
+  teacher_argmax=Medium ∩ score=6, n=35,180, **only 331 truly-H** (the
+  1549 - 1218 the teacher already corrected). Prevalence 0.94%.
+  - **v2 AUC drops from 0.938 to 0.793** on this teacher-residual domain.
+  - **Best macro_Δ = +0.000086** at top-25 (7 correct, 18 wrong, prec 28%).
+  - At top-100, net macro_Δ = -0.000001 (break-even).
+  - Past top-200, strictly net-negative (precision falls below 8%).
+  - **L2-LR oracle AUC 0.85 BEATS v2's 0.79** on this domain — v2 at
+    depth=6 is overfitting on 30k rows × 331 positives.
+  - **Missed-H residual analysis (smoking gun)**: bottom-50% of true-H
+    by v2 prob have z-distance from M of just **+0.32** on teacher_PH,
+    vs **+3.01** for found-H. Missed rows look feature-indistinguishable
+    from M rows in every available feature dimension. **Information
+    ceiling.**
+
+- **Stage 1c — regularized-specialist competition** (`scripts/score6_manifold_stage1c.py`):
+  tested 8 candidates (LR base/balanced/heavy/interactions, shallow XGB,
+  kNN, univariate teacher_PH) against v2.
+  ```
+  candidate         AUC      best_n    correct   prec    macro_Δ
+  v2 (depth=6)     0.7930    n_25         7      0.280   +0.000086
+  knn50            0.7091    n_5          2      0.400   +0.000028
+  xgb_shallow      0.8331    n_25         2      0.080   -0.000000
+  univariate_PH    0.8530    n_5          0      0.000   -0.000007
+  lr_base          0.8460    n_5          0      0.000   -0.000007
+  lr_interactions  0.8460    n_5          0      0.000   -0.000007
+  lr_balanced      0.8435    n_5          0      0.000   -0.000007
+  lr_heavy         0.8443    n_5          0      0.000   -0.000007
+  ```
+  **Counter-intuitive finding: AUC and top-K precision are NEGATIVELY
+  correlated on this domain.** Highest-AUC models (LR variants 0.84-0.85)
+  have ZERO correct in top-5; v2 with AUC 0.79 has 7/25. AUC averages
+  ranking globally; what matters is the top-K of the curve, where v2's
+  depth-6 captures non-monotonic structure simpler models miss.
+
+- **Stage 1d — depth sweep + ensemble + row-level blend**
+  (`scripts/score6_manifold_stage1d.py`):
+  ```
+  XGB depth   AUC      best_n    correct   prec    macro_Δ
+  d2          0.8327   n_200       18     0.090   +0.000032
+  d3          0.8238   n_5          0     0.000   -0.000007
+  d4          0.8165   n_5          0     0.000   -0.000007
+  d5          0.8207   n_5          0     0.000   -0.000007
+  d6          0.8148   n_5          1     0.200   +0.000010
+  v2          0.7930   n_25         7     0.280   +0.000086  ← best
+  ens_mean    0.8304   n_25         6     0.240   +0.000069
+  ens_rank    0.8387   n_5          0     0.000   -0.000007
+  ```
+  **No XGB depth, ensemble, or rank-aggregation beats v2's +0.000086.**
+  Row-level prob blend (apply v2's logit to primary's H column at
+  score=6 only, sweep α ∈ [0, 2]) → all alphas give identical macro
+  because v2's logits are too small to overcome the bias gap. Lever
+  fully tested at the teacher-residual domain.
+
+- **Stage 1e — against the actual LB-best PRIMARY (4-stack)**
+  (`scripts/score6_manifold_stage1e.py`):
+  Reconstructed primary = 0.70 × 3-way + 0.30 × xgb_metastack__iso.
+  Primary OOF macro = 0.98067 (close to documented 0.98084; small
+  diff is per-fold-iso vs full-OOF-iso).
+  - Primary's score=6 ∩ argmax=Medium domain: n=35,326, 330 truly-H.
+  - Primary catches 50 rows the 3-way left as M (7 truly-H gained).
+  - Primary introduces 196 new M-pred rows at score=6 (6 truly-H lost).
+  - **v2 against primary domain: AUC 0.789, best macro_Δ = +0.000051**
+    (worse than +0.000086 against 3-way — primary already absorbs 2 of
+    v2's high-confidence picks).
+  - Fresh primary-aligned specialist (depth=2): macro_Δ = **+0.000010**.
+  - **Override capacity against the actual LB-best primary is
+    +0.000051 macro-delta.** OOF→LB transfer at ~50% (per prior spec6
+    work) projects to **+0.000025 LB** — well below 0.0005 LB-probe gate.
+
+- **Synthesis — score=6 boundary lever fully closed**:
+  ```
+  Senior-engineer hypothesis (2026-04-26)         falsified
+  -------------------------------------------     ----------
+  AUC 0.94 → 0.98 unlocks ~200 overrides           false: AUC ceiling on
+                                                   primary domain is ~0.84,
+                                                   not 0.98
+  Higher AUC → higher override capacity            false: AUC and top-K
+                                                   precision are negatively
+                                                   correlated on this domain
+  TabDDPM oversampling could help                  unlikely: missed-H rows
+                                                   are feature-indistinguishable
+                                                   from M rows in available
+                                                   FE; synthetic H rows in
+                                                   score=6 region won't change
+                                                   the test missed-H feature
+                                                   distributions
+  Ensemble of specialists                          tested NULL (mean: +0.000069,
+                                                   rank: -0.000007)
+  Row-level prob blend                             tested NULL (all α identical)
+  Depth sweep + heavy reg                          tested NULL (every depth ≤ v2)
+  ```
+  **The information ceiling is structural at this domain.** Realistic LB
+  upside from this entire family: **+0.0001 LB at most** (vs +0.0010
+  required to break pack).
+
+- **10th independent saturation confirmation at LB 0.98094**: joins
+  Tier 1c (3 sub-gates), cross-poll v3, J2 bootstrap-bag, LR
+  meta-stacker v1+v2+iso-after, v4 ET+kNN, P3 perturbed-meta. The
+  pattern is now overwhelming: re-arranging existing components or
+  attacking residual error buckets cannot break LB 0.98094 within the
+  standard tabular ML toolkit on this feature set.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **AUC vs top-K precision can be negatively correlated on
+     extreme-imbalance binary detection at residual override domains.**
+     A model with global AUC 0.85 and a model with global AUC 0.79 can
+     have OPPOSITE top-25 precision (0% vs 28%) on the same data. AUC
+     ranks the full curve; top-K precision depends on tail behavior
+     where rare-class signal lives. For boundary-specialist overrides
+     under macro-recall, optimize top-K precision directly via macro-
+     delta as the model-selection metric, NOT AUC.
+  2. **Information ceiling diagnosis: missed-rare-class residual
+     analysis.** For rows the specialist misses (bottom-50% of
+     true-positives by specialist score), compute z-distance of every
+     feature from the negative-class mean. If missed-positive features
+     fall within ~0.3 std of negative-class mean while found-positive
+     features sit at ~3 std, the missed rows are feature-
+     indistinguishable from the negative class in the available
+     feature space. NO model class, regularization, ensemble, or
+     generative oversampling will recover them WITHOUT adding NEW
+     feature dimensions that capture the underlying deterministic
+     flip mechanism.
+
+- LB delta: n/a. No probe warranted (best macro-delta projects
+  +0.000025 LB << 0.0005 gate). LB best unchanged at **0.98094**
+  via `submission_tier1b_greedy_meta.csv`. LB budget unchanged.
+
+- Artefacts (gitignore-whitelisted for cross-branch reuse):
+  - `scripts/score6_manifold_stage1.py` (rule=Medium baseline)
+  - `scripts/score6_manifold_stage1b.py` (teacher-Medium domain)
+  - `scripts/score6_manifold_stage1c.py` (specialist competition)
+  - `scripts/score6_manifold_stage1d.py` (depth sweep + ensemble + blend)
+  - `scripts/score6_manifold_stage1e.py` (against actual primary)
+  - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
