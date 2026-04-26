@@ -11344,3 +11344,129 @@ model wave**:
   - `scripts/score6_manifold_stage1d.py` (depth sweep + ensemble + blend)
   - `scripts/score6_manifold_stage1e.py` (against actual primary)
   - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
+
+### 2026-04-26 — combined v6 meta-stacker (#3+#4+#6 deep dive): LB 0.98059 = 11th saturation confirmation
+
+- Goal: user-requested deep dive on three structurally distinct levers added
+  on top of the LB-best 4-stack primary (LB 0.98094):
+  - **#6** self-supervised masked-feature pretraining
+  - **#3** multi-task auxiliary XGBs (3 binary heads on rule-flip targets)
+  - **#4** polynomial / non-linear FE (3-way + log/sqrt/sin transforms)
+- Combined into a v6 meta-stacker with all three signal sources as new
+  inputs, then blended into the primary.
+- Branch: `claude/imbalanced-classification-research-elHy9`.
+
+- **#6 — masked feature pretraining: NULL at source.**
+  R² for predicting each of 7 non-rule numerics from the other 18 features
+  (5-fold cross-fit on combined 900k train+test):
+  ```
+  Humidity                 R² = 0.0148
+  Previous_Irrigation_mm   R² = 0.0223
+  Electrical_Conductivity  R² = 0.0028
+  Soil_pH                  R² = 0.0030
+  Organic_Carbon           R² = 0.0039
+  Sunlight_Hours           R² = 0.0016
+  Field_Area_hectare       R² = 0.0039
+  ```
+  Features are nearly INDEPENDENT in this synthetic DGP. Residual AUCs for
+  distinguishing each class from the rest = 0.50–0.51 (pure noise). The 14
+  residual columns carry zero class-conditional signal. Confirms the
+  feature-space saturation conclusion from the score=6 deep-dive.
+
+- **#3 — multi-task aux XGBs: strong global discriminators.**
+  3 binary heads on the 43-feature dist matrix, 5-fold StratifiedKFold(seed=42):
+  ```
+  aux_flipped_from_rule  (y != rule_pred):     OOF AUC 0.899
+  aux_missed_high        (y==H AND rule!=H):    OOF AUC 0.983
+  aux_missed_medium      (y==M AND rule!=M):    OOF AUC 0.949
+  ```
+  These targets encode rule-flip supervision NOT directly used by any
+  existing y-targeting component. AUC 0.98 for "is missed-High globally"
+  is the strongest binary signal in the bank, leak-free OOF.
+
+- **#4 — polynomial / non-linear FE: real signal contribution.**
+  36 new features added on top of 43-dist:
+  - 3-way rule products (sm_x_rf_x_tc, etc.)
+  - Non-linear transforms (sm_squared, log_rf, sqrt_pri, sin_rf_th, etc.)
+  - Non-rule × rule crosses (hum_x_sm, ec_x_sm, etc.)
+  - Within-cell normalized features (sm_pct_of_25, etc.)
+  Standalone XGB on 79 features: tuned OOF 0.97452 (vs vanilla XGB-dist
+  0.97266, +0.00186). **9/30 top features by gain are NEW poly features**
+  — the trees use them. Strong indicator the recipe FE was missing real
+  axes.
+
+- **Combined v6 meta-stacker:** 82 components (bank + poly_fe) + 3 aux
+  log-prob/logit pairs + 14 masked residuals = **283-col input matrix**.
+  Same heavy-reg XGB HPs as v1 (depth=4, reg_alpha=5, reg_lambda=5,
+  lr=0.05). 5-fold StratifiedKFold(seed=42) for leak-free stacking.
+  - Standalone iso OOF: **0.98150** (vs v1_iso 0.98059, **+0.00091** —
+    first meta variant to materially exceed v1 standalone)
+  - Best blend Δ vs LB-best 4-stack primary: **+0.00038 OOF at α=0.30**
+  - Per-class recall guardrail PASS: L+0.00006 / M+0.00115 / H−0.00010
+  - Jaccard 0.82 vs primary; errs 9655 vs primary 9415 (+240 distributed
+    favorably under macro-recall)
+
+- **LB probe (user-approved, submitted 01:22 UTC):**
+  `submission_combined_v6_a030.csv` → **LB public = 0.98059**.
+  Δ vs LB-best primary (0.98094) = **−0.00035 regression**.
+  OOF→LB gap = 0.98122 − 0.98059 = **+0.00063** (vs primary's −0.00010).
+
+- **Diagnosis — bank-extension pattern strikes again, even with novel
+  leak-free aux supervision.** Joins:
+  ```
+  attack vector                     OOF Δ      LB Δ      gap inflation
+  --------------------------------- --------  --------- -------------
+  v1 (LB-best baseline)             +0.00023  +0.00086  -0.00073 (anomalous +)
+  v3 cross-poll                     +0.00015  -0.00034  +0.00049
+  v4 ET+kNN                         +0.00036  -0.00102  +0.00138
+  LR v2 (C=0.1, none)               +0.00046  -0.00042  +0.00088
+  P3 perturbed v1                   +0.00071  -0.00139  +0.00210
+  W1+W4 meta                        +0.00035  -0.00098  +0.00133
+  **v6 (this entry)                  +0.00038  -0.00035  +0.00073**
+  ```
+  v6 is the LEAST-BAD regression of the 6 meta-extension variants, but
+  still regresses. The aux features added genuine OOF signal (+0.00091
+  standalone over v1) but the additional meta-stacker capacity to use them
+  fits OOF-specific patterns that don't transfer.
+
+- **11th independent saturation confirmation at LB 0.98094**:
+  joins the 10 prior attacks (Tier 1c sub-gates × 3, cross-poll v3, J2
+  bootstrap-bag, LR v1+v2+iso-after, v4 ET+kNN, P3 perturbed, score=6
+  deep-dive). The pattern is mathematically exhaustive: re-arranging
+  existing components OR adding new components into the existing meta-
+  stacker architecture cannot break LB 0.98094. The +0.00091 standalone
+  v6_iso lift over v1 is the strongest evidence yet that the SIGNAL exists
+  in the new aux features — but the meta-stacker architecture is the
+  bottleneck for transferring it to LB.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Self-supervised masked-feature pretraining is null when features
+     are independent in the DGP.** R² for predicting each feature from the
+     others is the diagnostic: if all R² < 0.05, residuals carry no
+     signal. Skip this lever in synthetic-tabular comps where train/test
+     come from a known IID generator.
+  2. **Bank-extension meta-stackers cannot transfer OOF lifts > +0.0003 to
+     LB on a saturated primary.** Even leak-free aux supervision targeting
+     novel binary tasks (AUC 0.98 for "is missed-high globally") fits
+     OOF-specific patterns in the meta-stacker training. The
+     architecture's capacity-to-noise ratio is too high once the bank is
+     saturated. To unlock the aux signal: incorporate it at primary
+     TRAINING TIME (e.g., multi-task loss on recipe FE) rather than as a
+     stacker INPUT — different architectural insertion point.
+
+- LB budget: **1/10 used today**, 9 remaining. LB best unchanged at
+  **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- Final-selection lock UNCHANGED:
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+  2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → LB 0.98005 (premium −0.00089)
+
+- **Path forward**: the aux features encode REAL signal (proved by +0.00091
+  standalone iso lift at meta level). Bank-stacking can't transfer it.
+  Open architectural alternatives:
+  1. Multi-task XGB at primary level (auxiliary heads on recipe FE
+     directly, rather than aux as separate component). Untested.
+  2. Recipe XGB with aux outputs as INPUT FEATURES (not via meta).
+     Different insertion point.
+  3. Specialist that consumes aux + recipe outputs at the row-level
+     decision rule (not via blend).
