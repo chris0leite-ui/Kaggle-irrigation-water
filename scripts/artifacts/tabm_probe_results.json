@@ -1,0 +1,22 @@
+{
+  "overall_argmax_bal_acc": 0.9675260550165495,
+  "tuned_log_bias_bal_acc": 0.9749623931976076,
+  "log_bias": [
+    1.6324411632360971,
+    1.468946691946548,
+    3.400768902044088
+  ],
+  "fold_ba": [
+    0.9675260550165495
+  ],
+  "n_folds": 1,
+  "folds_completed": 1,
+  "seed": 42,
+  "smoke": false,
+  "probe": true,
+  "abort_reason": "total wall 122.6m > 55m - 1/1 folds done",
+  "feature_counts": {
+    "base_cols": 30,
+    "combo_cols": 9
+  }
+}
