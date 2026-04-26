@@ -1,0 +1,161 @@
+{
+  "anchor_oof_bal": 0.9808424406412425,
+  "anchor_pcr": [
+    0.9955341333326124,
+    0.9695073491889541,
+    0.9774858394021609
+  ],
+  "primary": "submissions/submission_tier1b_greedy_meta.csv",
+  "opt1_meta3wnn_iso_a030": {
+    "path": "submissions/submission_opt1_meta3wnn_iso_a030.csv",
+    "pred_dist": {
+      "Low": "159644",
+      "Medium": "100303",
+      "High": "10053"
+    },
+    "oof_bal": 0.9810653506613752,
+    "oof_delta_vs_lb3": 0.0004562821130403849,
+    "pcr": [
+      0.9956341557700782,
+      0.9704568459974736,
+      0.9771050502165739
+    ],
+    "test_diff_vs_primary": 160
+  },
+  "opt1_meta3wnn_iso_a040": {
+    "path": "submissions/submission_opt1_meta3wnn_iso_a040.csv",
+    "pred_dist": {
+      "Low": "159643",
+      "Medium": "100341",
+      "High": "10016"
+    },
+    "oof_bal": 0.9812018546109088,
+    "oof_delta_vs_lb3": 0.0005927860625739578,
+    "pcr": [
+      0.995653078933923,
+      0.9707998360340313,
+      0.9771526488647723
+    ],
+    "test_diff_vs_primary": 194
+  },
+  "opt1_meta3wnn_iso_a050": {
+    "path": "submissions/submission_opt1_meta3wnn_iso_a050.csv",
+    "pred_dist": {
+      "Low": "159639",
+      "Medium": "100384",
+      "High": "9977"
+    },
+    "oof_bal": 0.981149381301761,
+    "oof_delta_vs_lb3": 0.000540312753426142,
+    "pcr": [
+      0.9956882219524921,
+      0.9709880622736057,
+      0.9767718596791851
+    ],
+    "test_diff_vs_primary": 237
+  },
+  "opt2_route_C_NotHtoH_soft_tH50": {
+    "path": "submissions/submission_opt2_route_C_NotHtoH_soft_tH50.csv",
+    "pred_dist": {
+      "Low": "159620",
+      "Medium": "100267",
+      "High": "10113"
+    },
+    "oof_bal": 0.9808471527097783,
+    "oof_delta_vs_anchor": 4.712068535805969e-06,
+    "pcr": [
+      0.9955341333326124,
+      0.969473886746363,
+      0.9775334380503594
+    ],
+    "override_oof": 9,
+    "override_test": 0,
+    "test_diff_vs_primary": 0
+  },
+  "opt2_route_C_NotHtoH_soft_tH60": {
+    "path": "submissions/submission_opt2_route_C_NotHtoH_soft_tH60.csv",
+    "pred_dist": {
+      "Low": "159620",
+      "Medium": "100267",
+      "High": "10113"
+    },
+    "oof_bal": 0.9808396521043599,
+    "oof_delta_vs_anchor": -2.7885368826252588e-06,
+    "pcr": [
+      0.9955341333326124,
+      0.9694989835783063,
+      0.9774858394021609
+    ],
+    "override_oof": 2,
+    "override_test": 0,
+    "test_diff_vs_primary": 0
+  },
+  "opt3_col_nndist_colMedium_a070": {
+    "path": "submissions/submission_opt3_col_nndist_colMedium_a070.csv",
+    "pred_dist": {
+      "Low": "159638",
+      "Medium": "100279",
+      "High": "10083"
+    },
+    "oof_bal": 0.9807134660554874,
+    "oof_delta_vs_anchor": -0.000128974585755115,
+    "pcr": [
+      0.9955395399508539,
+      0.9695910052954315,
+      0.9770098529201771
+    ],
+    "test_flips_vs_anchor": 80,
+    "test_diff_vs_primary": 80
+  },
+  "opt3_col_3way_colMedium_a050": {
+    "path": "submissions/submission_opt3_col_3way_colMedium_a050.csv",
+    "pred_dist": {
+      "Low": "159639",
+      "Medium": "100271",
+      "High": "10090"
+    },
+    "oof_bal": 0.9807627273830234,
+    "oof_delta_vs_anchor": -7.971325821909403e-05,
+    "pcr": [
+      0.9955963094423884,
+      0.9695868224901076,
+      0.9771050502165739
+    ],
+    "test_flips_vs_anchor": 72,
+    "test_diff_vs_primary": 72
+  },
+  "opt3_col_nndist_colMedium_a050": {
+    "path": "submissions/submission_opt3_col_nndist_colMedium_a050.csv",
+    "pred_dist": {
+      "Low": "159637",
+      "Medium": "100272",
+      "High": "10091"
+    },
+    "oof_bal": 0.980784139744074,
+    "oof_delta_vs_anchor": -5.8300897168517274e-05,
+    "pcr": [
+      0.9955611664238194,
+      0.9695910052954315,
+      0.9772002475129706
+    ],
+    "test_flips_vs_anchor": 63,
+    "test_diff_vs_primary": 63
+  },
+  "opt3_col_3way_colLow_a070": {
+    "path": "submissions/submission_opt3_col_3way_colLow_a070.csv",
+    "pred_dist": {
+      "Low": "159643",
+      "Medium": "100244",
+      "High": "10113"
+    },
+    "oof_bal": 0.980840449778468,
+    "oof_delta_vs_anchor": -1.990862774525759e-06,
+    "pcr": [
+      0.9955909028241471,
+      0.969444607109096,
+      0.9774858394021609
+    ],
+    "test_flips_vs_anchor": 61,
+    "test_diff_vs_primary": 61
+  }
+}

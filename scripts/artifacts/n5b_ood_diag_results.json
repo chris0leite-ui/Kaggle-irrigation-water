@@ -1,0 +1,50 @@
+{
+  "verdict": "PROCEED",
+  "best_abs_spearman": 0.02421,
+  "best_abs_cohens_d": 0.19719,
+  "scorers": [
+    {
+      "scorer": "GMM_neg_logp",
+      "pearson_r": 0.02532,
+      "spearman_r": 0.02397,
+      "cohens_d_flip_minus_clean": 0.19484,
+      "mean_score_flipped": 15.12883,
+      "mean_score_clean": 14.88154,
+      "p99_flipped": 18.38229,
+      "p99_clean": 18.03807
+    },
+    {
+      "scorer": "IsolationForest",
+      "pearson_r": 0.02551,
+      "spearman_r": 0.02421,
+      "cohens_d_flip_minus_clean": 0.19719,
+      "mean_score_flipped": 0.51481,
+      "mean_score_clean": 0.51003,
+      "p99_flipped": 0.57464,
+      "p99_clean": 0.56713
+    },
+    {
+      "scorer": "kNN_meandist_k10",
+      "pearson_r": 0.02366,
+      "spearman_r": 0.02181,
+      "cohens_d_flip_minus_clean": 0.18089,
+      "mean_score_flipped": 1.88357,
+      "mean_score_clean": 1.85561,
+      "p99_flipped": 2.30575,
+      "p99_clean": 2.25947
+    },
+    {
+      "scorer": "min_thresh_dist*",
+      "pearson_r": 0.03817,
+      "spearman_r": 0.03874,
+      "cohens_d_flip_minus_clean": 0.3128,
+      "mean_score_flipped": -2.67325,
+      "mean_score_clean": -3.35207,
+      "p99_flipped": -0.032,
+      "p99_clean": -0.056
+    }
+  ],
+  "n_train": 630000,
+  "n_flipped": 10304,
+  "n_orig": 10000
+}

@@ -38,6 +38,7 @@ from sklearn.model_selection import StratifiedKFold
 sys.path.insert(0, str(Path(__file__).parent))
 from common import add_distance_features, log_blend, CLS2IDX  # noqa: E402
 
+import os
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
 DATA = Path("data")
@@ -46,6 +47,10 @@ N_FOLDS = 5
 BIAS = np.array([1.4324, 1.4689, 3.4008])
 TARGET = "Irrigation_Need"
 CLASSES = ["Low", "Medium", "High"]
+# META_OUT_SUFFIX appended to oof_xgb_metastack[suffix].npy outputs to
+# avoid clobbering the LB-validated v1 meta-stacker. Use this when adding
+# new components to the bank.
+META_OUT_SUFFIX = os.environ.get("META_OUT_SUFFIX", "")
 
 EXCLUDE = {
     "soft_distill",              # LB regressor
@@ -122,9 +127,13 @@ def build_lbbest_stack(y):
 
 def load_pool(y):
     pool = {}
+    n_train = len(y)
     for oof_p in sorted(ART.glob("oof_*.npy")):
         name = oof_p.stem.replace("oof_", "", 1)
         if name in EXCLUDE:
+            continue
+        # Skip per-fold checkpoint files (e.g. *_fold1, *_fold2 ...).
+        if name.endswith(tuple(f"_fold{f}" for f in range(1, 11))):
             continue
         test_p = ART / f"test_{name}.npy"
         if not test_p.exists():
@@ -135,6 +144,11 @@ def load_pool(y):
         except Exception:
             continue
         if o.ndim != 2 or o.shape[1] != 3:
+            continue
+        if o.shape[0] != n_train:
+            continue
+        # Detect partial-fold OOFs (zero rows where some folds didn't run).
+        if (o.sum(1) < 1e-3).any():
             continue
         pool[name] = (_normed(o), _normed(t))
     return pool
@@ -221,9 +235,11 @@ def main():
             f"wall={time.time()-t1:.1f}s")
 
     test_meta = np.mean(test_meta_folds, axis=0).astype(np.float32)
-    np.save(ART / "oof_xgb_metastack.npy", oof_meta)
-    np.save(ART / "test_xgb_metastack.npy", test_meta)
-    log(f"saved oof_xgb_metastack.npy + test")
+    oof_path = ART / f"oof_xgb_metastack{META_OUT_SUFFIX}.npy"
+    test_path = ART / f"test_xgb_metastack{META_OUT_SUFFIX}.npy"
+    np.save(oof_path, oof_meta)
+    np.save(test_path, test_meta)
+    log(f"saved {oof_path.name} + test")
 
     # Evaluate the meta-stacker standalone
     meta_argmax_bal = balanced_accuracy_score(y, oof_meta.argmax(1))
@@ -267,7 +283,7 @@ def main():
         sample = pd.read_csv(DATA / "sample_submission.csv")
         sub = sample.copy()
         sub[TARGET] = [CLASSES[i] for i in pred_t]
-        tag = f"meta_a{int(a*1000):03d}"
+        tag = f"meta{META_OUT_SUFFIX}_a{int(a*1000):03d}"
         path = SUB / f"submission_tier1b_metastack_{tag}.csv"
         sub.to_csv(path, index=False)
         log(f"\nΔ={best['delta']:+.5f} ≥ +2e-4 → wrote {path}")
@@ -289,8 +305,9 @@ def main():
         jaccard_vs_lb=float(jacc),
         elapsed_sec=float(time.time() - t0),
     )
-    (ART / "tier1b_xgb_metastack_results.json").write_text(json.dumps(out, indent=2))
-    log(f"wrote scripts/artifacts/tier1b_xgb_metastack_results.json")
+    json_path = ART / f"tier1b_xgb_metastack{META_OUT_SUFFIX}_results.json"
+    json_path.write_text(json.dumps(out, indent=2))
+    log(f"wrote {json_path}")
 
 
 if __name__ == "__main__":

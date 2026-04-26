@@ -76,6 +76,17 @@ FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
 # replacing "oof_" → "test_". When set, the K columns are added as extra
 # numerics. Integration for A2 / P1.
 DAE_EMBED_PATH = os.environ.get("DAE_EMBED_PATH", "")
+# 10k-anchor features (built by build_10k_anchor_features.py).
+# EXTRA_OOD=1   -> +3 cols [GMM_neg_logp, IsoForest, kNN_dist] from
+#                 oof_ood3_train.npy + test_ood3.npy
+# EXTRA_KNN10K=1-> +8 cols [p_low,p_med,p_high,nbr0_y,d_low,d_med,d_high,margin]
+#                 from oof_knn10k_train.npy + test_knn10k.npy
+EXTRA_OOD = os.environ.get("EXTRA_OOD", "") == "1"
+EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
+# EXTRA_OOD9=1 -> +9 cols (per-class GMM density + per-class kNN dist +
+# per-class Mahalanobis to centroid) from oof_ood9_train.npy + test_ood9.npy
+# Built by build_expanded_10k_anchor.py.
+EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -99,6 +110,16 @@ GBY = os.environ.get("GBY", "") == "1"
 # axis. Captures multi-axis simultaneous closeness to the rule-cell topology
 # in a way per-axis distance features cannot. Suffix "_instab" on outputs.
 INSTAB = os.environ.get("INSTAB", "") == "1"
+# THREE_WAY_OTE: senior-FE 3-way OTE keys (cat × cat × digit triples).
+# Adds 15 high-card combo cols to te_cols so OrderedTE encodes them as
+# 45 new per-class TE features on top of recipe's 351-col OTE. Untried
+# in 13 saturation confirmations. Suffix "_3way" on outputs.
+THREE_WAY_OTE = os.environ.get("THREE_WAY_OTE", "") == "1"
+# NN_DIST_PATH: optional path to FAISS k-NN distance features w.r.t. 10k
+# original. .npy of shape (n_train, K). The matching test array is derived
+# by replacing "oof_" → "test_". When set, the K columns are added as
+# extra numerics. Suffix "_nndist" on outputs.
+NN_DIST_PATH = os.environ.get("NN_DIST_PATH", "")
 # Cleanlab intervention: modify training rows flagged as label-noise.
 #   ""           — baseline (no intervention)
 #   "drop"       — drop flagged rows from each fold's train set
@@ -118,6 +139,20 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # CLEANLAB_TREATMENT=downweight which DOWN-weights ambiguous rows
 # interpreted as label noise. Suffix "_anchwα{α}" on outputs.
 ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
+
+# Mech A: boundary-confined test-time augmentation. When set, identify
+# boundary rows via max_prob(LB-best 4-stack) < TTA_BOUNDARY_THRESH (default
+# 0.95) and replace their val/test predictions with the K-perturbation
+# average. Perturbations are σ × IQR Gaussian on the 4 rule axes
+# (Soil_Moisture, Rainfall_mm, Temperature_C, Wind_Speed_kmh); axis-derived
+# FE (sm/rf/tc/ws_dist + abs, dry/norain/hot/windy, dgp_score, LR-formula
+# logits) is recomputed per perturbation. Digits/num_as_cat/OTE keys are
+# NOT recomputed (perturbations are small enough that key changes are rare).
+# Suffix "_btta" on outputs. Mutually exclusive with anchor weight + cleanlab.
+TTA_BOUNDARY = os.environ.get("TTA_BOUNDARY", "") == "1"
+TTA_BOUNDARY_THRESH = float(os.environ.get("TTA_BOUNDARY_THRESH", "0.95"))
+TTA_K = int(os.environ.get("TTA_K", "10"))
+TTA_SIGMA = float(os.environ.get("TTA_SIGMA", "0.05"))
 
 DROP_SCORES = os.environ.get("DROP_SCORES", "")
 DROP_SCORE_SET: set[int] = set()
@@ -140,6 +175,12 @@ if CLEANLAB_TREATMENT:
     _parts.append(f"cl{CLEANLAB_TREATMENT}")
 if DAE_EMBED_PATH:
     _parts.append("dae")
+if EXTRA_OOD:
+    _parts.append("ood")
+if EXTRA_KNN10K:
+    _parts.append("knn10k")
+if EXTRA_OOD9:
+    _parts.append("ood9")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -150,6 +191,12 @@ if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
+if TTA_BOUNDARY:
+    _parts.append(f"btta{int(TTA_BOUNDARY_THRESH*100):03d}k{TTA_K}s{int(TTA_SIGMA*100):03d}")
+if THREE_WAY_OTE:
+    _parts.append("3way")
+if NN_DIST_PATH:
+    _parts.append("nndist")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -246,13 +293,25 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     log("adding digit features")
     digits = add_digit_features(train, test, orig, nums)
 
+    # 3-way OTE combos (cat × cat × digit) — built BEFORE num_as_cat /
+    # FREQ / orig-stats so the combo cols are available for OTE keys.
+    three_way_combos: list[str] = []
+    if THREE_WAY_OTE:
+        from three_way_keys import add_three_way_combos
+        log("adding 3-way OTE combos (15 cat×cat×digit triples)")
+        three_way_combos = add_three_way_combos(train, test, orig)
+        # Sanity card report on a sample to confirm signal density.
+        from three_way_keys import cardinality_report
+        rep = cardinality_report(train, three_way_combos[:3])
+        log(f"  card sample: {rep}")
+
     # Num-as-cat (factorized across combined).
     log("adding num-as-cat")
     num_as_cat = add_num_as_cat(train, test, orig, nums)
 
-    # FREQ per raw cat + per combo (computed on train+test+orig combined).
+    # FREQ per raw cat + per combo + 3-way combo (combined train+test+orig).
     log("adding FREQ features")
-    freq = add_freq_features(train, test, orig, cats + combos)
+    freq = add_freq_features(train, test, orig, cats + combos + three_way_combos)
 
     # ORIG mean/std per column (leak-free — external source only).
     log("adding ORIG mean/std per col")
@@ -312,6 +371,72 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
             train[c] = dae_tr[:, i]
             test[c] = dae_te[:, i]
 
+    # 10k-anchor features (built by build_10k_anchor_features.py).
+    ood_cols: list[str] = []
+    knn10k_cols: list[str] = []
+    if EXTRA_OOD:
+        log("loading 10k-OOD features (GMM, IsoForest, kNN-density)")
+        a_tr = np.load("scripts/artifacts/oof_ood3_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_ood3.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 3) and a_te.shape == (len(test), 3)
+        ood_cols = ["ood_gmm", "ood_iso", "ood_knn"]
+        for i, c in enumerate(ood_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(ood_cols)} OOD cols")
+    if EXTRA_KNN10K:
+        log("loading kNN-from-10k geometric features (k=20)")
+        a_tr = np.load("scripts/artifacts/oof_knn10k_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_knn10k.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 8) and a_te.shape == (len(test), 8)
+        knn10k_cols = ["k10_pL","k10_pM","k10_pH","k10_nbr0",
+                       "k10_dL","k10_dM","k10_dH","k10_margin"]
+        for i, c in enumerate(knn10k_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(knn10k_cols)} kNN10k cols")
+    ood9_cols: list[str] = []
+    if EXTRA_OOD9:
+        log("loading expanded 10k-anchor features (per-class GMM/kNN/Maha)")
+        a_tr = np.load("scripts/artifacts/oof_ood9_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_ood9.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 9) and a_te.shape == (len(test), 9)
+        ood9_cols = ["gmm_L","gmm_M","gmm_H","knn_d_L","knn_d_M","knn_d_H",
+                     "maha_L","maha_M","maha_H"]
+        for i, c in enumerate(ood9_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(ood9_cols)} ood9 cols")
+
+    # Senior-FE NN-distance features (FAISS k-NN to 10k original).
+    # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
+    # adds 5 cols (dist_min, dist_mean, frac_low/med/high) from a different
+    # FAISS index built by scripts/nn_distance_features.py.
+    nndist_cols: list[str] = []
+    if NN_DIST_PATH:
+        log(f"loading NN-distance features from {NN_DIST_PATH}")
+        nnd_tr = np.load(NN_DIST_PATH).astype(np.float32)
+        nnd_te = np.load(NN_DIST_PATH.replace("oof_", "test_")).astype(np.float32)
+        log(f"  nndist_train={nnd_tr.shape}  nndist_test={nnd_te.shape}")
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            nnd_tr = nnd_tr[train_subset_idx]
+            nnd_te = nnd_te[test_subset_idx]
+            log(f"  SMOKE-subsampled nndist: {nnd_tr.shape}, {nnd_te.shape}")
+        assert nnd_tr.shape[0] == len(train), (nnd_tr.shape, len(train))
+        assert nnd_te.shape[0] == len(test), (nnd_te.shape, len(test))
+        n_nnd = nnd_tr.shape[1]
+        nndist_cols = [f"nndist_{i}" for i in range(n_nnd)]
+        for i, c in enumerate(nndist_cols):
+            train[c] = nnd_tr[:, i]
+            test[c] = nnd_te[:, i]
+
     info = dict(
         nums=nums, cats=cats, combos=combos, digits=digits,
         num_as_cat=num_as_cat, freq=freq, tres=tres, logits=logits,
@@ -319,7 +444,9 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
         gby=gby_cols, instab=instab_cols,
-        te_cols=cats + combos + digits + num_as_cat + tres,
+        ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
+        three_way=three_way_combos, nndist=nndist_cols,
+        te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
     )
     log(f"  feature groups: "
         f"cats={len(cats)} combos={len(combos)} digits={len(digits)} "
@@ -329,11 +456,120 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
         f"extra_w8={len(extra_w8)} "
         f"gby={len(gby_cols)} "
+        f"three_way={len(three_way_combos)} "
+        f"nndist={len(nndist_cols)} "
         f"te_cols={len(info['te_cols'])}")
     return train, test, info, test_ids
 
 
-_anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B active
+_anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B / Mech A active
+_anchor_uncertainty_test: np.ndarray | None = None  # populated when Mech A active
+
+
+def _build_anchor_uncertainty_test(n_test: int = -1) -> np.ndarray:
+    """Test-side anchor uncertainty (for Mech A boundary-row identification).
+
+    Returns zero-vector under SMOKE since test is subsampled and we can't
+    recover the indices here. TTA mask = 0 → boundary mask all False →
+    no perturbation applied (test_pred unchanged).
+    """
+    sys.path.insert(0, str(Path(__file__).parent))
+    from common import log_blend  # noqa: E402
+    from sklearn.isotonic import IsotonicRegression  # noqa: E402
+
+    def _normed(a):
+        return a / np.clip(a.sum(1, keepdims=True), 1e-9, None)
+
+    def _iso_cal(oof, test_arr, y_lab):
+        oo = np.zeros_like(oof, dtype=np.float32)
+        tt = np.zeros_like(test_arr, dtype=np.float32)
+        for c in range(3):
+            ir = IsotonicRegression(out_of_bounds="clip", y_min=1e-6, y_max=1 - 1e-6)
+            ir.fit(oof[:, c], (y_lab == c).astype(np.float32))
+            oo[:, c] = ir.predict(oof[:, c])
+            tt[:, c] = ir.predict(test_arr[:, c])
+        return _normed(oo), _normed(tt)
+
+    train_full = pd.read_csv("data/train.csv")
+    y_full = train_full[TARGET].map(CLS_MAP).to_numpy().astype(np.int32)
+    r_o = _normed(np.load(ART / "oof_recipe_full_te.npy"))
+    r_t = _normed(np.load(ART / "test_recipe_full_te.npy"))
+    s1_o = _normed(np.load(ART / "oof_recipe_pseudolabel.npy"))
+    s1_t = _normed(np.load(ART / "test_recipe_pseudolabel.npy"))
+    s7_o = _normed(np.load(ART / "oof_recipe_pseudolabel_seed7labeler.npy"))
+    s7_t = _normed(np.load(ART / "test_recipe_pseudolabel_seed7labeler.npy"))
+    rm_o = _normed(np.load(ART / "oof_realmlp.npy"))
+    rm_t = _normed(np.load(ART / "test_realmlp.npy"))
+    nr_o = _normed(np.load(ART / "oof_xgb_nonrule.npy"))
+    nr_t = _normed(np.load(ART / "test_xgb_nonrule.npy"))
+    nr_o_iso, nr_t_iso = _iso_cal(nr_o, nr_t, y_full)
+    mv_o = _normed(np.load(ART / "oof_xgb_metastack.npy"))
+    mv_t = _normed(np.load(ART / "test_xgb_metastack.npy"))
+    mv_o_iso, mv_t_iso = _iso_cal(mv_o, mv_t, y_full)
+    lb3_t = log_blend([r_t, s1_t, s7_t], np.array([0.25, 0.35, 0.40]))
+    s2_t = log_blend([lb3_t, rm_t], np.array([0.8, 0.2]))
+    s3_t = log_blend([s2_t, nr_t_iso], np.array([0.925, 0.075]))
+    lb4_t = log_blend([s3_t, mv_t_iso], np.array([0.7, 0.3]))
+    out = (1.0 - lb4_t.max(axis=1)).astype(np.float32)
+    if n_test > 0 and out.shape[0] != n_test:
+        # SMOKE subsample mismatch — return zero so boundary mask is empty.
+        return np.zeros(n_test, dtype=np.float32)
+    return out
+
+
+def _apply_btta(model, feat_cols, base_pred, X_df, mask, fold_seed):
+    """Replace predictions at boundary rows with K-perturbation average.
+
+    Perturbations: σ × IQR Gaussian on 4 axis numerics. Recompute the
+    directly-derived axis FE (sm/rf/tc/ws_dist + abs + tres flags +
+    dgp_score + LR-formula logits) per perturbation. Predict via model,
+    average K predictions, replace base_pred[mask] in-place via copy.
+    """
+    if mask.sum() == 0:
+        return base_pred
+    out = base_pred.copy()
+    sub = X_df.iloc[mask].copy().reset_index(drop=True)
+    rng = np.random.default_rng(SEED + fold_seed * 11)
+
+    # IQR per axis from the train OR test slice we have at hand
+    iqrs = {}
+    for ax in ("Soil_Moisture", "Rainfall_mm", "Temperature_C", "Wind_Speed_kmh"):
+        v = X_df[ax].astype(float).to_numpy()
+        iqrs[ax] = float(np.quantile(v, 0.75) - np.quantile(v, 0.25))
+
+    accum = np.zeros((mask.sum(), 3), dtype=np.float32)
+    for k in range(TTA_K):
+        pert = sub.copy()
+        for ax in iqrs:
+            pert[ax] = (sub[ax].astype(float).to_numpy()
+                        + rng.normal(0, TTA_SIGMA * iqrs[ax], size=len(sub))).astype(np.float32)
+        # Recompute axis-derived FE
+        sm = pert["Soil_Moisture"].astype(float).to_numpy()
+        rf = pert["Rainfall_mm"].astype(float).to_numpy()
+        tc = pert["Temperature_C"].astype(float).to_numpy()
+        ws = pert["Wind_Speed_kmh"].astype(float).to_numpy()
+        pert["sm_dist"] = (sm - 25.0).astype(np.float32)
+        pert["rf_dist"] = (rf - 300.0).astype(np.float32)
+        pert["tc_dist"] = (tc - 30.0).astype(np.float32)
+        pert["ws_dist"] = (ws - 10.0).astype(np.float32)
+        for col in ("sm_dist", "rf_dist", "tc_dist", "ws_dist"):
+            pert[col.replace("_dist", "_abs")] = np.abs(pert[col].to_numpy()).astype(np.float32)
+        dry = (sm < 25.0).astype(np.int8)
+        norain = (rf < 300.0).astype(np.int8)
+        hot = (tc > 30.0).astype(np.int8)
+        windy = (ws > 10.0).astype(np.int8)
+        nomulch = pert["nomulch"].to_numpy() if "nomulch" in pert.columns else np.zeros(len(pert), dtype=np.int8)
+        kc_act = pert["kc_active"].to_numpy() if "kc_active" in pert.columns else np.zeros(len(pert), dtype=np.int8)
+        pert["dry"] = dry
+        pert["norain"] = norain
+        pert["hot"] = hot
+        pert["windy"] = windy
+        pert["dgp_score"] = (2 * (dry + norain) + hot + windy + nomulch + 2 * kc_act).astype(np.int8)
+
+        prd = model.predict_proba(pert[feat_cols]).astype(np.float32)
+        accum += prd / TTA_K
+    out[mask] = accum
+    return out
 
 
 def _build_anchor_uncertainty(n_train: int) -> np.ndarray:
@@ -390,14 +626,19 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
     y = train[TARGET].to_numpy()
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
 
-    # Mech B: precompute anchor-uncertainty weights ONCE (full-train);
-    # indexed per-fold inside the loop.
-    global _anchor_uncertainty
-    if ANCHOR_WEIGHT_ALPHA != 0:
+    # Mech B / Mech A: precompute anchor-uncertainty weights ONCE
+    # (full-train); indexed per-fold inside the loop.
+    global _anchor_uncertainty, _anchor_uncertainty_test
+    if ANCHOR_WEIGHT_ALPHA != 0 or TTA_BOUNDARY:
         _anchor_uncertainty = _build_anchor_uncertainty(len(train))
-        log(f"  Mech B: anchor-uncertainty precomputed, "
+        log(f"  Mech B/A: anchor-uncertainty precomputed, "
             f"mean={_anchor_uncertainty.mean():.4f} "
             f"(0 means SMOKE-fallback or zero-input)")
+    if TTA_BOUNDARY:
+        _anchor_uncertainty_test = _build_anchor_uncertainty_test(len(test))
+        log(f"  Mech A: test-side anchor-uncertainty precomputed, "
+            f"mean={_anchor_uncertainty_test.mean():.4f}, "
+            f"boundary mask = (1-max_p) > {1.0 - TTA_BOUNDARY_THRESH}")
 
     # Load cleanlab mask + teacher (if relabel) once, up-front.
     cleanlab_mask = None
@@ -437,7 +678,11 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
                      + info.get("gby", [])
-                     + info.get("instab", []))
+                     + info.get("instab", [])
+                     + info.get("ood", [])
+                     + info.get("knn10k", [])
+                     + info.get("ood9", [])
+                     + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
     oof = np.zeros((len(train), 3), dtype=np.float32)
@@ -578,6 +823,23 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         )
         vp = model.predict_proba(X_va[feat_cols]).astype(np.float32)
         tp = model.predict_proba(X_te[feat_cols]).astype(np.float32)
+
+        # Mech A: boundary-confined TTA. Replace predictions at boundary
+        # rows with K-perturbation average; non-boundary predictions stay
+        # untouched. Boundary defined by anchor max-prob threshold.
+        if TTA_BOUNDARY:
+            au_va = _anchor_uncertainty[va_idx]  # uncertainty = 1 − max_prob
+            mask_va = au_va > (1.0 - TTA_BOUNDARY_THRESH)
+            au_te = _anchor_uncertainty_test
+            mask_te = au_te > (1.0 - TTA_BOUNDARY_THRESH)
+            n_b_va = int(mask_va.sum())
+            n_b_te = int(mask_te.sum())
+            log(f"  TTA: boundary rows va={n_b_va}/{len(va_idx)} ({100*n_b_va/len(va_idx):.1f}%), "
+                f"te={n_b_te}/{len(test)} ({100*n_b_te/len(test):.1f}%)  σ={TTA_SIGMA} K={TTA_K}")
+            if n_b_va > 0 or n_b_te > 0:
+                vp = _apply_btta(model, feat_cols, vp, X_va, mask_va, fold)
+                tp = _apply_btta(model, feat_cols, tp, X_te, mask_te, fold + 100)
+
         oof[va_idx] = vp
         test_pred += tp / N_FOLDS
         # checkpoint immediately for rehydrate resilience
