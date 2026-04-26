@@ -1,0 +1,19 @@
+{
+  "id": "chrisleitescha/irrigation-pseudolabel-path-c",
+  "title": "irrigation-pseudolabel-path-c",
+  "code_file": "path_c_pseudolabel.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "chrisleitescha/irrigation-prediction-original",
+    "chrisleitescha/irrigation-pseudolabel-scripts"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
