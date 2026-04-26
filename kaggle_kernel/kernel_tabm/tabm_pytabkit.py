@@ -97,8 +97,8 @@ else:
 OUT_DIR.mkdir(exist_ok=True, parents=True)
 
 # Top-level toggles for Kaggle pushes (env vars aren't settable at push).
-IS_SMOKE = True   # SMOKE first per CLAUDE.md rule (~5 min)
-IS_PROBE = False  # 1 fold × full data × full epochs
+IS_SMOKE = False  # SMOKE v2 PASSED — moved to PROBE
+IS_PROBE = True   # 1 fold × full data × full epochs (~25-35 min ETA)
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
