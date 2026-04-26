@@ -11648,8 +11648,17 @@ more folds / HP tuning" as a forward lever:
      TRAINING TIME (e.g., multi-task loss on recipe FE) rather than as a
      stacker INPUT — different architectural insertion point.
 
-- LB budget: **1/10 used today**, 9 remaining. LB best unchanged at
-  **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- LB budget: **2/10 used today** (α=0.30 + α=0.40 v6 probes), 8 remaining.
+  LB best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Aggressive α=0.40 also probed (user-requested follow-up):**
+  `submission_combined_v6_a040.csv` → LB **0.98060** (essentially tied
+  with α=0.30's 0.98059, +0.00001). OOF 0.98114 → LB 0.98060, gap +0.00054
+  (slightly tighter than α=0.30's +0.00063 because the aggressive α drops
+  OOF closer to primary while LB stays flat). Confirms the linear-projection
+  rule: bank-extension OOF lift transfers proportionally to LB regression
+  at any α. Two-probe bracketing closes the v6 lever definitively — there
+  is no α that threads the needle.
 - Final-selection lock UNCHANGED:
   1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
   2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
