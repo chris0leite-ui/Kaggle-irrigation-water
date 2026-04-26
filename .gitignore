@@ -914,3 +914,6 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_recipe_pseudolabel_path_c_stage2.npy
 !scripts/artifacts/test_recipe_pseudolabel_path_c_stage2.npy
 !scripts/artifacts/recipe_pseudolabel_path_c_stage2_results.json
+
+# Kaggle kernel output dumps (debug-only; kernels write artifacts to scripts/artifacts/)
+kaggle_kernel/*/output/
