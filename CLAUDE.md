@@ -13284,3 +13284,98 @@ final selection.
    regardless of physical/mechanism motivation. Recipe XGB at depth=4
    max_bin=1024 expresses these aggregates internally via joint
    splits.
+
+### 2026-04-26 — research-competition-strategies session: external-grandmaster review
+
+- Goal: web-search the broader Kaggle / NVIDIA-grandmaster body of work
+  to surface mechanisms not yet on our hypothesis board. Specific
+  targets: Chris Deotte's published 1st-place writeups (he's also our
+  rank-1 leader at LB 0.98219), the NVIDIA grandmaster blogs, recent
+  s5e11/s5e12/s6e3 1st-place writeups, Matt-OP's hillclimbers package.
+- **What I read** (sources verified, content quoted in next-steps below):
+  1. NVIDIA "7 Battle-Tested Tabular Modeling Techniques" — diverse
+     baselines / large-scale FE / hill climbing / stacking /
+     pseudo-labeling / extra training / smarter EDA.
+  2. NVIDIA "Stacking with cuML" (cdeotte s5e4 podcast 1st place) —
+     3-level stack, OOF confidence/consensus features, predict-direct
+     vs ratio vs residual vs missing as diversity formulations.
+  3. NVIDIA "FE with cuDF pandas" (cdeotte 1st place backpack prices)
+     — generate 10,000+ features via groupby × stat × column combos,
+     distribution buckets, quantile features, digit extraction, then
+     forward-select the best ~500.
+  4. NVIDIA "LLM-Assisted Winning" (s6e3 customer churn 1st place,
+     2026-03) — 4-level stack of 150 models from 850 experiments;
+     GBDT/NN/Ridge/LR stackers in parallel, then pick best.
+  5. Matt-OP/hillclimbers GitHub — concrete `climb_hill()` with
+     `precision=0.001`, `negative_weights=True` option, custom
+     metric via `partial()`. More permissive search than our greedy.
+  6. Kaggle s5e11 / s5e12 / s6e3 1st-place writeups exist (cf-blocked
+     content; titles confirm "Hill Climbing + Ridge Ensemble" and
+     "lot of features, lot of models" patterns).
+
+- **Cross-checked against our log** — these mechanisms are CLOSED:
+  - Predict-residual / predict-ratio (Angle A NULL: per-fold residuals
+    cancel; argmax-equivalence theorem closes 10k-rule residual).
+  - OOF confidence/consensus features as meta inputs (v6 NULL +
+    LB regress).
+  - Multi-round pseudo-labeling, soft-distillation (closed across
+    capacity sweep).
+  - Predict-missing-features (J3/AV nulled — features independent
+    in DGP, R² < 0.05).
+  - Heavy-reg XGB / LGBM / CatBoost on recipe (saturated tree-family
+    diversity at Jaccard ≥ 0.78).
+
+- **Genuinely UNTESTED mechanisms (this session's contribution)**:
+  These four are not subsumed by any of the 15+ saturation
+  confirmations in this log; each has a structurally distinct failure
+  mode from prior nulls.
+
+  **C. Distillation student on a DIFFERENT feature view**
+  (~30 min CPU, executed first per EV/cost). Train a fresh XGB on
+  LB-best 4-stack's hard pseudo-labels using a feature subset that
+  EXCLUDES rule-derived features (no `dgp_score`, no rule indicators,
+  no signed-distance features, no `rule_pred`, no logit_P_*). Trees
+  forced to discover the LB-best decision surface from a different
+  basis → potentially Jaccard < 0.80 with primary. Distinct from
+  prior soft-distill nulls because (a) hard-label not soft-target,
+  (b) feature-restricted not capacity-restricted.
+
+  **D. Matt-OP-style hill climb with negative_weights=True**
+  (~30 min CPU). Use `climb_hill()` with `precision=0.001` and
+  `negative_weights=True` on the full ~70-component bank, custom
+  metric = balanced_accuracy_score at fixed bias. Distinct from our
+  greedy log-blend (α∈[0,0.5] precision 0.005, no negative weights).
+  Negative weights let the optimizer SUBTRACT components that are
+  anti-correlated in some region — a strictly more flexible search.
+
+  **B. L3 weighted average of TWO L2 metas (XGB-meta + small NN-meta)**
+  (~30 min CPU). Same 63-component bank that produced LB-best v1
+  meta-stacker. NN-meta on 200-dim input is a much smaller capacity
+  fit than NN-on-recipe (which 15 NN-on-recipe nulls have closed).
+  cdeotte's specific recipe is "GBDT + NN at L2, weighted average
+  at L3". We've tested LR-meta (NULL) and XGB-meta (LB-best) but
+  never blended XGB-meta with a small NN-meta at L3.
+
+  **A. Wide programmatic FE (5,000+ features, forward-select ~500)**
+  (4-6 h CPU, only if A/B/C/D leave headroom). Programmatically
+  generate: all C(20,2) cat-pair × {mean,std,count,nunique,skew,
+  min,max} stat combos, distribution buckets per groupby, quantile
+  features `[5,10,40,45,55,60,90,95]`, all decimal-fraction features,
+  all binnings at multiple resolutions. Forward-select top 500 by
+  per-fold gain. Recipe is at ~440 hand-designed features; cdeotte's
+  1st-place backpack-prices mechanism is "go *wide*, then prune".
+  We've added FE incrementally (utaazu 16 cols, rohit8527 176 cols,
+  instability 5 cols) — never the wide-scan-then-cut pattern.
+
+- **Decision rule for this session** (4 days to deadline, 6 LB slots):
+  Run C → D → B → A in order. Each has its own blend gate (Jaccard <
+  0.80 AND errs ≤ 1.05 × anchor AND per-class recall ≥ anchor − 5e-4).
+  LB probe ONLY if blend OOF Δ ≥ +2e-4 vs LB-best 4-stack AND gate
+  passes AND user explicitly approves. Lock final-selection if A/B/C/D
+  all null.
+- Sources logged for cross-branch reference:
+  - <https://developer.nvidia.com/blog/the-kaggle-grandmasters-playbook-7-battle-tested-modeling-techniques-for-tabular-data/>
+  - <https://developer.nvidia.com/blog/grandmaster-pro-tip-winning-first-place-in-a-kaggle-competition-with-stacking-using-cuml/>
+  - <https://developer.nvidia.com/blog/grandmaster-pro-tip-winning-first-place-in-kaggle-competition-with-feature-engineering-using-nvidia-cudf-pandas/>
+  - <https://developer.nvidia.com/blog/winning-a-kaggle-competition-with-generative-ai-assisted-coding/>
+  - <https://github.com/Matt-OP/hillclimbers>
