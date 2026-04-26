@@ -1212,3 +1212,18 @@ scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
 !scripts/artifacts/oof_recipe_full_te_ood_knn10k_ood9.npy
 !scripts/artifacts/test_recipe_full_te_ood_knn10k_ood9.npy
 !scripts/artifacts/recipe_full_te_ood_knn10k_ood9_results.json
+# 2026-04-26 Mech A boundary-confined TTA (NULL).
+# Threshold 0.95 → 7% boundary rows. K=10 σ=0.05 IQR perturbations on
+# 4 rule axes per fold. Standalone iso OOF 0.97951 (+0.00025 vs vanilla,
+# passes G1) but errs 9961 (+695 vs vanilla, fails G2). Per-class:
+# Med -0.00335, High +0.00404 — same Pareto direction as Mech B (4th
+# violation axis confirmed). Substitution Δ -0.00010, blend monotone-neg.
+# EMIT False (g2=F, g4=F). 16th saturation confirmation.
+# Per-fold checkpoints (rehydrate-resilient, regen on rerun):
+scripts/artifacts/oof_recipe_full_te_btta095k10s005_fold[0-9].npy
+scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
+# Final consolidated artefacts:
+!scripts/artifacts/oof_recipe_full_te_btta095k10s005.npy
+!scripts/artifacts/test_recipe_full_te_btta095k10s005.npy
+!scripts/artifacts/recipe_full_te_btta095k10s005_results.json
+!scripts/artifacts/mech_a_blend_gate_btta095k10s005_results.json
