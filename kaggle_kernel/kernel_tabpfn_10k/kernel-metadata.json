@@ -1,0 +1,16 @@
+{
+  "id": "chrisleitescha/irrigation-tabpfn-10k",
+  "title": "irrigation-tabpfn-10k",
+  "code_file": "tabpfn_10k.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}

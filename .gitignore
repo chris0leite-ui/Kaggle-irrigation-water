@@ -772,6 +772,24 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_mamba_probe.npy
 !scripts/artifacts/test_mamba_probe.npy
 
+# 2026-04-26 TabM (pytabkit TabM_D) PROBE — 15th NN family null on this
+# feature set. Fold-1 wall 122 min on Kaggle P100 with tabm_k=32 +
+# n_epochs=25 (5-fold projects to ~10h, way over 1h GPU cap → cannot
+# run production). Standalone fold-1 argmax 0.96753, tuned 0.97496
+# (bias [1.63, 1.47, 3.40] matches recipe family). Errs 2298 vs LB-best
+# 4-stack's 1914 (+20% magnitude trap). Jaccard vs LB-best 4-stack 0.578
+# (between RealMLP's 0.62 and Trompt's 0.53 — good orthogonality).
+# Blend sweep monotone-negative from α=0.05 (peak at α=0). Same failure
+# pattern as Trompt PROBE (0.53/+8%) and Mamba PROBE (0.49/+27%): all
+# three NN PROBEs hit the same Jaccard-orthogonal-but-magnitude-trapped
+# corner. Closes lever. Kept for cross-branch reuse — 0.578 Jaccard is
+# unique in the bank and may be useful in future blends with leaner
+# anchor stacks.
+!scripts/artifacts/oof_tabm.npy
+!scripts/artifacts/test_tabm.npy
+!scripts/artifacts/tabm_probe_results.json
+!scripts/artifacts/blend_tabm_results.json
+
 # 2026-04-25 J2 bootstrap-bagged meta-stacker — 5th saturation
 # confirmation at LB 0.98094. N=10 bags, fraction=0.5 (bag_size=34),
 # clean 69-component pool (drops 19 circular meta outputs / submission
@@ -965,3 +983,47 @@ kaggle_kernel/*/dist/
 # 0.98030, errs 9324 (-91) but H recall -0.0020. Blend NULL.
 !scripts/artifacts/oof_joint_blend.npy
 !scripts/artifacts/test_joint_blend.npy
+
+# 2026-04-26 own-CSV ensemble lever — 5 strategies + 3 subset probes over 6
+# LB-validated submissions. ALL NULL (best +0.00002 OOF over primary, well
+# below +5e-4 emit gate). Refutes "ensemble of ensembles" hypothesis: our
+# subs share recipe-pseudo-meta backbone (Jaccard 0.83-0.96 vs primary).
+# Public-CSV blenders win via INDEPENDENT pipelines from different teams;
+# 6 depths of one pipeline don't qualify. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_own_S1_equal_log.npy
+!scripts/artifacts/test_own_S1_equal_log.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau100.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau100.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau200.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau200.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau500.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau500.npy
+!scripts/artifacts/oof_own_S2_lb_weighted_tau1000.npy
+!scripts/artifacts/test_own_S2_lb_weighted_tau1000.npy
+!scripts/artifacts/oof_own_S3_hard_vote.npy
+!scripts/artifacts/test_own_S3_hard_vote.npy
+!scripts/artifacts/oof_own_S4_soft_vote.npy
+!scripts/artifacts/test_own_S4_soft_vote.npy
+!scripts/artifacts/oof_own_S5_greedy_forward.npy
+!scripts/artifacts/test_own_S5_greedy_forward.npy
+!scripts/artifacts/oof_own_3view.npy
+!scripts/artifacts/test_own_3view.npy
+!scripts/artifacts/oof_own_greedy_fine.npy
+!scripts/artifacts/test_own_greedy_fine.npy
+# 2026-04-26 LP / Bayes-optimal decision-rule probe — 10th independent
+# saturation confirmation at LB 0.98094. Closes "log-bias coord-ascent
+# is overfit" hypothesis: closed-form Bayes-optimal under train prior
+# loses 0.00012 vs coord-ascent. Richer (T,b) family lifts +0.00009
+# (below +2e-4 gate). LP cardinality cap loses 0.00646 (matches P2
+# quota null mechanism). No LB probe warranted.
+!scripts/artifacts/lp_decision_rule_results.json
+
+# 2026-04-26 N1 TabPFN-10k 1-fold val-only signal probe — 11th saturation
+# confirmation at LB 0.98094, 14th NN family null. Standalone tuned 0.96424
+# vs anchor 0.97994 (-0.0157), Jaccard 0.2158 (LOWEST EVER, prior best
+# Mamba 0.49), but +5923 errors (+309.5% magnitude trap). Test pred is
+# uniform-prior placeholder (SKIP_TEST=True; signal-check only).
+!scripts/artifacts/oof_tabpfn_10k.npy
+!scripts/artifacts/test_tabpfn_10k.npy
+!scripts/artifacts/tabpfn_10k_results.json
+!scripts/artifacts/blend_tabpfn_10k_fold0_results.json
