@@ -1089,3 +1089,6 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_n5b_residual_auc.npy
 !scripts/artifacts/oof_n5b_residual_3class.npy
 !scripts/artifacts/test_n5b_residual_3class.npy
+!scripts/artifacts/tier1b_xgb_metastack_classw_results.json
+!scripts/artifacts/oof_xgb_metastack_classw.npy
+!scripts/artifacts/test_xgb_metastack_classw.npy
