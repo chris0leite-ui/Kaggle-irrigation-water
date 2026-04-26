@@ -1377,3 +1377,24 @@ all of them on the same model.
   direction (Jaccard < 0.80 AND errs ≤ anchor AND H recall ≥ anchor),
   not re-blending existing components.** This profile has been
   unmatched in 30+ tests on this competition.
+
+- **Own-CSV ensemble of hierarchically-nested submissions cannot beat
+  the deepest sub.** Tested 5 strategies (equal log, LB-weighted log,
+  hard-vote, soft-vote, greedy forward) + 3 follow-up probes
+  (3-view subset, fine α-grid greedy, 3-view hard-vote) over 6
+  LB-validated own submissions (LB 0.97935-0.98094). Best result:
+  greedy forward + m2_pseudo at α=0.035 → +0.00002 OOF over primary
+  (within fold noise). Mechanism: when sub_A is a strict subset of
+  sub_B (B uses A as a backbone plus additional components),
+  ensembling them produces predictions between A and B's operating
+  points. Since B already chose the rare-class-favoring corner of
+  the macro-recall Pareto frontier, pulling toward A dilutes that
+  corner. For "ensemble of own submissions" to lift, the subs must
+  be from STRUCTURALLY INDEPENDENT pipelines (different model
+  families AND different FE AND different fold splits). Six depths
+  of one pipeline don't qualify. Public-CSV blenders' wins come from
+  independent pipelines built by different teams; nesting depth
+  ≠ independence. **Diagnostic check before scaffolding own-CSV
+  ensemble: compute pairwise Jaccard between sub argmaxes. If
+  every pair has Jaccard > 0.85 with the deepest sub, the lever is
+  structurally null.**
