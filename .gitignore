@@ -1043,3 +1043,6 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_recipe_full_te_dae.npy
 !scripts/artifacts/test_recipe_full_te_dae.npy
 !scripts/artifacts/recipe_full_te_dae_results.json
+!scripts/artifacts/oof_angle_c2_mixup.npy
+!scripts/artifacts/test_angle_c2_mixup.npy
+!scripts/artifacts/angle_c2_mixup_results.json
