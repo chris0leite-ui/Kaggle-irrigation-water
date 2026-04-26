@@ -100,6 +100,17 @@ GBY = os.environ.get("GBY", "") == "1"
 # Expected mask path: scripts/artifacts/cleanlab_issues_prune_by_noise_rate.npy
 CLEANLAB_TREATMENT = os.environ.get("CLEANLAB_TREATMENT", "")
 CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
+# DROP_SCORES: comma-separated dgp_score values to remove from XGB training
+# AND override at inference with rule=Low. Mirrors the 2026-04-21 v3/v4
+# routed-XGB lever onto the recipe pipeline. e.g. "0,1,2" or "1,2".
+# Empty string = no drop (default; preserves LB-best pipeline).
+DROP_SCORES = os.environ.get("DROP_SCORES", "")
+DROP_SCORE_SET: set[int] = set()
+if DROP_SCORES:
+    DROP_SCORE_SET = {int(s) for s in DROP_SCORES.split(",") if s.strip() != ""}
+    assert all(0 <= s <= 9 for s in DROP_SCORE_SET), \
+        f"DROP_SCORES must be in 0..9, got {DROP_SCORE_SET}"
+    assert not CLEANLAB_TREATMENT, "DROP_SCORES is mutually exclusive with CLEANLAB_TREATMENT"
 assert XGB_BOOSTER in ("gbtree", "dart"), f"XGB_BOOSTER must be gbtree|dart, got {XGB_BOOSTER}"
 assert CLEANLAB_TREATMENT in ("", "drop", "downweight", "relabel"), CLEANLAB_TREATMENT
 
@@ -118,6 +129,8 @@ if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
     _parts.append("gby")
+if DROP_SCORE_SET:
+    _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -168,6 +181,24 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         tres = add_threshold_flags(df)
     for df in (train, test, orig):
         logits = add_lr_formula_logits(df)
+
+    # Compute dgp_score on train+test (orig only needed if downstream FE wanted
+    # it). Stage/mulch are still strings here. Score formula matches the rule
+    # in CLAUDE.md: 2*(dry+norain) + (hot+windy+nomulch) + Kc, where Kc = 2 iff
+    # Crop_Growth_Stage in {Flowering, Vegetative}. Stored as int8 column.
+    if DROP_SCORE_SET:
+        log(f"computing dgp_score for DROP_SCORES={sorted(DROP_SCORE_SET)} routing")
+        for df in (train, test):
+            nomulch = (df["Mulching_Used"].astype(str).values == "No").astype(np.int8)
+            stage_str = df["Crop_Growth_Stage"].astype(str).values
+            kc = np.where(np.isin(stage_str, ("Flowering", "Vegetative")), 2, 0).astype(np.int8)
+            score = (2 * (df["soil_lt_25"].values + df["rain_lt_300"].values)
+                     + df["temp_gt_30"].values + df["wind_gt_10"].values + nomulch
+                     + kc).astype(np.int8)
+            df["dgp_score"] = score
+        # Sanity-log distribution on train.
+        vc = pd.Series(train["dgp_score"]).value_counts().sort_index()
+        log(f"  train dgp_score dist: {dict(vc)}")
 
     # A4 FE transplant: extra numeric features from public kernels.
     # Added BEFORE digit extraction so they're included as "extra nums" for
@@ -346,8 +377,20 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             early_stopping_rounds=50 if SMOKE else 150,
         )
 
+    train_scores = train["dgp_score"].values if DROP_SCORE_SET else None
+
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
+        # Training-distribution rebalancing: drop rows whose dgp_score is in
+        # DROP_SCORE_SET. Mirrors the 2026-04-21 v3 routed-XGB lever; OTE is
+        # then fitted on the filtered training set so its statistics see only
+        # the kept rows (still works because dropped rows are rule-trivial-Low).
+        if DROP_SCORE_SET:
+            keep_score = ~np.isin(train_scores[tr_idx], list(DROP_SCORE_SET))
+            n_drop = int((~keep_score).sum())
+            log(f"  DROP_SCORES={sorted(DROP_SCORE_SET)}: dropping {n_drop:,} of "
+                f"{len(tr_idx):,} train rows ({100*n_drop/len(tr_idx):.2f}%)")
+            tr_idx = tr_idx[keep_score]
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)
@@ -412,6 +455,21 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         bal = balanced_accuracy_score(y[va_idx], oof[va_idx].argmax(1))
         fold_scores.append(bal)
         log(f"  fold {fold} argmax_bal_acc = {bal:.5f}  best_iter={model.best_iteration}")
+
+    # Inference-side rule routing: override predictions for rows whose
+    # dgp_score is in DROP_SCORE_SET with deterministic Low (the rule's
+    # output for scores ≤ 3). Applied to BOTH oof and test for OOF/LB
+    # alignment; matches the 2026-04-21 v3 routed-infer pattern.
+    if DROP_SCORE_SET:
+        test_scores = test["dgp_score"].values
+        val_route = np.isin(train_scores, list(DROP_SCORE_SET))
+        test_route = np.isin(test_scores, list(DROP_SCORE_SET))
+        rule_low = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        log(f"routing inference: {int(val_route.sum()):,} OOF rows + "
+            f"{int(test_route.sum()):,} test rows -> Low (rule)")
+        # OOF: only override rows that fell in val folds (they're all the train rows).
+        oof[val_route] = rule_low
+        test_pred[test_route] = rule_low
 
     overall = balanced_accuracy_score(y, oof.argmax(1))
     log(f"=== OOF argmax bal_acc = {overall:.5f}  "
