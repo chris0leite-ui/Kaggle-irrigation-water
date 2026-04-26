@@ -49,6 +49,8 @@ N_FOLDS = 2 if SMOKE else 5
 K_MIX = int(os.environ.get("K_MIX", "1"))
 BETA_A = float(os.environ.get("BETA_A", "0.2"))
 CONF_THRESH = float(os.environ.get("CONF_THRESH", "0.95"))
+DROP_MH = os.environ.get("DROP_MH", "1") == "1"
+OUT_SUFFIX = os.environ.get("OUT_SUFFIX", "c2")  # "c2" default; "c3" no-gate variant
 TARGET = "Irrigation_Need"
 CLS_MAP = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS_MAP.items()}
@@ -102,9 +104,9 @@ def main():
     # Build pairs + mixup on RAW train (numerics + cats).
     rng = np.random.default_rng(SEED)
     pi, pj = build_pairs_v2(train, y_real, pmax, rng,
-                            conf_thresh=CONF_THRESH, drop_mh=True,
+                            conf_thresh=CONF_THRESH, drop_mh=DROP_MH,
                             cap_per_cell=2000 if SMOKE else 4000)
-    log(f"  built {len(pi):,} confidence-gated within-cell pairs (Medium↔High dropped)")
+    log(f"  built {len(pi):,} within-cell pairs (drop_mh={DROP_MH}, conf<{CONF_THRESH})")
     mixed, mix_y, mix_w, pi_r, pj_r = synthesize_mixup(
         train, y_real, pi, pj, rng, k=K_MIX, beta_a=BETA_A)
     n_mix = len(mixed)
@@ -200,24 +202,25 @@ def main():
     bias, tuned = tune_log_bias(oof, y_real, prior)
     log(f"OOF argmax={overall:.5f} tuned={tuned:.5f} bias={bias.round(4).tolist()}")
 
-    np.save(ART / "oof_angle_c2_mixup.npy", oof)
-    np.save(ART / "test_angle_c2_mixup.npy", test_pred)
+    np.save(ART / f"oof_angle_{OUT_SUFFIX}_mixup.npy", oof)
+    np.save(ART / f"test_angle_{OUT_SUFFIX}_mixup.npy", test_pred)
     eps = 1e-9
     pred_idx = (np.log(np.clip(test_pred, eps, 1)) + bias).argmax(1)
     pd.DataFrame({"id": test_ids, TARGET: [IDX2CLS[i] for i in pred_idx]}).to_csv(
-        SUB / "submission_angle_c2_mixup.csv", index=False)
+        SUB / f"submission_angle_{OUT_SUFFIX}_mixup.csv", index=False)
     out = dict(
         smoke=SMOKE, n_folds=N_FOLDS, k_mix=K_MIX, beta_a=BETA_A,
-        conf_thresh=CONF_THRESH, n_pairs=int(len(pi)), n_mix=int(n_mix),
+        conf_thresh=CONF_THRESH, drop_mh=DROP_MH, suffix=OUT_SUFFIX,
+        n_pairs=int(len(pi)), n_mix=int(n_mix),
         fold_scores_argmax=[float(s) for s in fold_scores],
         overall_argmax=float(overall),
         tuned_log_bias_bal_acc=float(tuned),
         log_bias=bias.tolist(),
         wall_min=(time.time() - t0) / 60.0,
     )
-    with open(ART / "angle_c2_mixup_results.json", "w") as f:
+    with open(ART / f"angle_{OUT_SUFFIX}_mixup_results.json", "w") as f:
         json.dump(out, f, indent=2)
-    log(f"wrote angle_c2_mixup_results.json wall={out['wall_min']:.1f}min")
+    log(f"wrote angle_{OUT_SUFFIX}_mixup_results.json wall={out['wall_min']:.1f}min")
 
 
 if __name__ == "__main__":

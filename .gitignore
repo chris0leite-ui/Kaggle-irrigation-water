@@ -1046,3 +1046,9 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_angle_c2_mixup.npy
 !scripts/artifacts/test_angle_c2_mixup.npy
 !scripts/artifacts/angle_c2_mixup_results.json
+!scripts/artifacts/oof_angle_c3a_mixup.npy
+!scripts/artifacts/test_angle_c3a_mixup.npy
+!scripts/artifacts/angle_c3a_mixup_results.json
+!scripts/artifacts/oof_angle_c3b_mixup.npy
+!scripts/artifacts/test_angle_c3b_mixup.npy
+!scripts/artifacts/angle_c3b_mixup_results.json
