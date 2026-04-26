@@ -1,0 +1,170 @@
+{
+  "config": {
+    "precision": 0.005,
+    "max_steps": 400,
+    "deltas": [
+      -0.05,
+      -0.005,
+      0.005,
+      0.05
+    ],
+    "bias": [
+      1.4324,
+      1.4689,
+      3.4008
+    ]
+  },
+  "n_components": 132,
+  "n_active": 11,
+  "weights": {
+    "lb_best_4stack": 1.0,
+    "extratrees_dist_digits": -0.05,
+    "lr_metastack": 0.15000000000000002,
+    "lr_metastack_v2": 0.005,
+    "meta_perturbed_v1_noise03_csb09_k3": 0.005,
+    "own_S3_hard_vote": -0.05,
+    "recipe_full_te_seed7": -0.005,
+    "recipe_no_ote": -0.005,
+    "recipe_pseudolabel_tau099": -0.005,
+    "tta_recipe_s030": -0.05,
+    "xgb_metastack_varB": 0.05
+  },
+  "bal_anchor": 0.9808424406412425,
+  "bal_3stack": 0.9806090685483349,
+  "bal_final": 0.9818080811387185,
+  "delta_anchor": 0.0009656404974760502,
+  "delta_3stack": 0.0011990125903836857,
+  "pcr_anchor": [
+    0.9955341333326124,
+    0.9695073491889541,
+    0.9774858394021609
+  ],
+  "pcr_final": [
+    0.9953881546400949,
+    0.9675999899612672,
+    0.9824360988147937
+  ],
+  "pcr_delta": [
+    -0.00014597869251753437,
+    -0.0019073592276869222,
+    0.004950259412632718
+  ],
+  "pcr_pass": false,
+  "gate_pass": false,
+  "history_tail": [
+    {
+      "step": 0,
+      "best": 0.9808424406412425,
+      "weights_active": 1
+    },
+    {
+      "step": 1,
+      "i": 26,
+      "name": "lr_metastack",
+      "delta": 0.05,
+      "weight": 0.05,
+      "best": 0.9809765086452327,
+      "weights_active": 2
+    },
+    {
+      "step": 2,
+      "i": 26,
+      "name": "lr_metastack",
+      "delta": 0.05,
+      "weight": 0.1,
+      "best": 0.9811783969447555,
+      "weights_active": 2
+    },
+    {
+      "step": 3,
+      "i": 26,
+      "name": "lr_metastack",
+      "delta": 0.05,
+      "weight": 0.15000000000000002,
+      "best": 0.9814193608584455,
+      "weights_active": 2
+    },
+    {
+      "step": 4,
+      "i": 43,
+      "name": "own_S3_hard_vote",
+      "delta": -0.05,
+      "weight": -0.05,
+      "best": 0.981568524515993,
+      "weights_active": 3
+    },
+    {
+      "step": 5,
+      "i": 11,
+      "name": "extratrees_dist_digits",
+      "delta": -0.05,
+      "weight": -0.05,
+      "best": 0.9816503534848285,
+      "weights_active": 4
+    },
+    {
+      "step": 6,
+      "i": 103,
+      "name": "tta_recipe_s030",
+      "delta": -0.05,
+      "weight": -0.05,
+      "best": 0.9817113033921366,
+      "weights_active": 5
+    },
+    {
+      "step": 7,
+      "i": 125,
+      "name": "xgb_metastack_varB",
+      "delta": 0.05,
+      "weight": 0.05,
+      "best": 0.9817588377078234,
+      "weights_active": 6
+    },
+    {
+      "step": 8,
+      "i": 84,
+      "name": "recipe_no_ote",
+      "delta": -0.005,
+      "weight": -0.005,
+      "best": 0.9817853649060188,
+      "weights_active": 7
+    },
+    {
+      "step": 9,
+      "i": 79,
+      "name": "recipe_full_te_seed7",
+      "delta": -0.005,
+      "weight": -0.005,
+      "best": 0.9817918430828242,
+      "weights_active": 8
+    },
+    {
+      "step": 10,
+      "i": 27,
+      "name": "lr_metastack_v2",
+      "delta": 0.005,
+      "weight": 0.005,
+      "best": 0.981800701858873,
+      "weights_active": 9
+    },
+    {
+      "step": 11,
+      "i": 91,
+      "name": "recipe_pseudolabel_tau099",
+      "delta": -0.005,
+      "weight": -0.005,
+      "best": 0.9818025040649534,
+      "weights_active": 10
+    },
+    {
+      "step": 12,
+      "i": 30,
+      "name": "meta_perturbed_v1_noise03_csb09_k3",
+      "delta": 0.005,
+      "weight": 0.005,
+      "best": 0.9818080811387185,
+      "weights_active": 11
+    }
+  ],
+  "history_steps": 13
+}

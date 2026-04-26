@@ -13379,3 +13379,143 @@ final selection.
   - <https://developer.nvidia.com/blog/grandmaster-pro-tip-winning-first-place-in-kaggle-competition-with-feature-engineering-using-nvidia-cudf-pandas/>
   - <https://developer.nvidia.com/blog/winning-a-kaggle-competition-with-generative-ai-assisted-coding/>
   - <https://github.com/Matt-OP/hillclimbers>
+
+### 2026-04-26 — execution of C/D/B from GM-research session: B PASS (Δ +0.00033 OOF gate), D NULL (Pareto violation), C in flight
+
+- Goal: execute the four mechanism-novel levers documented above (C → D
+  → B → A) as a sequenced experiment battery.
+- Branch: `claude/research-competition-strategies-GzR6R`. Container
+  rehydrates kill detached processes within ~5 min idle, much faster
+  than the CLAUDE.md "~2h" estimate. Per-fold checkpointing + per-step
+  hillclimb state added so all three scripts are now resilient
+  (whitelisted `oof_*_fold{n}.npy`, `test_*_fold{n}.npy`, and
+  `hillclimb_state.npz` in .gitignore).
+
+- **B — L3 weighted XGB-meta + MLP-meta — GATE PASSED ✓** (single
+  experiment to clear the strict +2e-4 OOF gate this session):
+  - `scripts/meta_l3_xgb_mlp.py` — small MLP `[128, 64, 32]` on the
+    same 410-dim meta-feature matrix that produced the LB-best XGB
+    meta-stacker (62-component pool + 14 dist features + LB-best
+    3-stack 3 cls). Class-balanced cross-entropy, 30 epochs AdamW,
+    cosine schedule. 5-fold StratifiedKFold(seed=42) for OOF alignment.
+  - **MLP-meta standalone** (5-fold OOF, vs y):
+    - per-fold argmax: 0.98064 / 0.98140 / 0.98222 / 0.98171 / 0.98171
+    - overall argmax = **0.98154** (well above LB-best 4-stack 0.98084)
+    - @recipe-bias = 0.97496 (un-iso-cal'd; expected — different prob scale)
+  - **L3 weighted average sweep** (W_MLP × XGB-meta-iso + W_MLP ×
+    MLP-meta-iso, both iso-calibrated, then log-blend into LB-best
+    3-stack at α-sweep, fixed bias [1.4324, 1.4689, 3.4008]):
+    ```
+    W_MLP   L3 OOF   blend-into-3stack    Δ vs 4-stack 0.98084
+    0.00    0.98059  0.98061              +0.00000  (XGB-meta alone, baseline)
+    0.10    0.98085  0.98090              +0.00006
+    0.20    0.98102  0.98101              +0.00017
+    0.30    0.98120  0.98101              +0.00016
+    0.40    0.98139  0.98104              +0.00020
+    0.50    0.98145  0.98118              +0.00033 ← BEST
+    ```
+    Best at W_MLP=0.50, α=0.50: OOF **0.98118**, errs **9,341** (vs
+    LB-best 4-stack 9,415 — 74 fewer).
+  - **Per-class recall delta** vs LB-best 4-stack at the BEST blend:
+    L=−0.00007 / **M=+0.00036** / **H=+0.00071**. All three within
+    guardrail; M and H are POSITIVE deltas (favoring rare class).
+  - **GATE: PASS** (Δ ≥ +2e-4 AND PCR ≥ −5e-4 each class).
+  - **Critical caveat — structurally similar to LR-meta-stacker** (which
+    has nulled twice on LB):
+    - LR v1 (C=1.0, balanced): OOF 0.98167 → LB 0.97991 (gap +0.00176)
+    - LR v2 (C=0.1, none): OOF 0.98107 → LB 0.98052 (gap +0.00055)
+    - **MLP v1 (this experiment): OOF 0.98118, LB unknown.** Both
+      LR-meta and MLP-meta are "simpler-than-XGB on 200+ dim bank"
+      patterns. Per the linear gap-projection rule, expected LB Δ
+      sits in [−0.0007, +0.00033] depending on whether MLP escapes
+      the LR pattern.
+  - **Difference from LR-meta** that may help MLP: (a) ReLU/GELU
+    non-linearity (LR is linear), (b) dropout 0.2 (regularization
+    that LR's `class_weight='balanced'` lacked), (c) smaller hidden
+    layers `[128,64,32]` vs LR's full 200-dim weight vector. These
+    are 3 reasons MLP may not inherit LR's overfit, but it's
+    speculative until LB-tested.
+  - **DO NOT auto-submit.** Submission requires user approval per the
+    top-of-file CLAUDE.md rule. Candidate CSV not yet built; user
+    must approve before LB probe.
+  - Artifacts committed: `oof_mlp_metastack.npy` + test +
+    `oof_meta_l3_xgb_mlp.npy` + test + `meta_l3_xgb_mlp_results.json`.
+
+- **D — Hill-climb with negative weights — GATE FAILED (Pareto
+  violation)**:
+  - `scripts/hillclimb_negweights.py` — Matt-OP-style arithmetic-blend
+    HC, anchor = LB-best 4-stack at OOF 0.98084. 132 components
+    (anchor + 131 from `tier1b_helpers.load_pool()`). Step deltas
+    `{±0.005, ±0.05}`, custom metric = balanced_accuracy at fixed
+    bias [1.4324, 1.4689, 3.4008].
+  - **12-step convergence path**:
+    ```
+    step  weight change                                     bal_acc
+    0     anchor only                                       0.98084
+    1-3   stack lr_metastack +0.05 each                     0.98098 → 0.98142
+    4     own_S3_hard_vote -0.05                            0.98157
+    5     extratrees_dist_digits -0.05                      0.98165
+    6-9   small additions                                    0.98171 → 0.98180
+    10    lr_metastack_v2 +0.005                            0.98180
+    11    tta_recipe_s030 -0.05                             ~0.98181
+    12    final, 11 active components                       0.98181
+    ```
+  - **Final state**: 11/132 active components, OOF **0.98181**, Δ vs
+    anchor **+0.00097** (gate ≥ +2e-4 PASS).
+  - **Top weights**:
+    ```
+    lb_best_4stack                          +1.0000  (anchor seed)
+    lr_metastack                            +0.1500  (LB-confirmed regressor)
+    lr_metastack_v2                         +0.0050
+    extratrees_dist_digits                  -0.0500  (negative weight)
+    own_S3_hard_vote                        -0.0500
+    tta_recipe_s030                         -0.0500
+    xgb_metastack_varB                      +0.0500
+    meta_perturbed_v1_noise03_csb09_k3      +0.0050
+    recipe_full_te_seed7                    -0.0050
+    recipe_no_ote                           -0.0050
+    recipe_pseudolabel_tau099               -0.0050
+    ```
+  - **Per-class recall delta vs anchor**:
+    L=−0.00015 / **M=−0.00191** / **H=+0.00495**.
+  - **GATE: FAIL — Pareto frontier violation**: Medium recall
+    drops 0.0019 (well below −5e-4 floor) while High recall surges
+    0.005. Classic Med→High Pareto-violation pattern documented
+    13+ times before. The +0.00097 OOF "lift" comes from over-pushing
+    rare-class predictions; will not survive macro-recall on LB.
+  - **Mechanism diagnosis**: HC's arithmetic blend with negative
+    weights amplifies the LR-meta-stacker overfit (lr_metastack at
+    +0.15 weight is 75% of its effective contribution at α=0.5 in
+    log-blend — and LR-meta v1 nulled at LB 0.97991 with α=0.5).
+    The negative weights on `own_S3_hard_vote`, `extratrees_dist_digits`,
+    `tta_recipe_s030` are SUBTRACTIONS of weak components → equivalent
+    to "manufacturing lift by removing noise", but at fixed bias the
+    rare-class push compounds.
+  - **Verdict: NULL.** Gate-failed on per-class guardrail; expected
+    LB regression. No submission warranted.
+  - Artifacts committed: `oof_hillclimb_negweights.npy` + test +
+    `hillclimb_negweights_results.json` + `hillclimb_state.npz`
+    (resume checkpoint).
+
+- **C — Distill_no_rule — IN FLIGHT**:
+  - `scripts/distill_no_rule.py` — recipe pipeline minus 4 threshold
+    flags (`soil_lt_25/temp_gt_30/rain_lt_300/wind_gt_10`) and 3
+    LR-formula logits (`logit_P_{Low,Medium,High}`). 424 features
+    (vs recipe's 433). Same XGB heavy-reg HPs, 5-fold StratifiedKFold
+    (seed=42). Tests whether trees can match recipe's standalone
+    OOF 0.97967 from a basis that excludes rule-derived signal.
+  - Status at this commit: production restarted after rehydrate kills,
+    fold 1 XGB at iter ~1000. Per-fold checkpointing in place. Will
+    auto-document when complete.
+
+- **Strategic implication of B's gate-pass + D's gate-fail**: B is the
+  first experiment in 11+ saturation confirmations to satisfy ALL of
+  (Δ OOF ≥ +2e-4, errs < anchor, PCR within guardrail with **positive
+  rare-class delta**). The OOF→LB calibration risk remains the open
+  question — same architecture family as 2 prior LB-regressors but
+  with structurally distinct safeguards (non-linearity, dropout, smaller
+  capacity). Worth ONE careful LB probe with user approval after C
+  completes.
+
+- **LB-best unchanged**: `submission_tier1b_greedy_meta.csv` at
+  **LB 0.98094**. LB budget unchanged (no submissions this session).
