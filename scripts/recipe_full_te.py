@@ -111,6 +111,14 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # AND override at inference with rule=Low. Mirrors the 2026-04-21 v3/v4
 # routed-XGB lever onto the recipe pipeline. e.g. "0,1,2" or "1,2".
 # Empty string = no drop (default; preserves LB-best pipeline).
+# Mech B: anchor-uncertainty-weighted retraining. When set, multiply
+# class-balanced sample_weight by (1 + ALPHA × (1 − max_prob_LB4stack[i]))
+# per train row. Up-weights rows where the LB-best 4-stack is uncertain,
+# focusing recipe XGB capacity on boundary regions. Different from
+# CLEANLAB_TREATMENT=downweight which DOWN-weights ambiguous rows
+# interpreted as label noise. Suffix "_anchwα{α}" on outputs.
+ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
+
 DROP_SCORES = os.environ.get("DROP_SCORES", "")
 DROP_SCORE_SET: set[int] = set()
 if DROP_SCORES:
@@ -140,6 +148,8 @@ if INSTAB:
     _parts.append("instab")
 if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
+if ANCHOR_WEIGHT_ALPHA != 0:
+    _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
 VARIANT_SUFFIX = ("_" + "_".join(_parts)) if _parts else ""
 
 ART = Path("scripts/artifacts")
@@ -323,11 +333,71 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
     return train, test, info, test_ids
 
 
+_anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B active
+
+
+def _build_anchor_uncertainty(n_train: int) -> np.ndarray:
+    """Per-train-row anchor uncertainty = (1 − max P(class)) of LB-best 4-stack.
+
+    Reconstructs LB-best primary on the fly from saved component OOFs, so
+    Mech B doesn't require a separate ground-truth file. SMOKE is handled
+    via row subsampling in load_and_engineer.
+    """
+    sys.path.insert(0, str(Path(__file__).parent))
+    from common import log_blend  # noqa: E402
+    from sklearn.isotonic import IsotonicRegression  # noqa: E402
+
+    def _normed(a):
+        return a / np.clip(a.sum(1, keepdims=True), 1e-9, None)
+
+    def _iso_cal(oof, test_arr, y_lab):
+        oo = np.zeros_like(oof, dtype=np.float32)
+        tt = np.zeros_like(test_arr, dtype=np.float32)
+        for c in range(3):
+            ir = IsotonicRegression(out_of_bounds="clip", y_min=1e-6, y_max=1 - 1e-6)
+            ir.fit(oof[:, c], (y_lab == c).astype(np.float32))
+            oo[:, c] = ir.predict(oof[:, c])
+            tt[:, c] = ir.predict(test_arr[:, c])
+        return _normed(oo), _normed(tt)
+
+    train_full = pd.read_csv("data/train.csv")
+    y_full = train_full[TARGET].map(CLS_MAP).to_numpy().astype(np.int32)
+    r = _normed(np.load(ART / "oof_recipe_full_te.npy"))
+    s1 = _normed(np.load(ART / "oof_recipe_pseudolabel.npy"))
+    s7 = _normed(np.load(ART / "oof_recipe_pseudolabel_seed7labeler.npy"))
+    rm = _normed(np.load(ART / "oof_realmlp.npy"))
+    nr = _normed(np.load(ART / "oof_xgb_nonrule.npy"))
+    nr_iso, _ = _iso_cal(nr, np.zeros_like(nr), y_full)
+    mv1 = _normed(np.load(ART / "oof_xgb_metastack.npy"))
+    mv1_iso, _ = _iso_cal(mv1, np.zeros_like(mv1), y_full)
+    lb3 = log_blend([r, s1, s7], np.array([0.25, 0.35, 0.40]))
+    s2 = log_blend([lb3, rm], np.array([0.8, 0.2]))
+    s3 = log_blend([s2, nr_iso], np.array([0.925, 0.075]))
+    lb4 = log_blend([s3, mv1_iso], np.array([0.7, 0.3]))
+    u_full = (1.0 - lb4.max(axis=1)).astype(np.float32)  # uncertainty in [0, 0.667]
+    if n_train != len(u_full):
+        # SMOKE subset path: caller will pass row indices via global SMOKE
+        # subsample applied in load_and_engineer. We can't recover those
+        # indices here, so SMOKE+ANCHOR_WEIGHT_ALPHA path is unsupported;
+        # return uniform zero so weights collapse to balanced.
+        return np.zeros(n_train, dtype=np.float32)
+    return u_full
+
+
 # --------------------------------------------------------- training loop
 def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
            a_ote: float = 1.0) -> dict:
     y = train[TARGET].to_numpy()
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
+
+    # Mech B: precompute anchor-uncertainty weights ONCE (full-train);
+    # indexed per-fold inside the loop.
+    global _anchor_uncertainty
+    if ANCHOR_WEIGHT_ALPHA != 0:
+        _anchor_uncertainty = _build_anchor_uncertainty(len(train))
+        log(f"  Mech B: anchor-uncertainty precomputed, "
+            f"mean={_anchor_uncertainty.mean():.4f} "
+            f"(0 means SMOKE-fallback or zero-input)")
 
     # Load cleanlab mask + teacher (if relabel) once, up-front.
     cleanlab_mask = None
@@ -488,6 +558,15 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             sw[fold_flagged] *= CLEANLAB_WEIGHT
             log(f"  downweight: {int(fold_flagged.sum()):,} flagged rows "
                 f"weight ×{CLEANLAB_WEIGHT}")
+        if ANCHOR_WEIGHT_ALPHA != 0:
+            # Mech B: up-weight rows where LB-best 4-stack is uncertain.
+            # Loaded once at module level via _anchor_uncertainty (computed
+            # below), indexed into fold_tr_idx to get per-fold weights.
+            au = _anchor_uncertainty[fold_tr_idx]
+            sw = sw * (1.0 + ANCHOR_WEIGHT_ALPHA * au)
+            log(f"  anchor-uncertainty weight α={ANCHOR_WEIGHT_ALPHA:.1f}: "
+                f"u-mean={au.mean():.4f} u-max={au.max():.4f} "
+                f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
 
         log(f"  training XGB on {len(feat_cols)} features, {len(X_tr):,} rows")
         model = xgb.XGBClassifier(**xgb_params)
