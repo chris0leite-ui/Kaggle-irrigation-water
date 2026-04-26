@@ -126,9 +126,23 @@ def main():
     best_iters = []
     skf = StratifiedKFold(n_splits=max(N_FOLDS, 2), shuffle=True, random_state=SEED)
     n_done = 0
+    suffix = "_smoke" if SMOKE else ""
     for fold, (tr_idx, va_idx) in enumerate(skf.split(X_tr, y_smoke)):
         if fold >= N_FOLDS:
             break
+        ck_oof = ART / f"oof_xgb_metastack_v6lb{suffix}_fold{fold}.npy"
+        ck_test = ART / f"test_xgb_metastack_v6lb{suffix}_fold{fold}.npy"
+        ck_meta = ART / f"oof_xgb_metastack_v6lb{suffix}_fold{fold}_meta.json"
+        if ck_oof.exists() and ck_test.exists() and ck_meta.exists():
+            vp = np.load(ck_oof); tp = np.load(ck_test)
+            mm = json.loads(ck_meta.read_text())
+            bi = int(mm.get("best_iter", 0))
+            oof_meta[va_idx] = vp
+            test_meta_folds.append(tp)
+            best_iters.append(bi)
+            log(f"  fold {fold+1}/{N_FOLDS} CACHED (it={bi} bal={mm.get('argmax_bal',0):.5f})")
+            n_done += 1
+            continue
         t1 = time.time()
         dtr = xgb.DMatrix(X_tr[tr_idx], label=y_smoke[tr_idx])
         dva = xgb.DMatrix(X_tr[va_idx], label=y_smoke[va_idx])
@@ -142,13 +156,17 @@ def main():
         oof_meta[va_idx] = vp.astype(np.float32)
         tp = booster.predict(dte, iteration_range=(0, bi + 1))
         test_meta_folds.append(tp)
+        np.save(ck_oof, vp.astype(np.float32))
+        np.save(ck_test, tp.astype(np.float32))
         argmax_bal = balanced_accuracy_score(y_smoke[va_idx], vp.argmax(1))
+        ck_meta.write_text(json.dumps(dict(best_iter=int(bi),
+                                           argmax_bal=float(argmax_bal),
+                                           wall=float(time.time() - t1))))
         log(f"  fold {fold+1}/{N_FOLDS} it={bi} val_argmax_bal={argmax_bal:.5f} "
             f"wall={time.time()-t1:.1f}s")
         n_done += 1
 
     test_meta = np.mean(test_meta_folds, axis=0).astype(np.float32)
-    suffix = "_smoke" if SMOKE else ""
     np.save(ART / f"oof_xgb_metastack_v6lb{suffix}.npy", oof_meta)
     np.save(ART / f"test_xgb_metastack_v6lb{suffix}.npy", test_meta)
     log(f"saved oof_xgb_metastack_v6lb{suffix}.npy + test")
