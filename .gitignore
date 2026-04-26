@@ -1084,3 +1084,8 @@ kaggle_kernel/*/dist/
 # 2026-04-26 round 6 audit experiments — joint Optuna + DE thresholds (both NULL)
 !scripts/artifacts/audit1_joint_optuna_results.json
 !scripts/artifacts/audit2_de_thresholds_results.json
+!scripts/artifacts/audit3_per_row_calib_results.json
+!scripts/artifacts/audit3_v2_per_row_calib_results.json
+!scripts/artifacts/test_n5b_residual_auc.npy
+!scripts/artifacts/oof_n5b_residual_3class.npy
+!scripts/artifacts/test_n5b_residual_3class.npy
