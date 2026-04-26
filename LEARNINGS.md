@@ -1377,3 +1377,47 @@ all of them on the same model.
   direction (Jaccard < 0.80 AND errs ≤ anchor AND H recall ≥ anchor),
   not re-blending existing components.** This profile has been
   unmatched in 30+ tests on this competition.
+
+- **Self-supervised masked-feature pretraining is null when the DGP has
+  near-independent features.** For each non-rule numeric, fit an XGB
+  regressor predicting it from the other 18 features via 5-fold cross-
+  fit on combined train+test (no labels needed). Compute R² for each
+  masked feature and AUC of the residuals against each class. On this
+  synthetic competition: 7 masked numerics gave R² ∈ [0.002, 0.022] and
+  per-class residual AUCs of 0.50-0.51 — **pure noise**. The DGP
+  produces features that are i.i.d. given the rule, so the residuals
+  are essentially de-meaned features and carry no class-conditional
+  signal. Rule: **before scaffolding masked-feature pretraining as a
+  lever, run a 30-second R² diagnostic. If max R² across features <
+  0.05, skip — features are too independent for masked prediction to
+  extract structure**. The DAE SwapNoise lever (reconstruction
+  objective, 2026-04-24) is null for the same underlying reason.
+
+- **Bank-extension meta-stackers cannot transfer OOF lifts > +0.0003 to
+  LB on a saturated primary, even with novel leak-free supervision.**
+  Tested 11 bank-extension variants over 30+ days; the LB-validated v1
+  is the ONLY one with positive transfer (+0.00086 LB at +0.00023 OOF).
+  Subsequent variants (LR v1/v2, v3 cross-poll, v4 ET+kNN, P3 perturbed,
+  W1+W4, J2 bag, score=6 spec, **v6 with multi-task aux at OOF AUC 0.98**)
+  all regressed by −0.00034 to −0.00139 LB despite OOF lifts of
+  +0.00027 to +0.00091. The v6 case is the most striking: its standalone
+  iso 0.98150 is the strongest meta-stacker ever built (+0.00091 vs
+  v1_iso 0.98059) — the aux features (binary "is missed-high" with OOF
+  AUC 0.983) genuinely encode novel signal — yet blend Δ +0.00038 OOF
+  → −0.00035 LB at α=0.30, identical regression at α=0.40. Rule: **the
+  meta-stacker architecture is the bottleneck for transferring novel aux
+  signal, not the supervision quality. Once a primary is saturated, new
+  aux signals must be incorporated at primary TRAINING TIME (multi-task
+  loss, aux as INPUT feature) — not as a stacker INPUT — to transfer
+  to LB**. Aux features at meta-stacker level fit OOF-specific
+  calibration noise that doesn't generalize.
+
+- **Two-probe bracketing closes a meta-stacker family fully.** When
+  α=0.30 (recommended/peak-OOF) and α=0.40 (aggressive) both regress
+  LB by approximately the same magnitude (within ±0.00001), the linear-
+  projection rule is reconfirmed: bank-extension OOF lift transfers
+  proportionally to LB regression at any α. Lighter α candidates
+  (0.05-0.20) project to smaller regressions but never to LB lift,
+  so don't burn additional submissions on them. The plateau pattern
+  (LB 0.98059 / 0.98060 across both α) is the structural signature of
+  the lever's structural unsuitability for the architecture.
