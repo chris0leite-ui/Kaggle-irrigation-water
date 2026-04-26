@@ -74,13 +74,15 @@ if ORIG is None:
             break
 if ORIG is None:
     raise FileNotFoundError("no original-dataset CSV found")
-# recipe_full_te.py reads data/archive.zip directly via pd.read_csv.
-# Just symlink the orig CSV as data/archive.zip — pd.read_csv handles either.
+# recipe_full_te.py reads data/archive.zip as a ZIP archive containing the
+# original CSV. Build that zip from the orig CSV.
+import zipfile
 target = WORK / "data" / "archive.zip"
 if target.exists():
     target.unlink()
-target.symlink_to(ORIG.resolve())
-print(f"[boot] linked data/archive.zip -> {ORIG}", flush=True)
+with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zf:
+    zf.write(ORIG, arcname=ORIG.name)
+print(f"[boot] zipped {ORIG.name} into data/archive.zip", flush=True)
 
 # Run recipe_pseudolabel.py with LB-best 4-stack as labeler.
 env = os.environ.copy()
