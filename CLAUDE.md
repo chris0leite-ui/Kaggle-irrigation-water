@@ -14152,6 +14152,42 @@ LB budget: 4/10 used today, 6 remaining.
 **Final-selection lock RECOMMENDED**:
   PRIMARY: submission_tier1b_greedy_meta.csv → LB 0.98094
   HEDGE:   submission_3way_recipe025_s1035_s7040.csv → LB 0.98005
+
+### 2026-04-27 — R2/R5 heavy-reg meta a045 LB regress: 22nd saturation, G4 needs direction refinement
+
+`submission_r2r5_heavy_perfoldiso_a045.csv` → **LB 0.97996** (Δ −0.00098 vs PRIMARY)
+
+Carryover analysis: leak-corrected OOF +0.00029 → LB -0.00098 → ratio **-3.38x**
+WORSE than RESHUFFLE candidates (-1.0x to -1.6x).
+
+**Critical finding**: G4 PASS (ratio 0.78) was a FALSE-POSITIVE because the
+asymmetric direction was REMOVE-High (net High = -130). Heavy-reg depth=2
+removed PRIMARY-High predictions; ~80% of those Highs were CORRECT on test
+(High has 12x macro-recall leverage per row). The OOF-validated trade
+DOESN'T transfer for asymmetric REMOVE-High direction.
+
+**G4 rule update needed** (logged in LEARNINGS.md candidate):
+  Original: |net_rare_class_flip| / |total_rare_class_churn| ≥ 0.5
+  Revised:  PASS only if net_rare_class > 0 AND ratio ≥ 0.5
+            (i.e., asymmetric ADD-High direction, not REMOVE-High)
+
+R2/R5 a045: net High = -130 (strongly negative) → should have been a red flag.
+
+Updated carryover ladder:
+```
+                                       OOF Δ (corr)  LB Δ      Ratio    G4    Direction
+classw a030 (RESHUFFLE)                +0.00007      -0.00011  -1.57x   0.00  reshuffle
+D 3-meta a030 (RESHUFFLE)              +0.00021      -0.00021  -1.00x   0.01  reshuffle
+mlp_metastack a030 (mostly-RESHUFFLE)  +0.00017      -0.00021  -1.24x   0.36  mostly-reshuffle
+r2r5_perfoldiso_a045 (REMOVE-High asym)+0.00029      -0.00098  -3.38x   0.78  REMOVE-High WORST
+```
+
+22nd saturation confirmation. LB best unchanged at **0.98094**. LB budget:
+5/10 used today, 5 remaining.
+
+LOCK + STOP RECOMMENDED:
+  PRIMARY: submission_tier1b_greedy_meta.csv → LB 0.98094
+  HEDGE:   submission_3way_recipe025_s1035_s7040.csv → LB 0.98005
 ### 2026-04-26 — senior-engineer "reopen and dig deeper" 3-way: 2 NULLs + 1 in-flight (12th saturation confirmation)
 
 - Goal: at user request to reopen the 3 most promising closed-with-
