@@ -14056,3 +14056,46 @@ NULL with a NEW diagnostic:
 - Final-selection lock unchanged: PRIMARY = `submission_tier1b_greedy_meta.csv`
   (LB 0.98094), HEDGE = `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005).
 - **19th saturation confirmation at LB 0.98094.**
+
+### 2026-04-27 — 4-gate filter sweep: 0 survivors among 19 metas (deepest saturation signature)
+
+Applied the new 4-gate filter retroactively to all xgb_metastack* +
+mlp_metastack + meta_l3_xgb_mlp candidates on disk (19 metas total) at
+LB-validated PRIMARY architecture (0.7 × LB3 + α × candidate_iso, α=0.30).
+
+**Result: ZERO candidates pass all 4 gates.** Stark dichotomy:
+  - Candidates passing G4 (asymmetric flip ≥0.5): xgb_v4 (0.603),
+    classw (0.548), n5b_both (0.524), varC (0.526) — ALL fail G1
+    (sub-+0.0003 OOF Δ).
+  - Candidates passing G1 (≥+0.0003 OOF): only mlp_metastack (+0.00033) —
+    fails G4 (ratio 0.357, between pure reshuffle ~0.1 and clean asymmetric
+    ≥0.5).
+
+**This is the deepest empirical signature of saturation we have**: the
+OOF macro-recall surface and LB-transferable directions are now provably
+orthogonal in our candidate space. No re-arrangement of existing
+components can simultaneously satisfy both.
+
+**One borderline case**: mlp_metastack standalone at α=0.30 (LB-validated
+arch). 3 of 4 gates PASS (G1+G2+G3); G4 fails at 0.357 (close to 0.5).
+Net High flips on test = +41 (meaningfully asymmetric direction). **HAS
+NEVER BEEN LB-TESTED standalone** — the B experiment was BLENDED with v1
+at α=0.50.
+
+**Updated calibration ladder for the gate framework**:
+```
+Pre-rule submissions (gates 1-3 only, no G4):
+  classw α=0.30:  passed  →  LB -0.00011  (G4 ratio ~0)  RESHUFFLE
+  D 3-meta α=0.30: passed → LB -0.00021  (G4 ratio 0.009) RESHUFFLE
+  classw α=0.40:  passed →  LB -0.00083  (carryover snap-back)
+Post-rule prediction:
+  mlp_metastack α=0.30: passes G1-G3, G4 0.357 borderline. Predicted
+    LB ≈ -0.00010 to +0.00005 if 4-gate rule is binary.
+    If G4 has slack at the borderline, may tie or slightly lift.
+```
+
+LB best unchanged at **0.98094**. LB budget: 3/10 used today, 7 remaining.
+Final-selection lock unchanged.
+
+20th saturation confirmation (now LB-validated AND theoretically
+characterized via the 4-gate filter).
