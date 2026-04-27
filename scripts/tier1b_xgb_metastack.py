@@ -211,13 +211,21 @@ def main():
     xgb_params = dict(
         objective="multi:softprob", num_class=3,
         eval_metric="mlogloss",
-        learning_rate=0.05, max_depth=4, min_child_weight=5,
-        subsample=0.9, colsample_bytree=0.9,
-        reg_alpha=5.0, reg_lambda=5.0,
+        learning_rate=float(os.environ.get("META_LR", "0.05")),
+        max_depth=int(os.environ.get("META_DEPTH", "4")),
+        min_child_weight=int(os.environ.get("META_MCW", "5")),
+        subsample=float(os.environ.get("META_SUBSAMPLE", "0.9")),
+        colsample_bytree=float(os.environ.get("META_COLSAMPLE", "0.9")),
+        reg_alpha=float(os.environ.get("META_ALPHA", "5.0")),
+        reg_lambda=float(os.environ.get("META_LAMBDA", "5.0")),
         tree_method="hist", verbosity=0, seed=XGB_SEED, nthread=-1,
     )
-    max_rounds = 3000
-    es_rounds = 200
+    max_rounds = int(os.environ.get("META_ROUNDS", "3000"))
+    es_rounds = int(os.environ.get("META_ES", "200"))
+    log(f"  HPs: depth={xgb_params['max_depth']} lr={xgb_params['learning_rate']} "
+        f"alpha={xgb_params['reg_alpha']} lambda={xgb_params['reg_lambda']} "
+        f"subsample={xgb_params['subsample']} colsample={xgb_params['colsample_bytree']} "
+        f"rounds={max_rounds} es={es_rounds}")
 
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     oof_meta = np.zeros((len(train), 3), dtype=np.float32)
