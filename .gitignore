@@ -917,3 +917,9 @@ kaggle_kernel/*/dist/
 
 # Kaggle kernel output dumps (debug-only; kernels write artifacts to scripts/artifacts/)
 kaggle_kernel/*/output/
+
+# 2026-04-26 T1 + T7 diagnostic artifacts
+!scripts/artifacts/t1_per_bucket_bias_results.json
+!scripts/artifacts/t7_agreement_matrix.json
+!scripts/artifacts/t7_summary.txt
+!scripts/artifacts/t7_disagreement_rows.csv

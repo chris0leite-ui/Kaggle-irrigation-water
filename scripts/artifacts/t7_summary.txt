@@ -1,0 +1,43 @@
+=== T7: Test prediction agreement matrix ===
+
+  primary    submission_tier1b_greedy_meta.csv                       LB 0.98094  class dist=[159620, 100267, 10113]
+  realmlp    submission_lb3_realmlp_nonruleiso.csv                   LB 0.98008  class dist=[159652, 100157, 10191]
+  3way       submission_3way_recipe025_s1035_s7040.csv               LB 0.98005  class dist=[159522, 100216, 10262]
+  pseudo     submission_recipe_greedy_recipe_pseudolabel.csv         LB 0.97998  class dist=[159550, 100201, 10249]
+  recipe     submission_recipe_full_te.csv                           LB 0.97939  class dist=[159580, 100147, 10273]
+  catboost   submission_recipe_full_te_catboost.csv                  LB 0.97935  class dist=[159545, 100132, 10323]
+
+n_test = 270,000
+
+--- pairwise disagreement counts (rows differ) ---
+             primary   realmlp      3way    pseudo    recipe  catboost
+primary            0       196       349       348       484       677
+realmlp          196         0       279       284       434       625
+3way             349       279         0       163       409       644
+pseudo           348       284       163         0       282       579
+recipe           484       434       409       282         0       559
+catboost         677       625       644       579       559         0
+
+rows where any non-primary differs from primary: 981 (0.36%)
+rows where ≥3/5 non-primary disagree with primary: 314 (0.116%)
+
+--- on rows where ≥3/5 disagree with primary ---
+primary_class     count     majority_non_primary_class
+Low                  81                     [0, 81, 0]
+Medium              196                   [32, 0, 164]
+High                 37                     [0, 37, 0]
+
+--- per-cell distribution of disagreement rows ---
+score   n_test    n_disagree(any)    n_high_minority
+    0    14432                  0                  0
+    1    48963                  0                  0
+    2    52783                  5                  0
+    3    43746                286                 94
+    4    50756                 32                 15
+    5    33632                 75                 19
+    6    16652                529                175
+    7     6537                 38                  7
+    8     1135                 16                  4
+    9     1364                  0                  0
+
+saved 314 high-minority disagreement rows -> t7_disagreement_rows.csv
