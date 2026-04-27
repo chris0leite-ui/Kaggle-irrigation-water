@@ -13574,6 +13574,80 @@ final selection.
 - Current LB best unchanged: `submission_tier1b_greedy_meta.csv` at
   LB **0.98094**.
 
+### 2026-04-27 — 3-meta L3 LB result: 0.98060 (−0.00034, REGRESSION) — 18th saturation confirmation
+
+- Goal: follow up B's gate-pass with cdeotte's 3-meta L3 pattern
+  (XGB-meta + MLP-meta + LR-meta-v2 weighted average). Tested two
+  preliminary variants first:
+  - **v7** (XGB-meta retrained on bank with `mlp_metastack` +
+    `lr_metastack_v2` added): bank auto-included 149 components
+    (vs ~63 when v1 was trained); standalone iso 0.98127, blend
+    OOF 0.98120 / Δ +0.00036. Bank-extension trap → not LB-probed.
+  - **v7b** (strict-EXCLUDE bank, drops all prior meta variants):
+    pool 116 + 2 explicit adds = 118; standalone iso 0.98136 (best
+    ever); blend OOF 0.98105 / Δ +0.00021 at α=0.30 (PCR fails at
+    α≥0.35). Below LB-transfer threshold → not LB-probed.
+
+- **3-meta L3 sweep** (`scripts/three_meta_l3.py`, ~1.5 min):
+  iso-cal each meta, sweep `XGB × MLP × LR` 3-simplex × α∈{0.30..0.60}.
+  Standalone meta_iso bal_acc:
+  ```
+  xgb_iso = 0.98059
+  mlp_iso = 0.98146  ← higher than LB-best 4-stack 0.98084 alone!
+  lr_iso  = 0.98063
+  ```
+  **Best gate-pass**: w_xgb=0.00 / w_mlp=0.90 / w_lr=0.10 / α=0.60
+  → OOF **0.98152**, Δ +0.00068 vs LB-best 4-stack 0.98084 (2× B's
+  +0.00033). PCR delta L=−0.0004 / M=+0.0007 / **H=+0.0018**.
+  Surprise: best L3 DROPS XGB-meta entirely; MLP-iso dominates.
+  B's α≤0.50 search window missed this lift.
+
+- **LB probe** (user-approved, submitted 05:08 UTC):
+  `submission_three_meta_l3_mlp090_lr010_a060.csv` →
+  **LB public = 0.98060**.
+  Δ vs LB-best 0.98094 = **−0.00034** (regression).
+  OOF→LB gap = 0.98152 − 0.98060 = **+0.00092** (3.4× wider than B).
+
+- **Diagnosis — two compounding overfit factors:**
+  1. **Removing XGB-meta from L3 lost diversity stabilization.**
+     B's 50/50 XGB+MLP was structurally complementary (different
+     model families). Pure MLP-iso + small LR is a single-family
+     L3 — both MLP and LR are simpler-than-XGB metas with similar
+     overfit failure modes.
+  2. **α=0.60 amplified the overshoot.** B used α=0.50; pushing to
+     0.60 weighted L3 more, amplifying L3's OOF overfit.
+  3. **PCR H=+0.0018 was the warning.** Hill-climb (D) had H=+0.005
+     also LB-regressive. Empirical rule: **rare-class PCR delta
+     above ~+0.0015 is OOF-overfit territory regardless of how
+     other diagnostics look.**
+
+- **Updated ladder:**
+  ```
+  candidate                          OOF       LB       gap
+  LB-best 4-stack                    0.98084   0.98094  -0.00010
+  B (XGB+MLP α=0.50)                 0.98118   0.98091  +0.00027
+  3-meta (MLP-heavy α=0.60)          0.98152   0.98060  +0.00092 (this probe)
+  ```
+
+- **18th independent saturation confirmation.** Structural finding:
+  **B's XGB+MLP diversity at α=0.50 is the L3 sweet spot on this
+  bank.** Going more aggressive in either dimension (drop XGB-meta
+  OR raise α) leaks OOF.
+
+- LB budget: **2/10 used today**, 8 remaining.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **PCR H delta > +0.0015 is OOF-overfit** even when other gate
+     criteria pass. The Pareto frontier on this problem has a
+     bounded rare-class lift; pushes beyond ~+0.001 H come from
+     OOF-noise fitting, not signal.
+  2. **L3 meta diversity matters more than L3 weight optimization.**
+     A 50/50 XGB+MLP at moderate α transferred (B: 12% rate). A
+     90% MLP + 10% LR at higher α blew up the gap (3-meta: gap
+     3.4× wider than B). When sweeping L3 weights, prefer
+     diversity-preserving combinations over pure-OOF-optimum.
+
+
 
 ### 2026-04-26 — W7 (k=1 NN to 10k original): NULL — synthetic rows are not anchored to original rows
 
