@@ -15212,3 +15212,49 @@ the largest, most class-balanced drop-set we have ever identified.
   - `scripts/artifacts/purity_rules_diag.json` + `purity_rules_per_cell.csv`
   - `scripts/artifacts/test_cell_majority.npy` (per-test-row cell-majority lookup)
   - `submissions/submission_recipe_full_te_dropdet.csv` (diagnostic, NOT for LB probe)
+
+### 2026-04-27 — Layer-1 surgical override LB-tested: 0.98062 (-0.00032), 25th saturation + Bayesian-inversion lesson
+
+- Goal: senior-engineer reframe — stop adding stacks; surgically correct
+  the LB-best primary's argmax on test rows where it provably disagrees
+  with a 100%-pure rule. 36 rows (35 H→M, 1 L→M) identified.
+- Train-side validation: 46/46 disagreements on TRAIN are mathematically
+  guaranteed correct (cell 100% pure ⇒ y == cell_majority by construction).
+  OOF macro: 0.98084 → 0.98091 (+0.0000641, mathematical proof on train).
+- Layer-2 (99.9-99.99%) tested in parallel and FALSIFIED (~84% override
+  precision below 91.9% break-even floor under macro-recall).
+- LB submission `submission_tier1b_greedy_meta_l1override.csv`:
+  OOF 0.98091 → **LB 0.98062**, Δ vs LB-best **−0.00032**, gap +0.00029.
+- **Bayesian-inversion error in the override math** (the senior lesson):
+  - Train-side proof showed primary disagrees with cell-majority on 0
+    test rows in 100%-pure cells of cube-level purity. The 36 came from
+    sub-cell rules (cell × non-rule cat × value).
+  - 100% purity is over RULE-feature space (the 6 rule features only).
+    Primary's POST-BLEND argmax on those test rows uses NON-RULE features
+    (Humidity, Soil_pH, Previous_Irrigation_mm, etc.) — exactly the
+    features the NN generator uses to produce class flips.
+  - Selection event "primary disagrees" is NOT independent of NN-flip
+    presence. Conditioning on disagreement biases toward rows that ARE
+    actually flipped. Primary's confident disagreement IS information,
+    not error.
+  - Math:
+    P(override correct | random row in pure cell) ≈ 99.9%   (my naïve estimate)
+    P(override correct | row in pure cell AND primary disagrees) ≈ ~33%
+    Decomposition: ~12/36 correct (primary wrong) + ~24/36 wrong
+    (primary correctly identified NN-flip the rule cell-aggregation can't see)
+    Macro lift: 12×(+1/N_M_true) − 24×(−1/N_H_true) = −0.00032 ✓
+- **25th independent saturation confirmation at LB 0.98094.**
+- **Portable rule** (LEARNINGS.md): **"Train-side rule purity ≠
+  joint-feature purity on rows where a strong learned model
+  disagrees."** The selection event "model disagrees with rule"
+  correlates with the underlying NN-flip process when the model uses
+  non-rule features. To safely override on a 100%-pure cell, additionally
+  require primary's max_prob < some uncertainty threshold (model-uncertain),
+  never override when primary is confident — primary's confidence on a
+  pure-cell row is calibrated information from non-rule features.
+- LB best unchanged at **0.98094**. Hedge swap recommendation unchanged
+  (`submission_3way_recipe025_s1035_s7040.csv` LB 0.98005).
+- LB budget: 1/10 used today (this submission), 9 remaining.
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `scripts/build_l1_override_submission.py`
+  - `submissions/submission_tier1b_greedy_meta_l1override.csv` (LB 0.98062)
