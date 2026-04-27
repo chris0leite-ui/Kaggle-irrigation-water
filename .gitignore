@@ -1253,3 +1253,9 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 # Experiment v7 (XGB metastack on bank with mlp + lr-v2 explicit adds — bank-extension diagnostic)
 !scripts/artifacts/oof_xgb_metastack_v7.npy
 !scripts/artifacts/test_xgb_metastack_v7.npy
+# Experiment v7b (strict-EXCLUDE bank rerun)
+!scripts/artifacts/oof_xgb_metastack_v7b.npy
+!scripts/artifacts/test_xgb_metastack_v7b.npy
+# Experiment 3-meta L3 (XGB+MLP+LR weighted average) — BEST OOF Δ to date
+!scripts/artifacts/oof_three_meta_l3.npy
+!scripts/artifacts/test_three_meta_l3.npy
