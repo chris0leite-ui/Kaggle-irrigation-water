@@ -15679,3 +15679,52 @@ the largest, most class-balanced drop-set we have ever identified.
   - `submissions/submission_recipe_full_te_macrorec_T1_lam03.csv`
     (diagnostic — not for LB probe, structurally cleanest ADD-High
     candidate but precision 5.25% < 8.1% breakeven)
+
+### Next steps: macrorec follow-up ideas (post-2026-04-27, 27th saturation)
+
+The macro-recall surrogate's structurally unique properties (first +0.62pp H
+recall standalone, first G4 PASS in 26+ confirmations, all 5 folds positive)
+suggest the surrogate's signal IS real — just that direct standalone
+deployment has the M-loss>H-gain trade. Three ways to leverage it without
+inheriting the failure:
+
+  **N1. Macro-recall surrogate at the META-STACKER level** (top pick, ~1h CPU).
+  Every prior meta-stacker (XGB, LR, MLP, RF) used CE/BCE. Train an XGB
+  meta-stacker on the existing 64-component bank using the macro-recall
+  surrogate gradient instead of CE. Meta sees richly-calibrated component
+  inputs AND optimizes the metric directly. The +0.62pp H-recall lift may
+  COMPOUND at meta-level because:
+  - Components in the bank already carry orthogonal H-class signals; meta-XGB
+    can pick which to amplify
+  - Pareto-frontier closure that bounded standalone macrorec doesn't necessarily
+    bind a meta over a 200-dim component-prob feature space
+  - Fixed-bias blend at α=0.30 onto LB-best 3-stack reuses the same architecture
+    that produced LB 0.98094
+  Risk: bank-extension overfit (N5b, R2/R5 LB-regress pattern) — but here we're
+  not adding a new component, just changing the meta objective. Different
+  failure mode. Bayesian prior of LB lift: 20-30%.
+
+  **N2. Asymmetric-weight macrorec** (direct attack on M-loss failure, ~2.5h CPU).
+  Current surrogate uses `sample_w = N / (K · N_k)` which up-weights High class
+  10× over Low. That's exactly why M→H push is so aggressive. Try sqrt-weighting:
+  `sample_w = N / (K · sqrt(N_k))` — H weight drops from 10× to ~3×. Less
+  aggressive H push → fewer Medium losses → may pass G1.
+  Variants to sweep: log-weighting (`log(N/N_k)`), unit-weighting (no class
+  scaling), current N/N_k. Cost: 30 min/variant × 4 variants × smoke + 5-fold
+  of best = ~3h. Bayesian prior: 15-25%.
+
+  **N3. Macrorec probs as recipe features (model-level distillation)** (~1h CPU).
+  Add macrorec's 3 OOF probs as 3 extra numeric cols to recipe FE. Recipe XGB
+  then has access to macrorec's macro-recall-optimized signal AND the full
+  443-feature bank, depth-4 trees decide per-row when to trust macrorec's
+  H push. Structurally distinct from Phase A residual TE:
+  - Phase A: per-key OTE features (correlated with existing 117 OTE keys)
+  - This: model-level posterior (3 cols, different signal type)
+  - Recipe XGB acts as a learned filter on macrorec's predictions
+  Bayesian prior: 15-20% (lower than N1 because Phase A's similar mechanism
+  nulled).
+
+  **Execution priority**: N1 first (highest EV, most novel mechanism, fastest).
+  If gates positive, LB-probe with tomorrow's fresh slots. If null, N2 next.
+  N3 last because Phase A has primed us to expect feature-level macrorec
+  delivery would be redundant with existing OTE+digit FE.
