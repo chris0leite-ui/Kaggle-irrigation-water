@@ -14828,3 +14828,155 @@ LB budget: 1/10 used today (this probe), 9 remaining. LB-best
 unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
 Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005
 audit F1 swap.
+
+### 2026-04-27 — Phase A (residual TE) + Phase B (base-margin) sweep — Phase A NULL (23rd saturation), Phase B K=4 too aggressive, K=2 in flight
+
+- Goal: two mechanism-distinct attempts at squeezing past LB 0.98094
+  via the only properties of the LB-best primary not yet pressure-tested:
+  (A) **fold-safe residual Target Encoding** — per-row OrderedTE on three
+  binary residual targets `(y != rule_pred)`, `(M→H flip at score=6)`,
+  `(H→M flip at score 7/8)` over digit/cat-pair/score-band keys, delivered
+  as ~42 new features into the recipe XGB. (B) **base-margin
+  residualization** — `base_margin = K * one_hot(rule_pred) - K/2`
+  injected via `xgb.train` DMatrix so trees start from the closed-form
+  rule's logits and only fit residuals. K_MARGIN env-var (4.0/2.0/1.0).
+  Both run on full 504k 5-fold seed=42 aligned with every saved OOF.
+  Branch: `claude/residual-target-encodings-Duy1o`.
+- Changed:
+  - `scripts/residual_te_helpers.py` — 3 binary residual targets +
+    14-key list (digit positions on 4 rule-axis numerics × {-1, 0} +
+    Crop_Growth_Stage + Mulching_Used + 4 high-signal cat-pair combos
+    + dgp_score) + per-fold OrderedTE wrapper using the existing OTE
+    class with n_classes=2.
+  - `scripts/residual_te.py` — Phase A 5-fold orchestrator. Reuses
+    recipe `load_and_engineer`, computes binary targets per fold,
+    fits residual OTE per (target × key), appends 42 cols to recipe
+    feat matrix, trains heavy-reg XGB. Per-fold checkpointing,
+    `RUN_FOLD=N` env var for rehydrate-resilient sequencing.
+  - `scripts/recipe_basemargin.py` — Phase B 5-fold orchestrator with
+    `xgb.train` DMatrix + `base_margin = K*one_hot(rule_pred) - K/2`.
+    K_MARGIN env-var (default 4.0).
+  - `scripts/preflight_residual_auc.py` — 5-fold OOF AUC diagnostic on
+    all 3 binary residual targets over 35 dist+raw-num features. Decision
+    rule: AUC ≥ 0.60 → PROCEED.
+  - `scripts/blend_gate_4gate.py` — G1/G2/G3/G4 analyzer reusing
+    `tier1b_helpers.build_lbbest_stack` for anchor reconstruction.
+    Sweeps α ∈ {0, 0.10, 0.20, 0.30, 0.40, 0.50}; reports per-class
+    recall delta + Jaccard + net_high_flip vs anchor at α=0.30.
+  - `scripts/run_phase_ab.sh` — sequential foreground orchestrator.
+
+- Pre-flight binary AUCs (5-fold seed=42 on 35-feature subset, ~5 min):
+  ```
+  target          prevalence   OOF AUC   verdict
+  r_global        1.636%        0.8951   PROCEED
+  r_mh_s6         0.246%        0.9882   PROCEED
+  r_hm_s78        0.268%        0.9982   PROCEED
+  ```
+  All three crush the 0.60 PROCEED threshold. Strong residual ranking
+  signal exists at OTE capacity. **AUC alone is necessary but not
+  sufficient** for blend transfer (the missed-High detector at AUC
+  0.9711 also met this gate but failed precision break-even on
+  override; same risk applies here when delivered as features).
+
+- **Phase A 5-fold production (full 504k, ~30 min/fold = ~2.5h total)**:
+  ```
+  fold    Phase A    recipe baseline   Δ
+  1       0.97506    0.97544           -0.00038
+  2       0.97576    0.97659           -0.00083
+  3       0.97663    0.97721           -0.00058
+  4       0.97507    0.97465           +0.00042
+  5       0.97530    0.97557           -0.00027
+  mean fold delta:                     -0.00033
+
+  OOF aggregate:
+    argmax    0.97556   (recipe 0.97589, Δ -0.00033)
+    tuned     0.97962   (recipe 0.97967, Δ -0.00005, within fold-noise)
+    bias      [1.23, 1.27, 3.20]   (recipe [1.43, 1.47, 3.40])
+  ```
+
+- **Phase A 4-gate analyzer onto LB-best 4-stack (anchor 0.98084)**:
+  ```
+                                  raw            iso
+  standalone @ recipe-bias       0.97962        0.97924
+  errs                            9877           9329
+  Jaccard vs LB4 (60% partial)   0.8221         (similar)
+  errs ratio (B/LB4)             1.054          ~1.04
+
+  blend sweep α=0.30 (fixed bias):
+    OOF        0.98047 / 0.98038
+    Δ vs LB4  -0.00037 / -0.00047        FAIL G1 (need ≥+0.0003)
+    PCR L      -0.00005 / +0.00002       PASS L
+    PCR M      +0.00013 / +0.00072       PASS M (helped)
+    PCR H      -0.00119 / -0.00214       FAIL G2 (-5e-4 floor)
+    net_high  -15 / -94                  FAIL G4 (need >0)
+    G3 ratio   NaN (deltas negative)     FAIL
+
+  OVERALL: FAIL on G1, G2, G3, G4 (raw and iso both)
+  ```
+  Classic REMOVE-High pattern (same failure as N5b angle1, R2/R5 a045,
+  D 3-meta). High recall lost 1.2-2.1pp under blend.
+
+- **Mechanism diagnosis** (portable rule for LEARNINGS.md):
+  The 42 residual TE features encode `P(y != rule_pred | key)` which
+  is HIGHLY correlated with what the recipe XGB already learns from
+  the 117 OTE features at depth=4 + reg_alpha=5. Adding correlated
+  features under heavy reg:
+    1. slightly hurts standalone tuned (-0.00005 within fold-noise)
+    2. shifts calibration toward LOWER High recall (residual TE features
+       fire on near-boundary rows; under heavy reg the model demotes
+       High predictions on those rows — wrong direction for macro-recall)
+  **Pre-flight binary AUCs were not predictive**: high AUC on a residual
+  target is necessary but not sufficient when delivered as INPUT
+  FEATURES into a model already saturated with strong correlated
+  features. Precision-break-even-style gates from binary detector
+  experiments (missed_high_detector, spec6_v2) apply at the override
+  level; a different mechanism applies at the feature level: for
+  feature-level delivery to lift, the new feature must be ORTHOGONAL
+  to existing features at the model's split granularity. With 117
+  OTE features already encoding per-key class distributions, adding
+  per-key residual rates is cosine-correlated.
+
+- **23rd independent saturation confirmation at LB 0.98094.**
+
+- **Phase B K=4 fold 1 (only fold completed)** — early kill:
+  ```
+  argmax bal_acc       0.97363   (-0.00181 vs recipe fold 1)
+  bal @ recipe-bias    0.97588
+  best_iter            1352
+  errs (fold 1)        2028 vs anchor 1914 (ratio 1.060)
+  Jaccard vs LB4       0.7567   ← BETTER orthogonality than Phase A
+  PCR delta            L -0.00035 / M -0.00088 / H -0.01095
+  ```
+  Jaccard 0.76 is competition-grade orthogonal but H recall destruction
+  (-1.1pp on fold 1) is catastrophic. K=4 base-margin makes trees too
+  conservative around the High boundary — the rule prior at K=4 gives
+  softmax([+4, -2, -2]) = [0.984, 0.008, 0.008] for predicted class,
+  trees need 6 logit-units to flip; they can't acquire the ~21k rare
+  positives. K=4 KILLED at fold 1.
+
+- **Phase B K=2 fold 1 IN FLIGHT** (PID 2102, ~30 min wall):
+  Less aggressive prior — softmax([+2, -1, -1]) = [0.79, 0.10, 0.10],
+  trees need only 3 logit-units to flip. Should preserve more High
+  capacity. If K=2 fold 1 PCR_H is within -5e-4 of recipe baseline AND
+  Jaccard remains < 0.80, full 5-fold + 4-gate. Otherwise K=1.
+
+- Strategic context (3 days to deadline):
+  - LB-best primary unchanged at **LB 0.98094** (`submission_tier1b_greedy_meta.csv`).
+  - Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005
+    (`submission_3way_recipe025_s1035_s7040.csv`).
+  - LB budget: 0 spent today. 10 remaining.
+  - Phase A definitively closed; Phase B K=2 sweep still has ~15-20%
+    Bayesian prior of clearing all 4 gates given the orthogonality
+    advantage shown at K=4 fold 1.
+
+- Artefacts on `claude/residual-target-encodings-Duy1o`:
+  - `scripts/residual_te.py`, `scripts/residual_te_helpers.py`,
+    `scripts/recipe_basemargin.py`, `scripts/preflight_residual_auc.py`,
+    `scripts/blend_gate_4gate.py`, `scripts/run_phase_ab.sh`
+  - `scripts/artifacts/oof_recipe_full_te_residte.npy` + test +
+    results JSON (Phase A full 5-fold OOF)
+  - `scripts/artifacts/blend_gate_4gate_residte_results.json` +
+    `_iso_results.json` (definitive NULL diagnosis)
+  - `scripts/artifacts/preflight_residual_auc.json` (3-target AUCs)
+  - `submissions/submission_recipe_full_te_residte.csv` (diagnostic,
+    not for LB probe — stratifies as REMOVE-High)
