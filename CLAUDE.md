@@ -14099,3 +14099,39 @@ Final-selection lock unchanged.
 
 20th saturation confirmation (now LB-validated AND theoretically
 characterized via the 4-gate filter).
+
+### 2026-04-27 — mlp_metastack standalone a030 LB result (21st saturation, 4-gate validated)
+
+Per the 4-gate sweep finding, `mlp_metastack` was the ONLY candidate
+passing G1+G2+G3 (borderline G4 fail at 0.357). User-approved one-shot
+confirmation submit:
+
+  submission_mlp_metastack_a030.csv → **LB 0.98073** (Δ −0.00021 vs PRIMARY)
+
+  Pre-submit prediction: ~0.98086 (Δ −0.00008 at -0.5x small-α carryover)
+  Actual:                  0.98073 (Δ −0.00021)
+  Magnitude 2.6x larger than predicted, BUT direction correct.
+
+**Updated leak-corrected carryover ladder for RESHUFFLE-class candidates**:
+```
+                       OOF Δ (raw)   OOF Δ (leak-corr R5)   LB Δ      Ratio (corr)
+classw a030           +0.00023       +0.00007                -0.00011  -1.57x
+D 3-meta a030         +0.00037       +0.00021                -0.00021  -1.00x
+mlp_metastack a030    +0.00033       +0.00017                -0.00021  -1.24x
+```
+
+**KEY observation**: mlp_metastack and D 3-meta both landed LB 0.98073 EXACTLY
+— same RESHUFFLE pattern (G4 ratio ~0.36), same outcome. This is strong
+empirical evidence the 4-gate filter (especially G4) is structurally real.
+
+**Updated rule**: after R5's leak-correction, the carryover for RESHUFFLE
+candidates clusters at **-1.0x to -1.6x** (much more consistent than the
+raw -0.48x to -0.64x). The +0.00016 OOF inflation from full-OOF iso
+explains the apparent "favorable carryover" at small α.
+
+21st saturation confirmation. LB best unchanged at **0.98094**.
+LB budget: 4/10 used today, 6 remaining.
+
+**Final-selection lock RECOMMENDED**:
+  PRIMARY: submission_tier1b_greedy_meta.csv → LB 0.98094
+  HEDGE:   submission_3way_recipe025_s1035_s7040.csv → LB 0.98005
