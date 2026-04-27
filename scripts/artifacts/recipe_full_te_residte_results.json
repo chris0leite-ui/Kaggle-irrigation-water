@@ -1,0 +1,40 @@
+{
+  "n_folds": 5,
+  "smoke": false,
+  "residual_te_keys": [
+    "dgp_score",
+    "Crop_Growth_Stage",
+    "Mulching_Used",
+    "Soil_Moisture_digit-1",
+    "Soil_Moisture_digit0",
+    "Rainfall_mm_digit-1",
+    "Rainfall_mm_digit0",
+    "Temperature_C_digit-1",
+    "Temperature_C_digit0",
+    "Wind_Speed_kmh_digit-1",
+    "Wind_Speed_kmh_digit0",
+    "COMBO_Crop_Growth_Stage_Mulching_Used",
+    "COMBO_Crop_Type_Region",
+    "COMBO_Soil_Type_Crop_Growth_Stage"
+  ],
+  "residual_te_n_features": 42,
+  "target_pos_rates": {
+    "r_global": 0.016355555555555557,
+    "r_mh_s6": 0.002458730158730159,
+    "r_hm_s78": 0.0026825396825396826
+  },
+  "fold_scores_argmax": [
+    0.9750587490404574,
+    0.9757590922677227,
+    0.9766305778573882,
+    0.9750672912419084,
+    0.9752987243951449
+  ],
+  "overall_argmax_bal_acc": 0.9755629174038515,
+  "tuned_log_bias_bal_acc": 0.97962117865182,
+  "log_bias": [
+    1.2324411632360976,
+    1.2689466919465482,
+    3.2007689020440884
+  ]
+}
