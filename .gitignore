@@ -1274,3 +1274,12 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 !scripts/artifacts/d_3meta_ensemble_results.json
 !scripts/artifacts/d_dual_alpha_probe_results.json
 !scripts/artifacts/four_gate_sweep_results.json
+
+# Session 2026-04-26..27 meta-stackers (Option 1 + R2): bigger-bank + heavy-reg variants
+!scripts/artifacts/oof_xgb_metastack_3wnn.npy
+!scripts/artifacts/test_xgb_metastack_3wnn.npy
+!scripts/artifacts/oof_xgb_metastack_heavy.npy
+!scripts/artifacts/test_xgb_metastack_heavy.npy
+# 5-feature FAISS NN-distance to 10k rule-perfect original (5-col diagnostic table)
+!scripts/artifacts/oof_nn_dist_features.npy
+!scripts/artifacts/test_nn_dist_features.npy
