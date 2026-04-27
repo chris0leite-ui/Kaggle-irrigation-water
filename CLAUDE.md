@@ -15053,3 +15053,119 @@ audit F1 swap.
     `_iso_results.json` (definitive NULL)
   - `submissions/submission_recipe_full_te_basemargin_K2.csv` (diagnostic
     only — not for LB probe)
+
+### 2026-04-27 — Macro-recall surrogate gradient XGB: 26th saturation NULL but FIRST G4 PASS in 25+ confirmations
+
+- Goal: train XGB with a custom obj that approximates `−∂macro_recall / ∂logits`
+  directly, instead of CE + post-hoc log-bias. Hypothesis: the persistent
+  Pareto-frontier closure is partly a TRAINING-TIME mismatch — every prior
+  model optimized log-loss, then bias-tuned. Direct surrogate gradient
+  should find a different operating point.
+- Math: `R̃ = (1/K) Σ_k (1/N_k) Σ_{i:y_i=k} p_{ik}`. Gradient with balanced
+  per-row weight `w_i = N/(K·N_{y_i})`:
+  ```
+  g_{im} = w_i · p_{ik*} · (p_{im} − δ_{m,k*}) / T
+  h_{im} = w_i · p_{ik*} · p_{im}(1 − p_{im}) / T + ε
+  ```
+  Gradient peaks at p_{ik*}=0.5 — focuses on **boundary rows** that can flip
+  with small updates. Opposite of focal (focuses on totally-wrong rows).
+  Blend with CE via `MR_LAMBDA`: L = λ·L_CE + (1−λ)·(−R̃). Pure surrogate
+  satiates fast (best_iter=3 in SMOKE); λ=0.3 keeps gradients alive.
+- Implementation: `scripts/recipe_macrorecall.py` (custom obj closure +
+  `disable_default_eval_metric=1` + `feval` returning −macro_recall).
+  XGBoost 2.1+ requires (n_rows, n_classes) shape for grad/hess (not flat).
+- SMOKE sweep on 20k × 2 folds (lam_ce ∈ {0, 0.3, 0.5, 0.7}):
+  pure surrogate had highest tuned (0.96420) but best_iter=3 (satiated
+  instantly); lam=0.3 had best_iter=84-101 (longest training).
+  Production picked lam_ce=0.3.
+
+- **Production 5-fold (504k, ~6 min/fold = 30 min total — much faster than
+  recipe's 30 min/fold because best_iter ~170 vs ~1300):**
+  ```
+  fold    macrorec   recipe     Δ
+  1       0.97691    0.97544   +0.00147
+  2       0.97810    0.97659   +0.00151
+  3       0.98015    0.97721   +0.00294
+  4       0.97761    0.97465   +0.00296
+  5       0.97918    0.97557   +0.00361
+  mean Δ vs recipe:            +0.00250
+  ```
+  **ALL 5 FOLDS POSITIVE** — first sustained positive standalone delta in
+  any experiment on this branch. OOF argmax 0.97839 (recipe 0.97589,
+  Δ +0.00250); tuned 0.97879 (recipe 0.97967, Δ −0.00088 — surrogate
+  is argmax-optimal so post-hoc bias gives less benefit; recipe catches
+  up via the bias bump).
+
+- **4-gate analyzer onto LB-best 4-stack (anchor 0.98084) — UNIQUE PATTERN:**
+  ```
+  raw blend sweep (fixed recipe bias):
+    α      OOF Δ      PCR L    PCR M     PCR H     net_H  G4_ratio
+    0.10   -0.00009   +0       -0.00114  +0.00085   +85    high (PASS)
+    0.20   -0.00023   +0       -0.00227  +0.00157   +205   high (PASS)
+    0.30   -0.00045   +0       -0.00382  +0.00247   +353   0.978 (PASS)
+    0.40   -0.00073   +0       -0.00550  +0.00333   +485   high (PASS)
+    0.50   -0.00119   +0       -0.00749  +0.00395   +614   high (PASS)
+  ```
+  **G4 PASSES CLEANLY for the first time in 25+ confirmations** (asymmetry
+  ratio 0.98 = nearly all flips are ADD-High in correct direction). G1
+  fails because Medium-loss steeper than High-gain.
+
+- **Hard-gate override probe** (LB-4 says M AND macrorec says H):
+  - Override set: 457 rows; truly-H: 24
+  - **Precision 5.25%** (break-even under macro-recall: 8.1%) — FAIL
+  - τ-sweep ANTI-CALIBRATED: τ=0.50 → 5.25%, τ=0.70 → 3.51%, τ=0.85 → 0%
+  - Score-restricted (6,7,8): 5.14% precision (no improvement)
+  - Δ macro-recall from full override: −0.00022
+
+- **Verdict: 26th saturation NULL, but structurally unique:**
+  ```
+  Property                                Value
+  Standalone fold-deltas all positive    ✓ first ever
+  Jaccard with LB-4 anchor               0.64 (very orthogonal)
+  +H recall standalone vs LB-4           +0.62pp (highest ever)
+  G4 PASSES at α=0.30                    +353/361 ratio 0.98
+  Hard-override precision                5.25% < 8.1% breakeven
+  Anti-calibration at high τ             ✗
+  ```
+  The macro-recall surrogate IS the first mechanism to achieve clean
+  ADD-High direction at the blend level — every prior experiment had
+  RESHUFFLE / REMOVE-High / magnitude-trap patterns. It also delivers
+  +0.62pp High recall standalone, the highest H boost on this comp.
+  But the H precision on the OVERRIDE DOMAIN (rows where LB-4 predicts
+  M and macrorec predicts H) is anti-calibrated — confident H predictions
+  there are LESS likely to be true-H than uncertain ones. The structural
+  ceiling is reconfirmed: the residual M↔H boundary information is NOT
+  in any model derivable from the recipe FE space, regardless of training
+  objective.
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **Macro-recall surrogate gradient is the only training-time
+     mechanism that produces clean ADD-High direction at blend level**
+     on this problem. Pure surrogate satiates at p_{ik*}≈0.5 (gradient
+     vanishes) so needs CE blend (lam_ce=0.3 sweet spot) to keep
+     gradients alive long enough to build meaningful trees. Use this
+     as the reference XGB obj for any future imbalanced multi-class
+     comp where macro-recall is the metric.
+  2. **G4 (asymmetric ADD-rare-class flip ratio ≥ 0.5) is necessary
+     but not sufficient.** First experiment in 26 saturations to clear
+     G4 cleanly (ratio 0.98) — but G1 still fails because the
+     per-class trade is unfavorable under macro-recall (M loss > H
+     gain on a per-class-recall basis). Adding a 5th gate: H_gain ×
+     (1/N_H) - M_loss × (1/N_M) > +1e-4, i.e., the macro-recall
+     contribution must be net positive on the per-class scale, not
+     just direction-correct.
+
+- LB-best primary unchanged: **LB 0.98094**
+  (`submission_tier1b_greedy_meta.csv`).
+- Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005.
+- LB budget: 0 spent today.
+
+- Artefacts on `claude/residual-target-encodings-Duy1o` + main:
+  - `scripts/recipe_macrorecall.py` (custom obj orchestrator, 272 lines)
+  - `scripts/artifacts/oof_recipe_full_te_macrorec_T1_lam03.npy` + test +
+    results JSON (5-fold OOF, all 5 folds positive vs recipe)
+  - `scripts/artifacts/blend_gate_4gate_macrorec_T1_lam03_results.json` +
+    `_iso_results.json` (definitive 4-gate fail diagnosis)
+  - `submissions/submission_recipe_full_te_macrorec_T1_lam03.csv`
+    (diagnostic — not for LB probe, structurally cleanest ADD-High
+    candidate but precision 5.25% < 8.1% breakeven)
