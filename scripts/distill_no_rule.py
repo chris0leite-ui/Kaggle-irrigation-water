@@ -93,16 +93,20 @@ def main() -> None:
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
     fold_scores: list[float] = []
 
+    # FAST=1: trade ~0.0005 OOF for halved wall time so a fold completes
+    # inside the container's ~10-min idle-reboot window. Keeps recipe
+    # match to within fold-noise.
+    FAST = os.environ.get("FAST") == "1"
     xgb_params = dict(
-        n_estimators=300 if SMOKE else 3000,
+        n_estimators=300 if SMOKE else (1000 if FAST else 3000),
         max_depth=4, max_leaves=30,
-        learning_rate=0.1, subsample=0.8, colsample_bytree=0.8,
+        learning_rate=0.15 if FAST else 0.1, subsample=0.8, colsample_bytree=0.8,
         min_child_weight=2, reg_alpha=5, reg_lambda=5,
         max_bin=256 if SMOKE else 1024,
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss",
         n_jobs=-1, random_state=SEED,
-        early_stopping_rounds=50 if SMOKE else 200, verbosity=0,
+        early_stopping_rounds=50 if SMOKE else (100 if FAST else 200), verbosity=0,
     )
 
     # Per-fold checkpoint pattern (rehydrate-resilient): saves each fold's
