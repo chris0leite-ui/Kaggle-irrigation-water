@@ -120,6 +120,8 @@ def load_pool(extra_exclude: set[str] | None = None):
             continue
         if o.ndim != 2 or o.shape[1] != 3:
             continue
+        if o.shape[0] != 630_000:  # filter per-fold checkpoint artefacts
+            continue
         if (o.sum(1) < 1e-3).any():  # detect partial-fold artefacts
             continue
         pool[name] = (normed(o), normed(t))

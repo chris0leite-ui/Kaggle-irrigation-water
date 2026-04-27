@@ -64,7 +64,7 @@ Concrete rules for future GPU kernels:
 4. Prefer CPU pipelines. Most own-pipeline levers on this problem
    worked fine on 12-16 core CPU in under 2h wall.
 
-## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST
+## ⚠️ LB SUBMISSION RULE — ALWAYS ASK FIRST, NEVER LOOP
 
 **Never upload a submission CSV to Kaggle without explicit user
 confirmation for that specific submission.** Building candidate
@@ -76,6 +76,37 @@ expected LB outcome to the user and wait for a go-ahead before
 submitting. This rule applies even when a blend's OOF beats the
 current best — the LB is an adversarial split and OOF-to-LB
 calibration can drift.
+
+**Never wrap `kaggle competitions submit` in a retry / `until` /
+`while` / `for` loop, ever — even on transient errors (503, network
+timeouts, OAuth failures).** Every loop iteration is a NEW LB
+submission against the daily quota. On 2026-04-26 a `until ... |
+grep -q "successfully submitted"` retry loop with a case-mismatch
+in the success marker burned 4 redundant slots on
+`submission_v6_full_a350.csv` (07:09:31, 07:10:04, 07:14:44,
+07:15:22 — all returning the same deterministic LB 0.98012). 3 LB
+slots wasted because the loop's terminator never matched Kaggle's
+"Successfully submitted" capital-S string.
+
+Concrete rules going forward:
+1. **One submission per `kaggle competitions submit` invocation.**
+   Run the command exactly once, report the result, wait for next
+   user instruction. NEVER auto-retry on any failure.
+2. **If Kaggle returns a transient error (503 / network),** report
+   the error to the user verbatim and ask whether to retry. The
+   user decides if/when to retry, manually.
+3. **If a submission needs to be revised** (different α, different
+   weights, different CSV), build the new CSV locally, present the
+   diagnostic, and wait for a fresh user go-ahead. Each revision is
+   a separate one-shot submit invocation.
+4. **No Monitor / background loop / `until` / cron may include the
+   `kaggle competitions submit` command** — period. Monitors that
+   POLL submission status (read-only, e.g. `kaggle competitions
+   submissions -v`) are fine. Monitors that WRITE submissions are
+   forbidden.
+5. The cost asymmetry is severe: a wasted slot can't be recovered
+   today, and on the final day-of-deadline a wasted slot may cost
+   the competition. The cost of pausing and asking is zero.
 
 ## ⚠️ NEVER SUGGEST PUBLIC-CSV / OTHER-PEOPLE'S-SUBMISSIONS BLENDING
 
@@ -11835,6 +11866,245 @@ more folds / HP tuning" as a forward lever:
   - `scripts/score6_manifold_stage1e.py` (against actual primary)
   - `scripts/artifacts/score6_manifold_stage1{,b,c,d,e}_results.json`
 
+### 2026-04-26 — fresh-angles A+B+C trio (residual / rule-correct DAE / within-cell mixup): 3 NULLs, 12th saturation confirmation
+
+- Goal: user-requested execution of three fresh-perspective levers proposed
+  as the only mechanisms not yet exercised in the comp log. Each attacks the
+  magnitude-trap from a structurally distinct angle.
+
+- **Angle A — residual-correction XGB on (one_hot(y) − primary_softprob)**
+  (`scripts/angle_a_residual.py`, ~115 lines, 30 sec wall):
+  - LB-best primary reconstructed: `lb_best_3stack ⊗ xgb_metastack_iso α=0.30`
+    → OOF 0.98084 exactly (matches documented value, sanity-check passed).
+  - Residual XGB: 33 features = 28 dist + 3 primary probs + max_prob + entropy.
+    5-fold seed=42, three independent reg trees (one per class) on
+    sum-to-zero residual targets.
+  - α-sweep at fixed recipe bias [1.4324, 1.4689, 3.4008]:
+    ```
+    α       OOF       Δ vs primary baseline
+    0.000  0.98084   +0.00000   ← peak
+    0.025  0.98079   −0.00005
+    0.050  0.98076   −0.00008
+    0.100  0.98077   −0.00008
+    0.300  0.98084   −0.00000
+    0.500  0.98075   −0.00009
+    ```
+    Monotone-flat below baseline. Per-fold residuals range −0.00115 to
+    +0.00088 (cancel globally at any single shared α).
+  - **Verdict: NULL.** Per-row residual fits don't transfer to held-out
+    fold under macro-recall + fixed bias. Different folds want different
+    α; a global α can't satisfy all.
+
+- **Angle B — rule-correct-only autoencoder anomaly-score feature**
+  (`scripts/angle_b_dae.py` + `scripts/recipe_full_te.py DAE_EMBED_PATH`,
+  ~13 min DAE training + ~43 min recipe retrain):
+  - DAE config: 4-layer encoder-decoder MLP (in→64→64→16→64→64→out), GELU+
+    LayerNorm, 30 epochs, batch=2048, AdamW 1e-3, cosine schedule.
+    Trained on 588,712 rule-correct fit rows / 30,984 rule-correct val rows.
+    SwapNoise p=0.15 on numerics+cats during training.
+  - Reconstruction MSE separation: rule-correct mean 0.0646 (p99=0.16),
+    rule-flipped mean 0.0709 (p50=0.066). **Separation ratio 1.098×** —
+    real signal at row level but small magnitude.
+  - Recipe retrain with 1-d recon-error feature added to numerics (444
+    total features, otherwise identical to LB-best 0.97939 recipe pipeline):
+    ```
+    Per-fold argmax: 0.97565 / 0.97597 / 0.97695 / 0.97419 / 0.97506
+    Overall argmax: 0.97557 (recipe baseline 0.97589, Δ −0.00032)
+    Tuned bal_acc:  0.97955 (recipe baseline 0.97967, Δ −0.00012)
+    Bias:           [1.4324, 1.3689, 3.4008]   (High bias 3.40 = recipe's exactly)
+    ```
+  - Blend gate vs LB-best 4-stack (anchor 0.98084, errs 9415):
+    ```
+    standalone @ recipe bias:  errs 10042  (+6.7%)  Jaccard 0.828
+    per-class recall:          L 0.9949 (−0.0006) M 0.9680 (−0.0015) H 0.9756 (−0.0019)
+    α-sweep:                   0.98084 → 0.98025 (monotone-negative across α∈[0,0.5])
+    ```
+  - **Verdict: NULL** on both axes. The 1-d recon-error feature is
+    redundant with the recipe's existing 443 features (Jaccard 0.83 in
+    the redundancy zone), AND its standalone errors land +6.7% over
+    anchor with all three per-class recalls slightly worse. Same failure
+    mode as the 2026-04-24 128-d SwapNoise DAE on full train+test —
+    rule-correctness conditioning didn't unlock the orthogonal-error
+    profile we hoped for.
+
+- **Angle C — within-cell rule-disagreement mixup augmentation**
+  (`scripts/angle_c_mixup.py`, ~8 min wall, dist-feature base):
+  - 6-bit rule_cell packing (dry, norain, hot, windy, nomulch, kc_active)
+    → 64 cells. Per-cell pair construction: cap 4000 rows/cell, permute,
+    keep cross-class (y_i ≠ y_j) pairs only. Result: **8,299 within-cell
+    cross-class pairs** → K=3 β(0.4, 0.4) mixup → **24,897 mixup rows**.
+  - Mixup mechanism: convex combo on numerics, Bernoulli sampling on
+    cats by α, soft labels (1-α)·onehot(y_i) + α·onehot(y_j). Hard target
+    via argmax + sample_weight = soft_max for confidence attenuation.
+  - 5-fold seed=42 on dist-feature base (35 cols), per-fold filter to
+    only include mixup rows whose donors are both in tr_idx (~64% kept).
+    XGB: max_depth=4, max_leaves=30, lr=0.1, n_est=1500, reg_alpha=5,
+    reg_lambda=5, balanced sample_weight × confidence-weighted mix_w.
+  - Standalone results:
+    ```
+    Per-fold argmax: 0.96917 / 0.97079 / 0.97177 / 0.96930 / 0.97056
+    Overall argmax:  0.97032   tuned: 0.97136
+    Bias:            [2.232, 2.069, 2.601]  (sharper Low/Med than recipe;
+                                             milder High)
+    ```
+  - Blend gate vs LB-best 4-stack (anchor 0.98084, errs 9415):
+    ```
+    standalone @ recipe bias:  errs 20745 (+120% magnitude)
+    Jaccard vs anchor:         0.376  ← BEST tree-family orthogonality on this problem
+                                       (lower than NN families except KAN 0.13 / TabPFN-10k 0.21)
+    per-class recall:          L 0.9948 / M 0.9231 (−0.046!) / H 0.9791
+    α-sweep:                   peak α=0.025 Δ=+0.00000;
+                                monotone fall to α=0.5 Δ=−0.0021
+    ```
+  - **Verdict: NULL** — magnitude trap dominates. The mechanism IS alive
+    (Jaccard 0.376 is unprecedented for tree-family on this feature set),
+    but the dist-base XGB has 2.2× more errors than anchor, AND the
+    mixup pushes Medium predictions toward High aggressively (Medium
+    recall −0.046 vs anchor). The mixup mechanism would need a recipe-
+    base XGB (errs ~10k vs anchor's 9.4k) AND careful per-class
+    sample-weight balancing to thread the needle. Future-session retry
+    target: scale to recipe-base, run with Medium-protective sample
+    weighting (down-weight pairs that flip Medium-to-High by 0.3-0.5×),
+    and re-test the magnitude+per-class profile.
+
+- **12th independent saturation confirmation at LB 0.98094**:
+  ```
+  attack vector                                  best blend Δ vs LB-best 4-stack
+  ----------------------------------------------- -----------------------------
+  1. Tier 1c greedy expanded (132c)               +0.00002
+  2. Tier 1c meta-stacker v2 (224-dim)            +0.00002
+  3. Tier 1c meta-stacker XGB seed-bag            +0.00003
+  4. Cross-poll metastack v3                      +0.00015 (LB -0.00034)
+  5. J2 bootstrap-bagged metastack                +0.00003 (proj null)
+  6. LR meta-stacker v2 (C=0.1, none)             +0.00098 (LB -0.00042)
+  7. LR v2 + iso-after-blend                      +0.00000
+  8. v4 ET+kNN bank-extension                     +0.00036 (LB -0.00102)
+  9. P3 perturbed meta v1                         +0.00071 (LB -0.00139)
+  10. score=6 boundary deep-dive (5 stages)       +0.000086 (proj +0.000025 LB)
+  11. DROP_SCORES=0,1,2 + 4-stack saturation      +0.00017 (sub-gate)
+  12. **A residual / B DAE-recon / C mixup        +0.00000 across all three**
+  ```
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Per-row residual-correction models cannot transfer per-fold
+     residual signal under macro-recall + fixed bias.** Even with
+     leak-safe OOF residuals as targets, different folds want different
+     correction magnitudes; a single global α can't satisfy them.
+     The fix would require per-fold-α (which is selection-bias prone)
+     or per-row gating (already nulled via 2026-04-26 MoE experiment).
+  2. **1-dimensional anomaly-score features added to a saturated
+     443-feature recipe pipeline are absorbed without lift.** The
+     recipe's tree splits already capture rule-correctness through
+     factorized rule_pred + dist features + OTE on rule cells; an
+     external anomaly score is informationally redundant. Rule-
+     correct conditioning on the DAE training set didn't change
+     this — the conditioning narrows what the DAE learns but
+     doesn't widen the channel through which the recipe can use it.
+  3. **Within-cell rule-disagreement mixup IS a fresh orthogonality
+     mechanism (Jaccard 0.376 vs anchor)** but the magnitude trap
+     applies pre-emptively when the base model is significantly
+     weaker than the anchor. To use the mechanism: pair it with a
+     recipe-strength base AND per-class sample-weight balancing
+     that prevents the mixup from distorting majority-class probs
+     (here: Medium recall −0.046 was the killer).
+
+- LB delta: n/a (no submission warranted; all three sweeps strictly
+  negative or flat). LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. LB budget unchanged.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/{angle_a_residual,angle_b_dae,angle_c_mixup,angles_blend_gate}.py`
+  - `scripts/artifacts/oof/test_angle_a_residual{,_raw}.npy`
+  - `scripts/artifacts/oof/test_angle_b_recon.npy`
+  - `scripts/artifacts/oof/test_angle_c_mixup.npy`
+  - `scripts/artifacts/oof/test_recipe_full_te_dae.npy` (1-d recon variant;
+    overwrites prior 128-d SwapNoise DAE artefact)
+  - 4 results JSONs
+
+### 2026-04-26 — Angle-C follow-ups C2/C3a/C3b: closed family at NULL (recipe-base mixup on 4-stack anchor)
+
+- Goal: rescue Angle-C (within-cell mixup) from its dist-base magnitude
+  trap (errs +120%) by porting to the recipe pipeline. Three iterations:
+  - **C2**: recipe-base + drop M↔H pairs (Medium-protect) + confidence-
+    gate (primary max_prob<0.95, drops clean×clean) + K=1 + β(0.2, 0.2).
+    3,909 pairs → 3,909 mixup rows (~0.62% of train).
+  - **C3a**: same as C2 but DROP confidence-gate to test whether the
+    gate was a productive filter or redundant. 4,808 pairs (+899
+    clean×clean) → 4,808 mixup rows.
+  - **C3b**: same as C2 but K=3 (volume amplifier) instead of K=1.
+    3,909 pairs → 11,727 mixup rows (~3.4× more volume).
+- Standalone tuned OOF (recipe baseline 0.97967):
+  ```
+  variant   conf_gate   K    n_mix     OOF tuned   bias                   Δ vs C2
+  C2        0.95        1    3,909    0.97983     [0.83, 1.07, 3.20]     —
+  C3a       OFF         1    4,808    0.97944     [0.83, 0.97, 2.90]    -0.00039
+  C3b       0.95        3    11,727   0.97951     [1.03, 1.27, 3.40]    -0.00032
+  ```
+  - **C3a confirms conf-gate was productive**: removing it (adding 899
+    clean×clean pairs where both donors are confident) regresses
+    standalone tuned by −0.00039 vs C2. The gate was filtering noise.
+  - **C3b confirms K-volume doesn't unlock orthogonality at recipe
+    base**: 3× more mixup rows actually drops standalone, the extra
+    volume adds noise (more Beta-interpolated pseudo-points the
+    model has to absorb) without sharpening the boundary.
+
+- Unified blend-gate vs LB-best 4-stack (anchor OOF 0.98084, errs 9415):
+  ```
+  variant       errs vs anchor   Jaccard   bestα   Δ           emit
+  C  (dist+K=3)  +120%           0.376     0.025   +0.00000    N (magnitude trap)
+  C2 (recipe+gate+K=1) +6.4%     0.819     0.000   +0.00000    N (redundancy)
+  C3a (recipe -gate K=1) +5.7%   0.814     0.000   +0.00000    N (redundancy)
+  C3b (recipe gate K=3) +8.4%    0.809     0.025   +0.00004    N (sub-gate)
+  ```
+  - C3b is the FIRST C-variant where bestα > 0 (α=0.025, Δ=+0.00004).
+    Microscopic but technically positive — K=3 volume DOES add a tiny
+    sliver of orthogonal signal at very low blend weight. Two orders
+    of magnitude below the +0.0005 LB-probe threshold.
+  - **No LB submission warranted on any C-variant.**
+
+- **Closure conclusion**: the within-cell mixup mechanism is fundamentally
+  trapped between two regimes:
+  1. **Dist-base** (C v1): Jaccard 0.38 (excellent orthogonality) but
+     errs +120% (catastrophic magnitude trap).
+  2. **Recipe-base** (C2/C3a/C3b): Jaccard ~0.81 (in redundancy zone)
+     and errs ≤+8% (magnitude OK). The base is too similar to the
+     anchor (LB-best is built ON recipe), so mixup-induced perturbation
+     gets absorbed into existing splits rather than producing new
+     decision-surface geometry.
+  No mixup configuration we tested threads the (Jaccard < 0.80, errs ≤
+  +5%) blend-gate window. The mechanism is alive at the dist scale but
+  too weak; it's redundant at the recipe scale.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Confidence-gating mixup pairs is a productive filter, not
+     redundant overhead.** Removing the gate (allowing clean×clean
+     pairs where both donors have primary max_prob > 0.95) regressed
+     C3a's standalone OOF by −0.00039 vs C2. Mechanism: clean-confident
+     pairs encode redundant rule-aligned info that mixup interpolation
+     just smears across decision boundaries the model already has
+     correct. Always confidence-gate when the primary model is much
+     stronger than the mixup base.
+  2. **K-volume scaling on within-cell mixup hits diminishing returns
+     fast at recipe-base scale.** K=3 (3× pair multiplication) added
+     7,818 extra mixup rows but the standalone tuned OOF dropped
+     −0.00032 vs K=1. The first synthesized point per pair captures
+     the boundary perturbation; additional K samples from β(0.2, 0.2)
+     add noise (multiple α∈[0,1] re-weightings of the same donor pair)
+     rather than new geometric variation. Stick with K=1 unless mixup
+     volume relative to train pool is < 0.5%.
+
+- **13th independent saturation confirmation at LB 0.98094** (C-family
+  closure joins the 12 prior saturation entries documented above).
+
+- Artefacts (whitelisted in `.gitignore`):
+  - `scripts/angle_c2_helpers.py`, `scripts/angle_c2_recipe_mixup.py`
+    (parameterized via `OUT_SUFFIX`, `DROP_MH`, `CONF_THRESH`, `K_MIX`,
+    `BETA_A` env vars)
+  - `scripts/artifacts/oof_angle_{c2,c3a,c3b}_mixup.npy` + test (6 files)
+  - `scripts/artifacts/angle_{c2,c3a,c3b}_mixup_results.json`
+  - `submissions/submission_angle_{c2,c3a,c3b}_mixup.csv` (diagnostic,
+    not for LB probe)
+
 ### 2026-04-26 — combined v6 meta-stacker (#3+#4+#6 deep dive): LB 0.98059 = 11th saturation confirmation
 
 - Goal: user-requested deep dive on three structurally distinct levers added
@@ -12563,6 +12833,906 @@ other. Ranked by expected EV / cost:
   rule). With 15 NN nulls now in the log, the own-pipeline ceiling at
   LB 0.98094 is structurally exhausted across architecture classes.
 
+### 2026-04-26 — RealMLP n_ens=2 @ FULL n_epochs=40: NULL, RealMLP variance floor structural at n_ens=1
+
+- Goal: one-shot diagnostic between the two hypotheses for n_ens=4's NULL
+  (CLAUDE.md 2026-04-25 RealMLP retry):
+  (a) **under-convergence** — n_epochs=25 was forced by the 1h Kaggle GPU
+      cap with 4 BatchEnsemble heads; each head saw less gradient than
+      the n_ens=1 working config's 40 epochs.
+  (b) **variance floor** — n_ens=1 already at the per-row variance floor
+      on this feature set, so additional heads add bias drift (per-head
+      converges to slightly different local minima → averaging them
+      moves the prediction surface AWAY from the floor) rather than
+      useful variance reduction.
+  Approach: n_ens=2 with FULL n_epochs=40, fitting cleanly under the 1h
+  cap. Beats n_ens=1 → (a). Plateaus at n_ens=1 → (b).
+- Changed: `kaggle_kernel/kernel_realmlp_ens2/` (mirrors `kernel_realmlp_ens4`
+  scaffold; only `n_ens=2, n_epochs=40` differ from ens4's `n_ens=4, n_epochs=25`),
+  `scripts/blend_realmlp_ens2.py` (3-stack blend gate vs n_ens=1, partial-
+  OOF aware, auto-emit submission only if 3-stack OOF > anchor 0.98061 +
+  +2e-4 LB-transfer threshold). SMOKE-first discipline enforced.
+- SMOKE (Kaggle v1, IS_SMOKE=True, 2-fold × 20k × 3 epochs): GREEN in
+  ~3.3 min wall, GPU used (cuda), pytabkit + lightning installed cleanly.
+- Production (Kaggle v2, IS_SMOKE=False, 5-fold × 504k × 40 epochs): all
+  5/5 folds completed inside the 55-min hard kill budget.
+- **Standalone results** (5-fold OOF, seed=42):
+  ```
+                          n_ens=1  n_ens=2  Δ
+  per-fold argmax mean    0.97055  0.96951  -0.00104
+  tuned OOF               0.97633  0.97583  -0.00050
+  errs at recipe bias     10472    10901    +429
+  Jaccard vs LB-best 3-way 0.6206  0.6173   ~tied (both still
+                                              best-in-class NN ortho)
+  log-bias                [1.2324, [1.3324,  ~tied
+                           1.4689,  1.3689,
+                           3.4008]  3.4008]
+  ```
+  n_ens=2 with full epochs is **strictly worse** than n_ens=1 at every
+  level. σ across folds remains ~0.001 (similar to n_ens=1) — not the
+  signature of a converging-but-incomplete run; it's the signature of
+  a different attractor.
+- **3-stack peak** (LB-best 3-way + RealMLP@α + nonrule_iso@0.075,
+  fixed recipe bias):
+  ```
+                  n_ens=1                n_ens=2
+  best α          0.200                  0.250
+  3-stack OOF     0.98061                0.98054   (-0.00007)
+  3-stack errs    9572                   9601      (+29)
+  ```
+  Even at the best α, the 3-stack falls 0.00007 below the n_ens=1
+  3-stack — well under the +2e-4 LB-transfer emit gate. Strict null.
+- **Verdict: hypothesis (b) variance floor is correct.** n_ens=1
+  already sits at the relevant local minimum for this feature set + 40
+  epochs. Adding more heads (whether at full or reduced epochs) doesn't
+  help because they converge to **different** local minima — the average
+  is a bias-shifted blend, not a variance-reduced ensemble. Same root
+  cause as n_ens=4's NULL; just confirmed cleanly with full-epoch
+  budget for the first time.
+- Implication: drops the previously-suggested overnight `n_ens=4 @
+  n_epochs=40` follow-up. Same mechanism would produce the same NULL.
+  RealMLP family fully closed across n_ens ∈ {1, 2, 4}; n_ens=1 is
+  the only configuration that ever transferred (LB +0.00003 in
+  3-stack, 2026-04-24).
+- LB delta: n/a. No LB probe (gate failed cleanly). LB-best unchanged
+  at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- **Two portable rules** (logging to LEARNINGS.md):
+  1. **BatchEnsemble at fixed feature set + capacity has a variance
+     floor that scaling n_ens past 1 cannot break.** When n_ens=1
+     produces a model already converged at the relevant SGD minimum,
+     additional heads converge to nearby but distinct minima; the
+     ensemble average shifts the prediction surface in bias space
+     rather than reducing per-row variance. Test the variance-floor
+     hypothesis with `n_ens=2 @ full_epochs` BEFORE planning longer
+     `n_ens=4` runs — if n_ens=2 already plateaus or regresses, the
+     entire ensemble dimension is closed for this feature set.
+  2. **NN-family lever-existence cost ≤ 1h GPU when SMOKE-first
+     discipline is enforced.** The end-to-end loop (commit kernel
+     scaffold → SMOKE push → flip IS_SMOKE flag → production push →
+     pull artifacts → run blend gate → commit) takes ~70-90 min total
+     calendar time on a 50-min production wall. SMOKE catches
+     install-path / dataset-path / GPU-init bugs in ~5 min, not in
+     a 55-min wasted production run.
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `kaggle_kernel/kernel_realmlp_ens2/` (kernel + metadata + README)
+  - `scripts/blend_realmlp_ens2.py`
+  - `scripts/artifacts/oof_realmlp_ens2.npy` (7.2 MB, 5-fold OOF)
+  - `scripts/artifacts/test_realmlp_ens2.npy` (3.1 MB)
+  - `scripts/artifacts/realmlp_ens2_results.json`
+  - `kaggle_kernel/output_realmlp_ens2/irrigation-realmlp-ens2.log`
+
+### Next steps: senior-DS EDA proposals (2026-04-26)
+
+Fresh-eyes EDA over the LB-best 4-stack confusion + 17-component OOF
+disagreement structure surfaced one **measured-orthogonal residual
+signal** + two structurally-untried mechanisms. Findings:
+
+- Aggregate stats over the 60+ saved OOFs (per-class mean/std/max/
+  min/median, entropy of mean-prob, argmax disagreement count) carry
+  AUC 0.91 standalone for missed-H detection in the pred=Med override
+  domain. **Aggregate ⊥ existing meta-stacker AUC = 0.6714** — that's
+  measured residual signal beyond what the 63-component depth-4 meta-
+  XGB extracts.
+- `xgb_nonrule` is the most-orthogonal leg in the bank (corr ≤ 0.13
+  with mamba/kan, ≤ 0.30 with all others on P(High)). Used at α=0.075
+  in primary; signal extraction bounded.
+- Score=3 M→L errors (4303 = 45.7% of total): Cohen's d=+0.27 on
+  Soil_Moisture, +0.09 on Rainfall_mm. Within-bucket SINGLE-feature
+  AUCs are weak (0.43-0.48) — model needs interactions.
+- Score=6 missed-H vs found-H: Cohen's d on Rainfall +0.43, SM −0.29,
+  Temp −0.24. Strong RAW-feature distinguishability, not just
+  teacher_PH (contradicts the 2026-04-26 stage-1d "feature-
+  indistinguishable" finding when restricted to z-distance from
+  teacher_PH).
+- Direct-override path remains closed: top-K precision in pred=Med
+  override domain peaks at 4.3% vs break-even 8.1%. Same magnitude
+  trap as J7 conformal closure.
+
+**Three executable proposals** (ranked by EV / cost / mechanism novelty):
+
+  **P1. Aggregate-stats meta-stacker v6** (top pick, ~10 min CPU).
+  Re-train tier1b-style heavy-reg XGB meta-stacker on existing 63-
+  component bank PLUS 22 aggregate features computed across the bank:
+  per-class {mean, std, max, min, median} (15) + entropy of mean-prob
+  (1) + per-row argmax disagreement count (1) + per-class skew across
+  components (3) + pair-margin variance (2). Distinct from every prior
+  meta variant (v1-v5, LR, J2 bagged) — all extended via per-component
+  features; none added bank-aggregate stats. Iso-cal + blend into LB-
+  best 3-stack at α=0.30. Gate: standalone iso ≥ 0.98080, errs ≤ 9550,
+  per-class recall ≥ [0.9950, 0.9690, 0.9770]. Expected: +0.0001 to
+  +0.0004 OOF, LB-transfer ~30-50%, realistic upside 0.98098-0.98114.
+
+  **P2. Bucket-aware soft-blend with FE-targeted heads** (~30 min CPU).
+  Two binary specialists with FE matched to today's empirical Cohen's
+  d patterns:
+    - score=3 head: P(y=Med | x), features = recipe + log(SM/25), log
+      (Rainfall/300), Humidity·SM, Humidity·PrevIrrig, sample_weight
+      tuned for Med minority.
+    - score=6 head: P(y=High | x), features = recipe + log(SM/25), log
+      (Rainfall/300), Soil_pH−6.5, Wind−10, Rainfall·Temp_C.
+  Deploy as **soft logit-add** into LB-best 4-stack class column for
+  that bucket only (NOT hard override — precision floor 39% for L↔M
+  unreachable, 8% for M↔H borderline). λ tuned via fixed-bias macro-
+  recall + per-class recall guardrail.
+  Expected: +0.0001 to +0.0005 OOF, LB-transfer ~40%. Risk: prior
+  spec_3 was null on plain dist features; differentiator is engineered
+  FE matching the +0.27 Cohen's d signal + soft mixing.
+
+  **P3. Counterfactual rule-instability features + retrain primary**
+  (~80 min CPU). For each row, compute `rule_instability` = number of
+  flips in `dgp_score` under {±2%, ±5%, ±10%, ±20%} × {SM, Rain, Temp,
+  Wind} = 32 perturbations + 4 axis-specific instabilities = 5 new
+  features. Captures multi-axis simultaneous closeness to ANY rule-
+  cell boundary — distinct from existing per-axis distances. Add to
+  recipe → retrain → add to meta-stacker bank. Expected: +0.0001 to
+  +0.0005 OOF. Risk: recipe FE additions saturated at Jaccard 0.83+
+  in 6 prior tests; differentiator is cell-topology instead of feature
+  values.
+
+  **P4. Honorable mention — original-NN-distance features** (~1h CPU,
+  deferred). FAISS k-NN distance from each synth row to 10k-original
+  rows. 4 features: min/mean dist, fraction of NN with Med/High labels.
+  Run only if P1-P3 all yield <+0.0001.
+
+  **P5. Honorable mention — orthogonality-weighted greedy** (~10 min
+  CPU on saved OOFs). Diversity-aware step rule: rank candidates by
+  (OOF Δ at α*) × (1 − max-Jaccard-with-existing). Sanity check on
+  CMA-ES saturation claim; will likely confirm.
+
+**Execution order**: P1 first (cheapest + strongest measured residual
+signal). If P1 lifts ≥ +0.0001 OOF AND passes per-class guardrail,
+LB-probe. If null, P3 next (mechanism most distinct from prior nulls).
+P2 last among the three. Lock final-selection unchanged until P1-P3
+produce LB-validated lift. Reserve ≥4 LB submissions for end-of-comp
+variance check (3 days to deadline 2026-04-30).
+
+**Skip on principled grounds** (already exhausted):
+- Further meta variants (v6 with same component features, LR with
+  different HPs, J2 at fraction ≠ 0.5) — saturated.
+- Direct missed-H override at any threshold — break-even precision
+  unreachable in the override domain (top-K caps at 4-7%).
+- Public-CSV blending (banned by top-of-file rule).
+
+### Next steps: post-13th-saturation brainstorm (2026-04-26 evening)
+
+After P1 v6_full (LB 0.98012, regress), P1 v6_lbpool (NULL G4),
+P3 instability (NULL G4), and P2 bucket FE specialists (NULL G2/G4)
+all closed today, this is the 13th independent saturation
+confirmation at LB 0.98094. The Pareto frontier interpretation
+held: P2's score=6 specialist hit competition-record AUC 0.852
+within bucket but got λ_6=0 weight in the soft-logit-add — H
+boundary signal is fully absorbed by the LB-best 4-stack at the
+operating point. Per the "NEVER GIVE UP" rule, 5 NEW mechanisms
+not yet on the hypothesis board:
+
+  **A. Boundary-confined TTA** (top pick, ~30 min CPU). Re-attempts
+  the 2026-04-24 P1 TTA, which closed with the rule "perturbation
+  noise scales with N (far-row noise) while boundary-smoothing gain
+  scales with ~2% boundary fraction." Identify boundary rows via
+  `max_prob(LB-best 4-stack) < 0.95` (~5-10% of N). Gaussian σ × IQR
+  perturbation on the 4 rule-axis numerics (Soil_Moisture,
+  Rainfall_mm, Temperature_C, Wind_Speed_kmh) ONLY for those rows,
+  K=10 perturbations. Recompute recipe FE on perturbed rows
+  (sm_dist/abs, rule flags, dgp_score, axis-specific digit features).
+  Run frozen fold booster, average. Replace OOF only at boundary
+  rows; non-boundary OOF stays identical to vanilla recipe.
+  Mechanism: noise/signal ratio inverts vs prior TTA — noise scales
+  with K × n_boundary (~5% of N) instead of K × N. Closes the
+  prior TTA rule definitively.
+  Cost ~30-50 min CPU (recipe rerun with TTA hook in val-prediction
+  step). Helper file `scripts/mech_a_btta.py` already scaffolded
+  with `boundary_mask` / `axis_iqrs` / `perturb_axes` /
+  `recompute_axis_dependent_features` and a 3-row smoke pass.
+  Decision gate: G1-G4 same as P1/P3, but compute on the recipe-leg
+  substituted into the LB-best stack reconstruction.
+
+  **B. Anchor-uncertainty-weighted re-training** (~50 min CPU).
+  Inverse of cleanlab confident-learning (which DOWN-weighted
+  ambiguous rows and produced NULL): use
+    `sample_weight[i] = 1 + α × (1 − max_prob_LB4stack[i])`
+  with α ∈ {1, 2, 5}. Up-weights boundary rows where the anchor is
+  uncertain. Train recipe XGB on this — focuses model capacity on
+  anchor's weak regions. Resulting OOF should have orthogonal errors
+  specifically AT boundary rows by construction. Different from
+  cleanlab (which interpreted uncertain rows as label noise — they
+  are deterministic NN flips per 2026-04-21 EDA). Expected upside
+  +0.0002-0.0008 OOF if boundary rows have learnable structure
+  the anchor missed; null if anchor already saturates the boundary.
+
+  **C. Synthetic rule-only label augmentation** (~70 min CPU).
+  Different from SMOTE-NC (which interpolated minority class and
+  was LB-regressive 2026-04-25) and cleanlab-relabel (which removed
+  ambiguous rows). Sample 100k feature vectors via stratified
+  resample of train's joint distribution. Apply the deterministic
+  DGP rule to generate rule-perfect labels (no NN flips) on these
+  synthetic rows. Concat to training, retrain recipe XGB on
+  augmented 730k rows. Mechanism: anchors recipe XGB more strongly
+  on the rule's core, freeing model capacity for within-cell flip
+  variation. Synthetic rows have NO label noise → regularize
+  toward the rule baseline. Risk: distorts calibration of the flip
+  signal. Expected +0.0001-0.0005 OOF.
+
+  **D. Per-row attention over component bank** (~30 min CPU).
+  Different from MoE (K=6 experts, NULL via collapse to fixed
+  weights, 2026-04-26): per-row attention over the FULL 60+
+  component bank. For each row, learn a 60-dim weight vector via
+  a small attention layer. Input: row's distance features +
+  dgp_score + LB-best 4-stack probs. Output: softmax over 60
+  component weights. Loss: macro-recall surrogate at fixed bias.
+  Expected +0.0001-0.0003 OOF if there is row-conditional
+  component preference the heavy-reg meta-stacker misses; null
+  if the meta already learned this internally.
+
+  **E. Fuzzy-threshold rule features** (~50 min CPU). Different
+  from P3 instability (count of cell-flips under perturbation,
+  NULL on G4 because redundant with hard-threshold features).
+  This adds CONTINUOUS sigmoid soft transitions rather than
+  discretized aggregates: `fuzzy_dry = sigmoid((25 − sm) / τ)` for
+  τ ∈ {0.5, 1.0, 2.0, 5.0} and same for the 3 other axes = 16
+  fuzzy features. Captures continuous transition near rule
+  boundaries that hard `sm < 25` indicators discretize. The XGB
+  at depth 4 sees finer resolution than its discrete splits
+  naturally provide. Expected +0.0001-0.0003 OOF; likely null per
+  P3 redundancy pattern but with a different mechanism (smooth
+  surrogate vs discrete count).
+
+**Execution priority** (EV/cost ranking):
+  1. A (Boundary-confined TTA) — top pick, cheapest, diagnostic
+     value high (closes prior TTA rule definitively). Helper
+     scaffolded as `scripts/mech_a_btta.py`.
+  2. B (Uncertainty-weighted retrain) — highest upside, novel
+     mechanism (inverse of cleanlab).
+  3. D (Per-row attention) — fast, mechanism orthogonal to MoE
+     because it spans full bank with row-conditional gates.
+  4. C (Synthetic rule-only aug) — high upside, high downside
+     risk on calibration.
+  5. E (Fuzzy thresholds) — likely redundant per P3 pattern
+     but cheap; useful as last sanity check before locking
+     final selection.
+
+If A clears the gate, follow with B as compounding lever. If A
+nulls, B remains the highest-upside untried lever. If both A + B
+null, lock the final selection (3 days to deadline; reserve 4
+remaining LB probes for end-of-comp variance check).
+
+### 2026-04-26 — senior-DS EDA proposal sprint: 5 NULLs + triple Pareto-frontier confirmation
+
+Senior-DS-style fresh EDA over the LB-best 4-stack confusion +
+17-component OOF disagreement structure surfaced one measured-
+orthogonal residual signal (aggregate stats over the bank carry AUC
+0.67 ⊥ existing meta-stacker) and three structurally-untried
+mechanisms. All three EDA proposals (P1/P2/P3) plus two follow-up
+brainstorm mechanisms (B/D) closed NULL — bringing total
+saturation confirmations to 15. The Pareto-frontier interpretation
+is now triple-verified across all three axis-violation directions.
+
+**P1 v6 aggregate-stats meta-stacker (NULL + LB regress):**
+- 22 bank-aggregate features added on top of tier1b's 62-component
+  meta-stacker pool. v6_lbpool restricted to the EXACT 62-component
+  LB-best v1 pool isolated the aggregate-feature lever from any
+  bank-extension effect.
+- v6_lbpool: standalone iso 0.98065 (Δ +0.00006), blend Δ peak
+  +0.00002 — sub-gate.
+- v6_full (108-pool + aggregates): standalone iso 0.98073, errs
+  8572 (-472 vs v1), Jaccard 0.928 with LB-best 4-stack at peak α
+  (lowest meta-variant Jaccard ever). Blend peak Δ +0.00037 OOF
+  at α=0.35. G3 fails High recall by 0.00012; user override
+  authorized LB probe → **LB 0.98012, Δ -0.00082** (8th LB
+  regression matching the bank-extension OOF→LB inflation pattern).
+- 4 redundant submissions burned by case-sensitive
+  `until ... | grep -q "successfully submitted"` retry loop —
+  Kaggle CLI prints capital-S "Successfully" so loop never matched.
+  Cost: 3 wasted slots from 10/day budget. Updated CLAUDE.md
+  ⚠️ LB SUBMISSION RULE with 5 sub-rules ("never wrap submit in
+  any retry/until/while/for/background loop, period"). LEARNINGS.md
+  now documents the rule with case-insensitive grep noted as
+  insufficient (pipe SIGPIPE / output mismatch / typo can re-leak).
+
+**P2 bucket-aware FE specialists (NULL):**
+- Two binary heads with FE engineered for the 2026-04-26 Cohen's d
+  patterns:
+    score=3 head (target=Medium): bucket-OOF AUC 0.74308
+    score=6 head (target=High):   bucket-OOF AUC 0.85177
+  The score=6 AUC is a competition record (prior best was the
+  2026-04-26 stage-1d teacher-residual specialist at 0.79).
+- Soft logit-add 2D sweep over (λ_3, λ_6): peak at λ_3=0.20,
+  **λ_6=0.00** (zero weight on the AUC-0.85 specialist!). At every
+  λ_6 > 0 the H-recall trade-off pushes the LB-best 4-stack PAST
+  its operating-point optimum. Best feasible Δ = +0.00006 OOF, fails
+  G2 (errs +20) and G4 (Δ < +2e-4).
+- This is the cleanest possible Pareto-frontier proof: the strongest
+  in-bucket H-detector ever built provides ZERO contribution to a
+  stack already at the rare-class corner of the macro-recall frontier.
+
+**P3 counterfactual rule-instability features (NULL):**
+- 5 features added to recipe FE: `rule_inst_{sm,rf,tc,ws}` (per-axis
+  flip count under {±2%, ±5%, ±10%, ±20%} perturbation) +
+  `rule_instability` (total).
+- Standalone passes G1+G2: iso 0.97931 (+0.00005 vs vanilla 0.97926),
+  errs 9244 (-22). Blend MONOTONE NEGATIVE from α=0.05 (G4 fails).
+- Mechanism: discretized aggregate of features the recipe XGB already
+  has at finer resolution (signed sm_dist + abs sm_abs + binary
+  dry/norain/hot/windy + dgp_score). Trees at depth 4 / max_bin 1024
+  / 3000 rounds express the instability count via joint splits
+  internally. Same null pattern as 2026-04-20 LGBM+FE (Δ -0.00052)
+  and 2026-04-21 rule×nonrule pairwise FE (Δ -0.00007). Tree feature
+  redundancy: prebuilt aggregates of features the model already has
+  at higher resolution add no information regardless of physical
+  motivation.
+
+**Mech B anchor-uncertainty-weighted recipe (NULL):**
+- ANCHOR_WEIGHT_ALPHA=2 hooked into recipe_full_te.py:
+    sw = balanced(y) × (1 + 2 × (1 − max_prob_LB4stack[i]))
+  Compound max weight 19.997× on rare-class × most-uncertain rows.
+- Inverse of cleanlab confident-learning (which DOWN-weighted
+  ambiguous rows). 2026-04-21 DGP residuals EDA established the
+  uncertain rows are deterministic NN flips, not label noise.
+- Per-fold val argmax: 0.97493/0.97621/0.97695/0.97461/0.97458,
+  **all 5 folds negative** vs vanilla recipe. OOF argmax
+  Δ -0.00043, tuned Δ -0.00003 (bias retune compensates).
+- Standalone iso 0.97946 (+0.00020 vs vanilla 0.97926, passes G1)
+  but errs 9349 (+83 vs vanilla 9266, fails G2). PCR shift:
+  Low +0.00002, Med -0.00046, **High +0.00105** — genuine
+  Med→High trade.
+- Substitution test (replace recipe in lb3): new 4-stack OOF
+  0.98077 (Δ -0.00008 vs lb4); High recall in stack 0.97715 vs
+  lb4's 0.97749 (-0.00034). Gain consumed by stack.
+- Blend sweep monotone-negative from α=0.05. EMIT False (g2=F,
+  g4=F).
+- Diagnosis: Mech B genuinely shifts the per-class balance toward
+  more High at standalone level. But the LB-best 4-stack already
+  chose this Med→High operating point via log-bias coord-ascent.
+  Adding a model with even more aggressive Med→High trade pushes
+  the stack PAST the macro-recall optimum.
+
+**Mech D per-row attention over bank (NULL):**
+- Architecture: context (15d) → MLP(64) → softmax(62) attention
+  weights → convex blend over the LB-best v1's 62-component bank.
+  ~8000 params. Trained 5-fold seed=42, 30 epochs Adam lr=1e-3, CE.
+- Per-fold val argmax 0.97232-0.97423 (best per fold). Total wall
+  130s. OOF argmax 0.97393, raw tuned 0.98028, iso tuned 0.98032 —
+  BELOW LB-best 4-stack's 0.98084 by 0.00056. G1 fails.
+- PCR vs LB-best 4-stack: Low -0.00009, **Med +0.00252** (gain),
+  **High -0.00400** (lose). Wrong Pareto direction.
+- Cross-entropy loss optimizes per-row log-likelihood, which under
+  class imbalance favors confident predictions on the majority
+  class. Without an explicit macro-recall surrogate, the convex-
+  blend constraint collapses toward Medium predictions.
+- Confirms CMA-ES result (in-sample upper bound 0.98091 is just
+  +0.00007 above LB-best): even row-conditional convex blends
+  cannot exceed the global optimum on this OOF bank when optimized
+  via CE loss.
+
+**Triple Pareto-frontier confirmation (the load-bearing finding):**
+The LB-best 4-stack at log-bias [1.4324, 1.4689, 3.4008] sits at
+the EXACT macro-recall optimum on the per-class operating-point
+Pareto frontier. Verified across all three axis-violation
+directions:
+```
+direction        mechanism             Δ standalone    Δ LB
+─────────────  ───────────────────  ─────────────  ──────────
+↓High, ↑L+M    P1 v6_full           +0.00037       LB 0.98012 (-0.00082)
+↓Med, ↑H+L     Mech B α=2           +0.00020       null in stack
+↓High, ↑Med    Mech D               -0.00056       null in stack
+```
+Any convex re-arrangement of the existing 60+ component OOF bank
+moves AWAY from this optimum. The 15 saturation confirmations
+since 2026-04-25 are not 15 different ceilings — they are 15
+different confirmations of the SAME ceiling, viewed through
+different mechanisms.
+
+**Brainstorm scoreboard after this session:**
+```
+A. Boundary-confined TTA          untried (~90 min CPU, helper scaffolded)
+B. Anchor-uncertainty retrain     NULL (this entry)
+C. Synthetic rule-only aug        untried (~70 min CPU)
+D. Per-row attention              NULL (this entry)
+E. Fuzzy-threshold rule features  untried (~50 min CPU)
+```
+
+LB best unchanged at **0.98094** via
+`submission_tier1b_greedy_meta.csv`. LB budget 6/10 used today
+(4 remaining; 4 of the 6 were the v6_full retry-loop bug, only
+2 net-useful probes). Final-selection lock recommendation:
+PRIMARY = LB 0.98094, HEDGE = `submission_3way_recipe025_s1035_s7040.csv`
+(LB 0.98005, sidesteps meta-stacker layer for orthogonal overfit
+insurance).
+
+Two final-selection days reserve 4 LB submissions for end-of-comp
+variance check. Mech A is the only mechanism left that operates by
+SMOOTHING boundary rows rather than re-blending components — different
+failure mode from B/D's convex-blend collapse. If A nulls, lock
+final selection.
+
+**Portable rules logged to LEARNINGS.md (or candidate adds):**
+1. NEVER wrap kaggle competitions submit in any retry / until /
+   while / for / background loop, period. Cost asymmetry too severe.
+   Read-only polling of submissions list is fine; only WRITE command
+   forbidden.
+2. Pareto-frontier closure on this problem is now triple-verified;
+   any candidate that trades Med↔High in EITHER direction at the
+   standalone level fails the LB-best 4-stack stack-level operating
+   point. Diagnostic: compute per-class recall delta vs LB-best 4-stack.
+   If any class drops by ≥ 0.0005, the candidate is a Pareto violator.
+3. Per-row attention over a saturated component bank with CE loss
+   collapses toward majority-class predictions. To use row-conditional
+   blending productively, the loss must be macro-recall-aware OR the
+   bank must include components NOT yet at the Pareto frontier.
+4. Tree feature redundancy is a structural property: aggregate
+   features (instability counts, decimal-position digits, etc.) of
+   inputs the model already has at finer resolution add NO signal
+   regardless of physical/mechanism motivation. Recipe XGB at depth=4
+   max_bin=1024 expresses these aggregates internally via joint
+   splits.
+
+### 2026-04-26 — research-competition-strategies session: external-grandmaster review
+
+- Goal: web-search the broader Kaggle / NVIDIA-grandmaster body of work
+  to surface mechanisms not yet on our hypothesis board. Specific
+  targets: Chris Deotte's published 1st-place writeups (he's also our
+  rank-1 leader at LB 0.98219), the NVIDIA grandmaster blogs, recent
+  s5e11/s5e12/s6e3 1st-place writeups, Matt-OP's hillclimbers package.
+- **What I read** (sources verified, content quoted in next-steps below):
+  1. NVIDIA "7 Battle-Tested Tabular Modeling Techniques" — diverse
+     baselines / large-scale FE / hill climbing / stacking /
+     pseudo-labeling / extra training / smarter EDA.
+  2. NVIDIA "Stacking with cuML" (cdeotte s5e4 podcast 1st place) —
+     3-level stack, OOF confidence/consensus features, predict-direct
+     vs ratio vs residual vs missing as diversity formulations.
+  3. NVIDIA "FE with cuDF pandas" (cdeotte 1st place backpack prices)
+     — generate 10,000+ features via groupby × stat × column combos,
+     distribution buckets, quantile features, digit extraction, then
+     forward-select the best ~500.
+  4. NVIDIA "LLM-Assisted Winning" (s6e3 customer churn 1st place,
+     2026-03) — 4-level stack of 150 models from 850 experiments;
+     GBDT/NN/Ridge/LR stackers in parallel, then pick best.
+  5. Matt-OP/hillclimbers GitHub — concrete `climb_hill()` with
+     `precision=0.001`, `negative_weights=True` option, custom
+     metric via `partial()`. More permissive search than our greedy.
+  6. Kaggle s5e11 / s5e12 / s6e3 1st-place writeups exist (cf-blocked
+     content; titles confirm "Hill Climbing + Ridge Ensemble" and
+     "lot of features, lot of models" patterns).
+
+- **Cross-checked against our log** — these mechanisms are CLOSED:
+  - Predict-residual / predict-ratio (Angle A NULL: per-fold residuals
+    cancel; argmax-equivalence theorem closes 10k-rule residual).
+  - OOF confidence/consensus features as meta inputs (v6 NULL +
+    LB regress).
+  - Multi-round pseudo-labeling, soft-distillation (closed across
+    capacity sweep).
+  - Predict-missing-features (J3/AV nulled — features independent
+    in DGP, R² < 0.05).
+  - Heavy-reg XGB / LGBM / CatBoost on recipe (saturated tree-family
+    diversity at Jaccard ≥ 0.78).
+
+- **Genuinely UNTESTED mechanisms (this session's contribution)**:
+  These four are not subsumed by any of the 15+ saturation
+  confirmations in this log; each has a structurally distinct failure
+  mode from prior nulls.
+
+  **C. Distillation student on a DIFFERENT feature view**
+  (~30 min CPU, executed first per EV/cost). Train a fresh XGB on
+  LB-best 4-stack's hard pseudo-labels using a feature subset that
+  EXCLUDES rule-derived features (no `dgp_score`, no rule indicators,
+  no signed-distance features, no `rule_pred`, no logit_P_*). Trees
+  forced to discover the LB-best decision surface from a different
+  basis → potentially Jaccard < 0.80 with primary. Distinct from
+  prior soft-distill nulls because (a) hard-label not soft-target,
+  (b) feature-restricted not capacity-restricted.
+
+  **D. Matt-OP-style hill climb with negative_weights=True**
+  (~30 min CPU). Use `climb_hill()` with `precision=0.001` and
+  `negative_weights=True` on the full ~70-component bank, custom
+  metric = balanced_accuracy_score at fixed bias. Distinct from our
+  greedy log-blend (α∈[0,0.5] precision 0.005, no negative weights).
+  Negative weights let the optimizer SUBTRACT components that are
+  anti-correlated in some region — a strictly more flexible search.
+
+  **B. L3 weighted average of TWO L2 metas (XGB-meta + small NN-meta)**
+  (~30 min CPU). Same 63-component bank that produced LB-best v1
+  meta-stacker. NN-meta on 200-dim input is a much smaller capacity
+  fit than NN-on-recipe (which 15 NN-on-recipe nulls have closed).
+  cdeotte's specific recipe is "GBDT + NN at L2, weighted average
+  at L3". We've tested LR-meta (NULL) and XGB-meta (LB-best) but
+  never blended XGB-meta with a small NN-meta at L3.
+
+  **A. Wide programmatic FE (5,000+ features, forward-select ~500)**
+  (4-6 h CPU, only if A/B/C/D leave headroom). Programmatically
+  generate: all C(20,2) cat-pair × {mean,std,count,nunique,skew,
+  min,max} stat combos, distribution buckets per groupby, quantile
+  features `[5,10,40,45,55,60,90,95]`, all decimal-fraction features,
+  all binnings at multiple resolutions. Forward-select top 500 by
+  per-fold gain. Recipe is at ~440 hand-designed features; cdeotte's
+  1st-place backpack-prices mechanism is "go *wide*, then prune".
+  We've added FE incrementally (utaazu 16 cols, rohit8527 176 cols,
+  instability 5 cols) — never the wide-scan-then-cut pattern.
+
+- **Decision rule for this session** (4 days to deadline, 6 LB slots):
+  Run C → D → B → A in order. Each has its own blend gate (Jaccard <
+  0.80 AND errs ≤ 1.05 × anchor AND per-class recall ≥ anchor − 5e-4).
+  LB probe ONLY if blend OOF Δ ≥ +2e-4 vs LB-best 4-stack AND gate
+  passes AND user explicitly approves. Lock final-selection if A/B/C/D
+  all null.
+- Sources logged for cross-branch reference:
+  - <https://developer.nvidia.com/blog/the-kaggle-grandmasters-playbook-7-battle-tested-modeling-techniques-for-tabular-data/>
+  - <https://developer.nvidia.com/blog/grandmaster-pro-tip-winning-first-place-in-a-kaggle-competition-with-stacking-using-cuml/>
+  - <https://developer.nvidia.com/blog/grandmaster-pro-tip-winning-first-place-in-kaggle-competition-with-feature-engineering-using-nvidia-cudf-pandas/>
+  - <https://developer.nvidia.com/blog/winning-a-kaggle-competition-with-generative-ai-assisted-coding/>
+  - <https://github.com/Matt-OP/hillclimbers>
+
+### 2026-04-26 — execution of C/D/B from GM-research session: B PASS (Δ +0.00033 OOF gate), D NULL (Pareto violation), C in flight
+
+- Goal: execute the four mechanism-novel levers documented above (C → D
+  → B → A) as a sequenced experiment battery.
+- Branch: `claude/research-competition-strategies-GzR6R`. Container
+  rehydrates kill detached processes within ~5 min idle, much faster
+  than the CLAUDE.md "~2h" estimate. Per-fold checkpointing + per-step
+  hillclimb state added so all three scripts are now resilient
+  (whitelisted `oof_*_fold{n}.npy`, `test_*_fold{n}.npy`, and
+  `hillclimb_state.npz` in .gitignore).
+
+- **B — L3 weighted XGB-meta + MLP-meta — GATE PASSED ✓** (single
+  experiment to clear the strict +2e-4 OOF gate this session):
+  - `scripts/meta_l3_xgb_mlp.py` — small MLP `[128, 64, 32]` on the
+    same 410-dim meta-feature matrix that produced the LB-best XGB
+    meta-stacker (62-component pool + 14 dist features + LB-best
+    3-stack 3 cls). Class-balanced cross-entropy, 30 epochs AdamW,
+    cosine schedule. 5-fold StratifiedKFold(seed=42) for OOF alignment.
+  - **MLP-meta standalone** (5-fold OOF, vs y):
+    - per-fold argmax: 0.98064 / 0.98140 / 0.98222 / 0.98171 / 0.98171
+    - overall argmax = **0.98154** (well above LB-best 4-stack 0.98084)
+    - @recipe-bias = 0.97496 (un-iso-cal'd; expected — different prob scale)
+  - **L3 weighted average sweep** (W_MLP × XGB-meta-iso + W_MLP ×
+    MLP-meta-iso, both iso-calibrated, then log-blend into LB-best
+    3-stack at α-sweep, fixed bias [1.4324, 1.4689, 3.4008]):
+    ```
+    W_MLP   L3 OOF   blend-into-3stack    Δ vs 4-stack 0.98084
+    0.00    0.98059  0.98061              +0.00000  (XGB-meta alone, baseline)
+    0.10    0.98085  0.98090              +0.00006
+    0.20    0.98102  0.98101              +0.00017
+    0.30    0.98120  0.98101              +0.00016
+    0.40    0.98139  0.98104              +0.00020
+    0.50    0.98145  0.98118              +0.00033 ← BEST
+    ```
+    Best at W_MLP=0.50, α=0.50: OOF **0.98118**, errs **9,341** (vs
+    LB-best 4-stack 9,415 — 74 fewer).
+  - **Per-class recall delta** vs LB-best 4-stack at the BEST blend:
+    L=−0.00007 / **M=+0.00036** / **H=+0.00071**. All three within
+    guardrail; M and H are POSITIVE deltas (favoring rare class).
+  - **GATE: PASS** (Δ ≥ +2e-4 AND PCR ≥ −5e-4 each class).
+  - **Critical caveat — structurally similar to LR-meta-stacker** (which
+    has nulled twice on LB):
+    - LR v1 (C=1.0, balanced): OOF 0.98167 → LB 0.97991 (gap +0.00176)
+    - LR v2 (C=0.1, none): OOF 0.98107 → LB 0.98052 (gap +0.00055)
+    - **MLP v1 (this experiment): OOF 0.98118, LB unknown.** Both
+      LR-meta and MLP-meta are "simpler-than-XGB on 200+ dim bank"
+      patterns. Per the linear gap-projection rule, expected LB Δ
+      sits in [−0.0007, +0.00033] depending on whether MLP escapes
+      the LR pattern.
+  - **Difference from LR-meta** that may help MLP: (a) ReLU/GELU
+    non-linearity (LR is linear), (b) dropout 0.2 (regularization
+    that LR's `class_weight='balanced'` lacked), (c) smaller hidden
+    layers `[128,64,32]` vs LR's full 200-dim weight vector. These
+    are 3 reasons MLP may not inherit LR's overfit, but it's
+    speculative until LB-tested.
+  - **DO NOT auto-submit.** Submission requires user approval per the
+    top-of-file CLAUDE.md rule. Candidate CSV not yet built; user
+    must approve before LB probe.
+  - Artifacts committed: `oof_mlp_metastack.npy` + test +
+    `oof_meta_l3_xgb_mlp.npy` + test + `meta_l3_xgb_mlp_results.json`.
+
+- **D — Hill-climb with negative weights — GATE FAILED (Pareto
+  violation)**:
+  - `scripts/hillclimb_negweights.py` — Matt-OP-style arithmetic-blend
+    HC, anchor = LB-best 4-stack at OOF 0.98084. 132 components
+    (anchor + 131 from `tier1b_helpers.load_pool()`). Step deltas
+    `{±0.005, ±0.05}`, custom metric = balanced_accuracy at fixed
+    bias [1.4324, 1.4689, 3.4008].
+  - **12-step convergence path**:
+    ```
+    step  weight change                                     bal_acc
+    0     anchor only                                       0.98084
+    1-3   stack lr_metastack +0.05 each                     0.98098 → 0.98142
+    4     own_S3_hard_vote -0.05                            0.98157
+    5     extratrees_dist_digits -0.05                      0.98165
+    6-9   small additions                                    0.98171 → 0.98180
+    10    lr_metastack_v2 +0.005                            0.98180
+    11    tta_recipe_s030 -0.05                             ~0.98181
+    12    final, 11 active components                       0.98181
+    ```
+  - **Final state**: 11/132 active components, OOF **0.98181**, Δ vs
+    anchor **+0.00097** (gate ≥ +2e-4 PASS).
+  - **Top weights**:
+    ```
+    lb_best_4stack                          +1.0000  (anchor seed)
+    lr_metastack                            +0.1500  (LB-confirmed regressor)
+    lr_metastack_v2                         +0.0050
+    extratrees_dist_digits                  -0.0500  (negative weight)
+    own_S3_hard_vote                        -0.0500
+    tta_recipe_s030                         -0.0500
+    xgb_metastack_varB                      +0.0500
+    meta_perturbed_v1_noise03_csb09_k3      +0.0050
+    recipe_full_te_seed7                    -0.0050
+    recipe_no_ote                           -0.0050
+    recipe_pseudolabel_tau099               -0.0050
+    ```
+  - **Per-class recall delta vs anchor**:
+    L=−0.00015 / **M=−0.00191** / **H=+0.00495**.
+  - **GATE: FAIL — Pareto frontier violation**: Medium recall
+    drops 0.0019 (well below −5e-4 floor) while High recall surges
+    0.005. Classic Med→High Pareto-violation pattern documented
+    13+ times before. The +0.00097 OOF "lift" comes from over-pushing
+    rare-class predictions; will not survive macro-recall on LB.
+  - **Mechanism diagnosis**: HC's arithmetic blend with negative
+    weights amplifies the LR-meta-stacker overfit (lr_metastack at
+    +0.15 weight is 75% of its effective contribution at α=0.5 in
+    log-blend — and LR-meta v1 nulled at LB 0.97991 with α=0.5).
+    The negative weights on `own_S3_hard_vote`, `extratrees_dist_digits`,
+    `tta_recipe_s030` are SUBTRACTIONS of weak components → equivalent
+    to "manufacturing lift by removing noise", but at fixed bias the
+    rare-class push compounds.
+  - **Verdict: NULL.** Gate-failed on per-class guardrail; expected
+    LB regression. No submission warranted.
+  - Artifacts committed: `oof_hillclimb_negweights.npy` + test +
+    `hillclimb_negweights_results.json` + `hillclimb_state.npz`
+    (resume checkpoint).
+
+- **C — Distill_no_rule — IN FLIGHT**:
+  - `scripts/distill_no_rule.py` — recipe pipeline minus 4 threshold
+    flags (`soil_lt_25/temp_gt_30/rain_lt_300/wind_gt_10`) and 3
+    LR-formula logits (`logit_P_{Low,Medium,High}`). 424 features
+    (vs recipe's 433). Same XGB heavy-reg HPs, 5-fold StratifiedKFold
+    (seed=42). Tests whether trees can match recipe's standalone
+    OOF 0.97967 from a basis that excludes rule-derived signal.
+  - Status at this commit: production restarted after rehydrate kills,
+    fold 1 XGB at iter ~1000. Per-fold checkpointing in place. Will
+    auto-document when complete.
+
+- **Strategic implication of B's gate-pass + D's gate-fail**: B is the
+  first experiment in 11+ saturation confirmations to satisfy ALL of
+  (Δ OOF ≥ +2e-4, errs < anchor, PCR within guardrail with **positive
+  rare-class delta**). The OOF→LB calibration risk remains the open
+  question — same architecture family as 2 prior LB-regressors but
+  with structurally distinct safeguards (non-linearity, dropout, smaller
+  capacity). Worth ONE careful LB probe with user approval after C
+  completes.
+
+- **LB-best unchanged**: `submission_tier1b_greedy_meta.csv` at
+  **LB 0.98094**. LB budget unchanged (no submissions this session).
+
+### 2026-04-27 — B LB probe: 0.98091 (−0.00003 from LB-best, gap +0.00027 — 5x tighter than LR)
+
+- Goal: LB-probe B's gate-passing candidate after the previous session's
+  documentation pass. User-approved single submit; one `kaggle
+  competitions submit` invocation, no retry, per CLAUDE.md rule.
+- Changed: `scripts/emit_meta_l3_blend.py` (~95 lines) — reconstructs
+  the L3 weighted average (0.5 × XGB-meta-iso + 0.5 × MLP-meta-iso)
+  + log-blends into LB-best 3-stack at α=0.50, applies fixed bias
+  [1.4324, 1.4689, 3.4008], emits CSV. Verified OOF reproduction:
+  blend bal_acc 0.98118 (matches B's gate output exactly).
+- **LB submission**:
+  `submission_meta_l3_xgb_mlp_blend_a050.csv` → **LB public = 0.98091**.
+  Δ vs LB-best primary (0.98094) = **−0.00003** (essentially tied,
+  inside LB noise floor ~±0.0005).
+- **OOF→LB calibration ladder for the meta-stacker family**:
+  ```
+  meta variant                        OOF       LB       gap        LB Δ
+  ----------------------------------- --------  --------  --------  --------
+  LR-meta v1 (C=1.0, balanced)        0.98167   0.97991   +0.00176  -0.00103
+  LR-meta v2 (C=0.1, none)            0.98107   0.98052   +0.00055  -0.00042
+  **MLP-meta v1 (B, this probe)       0.98118   0.98091   +0.00027  -0.00003**
+  XGB-meta + iso → LB-best 4-stack    0.98084   0.98094   -0.00010  +0.00086
+  ```
+  Architectural safeguards (non-linearity / dropout / smaller capacity)
+  reduced gap inflation by **5×** vs LR v1. But the OOF +0.00033 lift
+  over LB-best 4-stack did not fully transfer — only **12% transfer
+  rate** (Δ_LB / Δ_OOF). Same direction as LR-meta family but
+  attenuated.
+- **Per-class recall delta on test** (tied OOF & LB picture):
+  L=−0.00007 / M=+0.00036 / **H=+0.00071** vs LB-best 4-stack.
+  Rare-class trade was directionally CORRECT this time (positive on
+  H), unlike D's hillclimb (Pareto violation Med→High).
+- **Saturation reconfirmed at LB 0.98094** — this is the **17th
+  independent saturation confirmation** on the LB ceiling. The MLP
+  meta-stacker is the FIRST simpler-than-XGB meta to land within 3bp
+  of primary on LB, and the first to satisfy the per-class guardrail
+  with positive rare-class direction. But even with those structural
+  safeguards, breaking past the ceiling requires more than a different
+  L2 meta-learner family.
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **MLP meta-stackers with dropout + non-linearity DO escape the LR
+     `class_weight='balanced'` overfit trap on a saturated bank** —
+     gap narrowed from +0.00176 to +0.00027 (6.5× compression). The
+     LR-meta failure was specifically architectural (linear + class-
+     balanced loss); not all "simpler-than-XGB metas" inherit it.
+  2. **OOF→LB transfer rate of 12% on a saturated 63-component bank
+     is the practical ceiling for L2 meta variants.** Below that, the
+     bank is saturated; the meta architecture choice can move the
+     constant slightly but cannot break the structural ceiling.
+- LB budget: **1/10 used today** (this probe, on 2026-04-27),
+  9 remaining.
+- Current LB best unchanged: `submission_tier1b_greedy_meta.csv` at
+  LB **0.98094**.
+
+### 2026-04-27 — 3-meta L3 LB result: 0.98060 (−0.00034, REGRESSION) — 18th saturation confirmation
+
+- Goal: follow up B's gate-pass with cdeotte's 3-meta L3 pattern
+  (XGB-meta + MLP-meta + LR-meta-v2 weighted average). Tested two
+  preliminary variants first:
+  - **v7** (XGB-meta retrained on bank with `mlp_metastack` +
+    `lr_metastack_v2` added): bank auto-included 149 components
+    (vs ~63 when v1 was trained); standalone iso 0.98127, blend
+    OOF 0.98120 / Δ +0.00036. Bank-extension trap → not LB-probed.
+  - **v7b** (strict-EXCLUDE bank, drops all prior meta variants):
+    pool 116 + 2 explicit adds = 118; standalone iso 0.98136 (best
+    ever); blend OOF 0.98105 / Δ +0.00021 at α=0.30 (PCR fails at
+    α≥0.35). Below LB-transfer threshold → not LB-probed.
+
+- **3-meta L3 sweep** (`scripts/three_meta_l3.py`, ~1.5 min):
+  iso-cal each meta, sweep `XGB × MLP × LR` 3-simplex × α∈{0.30..0.60}.
+  Standalone meta_iso bal_acc:
+  ```
+  xgb_iso = 0.98059
+  mlp_iso = 0.98146  ← higher than LB-best 4-stack 0.98084 alone!
+  lr_iso  = 0.98063
+  ```
+  **Best gate-pass**: w_xgb=0.00 / w_mlp=0.90 / w_lr=0.10 / α=0.60
+  → OOF **0.98152**, Δ +0.00068 vs LB-best 4-stack 0.98084 (2× B's
+  +0.00033). PCR delta L=−0.0004 / M=+0.0007 / **H=+0.0018**.
+  Surprise: best L3 DROPS XGB-meta entirely; MLP-iso dominates.
+  B's α≤0.50 search window missed this lift.
+
+- **LB probe** (user-approved, submitted 05:08 UTC):
+  `submission_three_meta_l3_mlp090_lr010_a060.csv` →
+  **LB public = 0.98060**.
+  Δ vs LB-best 0.98094 = **−0.00034** (regression).
+  OOF→LB gap = 0.98152 − 0.98060 = **+0.00092** (3.4× wider than B).
+
+- **Diagnosis — two compounding overfit factors:**
+  1. **Removing XGB-meta from L3 lost diversity stabilization.**
+     B's 50/50 XGB+MLP was structurally complementary (different
+     model families). Pure MLP-iso + small LR is a single-family
+     L3 — both MLP and LR are simpler-than-XGB metas with similar
+     overfit failure modes.
+  2. **α=0.60 amplified the overshoot.** B used α=0.50; pushing to
+     0.60 weighted L3 more, amplifying L3's OOF overfit.
+  3. **PCR H=+0.0018 was the warning.** Hill-climb (D) had H=+0.005
+     also LB-regressive. Empirical rule: **rare-class PCR delta
+     above ~+0.0015 is OOF-overfit territory regardless of how
+     other diagnostics look.**
+
+- **Updated ladder:**
+  ```
+  candidate                          OOF       LB       gap
+  LB-best 4-stack                    0.98084   0.98094  -0.00010
+  B (XGB+MLP α=0.50)                 0.98118   0.98091  +0.00027
+  3-meta (MLP-heavy α=0.60)          0.98152   0.98060  +0.00092 (this probe)
+  ```
+
+- **18th independent saturation confirmation.** Structural finding:
+  **B's XGB+MLP diversity at α=0.50 is the L3 sweet spot on this
+  bank.** Going more aggressive in either dimension (drop XGB-meta
+  OR raise α) leaks OOF.
+
+- LB budget: **2/10 used today**, 8 remaining.
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **PCR H delta > +0.0015 is OOF-overfit** even when other gate
+     criteria pass. The Pareto frontier on this problem has a
+     bounded rare-class lift; pushes beyond ~+0.001 H come from
+     OOF-noise fitting, not signal.
+  2. **L3 meta diversity matters more than L3 weight optimization.**
+     A 50/50 XGB+MLP at moderate α transferred (B: 12% rate). A
+     90% MLP + 10% LR at higher α blew up the gap (3-meta: gap
+     3.4× wider than B). When sweeping L3 weights, prefer
+     diversity-preserving combinations over pure-OOF-optimum.
+
+
+
+### 2026-04-26 — W7 (k=1 NN to 10k original): NULL — synthetic rows are not anchored to original rows
+
+- Goal: execute the cheapest untried wild-step from the 2026-04-25 W1-W8
+  brainstorm. `brief.md` discloses both train and test were generated by
+  a DL model trained on the 10k original. Hypothesis: synthetic rows
+  near (in feature space) an original row inherit the original's label,
+  which is rule-perfect by construction. Concretely: k=1 NN search
+  test→original; if distance < τ, hard-override the LB-best primary's
+  prediction with the neighbor's label. Expected EV per the brainstorm:
+  5% × +0.0002 LB. Cost: ~10 min CPU.
+- Changed: `scripts/w7_nn_to_original.py` (~155 lines, single file).
+  43-dim feature space (11 standardised numerics + 32 one-hot cat
+  columns from the 8 cats with cards 4/6/4/3/4/4/2/5 = 32). sklearn
+  `NearestNeighbors(n_neighbors=1)` brute-force on 10k reference set.
+  Total wall ~15 sec.
+- **Distance findings (the smoking gun)**:
+  ```
+  percentile     train→orig    test→orig
+  p0.00 (min)        1.29           1.33
+  p0.01              1.82           1.78
+  p0.50              2.37           2.37
+  p25                3.00           3.00
+  p99                3.61           3.61
+  ```
+  Train and test distance distributions are **statistically identical**
+  (matches the AV result), and the **minimum distance is 1.33 — well
+  above zero**. There are NO near-duplicate test rows in the 10k.
+  A single categorical mismatch contributes √2 ≈ 1.41 to Euclidean
+  distance under one-hot, so distance 1.33 means cats roughly match
+  but every numeric is meaningfully off.
+- **Train validation (precision = NN-from-original label vs actual y_train)**:
+  ```
+  τ percentile    n            precision
+  p0.01           63           87.3%
+  p0.10           630          81.1%
+  p0.50           3,150        79.9%
+  p1.00           6,300        79.0%
+  p25.00          157,500      75.1%
+  ```
+  NN-label-from-original tops out at **87% precision even at the
+  closest 0.01% of rows**. The rule alone gets **98.4% raw accuracy
+  on the same train rows**. So NN-from-original is **strictly worse
+  than the rule everywhere**, let alone the LB-best primary
+  (which uses rule + flip-correction at ~98.5% raw acc).
+- **Test projection at the same τ buckets**:
+  ```
+  τ            n_test    overrides_vs_primary
+  1.82         35        6
+  2.37         1,353     268
+  3.00         67,842    16,694
+  ```
+  Expected delta: at any τ where overrides happen, primary beats
+  NN-from-original on macro-recall. Replacing primary with NN at,
+  say, τ=2.37 swaps primary's ~2% errors for NN's ~20% errors on
+  the override set — net negative under any decision rule.
+- **Mechanism falsified**: the NN generator does NOT preserve labels
+  from anchor rows in the original. Synthetic rows are **independent
+  samples from the NN's learned distribution**, not perturbations of
+  specific original anchors. That's consistent with the 2026-04-21
+  EDA finding "Zero exact feature-vector duplicates in 630k rows" —
+  the NN samples a continuous manifold rather than copying-with-noise.
+- **Closes W7 definitively.** No LB probe warranted; OOF projection
+  predicts strict regression at every τ.
+- LB best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget unchanged.
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/w7_nn_to_original.py`
+  - `scripts/artifacts/w7_test_nn_{dist,idx,label_idx}.npy`
+  - `scripts/artifacts/w7_train_nn_{dist,idx,label_idx}.npy`
+  - `scripts/artifacts/w7_nn_to_original_results.json`
+- **Portable rule** (LEARNINGS.md candidate): "On synthetic-tabular
+  competitions where train AND test were generated by an NN trained
+  on a public anchor dataset, the NN-output rows are independent
+  samples from the learned distribution, NOT perturbations of anchor
+  rows. There are NO near-duplicate matches between synthetic and
+  anchor in feature space (min Euclidean distance under standardised
+  numerics + one-hot cats is ≥1 categorical-mismatch's worth — i.e.
+  ≥1.4 in our 43-dim space). k=1 NN-to-anchor label transfer is
+  strictly weaker than any rule reverse-engineered from the anchor.
+  Run a 30-second min-distance probe BEFORE building any NN-to-anchor
+  override pipeline; if min distance ≫ 0, skip the lever."
+- Also closes the related "find leaky test labels via near-duplicate
+  match" idea from the senior-DS audit. The data has no such leak.
+
 ### 2026-04-26 — N5b 10k-as-anchor lever family: LB 0.98055 (-0.00039) BUT first AUC-positive evidence
 
 - Goal: senior-engineer reframe — treat synthetic train as test, learn
@@ -12749,3 +13919,72 @@ other. Ranked by expected EV / cost:
     gained `EXTRA_OOD`, `EXTRA_KNN10K`, `META_OUT_SUFFIX` env vars.
   - `submission_n5b_followup_angle1_geo_mean_a030.csv` (LB 0.98055)
   - `submission_n5b_followup_angle2_swap_a425.csv` (auto-emitted, untested)
+
+### 2026-04-26 — N5b variance test CLOSED: 3-point monotone carryover proves structural regression (16th saturation confirmation)
+
+- Goal: ML-lead-driven variance test on the N5b family. Prior session
+  closed angle1_geo_mean_a030 (OOF +0.00017 → LB 0.98055, Δ −0.00039,
+  carryover −2.3x) but documented "single LB observation cannot
+  distinguish structural regression from unlucky public split."
+  Untested follow-ups remained on disk (`angle2_swap_a350`,
+  `angle2_swap_a425`). Probe both to resolve the open question.
+- Important context discovered during the session: **`angle2_swap_a350`
+  was already submitted at 10:13 UTC today (LB 0.98025) but never
+  logged on this branch.** The strategy review above recommended a
+  variance probe based on incomplete information; in practice the
+  variance test was already 1-of-2 complete before this session began.
+- Submitted: `submission_n5b_followup_angle2_swap_a425.csv` at 13:48
+  UTC. Result: **LB public = 0.97988**, Δ vs PRIMARY (0.98094) =
+  **−0.00106**, carryover ratio **−3.2x**.
+- **Three-point ladder, monotone in OOF lift AND carryover ratio**:
+  ```
+  variant                       OOF Δ      LB         LB Δ        carryover
+  --------------------------- ---------- --------- ---------- -----------
+  angle1_geo_mean_a030         +0.00017   0.98055   -0.00039     -2.3x
+  angle2_swap_a350             +0.00026   0.98025   -0.00069     -2.7x
+  angle2_swap_a425 (this)      +0.00033   0.97988   -0.00106     -3.2x
+  ```
+  Larger OOF lift produces strictly larger LB regression. Carryover
+  ratio worsens as more N5b signal is extracted. **Unambiguous
+  structural-carryover signature; no luck-of-split interpretation
+  survives three monotone observations.**
+- **N5b family CLOSED definitively.** The AUC 0.6347 residual signal
+  is genuinely orthogonal to PRIMARY (first measured-orthogonal
+  evidence in 12 prior saturation confirmations), but the meta-stacker
+  bank-add delivery mechanism inflates OOF without LB transfer at a
+  −1.5x to −3.2x rate that scales with extracted signal magnitude.
+- **16th independent saturation confirmation at LB 0.98094.**
+- **Open question downgraded — Priority 3 recipe-tier delivery**:
+  the residual AUC was measured at meta-tier; whether the same
+  features at recipe-XGB tier produce different carryover is now
+  open at lower prior. Cost ~50 min CPU to probe. Recommend skipping
+  unless other levers also close.
+- **Portable rule** (LEARNINGS.md candidate): "When a candidate
+  family produces 2-3 monotone-decreasing LB observations vs OOF
+  lift on a saturated meta-stacker bank, structural carryover is
+  proven and further variants in the same delivery mechanism will
+  null. Three data points spanning ≥2x OOF range is the minimum
+  for definitive closure when single observations sit within the
+  ±0.0005 noise band."
+- Also worth logging: a single LB observation that lands at the
+  noise-floor edge (here angle1's −0.00039) is insufficient to
+  close a lever, but the cost of one more variance probe (~5 min
+  + 1 LB slot) is well below the value of definitive closure.
+  This applies in reverse too: had any of the three N5b probes
+  REVERSED the monotone trend (e.g., angle2_a425 lifting), the
+  variance signature would falsify the structural-carryover
+  hypothesis. The test design is bidirectional.
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`. LB budget: **3/10 used today**
+  (1 N5b probe this session + 2 from earlier), 7 remaining.
+- **Strategic posture (post-closure)**:
+  - Lock the safe pair on Kaggle UI (PRIMARY 0.98094 + HEDGE 3-way
+    multi-seed 0.98005 per audit F1 swap recommendation). Zero
+    compute, highest remaining EV.
+  - Stop further OOF-extraction experiments on the saturated bank.
+    Three carryover ratios above −2x prove the architecture's
+    transfer ceiling.
+  - Reserve 7 LB slots for end-of-comp variance check (~1 per day
+    until 2026-04-30 deadline).
+- Artefacts: `submissions/submission_n5b_followup_angle2_swap_a425.csv`
+  (LB 0.97988, the variance-test third data point).

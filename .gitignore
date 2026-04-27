@@ -350,6 +350,16 @@ kernel_audit*/
 !scripts/artifacts/oof_c0_v3_lb_best_3way.npy
 !scripts/artifacts/test_c0_v3_lb_best_3way.npy
 
+# Senior-FE recommendations: 3-way OTE keys + NN-distance features.
+# OOF / test of recipe XGB on each FE variant + the standalone NN-dist
+# 5-feature matrix (recomputable via scripts/nn_distance_features.py).
+!scripts/artifacts/oof_recipe_full_te_3way.npy
+!scripts/artifacts/test_recipe_full_te_3way.npy
+!scripts/artifacts/oof_recipe_full_te_nndist.npy
+!scripts/artifacts/test_recipe_full_te_nndist.npy
+!scripts/artifacts/oof_nn_dist_features.npy
+!scripts/artifacts/test_nn_dist_features.npy
+
 # A2 / P1 SwapNoise DAE embeddings (Porto Seguro mechanism) —
 # raw 128-d DAE arrays NOT committed: 153 MB + 65 MB fp16 exceed
 # repo size policy. Regenerate via:
@@ -443,6 +453,17 @@ kernel_audit*/
 # experiments even if standalone-blend is null.
 !scripts/artifacts/oof_realmlp_ens4.npy
 !scripts/artifacts/test_realmlp_ens4.npy
+
+# RealMLP n_ens=2 @ FULL n_epochs=40 (2026-04-26 diagnostic). Tested
+# whether n_ens=4's NULL was under-convergence (n_epochs=25) or variance
+# floor. Result: n_ens=2 STRICTLY WORSE than n_ens=1 across every metric
+# — standalone tuned 0.97583 vs n_ens=1 0.97633 (-0.00050), errs +429,
+# 3-stack peak 0.98054 vs n_ens=1 3-stack 0.98061 (-0.00007). Falsifies
+# under-convergence hypothesis for n_ens=4: adding heads at full epochs
+# still doesn't help. Variance floor structural at n_ens=1 on this
+# feature set. Lever CLOSED. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_realmlp_ens2.npy
+!scripts/artifacts/test_realmlp_ens2.npy
 
 # Trompt PROBE (1-fold full-cap): 13th NN-family attempt. Fold-1 argmax
 # 0.96092 (below RealMLP fold-1 0.96978), Jaccard vs LB-best 3-way
@@ -1027,6 +1048,139 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/test_tabpfn_10k.npy
 !scripts/artifacts/tabpfn_10k_results.json
 !scripts/artifacts/blend_tabpfn_10k_fold0_results.json
+# v6 aggregate-stats meta-stacker per-fold checkpoints (transient,
+# regenerated from scratch on rerun; only the consolidated
+# oof_xgb_metastack_v6{,lb}.npy is committed via the standard pool rules)
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/test_xgb_metastack_v6*_fold[0-9].npy
+scripts/artifacts/oof_xgb_metastack_v6*_fold[0-9]_meta.json
+
+# 2026-04-26 v6 aggregate-stats meta-stacker (P1 from senior-DS proposals).
+# v6_lbpool: 62-pool + 22 aggregates, iso OOF 0.98065 (+0.00006 vs tier1b
+# v1's 0.98059 standalone), but blend Δ vs LB-best 4-stack only +0.00002
+# at peak α (G4 fail). v6_full: 108-pool + 22 aggregates, iso OOF 0.98073
+# (+0.00014), G3 fails by 0.00012 on High recall floor; LB probe regressed
+# 0.98012 (-0.00082). Aggregate features add tiny standalone signal but
+# redundant with what tier1b v1 already extracts. Kept for cross-branch
+# diagnostic + future stacking research.
+!scripts/artifacts/oof_xgb_metastack_v6lb.npy
+!scripts/artifacts/test_xgb_metastack_v6lb.npy
+!scripts/artifacts/oof_xgb_metastack_v6.npy
+!scripts/artifacts/test_xgb_metastack_v6.npy
+!scripts/artifacts/v6_metastack_results.json
+!scripts/artifacts/v6_lbpool_results.json
+!scripts/artifacts/v6_compare_results.json
+!scripts/artifacts/v6_blend_gate_results.json
+
+# 2026-04-26 P3 counterfactual rule-instability features (NULL on G4).
+# Recipe + 5 instability cols (rule_inst_{sm,rf,tc,ws} + total flip count).
+# Standalone iso 0.97931 (+0.00005 vs vanilla 0.97926, passes G1+G2) but
+# blend monotone-negative from α=0.05 (G4 fail). Tree feature redundancy:
+# aggregate of features the model already has at finer resolution.
+# Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_recipe_full_te_instab.npy
+!scripts/artifacts/test_recipe_full_te_instab.npy
+!scripts/artifacts/recipe_full_te_instab_results.json
+!scripts/artifacts/p3_blend_gate_results.json
+# Per-fold checkpoints for recipe + INSTAB (rehydrate-resilient resume,
+# regenerated on rerun; only consolidated artifacts above are tracked).
+scripts/artifacts/oof_recipe_full_te_instab_fold[0-9].npy
+scripts/artifacts/test_recipe_full_te_instab_fold[0-9].npy
+
+# 2026-04-26 P2 bucket-aware FE specialists (NULL on G2/G4).
+# score=3 head (target=Medium): bucket-OOF AUC 0.74308.
+# score=6 head (target=High):   bucket-OOF AUC 0.85177 (competition record).
+# Soft logit-add into LB-best 4-stack: best feasible (λ_3=0.20, λ_6=0)
+# gives Δ +0.00006 OOF (below +2e-4 gate). λ_6=0 weight on the AUC-0.85
+# specialist confirms Pareto-frontier: H-boundary signal absorbed by
+# LB-best 4-stack at the operating point. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_p2_score3.npy
+!scripts/artifacts/test_p2_score3.npy
+!scripts/artifacts/oof_p2_score6.npy
+!scripts/artifacts/test_p2_score6.npy
+!scripts/artifacts/p2_specialists_results.json
+!scripts/artifacts/p2_blend_gate_results.json
+
+# 2026-04-26 Mech B anchor-uncertainty-weighted recipe (NULL).
+# sample_weight = balanced(y) × (1 + α × (1 − max_prob_LB4stack[i])) at α=2.
+# Inverse of cleanlab confident-learning. Standalone iso OOF 0.97946
+# (+0.00020 vs vanilla 0.97926, passes G1) but errs 9349 (+83 vs vanilla,
+# fails G2). Per-class Δ: Low +0.00002, Med -0.00046, High +0.00105 —
+# genuine Med→High trade at standalone level, but LB-best 4-stack already
+# absorbs this trade via log-bias. Substitution into lb3 → Δ -0.00008
+# vs LB-best 4-stack. Blend sweep monotone-negative from α=0.05.
+# EMIT: False (g2=fail, g4=fail). 14th saturation confirmation.
+# Per-fold checkpoints (rehydrate-resilient, regenerated on rerun):
+scripts/artifacts/oof_recipe_full_te_anchw20_fold[0-9].npy
+scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
+# Final consolidated artefacts:
+!scripts/artifacts/oof_recipe_full_te_anchw20.npy
+!scripts/artifacts/test_recipe_full_te_anchw20.npy
+!scripts/artifacts/recipe_full_te_anchw20_results.json
+!scripts/artifacts/mech_b_blend_gate_anchw20_results.json
+
+# 2026-04-26 Mech D per-row attention over 62-component LB-best bank (NULL).
+# Architecture: context (15d) → MLP(64) → softmax(62) attention weights →
+# convex blend of component log-probs. Lands on OPPOSITE side of Pareto
+# frontier from LB-best 4-stack: PCR Med +0.00252, High -0.00400. Net Δ
+# -0.00056 standalone, all blends monotone-negative. CE loss + class
+# imbalance pushes attention toward Medium-confident predictions; without
+# macro-recall surrogate the convex constraint collapses wrong direction.
+# 15th saturation confirmation. Kept for cross-branch diagnostic.
+!scripts/artifacts/oof_mech_d.npy
+!scripts/artifacts/test_mech_d.npy
+!scripts/artifacts/mech_d_results.json
+!scripts/artifacts/mech_d_blend_gate_results.json
+
+# Angles A/B/C — fresh-perspective levers (2026-04-26).
+# Three angles + four mixup follow-ups, all NULL on blend gate vs
+# LB-best 4-stack. 13th saturation confirmation. See CLAUDE.md.
+!scripts/artifacts/oof_angle_a_residual.npy
+!scripts/artifacts/test_angle_a_residual.npy
+!scripts/artifacts/oof_angle_a_residual_raw.npy
+!scripts/artifacts/test_angle_a_residual_raw.npy
+!scripts/artifacts/angle_a_residual_results.json
+!scripts/artifacts/oof_angle_b_recon.npy
+!scripts/artifacts/test_angle_b_recon.npy
+!scripts/artifacts/angle_b_dae_results.json
+!scripts/artifacts/oof_angle_c_mixup.npy
+!scripts/artifacts/test_angle_c_mixup.npy
+!scripts/artifacts/angle_c_mixup_results.json
+!scripts/artifacts/angles_blend_gate_results.json
+!scripts/artifacts/oof_recipe_full_te_dae.npy
+!scripts/artifacts/test_recipe_full_te_dae.npy
+!scripts/artifacts/recipe_full_te_dae_results.json
+!scripts/artifacts/oof_angle_c2_mixup.npy
+!scripts/artifacts/test_angle_c2_mixup.npy
+!scripts/artifacts/angle_c2_mixup_results.json
+!scripts/artifacts/oof_angle_c3a_mixup.npy
+!scripts/artifacts/test_angle_c3a_mixup.npy
+!scripts/artifacts/angle_c3a_mixup_results.json
+!scripts/artifacts/oof_angle_c3b_mixup.npy
+!scripts/artifacts/test_angle_c3b_mixup.npy
+!scripts/artifacts/angle_c3b_mixup_results.json
+
+# Experiment B (L3 XGB-meta + MLP-meta) — OOFs needed for downstream stacking
+!scripts/artifacts/oof_mlp_metastack.npy
+!scripts/artifacts/test_mlp_metastack.npy
+!scripts/artifacts/oof_meta_l3_xgb_mlp.npy
+!scripts/artifacts/test_meta_l3_xgb_mlp.npy
+# Experiment C (distill_no_rule)
+!scripts/artifacts/oof_distill_no_rule.npy
+!scripts/artifacts/test_distill_no_rule.npy
+# Experiment D (hillclimb negative weights)
+!scripts/artifacts/oof_hillclimb_negweights.npy
+!scripts/artifacts/test_hillclimb_negweights.npy
+!scripts/artifacts/hillclimb_state.npz
+
+# W7 — k=1 NN to 10k original (2026-04-26, NULL but kept as cross-branch diagnostic)
+!scripts/artifacts/w7_test_nn_dist.npy
+!scripts/artifacts/w7_test_nn_idx.npy
+!scripts/artifacts/w7_test_nn_label_idx.npy
+!scripts/artifacts/w7_train_nn_dist.npy
+!scripts/artifacts/w7_train_nn_idx.npy
+!scripts/artifacts/w7_train_nn_label_idx.npy
+!scripts/artifacts/w7_nn_to_original_results.json
 
 # 2026-04-26 N5b 10k-as-anchor lever family — feature artifacts shared
 # across deployments #1 (recipe + 3 OOD scores), #2 (OOD-gated score=6
@@ -1093,3 +1247,27 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/oof_xgb_metastack_classw.npy
 !scripts/artifacts/test_xgb_metastack_classw.npy
 !scripts/artifacts/meta_ensemble_v1_classw_results.json
+# 2026-04-26 Mech A boundary-confined TTA (NULL).
+# Threshold 0.95 → 7% boundary rows. K=10 σ=0.05 IQR perturbations on
+# 4 rule axes per fold. Standalone iso OOF 0.97951 (+0.00025 vs vanilla,
+# passes G1) but errs 9961 (+695 vs vanilla, fails G2). Per-class:
+# Med -0.00335, High +0.00404 — same Pareto direction as Mech B (4th
+# violation axis confirmed). Substitution Δ -0.00010, blend monotone-neg.
+# EMIT False (g2=F, g4=F). 16th saturation confirmation.
+# Per-fold checkpoints (rehydrate-resilient, regen on rerun):
+scripts/artifacts/oof_recipe_full_te_btta095k10s005_fold[0-9].npy
+scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
+# Final consolidated artefacts:
+!scripts/artifacts/oof_recipe_full_te_btta095k10s005.npy
+!scripts/artifacts/test_recipe_full_te_btta095k10s005.npy
+!scripts/artifacts/recipe_full_te_btta095k10s005_results.json
+!scripts/artifacts/mech_a_blend_gate_btta095k10s005_results.json
+# Experiment v7 (XGB metastack on bank with mlp + lr-v2 explicit adds — bank-extension diagnostic)
+!scripts/artifacts/oof_xgb_metastack_v7.npy
+!scripts/artifacts/test_xgb_metastack_v7.npy
+# Experiment v7b (strict-EXCLUDE bank rerun)
+!scripts/artifacts/oof_xgb_metastack_v7b.npy
+!scripts/artifacts/test_xgb_metastack_v7b.npy
+# Experiment 3-meta L3 (XGB+MLP+LR weighted average) — BEST OOF Δ to date
+!scripts/artifacts/oof_three_meta_l3.npy
+!scripts/artifacts/test_three_meta_l3.npy

@@ -1,0 +1,35 @@
+{
+  "anchor_oof": 0.9808424406412425,
+  "emitted": [
+    {
+      "name": "opt2v2_C_NotHtoH_bare_t450",
+      "path": "submissions/submission_opt2v2_C_NotHtoH_bare_t450.csv",
+      "mode": "C_NotHtoH_bare",
+      "tau": 0.4500000000000001,
+      "ov_test": 36,
+      "ov_oof": 71,
+      "oof_delta": -9.849989393062586e-05,
+      "pcr": [
+        0.9955314300234918,
+        0.9692145528162828,
+        0.9774858394021609
+      ],
+      "test_diff_vs_primary": 36
+    },
+    {
+      "name": "opt2v2_C_NotHtoH_bare_t475",
+      "path": "submissions/submission_opt2v2_C_NotHtoH_bare_t475.csv",
+      "mode": "C_NotHtoH_bare",
+      "tau": 0.47500000000000014,
+      "ov_test": 36,
+      "ov_oof": 71,
+      "oof_delta": -9.849989393062586e-05,
+      "pcr": [
+        0.9955314300234918,
+        0.9692145528162828,
+        0.9774858394021609
+      ],
+      "test_diff_vs_primary": 36
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "variant_suffix": "_3way",
+  "ote_alpha": 1.0,
+  "xgb_booster": "gbtree",
+  "fold_scores_argmax": [
+    0.9751637105551917,
+    0.975723392553252,
+    0.9760594629829861,
+    0.9741467437163625,
+    0.975440295677117
+  ],
+  "overall_argmax_bal_acc": 0.975306731646531,
+  "tuned_log_bias_bal_acc": 0.9796048000218636,
+  "log_bias": [
+    1.3324411632360977,
+    1.3689466919465483,
+    3.400768902044088
+  ],
+  "n_features": 503,
+  "feature_group_sizes": {
+    "nums": 11,
+    "cats": 8,
+    "combos": 28,
+    "digits": 66,
+    "num_as_cat": 11,
+    "freq": 51,
+    "tres": 4,
+    "logits": 3,
+    "orig_stats": 38,
+    "dae_embed": 0,
+    "extra_domain": 0,
+    "extra_decimal": 0,
+    "extra_w8": 0,
+    "gby": 0,
+    "instab": 0,
+    "three_way": 15,
+    "nndist": 0
+  },
+  "te_col_count": 132
+}

@@ -1097,6 +1097,43 @@ all of them on the same model.
   total compute budget), or test n_ens=2 at n_epochs=40 first as
   the cheapest "is ensembling itself the lever?" diagnostic.
 
+- **Variance-floor diagnostic confirmed: BatchEnsemble at FULL epochs
+  still cannot break n_ens=1's floor.** (PS6e4 2026-04-26 follow-up.)
+  Ran the n_ens=2 @ n_epochs=40 diagnostic the prior rule recommended:
+  matches n_ens=1's per-head epoch budget (40), only n_ens differs.
+  Result: standalone tuned **0.97583 vs n_ens=1's 0.97633 (−0.00050)**,
+  errs +429 (10901 vs 10472), 3-stack peak **0.98054 vs n_ens=1's
+  0.98061 (−0.00007)**. Strictly worse than n_ens=1 across every
+  metric (standalone OOF, errs, 3-stack OOF, 3-stack errs); Jaccard
+  vs LB-best 3-way ~tied at 0.6173. **This falsifies hypothesis (a)
+  under-convergence and confirms hypothesis (b) variance floor as the
+  cause of the n_ens=4 NULL.** Per-head SGD converges to nearby but
+  distinct local minima at full epochs; averaging produces a bias
+  drift, not variance reduction, because n_ens=1 is already at the
+  relevant SGD attractor. Rule: **for BatchEnsemble (RealMLP / TabM /
+  similar) at fixed feature set + capacity, validate the variance-
+  floor question with `n_ens=2 @ full_epochs` BEFORE planning longer
+  `n_ens=4` runs. If n_ens=2 plateaus or regresses, the entire
+  ensemble dimension is closed — `n_ens=4` at full epochs is
+  guaranteed to fail too.** Cost of this diagnostic on a sane
+  feature set is ≤1h GPU end-to-end (smoke + production + blend
+  gate); time well spent vs an overnight n_ens=4 run that nulls.
+
+- **NN-family lever-existence cost is ≤1h GPU calendar time when
+  SMOKE-first discipline is enforced.** (PS6e4 2026-04-26.) The
+  end-to-end loop — commit kernel scaffold → SMOKE push (~5 min on
+  Kaggle, IS_SMOKE=True, 2-fold × 20k × 3 epochs) → flip IS_SMOKE
+  flag → production push (~50 min, 5-fold × 504k × n_epochs) → pull
+  artifacts → run blend gate → commit + close — completes in ~70-90
+  min calendar time. SMOKE catches install-path / dataset-path /
+  GPU-init bugs cheaply (e.g. mambular's mamba_ssm wheel mismatch
+  cost 4 SMOKE iterations but each was <5 min). Without SMOKE, the
+  same bugs eat 55-min production wall budgets. For any future
+  Kaggle GPU NN attempt: the SMOKE-then-production loop is mandatory
+  even when the kernel feels mechanically copy-paste from a working
+  prior — pytabkit / pytorch_frame / mamba_ssm / kan dependency
+  surfaces drift fast.
+
 - **Isotonic-calibrate meta-stacker outputs before blending into a
   fixed-bias stack.** Raw multi-class probs from a heavy-reg meta-XGB
   can be miscalibrated relative to the anchor stack's bias; per-class
@@ -1442,3 +1479,20 @@ all of them on the same model.
   ensemble: compute pairwise Jaccard between sub argmaxes. If
   every pair has Jaccard > 0.85 with the deepest sub, the lever is
   structurally null.**
+
+- **NEVER wrap `kaggle competitions submit` in any retry, `until`,
+  `while`, `for`, or background loop — even on transient errors.**
+  Every loop iteration is a NEW LB submission against the daily
+  quota. The case-insensitive grep fix (which previously seemed to
+  rescue the pattern) is NOT sufficient: a single misplaced `&&`,
+  pipe SIGPIPE quirk, or unexpected Kaggle output line still leaks
+  duplicate submissions. The cost asymmetry is too severe — daily
+  budget is 10, deadline-day budget is 2 final slots, and a wasted
+  slot cannot be recovered. Always submit ONE invocation at a time
+  and let the user manually re-issue the command on transient
+  failures. Read-only monitors (e.g. polling
+  `kaggle competitions submissions -v` for score availability) are
+  fine; only the WRITE command is forbidden in loops. On 2026-04-26
+  a lowercase-grep loop burned 4 redundant slots on the same
+  `submission_v6_full_a350.csv` (LB 0.98012 deterministic) before
+  being killed — 3 wasted slots from a 10/day budget.
