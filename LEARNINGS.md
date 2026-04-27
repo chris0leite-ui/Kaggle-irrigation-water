@@ -1496,3 +1496,36 @@ all of them on the same model.
   a lowercase-grep loop burned 4 redundant slots on the same
   `submission_v6_full_a350.csv` (LB 0.98012 deterministic) before
   being killed — 3 wasted slots from a 10/day budget.
+
+### 2026-04-27 — Net-rare-class-flip rule (blend gate addition)
+
+When testing a new blend candidate against an LB-validated PRIMARY, gate
+on FOUR criteria, not three:
+
+1. OOF Δ ≥ +0.0003 vs PRIMARY at fixed bias
+2. Per-class recall guardrail: each class ≥ baseline − 5e-4
+3. Dual-α stability: probe TWO α values (e.g., 0.30 and 0.40), both
+   should pass gates 1+2
+4. **NEW**: |net_rare_class_flip| / |total_rare_class_churn| ≥ 0.5
+
+Rule 4 catches a failure mode rules 1–3 miss: candidates that RESHUFFLE
+rare-class predictions (e.g., +59 new Highs ↔ −58 lost Highs = net +1)
+appear OOF-strong (smaller errors) but the specific per-row choices
+overfit OOF macro-recall. On hidden test, ~50% of the new picks reverse.
+
+Diagnostic (immediate, post-OOF-pass, pre-LB-submit):
+```python
+diff_mask = pred_candidate != pred_primary
+n_to_high = ((pred_candidate == 'High') & (pred_primary != 'High')).sum()
+n_from_high = ((pred_candidate != 'High') & (pred_primary == 'High')).sum()
+net = n_to_high - n_from_high
+churn = n_to_high + n_from_high
+ratio = abs(net) / max(1, churn)
+# gate: ratio >= 0.5
+```
+
+Empirical confirmation (2026-04-27):
+- classw α=0.30: net High +0 / churn N — passed gates 1-3, LB regressed
+- D 3-meta α=0.30: net High +1 / churn 117, ratio 0.009 — passed gates
+  1-3, LB regressed −0.00021
+Both candidates at α=0.30 had RESHUFFLE pattern; both LB-regressed.
