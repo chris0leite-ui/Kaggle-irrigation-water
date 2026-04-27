@@ -1,0 +1,20 @@
+{
+  "seed": 42,
+  "n_folds": 2,
+  "probe": true,
+  "smoke": true,
+  "fold_scores_argmax": [
+    0.9503064266718558
+  ],
+  "overall_argmax_bal_acc": 0.9503064266718558,
+  "n_features": 443,
+  "folds_completed": 1,
+  "n_epochs": 3,
+  "device": "cpu",
+  "tuned_log_bias_bal_acc": 0.9599994984496986,
+  "log_bias": [
+    3.1309433006850926,
+    2.471010944074388,
+    0.503700511880274
+  ]
+}

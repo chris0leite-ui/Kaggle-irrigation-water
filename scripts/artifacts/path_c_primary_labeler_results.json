@@ -1,0 +1,18 @@
+{
+  "log_bias": [
+    1.4324,
+    1.4689,
+    3.4008
+  ],
+  "tuned_log_bias_bal_acc": 0.9808424406412425,
+  "weights": {
+    "3stack": [
+      0.7
+    ],
+    "metastack_iso": [
+      0.3
+    ]
+  },
+  "composition": "lb3 + realmlp + nonrule_iso + metastack_iso",
+  "anchor": "LB 0.98094"
+}
