@@ -15258,3 +15258,81 @@ the largest, most class-balanced drop-set we have ever identified.
 - Artefacts (whitelisted via .gitignore for cross-branch reuse):
   - `scripts/build_l1_override_submission.py`
   - `submissions/submission_tier1b_greedy_meta_l1override.csv` (LB 0.98062)
+
+### 2026-04-27 — L1-override 3-filter rescue: 26th saturation, break-even precision floor confirmed binding
+
+- Goal: after the L1 override regressed −0.00032 LB (Bayesian inversion),
+  user pushed back: "don't give up; think harder, give three perspectives".
+  Three structurally distinct filter mechanisms tested via train-side
+  validation on the 51 Layer-2 (99.9-99.99% pure) train disagreements
+  (43 primary-wrong, 8 primary-right, ground truth known by construction):
+    F1: hedge_agrees_with_cell_majority (consensus discriminator)
+    F2: primary_max_prob < threshold (primary uncertainty)
+    F3: primary 2nd-choice == cell_majority (posterior shape)
+  Plus tiny meta-discriminator (LR with class_weight on 51 examples).
+- Changed: `scripts/l1_override_filter_validation.py` (~250 lines).
+
+- **Findings**:
+  ```
+  Filter        train precision     test n at threshold     verdict
+  ────────────────────────────────────────────────────────────────
+  F1 hedge      100% (n=1)          1                       too rare
+  F2 max_prob<0.55  92.3% (n=13)    4                       barely above floor
+  F2 max_prob<0.60  88.5% (n=26)    7                       BELOW floor
+  F2 max_prob<0.85  87.0% (n=46)    27                      BELOW floor
+  F3 second=maj 84.3% (universal on all 51 + 36)            no signal
+  Meta LOO AUC  0.6657              top bucket 90% prec     BELOW floor
+  ```
+
+- **Macro-recall break-even precision for H→M overrides = 91.92%**
+  (= N_M_true / (N_M_true + N_H_true), because High has 11.4× per-row
+  leverage in macro-recall on this 3-class problem). 35 of 36
+  candidates are H→M direction. None of the filters can clear this
+  floor at meaningful row counts.
+
+- **Direction-asymmetric break-even**:
+  ```
+  H→M override break-even: 91.92%   (rare class loss dominates)
+  L→M override break-even: 60.74%   (only 1 candidate, lift ~+1e-6)
+  M→L override break-even: 39.26%   (no candidates in our 36)
+  ```
+
+- **Diagnosis** — why filters fail:
+  1. F1: hedge has SAME systematic disagreement pattern as primary on
+     layer-2 cells. Both models use non-rule features; both agree on
+     High where rule says Medium. Two models seeing same non-rule
+     signal is NOT information that separates wrong from right.
+  2. F2: primary's max_prob distribution overlaps between primary-
+     wrong and primary-right. Some signal (high-confidence rows MORE
+     likely primary-right) but precision sits 1-3pp below the 91.92%
+     floor at usable thresholds.
+  3. F3: on layer-2 cells, primary's softprob is SHAPED by the rule
+     (cell's Medium-purity propagates through OTE features). Medium
+     is always primary's 2nd when High is 1st. Universal → zero
+     discriminative power.
+  4. Meta-discriminator: per-row signals don't separate cleanly. LOO
+     AUC 0.67 well below what's needed for >91.92% bucket precision.
+
+- **26th saturation confirmation at LB 0.98094.** The L1 override
+  lever is closed for the right structural reason, not because of
+  filter choice. Macro-recall asymmetry creates a precision floor
+  (91.92%) that no train-validatable filter on available side
+  information clears at meaningful row counts.
+
+- **Portable rule** (LEARNINGS.md candidate): "**Macro-recall
+  break-even precision for class-c-from-anchor overrides equals
+  N_other / (N_other + N_c). On rare-class direction overrides where
+  the rare class has 10× the per-row leverage, this floor approaches
+  ~0.92.** Filtered overrides on a strong learned model that uses
+  features beyond the rule cannot reliably clear this floor because
+  the selection event 'model disagrees with rule' correlates with
+  the underlying NN-flip presence — the very signal a discriminating
+  filter would need to detect. Lever is structurally closed unless
+  rare class is over-represented in override direction OR external
+  rule-orthogonal evidence is available."
+
+- LB delta: n/a (no probe warranted; analysis is decisive). LB best
+  unchanged at **0.98094**. Final-selection lock unchanged.
+- Artefacts:
+  - `scripts/l1_override_filter_validation.py`
+  - `scripts/artifacts/l1_filter_validation_results.json`

@@ -1,0 +1,20 @@
+{
+  "n_l2_disagreements": 51,
+  "n_primary_wrong_train": 43,
+  "n_primary_right_train": 8,
+  "n_test_candidates": 36,
+  "filter_results_train": {
+    "hedge_agrees_n_total": 1,
+    "hedge_agrees_primary_wrong_rate": 1.0,
+    "hedge_disagrees_primary_wrong_rate": 0.84,
+    "second_is_maj_n_total": 51,
+    "second_is_maj_primary_wrong_rate": 0.8431372549019608,
+    "loo_auc_meta": 0.6656976744186046
+  },
+  "test_filter_n": {
+    "F1_hedge_agrees": 1,
+    "F2_max_prob_lt_085": 27,
+    "F3_second_is_maj": 36,
+    "F1_AND_F3": 1
+  }
+}
