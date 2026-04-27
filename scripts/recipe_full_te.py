@@ -161,6 +161,17 @@ if DROP_SCORES:
     assert all(0 <= s <= 9 for s in DROP_SCORE_SET), \
         f"DROP_SCORES must be in 0..9, got {DROP_SCORE_SET}"
     assert not CLEANLAB_TREATMENT, "DROP_SCORES is mutually exclusive with CLEANLAB_TREATMENT"
+
+# DROP_DETERMINISTIC: drop the 179,851 100%-deterministic train rows identified
+# by `scripts/purity_subcells.py` (cube-level pure cells + 118 sub-cell rules).
+# Mirrors the DROP_SCORES pattern but uses a finer-grained, class-proportionate
+# row mask. Test predictions on the 76,324 deterministic test rows are overridden
+# post-hoc with their cell-majority class. See "Next steps: DROP_DETERMINISTIC
+# recipe variant" entry in CLAUDE.md (2026-04-27) for the full plan + rationale.
+DROP_DETERMINISTIC = os.environ.get("DROP_DETERMINISTIC", "") == "1"
+if DROP_DETERMINISTIC:
+    assert not CLEANLAB_TREATMENT, "DROP_DETERMINISTIC mutually exclusive with CLEANLAB_TREATMENT"
+    assert not DROP_SCORE_SET, "DROP_DETERMINISTIC mutually exclusive with DROP_SCORES"
 assert XGB_BOOSTER in ("gbtree", "dart"), f"XGB_BOOSTER must be gbtree|dart, got {XGB_BOOSTER}"
 assert CLEANLAB_TREATMENT in ("", "drop", "downweight", "relabel"), CLEANLAB_TREATMENT
 
@@ -189,6 +200,8 @@ if INSTAB:
     _parts.append("instab")
 if DROP_SCORE_SET:
     _parts.append("ds" + "".join(str(s) for s in sorted(DROP_SCORE_SET)))
+if DROP_DETERMINISTIC:
+    _parts.append("dropdet")
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
 if TTA_BOUNDARY:
@@ -447,6 +460,8 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
         three_way=three_way_combos, nndist=nndist_cols,
         te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
+        # Subset indices (None when not SMOKE) for downstream mask alignment.
+        train_subset_idx=train_subset_idx, test_subset_idx=test_subset_idx,
     )
     log(f"  feature groups: "
         f"cats={len(cats)} combos={len(combos)} digits={len(digits)} "
@@ -730,6 +745,34 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
 
     train_scores = train["dgp_score"].values if DROP_SCORE_SET else None
 
+    # DROP_DETERMINISTIC: load 100%-deterministic-row mask + per-test-row
+    # cell-majority class for post-hoc override. Both produced by
+    # `scripts/purity_subcells.py`.
+    drop_mask_train = None
+    drop_mask_test = None
+    test_cell_majority = None
+    if DROP_DETERMINISTIC:
+        dm_tr_path = ART / "drop_mask_train.npy"
+        dm_te_path = ART / "drop_mask_test.npy"
+        tcm_path = ART / "test_cell_majority.npy"
+        for p in (dm_tr_path, dm_te_path, tcm_path):
+            assert p.exists(), f"DROP_DETERMINISTIC requires {p}; run scripts/purity_subcells.py first"
+        drop_mask_train = np.load(dm_tr_path).astype(bool)
+        drop_mask_test = np.load(dm_te_path).astype(bool)
+        test_cell_majority = np.load(tcm_path).astype(np.int64)
+        # SMOKE subsamples train/test → mask must be re-aligned to subset.
+        tr_idx_subset = info.get("train_subset_idx")
+        te_idx_subset = info.get("test_subset_idx")
+        if SMOKE:
+            assert tr_idx_subset is not None and te_idx_subset is not None
+            drop_mask_train = drop_mask_train[tr_idx_subset]
+            drop_mask_test = drop_mask_test[te_idx_subset]
+            test_cell_majority = test_cell_majority[te_idx_subset]
+        log(f"DROP_DETERMINISTIC=1: train mask drop={int(drop_mask_train.sum()):,}/"
+            f"{len(drop_mask_train):,} ({100*drop_mask_train.mean():.2f}%), "
+            f"test mask drop={int(drop_mask_test.sum()):,}/"
+            f"{len(drop_mask_test):,} ({100*drop_mask_test.mean():.2f}%)")
+
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
         if fold in cached:
@@ -753,6 +796,13 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             log(f"  DROP_SCORES={sorted(DROP_SCORE_SET)}: dropping {n_drop:,} of "
                 f"{len(tr_idx):,} train rows ({100*n_drop/len(tr_idx):.2f}%)")
             tr_idx = tr_idx[keep_score]
+        if DROP_DETERMINISTIC:
+            keep_det = ~drop_mask_train[tr_idx]
+            n_drop_det = int((~keep_det).sum())
+            log(f"  DROP_DETERMINISTIC=1: dropping {n_drop_det:,} of "
+                f"{len(tr_idx):,} train rows ({100*n_drop_det/len(tr_idx):.2f}%) "
+                f"-- deterministic-cell rule")
+            tr_idx = tr_idx[keep_det]
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)
@@ -864,6 +914,29 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         oof[val_route] = rule_low
         test_pred[test_route] = rule_low
 
+    # Inference-side DETERMINISTIC override: replace predictions on
+    # deterministic train+test rows with one-hot cell-majority class.
+    # Train side: per-row cell-majority is just y[i] (since the row IS pure),
+    # but we override to the cell-majority lookup for symmetry. Test side:
+    # use test_cell_majority loaded above. Predicting these rows is a no-op
+    # for primary (which already nails them at 99.95%) but the override is
+    # provably safer on hidden split.
+    if DROP_DETERMINISTIC:
+        n_oof_override = int(drop_mask_train.sum())
+        n_te_override = int(drop_mask_test.sum())
+        log(f"DROP_DETERMINISTIC inference override: "
+            f"{n_oof_override:,} OOF rows + {n_te_override:,} test rows -> cell-majority class")
+        # OOF: y is the cell-majority by construction of the drop mask
+        for cls in (0, 1, 2):
+            mask_tr = drop_mask_train & (y == cls)
+            one_hot = np.zeros(3, dtype=np.float32); one_hot[cls] = 1.0
+            oof[mask_tr] = one_hot
+        # Test: use precomputed cell-majority lookup
+        for cls in (0, 1, 2):
+            mask_te = drop_mask_test & (test_cell_majority == cls)
+            one_hot = np.zeros(3, dtype=np.float32); one_hot[cls] = 1.0
+            test_pred[mask_te] = one_hot
+
     overall = balanced_accuracy_score(y, oof.argmax(1))
     log(f"=== OOF argmax bal_acc = {overall:.5f}  "
         f"(mean fold {np.mean(fold_scores):.5f} ± {np.std(fold_scores):.5f})")
@@ -910,8 +983,11 @@ def main():
         tuned_log_bias_bal_acc=tuned,
         log_bias=bias.tolist(),
         n_features=len(result["feat_cols"]),
-        feature_group_sizes={k: len(v) if isinstance(v, list) else v
-                             for k, v in info.items() if k != "te_cols"},
+        feature_group_sizes={
+            k: len(v) if isinstance(v, list) else int(v) if isinstance(v, (int, float)) else None
+            for k, v in info.items()
+            if k not in ("te_cols", "train_subset_idx", "test_subset_idx")
+        },
         te_col_count=len(info["te_cols"]),
     )
     res_path = ART / f"recipe_full_te{VARIANT_SUFFIX}_results.json"

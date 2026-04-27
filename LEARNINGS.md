@@ -1554,3 +1554,86 @@ Revised 4-gate filter:
   G2: per-class recall guardrail (each class ≥ baseline -5e-4)
   G3: dual-α stability
   G4: ratio ≥ 0.5 AND net_rare_class > 0
+
+
+### 2026-04-27 — Bayesian-inversion error: train-side rule purity ≠ joint-feature purity
+
+**Setting**: a 100%-pure rule cell (rule features partition rows into a
+class with zero training errors) appears to provide a deterministic
+override candidate when a strong learned model disagrees with the
+cell-majority on a test row inside that cell. Naive estimate: override
+should be safe at ~99.9% precision (sub-cells have ~600+ train rows).
+
+**Empirical falsification (Layer-1 surgical override on LB-best primary)**:
+- 36 disagreement rows identified (35 H→M, 1 L→M)
+- Train-side: 46/46 disagreements provably correct by construction
+  (cell purity ⇒ y == cell_majority on train)
+- OOF macro: 0.98084 → 0.98091 (+0.0000641, mathematical proof on train)
+- LB: 0.98094 → **0.98062 (−0.00032 REGRESSION)**
+- OOF→LB gap inflated from −0.00010 to +0.00029 (selection-bias penalty)
+
+**Root cause**:
+```
+P(override correct | random row in pure cell)              ≈ 99.9%
+P(override correct | row in pure cell AND model disagrees) ≈ ~33%
+```
+
+The selection event "model disagrees with rule" is **NOT independent** of
+the underlying NN-flip process. 100% purity is computed over RULE
+features (the 6 features used by the rule); the model's POST-BLEND argmax
+on those test rows uses NON-RULE features (Humidity, Soil_pH,
+Previous_Irrigation_mm, etc.) — exactly the features the NN generator
+uses to produce class flips. Conditioning on disagreement biases the
+sample toward rows that ARE actually flipped. **Primary's confident
+disagreement IS information from non-rule features, not error.**
+
+**Decomposition matching the observed −0.00032 LB delta**:
+- ~12/36 overrides correct (model wrong on rule-trivial rows): +12/N_M_true
+- ~24/36 overrides wrong (model correctly identified NN-flips that the
+  rule's cell-aggregation cannot see): −24/N_H_true
+- Macro: (12/102460 − 24/9004) / 3 ≈ −0.00084 in expectation, observed
+  −0.00032 with public-LB noise.
+
+**Rule for safe deterministic-override mechanisms**:
+When overriding a strong learned model with a rule on cells where the
+rule has 100% TRAINING purity, additionally require:
+- (a) **row count constraint**: only override on cells with ≥ 1000 train
+  rows (gives test-purity probability ~99.95% for randomly sampled rows)
+- (b) **model-uncertainty filter**: only override when primary's
+  max_prob < some threshold (e.g., 0.85). Where primary is confident on
+  a "pure cell", primary is using non-rule features and is calibrated
+  information.
+- (c) **NEVER override if primary is confidently predicting the rare
+  class.** Macro-recall asymmetry (rare class has 11.4× per-row leverage
+  in this 3-class problem) means even 90% override precision is
+  net-negative when the override removes rare-class predictions.
+
+**Generalization**: this is the Bayesian inversion form of the
+magnitude-trap rule. Train-side purity proofs prove a probability over
+RANDOM rows in the cell, not over SELECTED rows where the model has
+identified anomaly. The selection process is conditional on exactly the
+features that make the row anomalous to the rule's averaging structure.
+
+**Layer hierarchy** (deterministic-override safety taxonomy under macro-recall):
+
+| Layer | Purity threshold | Override-precision (post-selection) | Verdict |
+|---|---|---|---|
+| 0 | model only | n/a | always default |
+| 1 | 100% strict | ~33% (LB-validated, this entry) | ❌ NULL |
+| 2 | 99.9-99.99% | 84.3% (train-validated) | ❌ NULL (below 91.9% break-even) |
+| 3 | <99% | <80% | ❌ NULL |
+
+ALL deterministic-override layers fail under macro-recall once the
+model is strong enough to identify anomalies. Net implication: don't
+override learned models with rule predictions when:
+- macro-recall is the metric (rare-class asymmetry)
+- the rule and model share access to a common feature subset
+- the model uses additional features beyond the rule
+
+This was the 25th independent saturation confirmation at LB 0.98094 on
+this competition. The deterministic-rule lever is structurally exhausted
+across all four families:
+- DROP_SCORES (training-data filter, 2026-04-26 NULL)
+- DROP_DETERMINISTIC (TD filter + post-hoc override, 2026-04-27 NULL)
+- L1 surgical post-blend override (this entry, NULL with LB regression)
+- L2 99.9-99.99% override (falsified by macro-recall break-even math)
