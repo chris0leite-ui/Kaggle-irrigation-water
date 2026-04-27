@@ -2,6 +2,23 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ ARTIFACTS ARE TRACKED BY DEFAULT (gitignore inverted 2026-04-27)
+
+`scripts/artifacts/` follows an INVERTED gitignore policy:
+- **Tracked by default**: `oof_*.npy`, `test_*.npy`, `*_results.json`,
+  any other `.npy`/`.json` not matching an ignore pattern.
+- **Ignored**: per-fold checkpoints (`*_fold[0-9]*.npy`),
+  `.log`/`.db`/`.pkl`, and transient prefixes (`_smoke_*.npy`,
+  `tmp_*.npy`, `scratch_*.npy`).
+
+This eliminates the prior 536-line per-file whitelist. Cross-branch
+artifact sharing is now zero-friction: if you produce an OOF/test
+.npy, just `git add` it and commit. No need to edit `.gitignore`.
+
+If you need a transient .npy (smoke / debug / scratch), name it
+with one of the ignored prefixes (`tmp_xxx.npy`, `scratch_xxx.npy`)
+or it WILL be tracked.
+
 ## ⚠️ NEVER GIVE UP — ALWAYS ASSUME THERE'S MORE LIFT AVAILABLE
 
 **Every session pulled from GitHub must take it as given that the
