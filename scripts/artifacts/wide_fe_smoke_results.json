@@ -1,0 +1,64 @@
+{
+  "config": {
+    "smoke": true,
+    "n_folds": 2,
+    "top_n": 200,
+    "seed": 42
+  },
+  "n_features_total": 1774,
+  "n_features_selected": 329,
+  "top10_features": [
+    [
+      "logit_P_High",
+      128.7405242919922
+    ],
+    [
+      "logit_P_Low",
+      114.17762756347656
+    ],
+    [
+      "soil_lt_25_TE_cls1",
+      21.93192481994629
+    ],
+    [
+      "CAT_Wind_Speed_kmh_TE_cls1",
+      13.690509796142578
+    ],
+    [
+      "Previous_Irrigation_mm_digit2_TE_cls0",
+      12.38060474395752
+    ],
+    [
+      "Soil_pH_digit-4_TE_cls0",
+      12.296307563781738
+    ],
+    [
+      "COMBO_Crop_Growth_Stage_Mulching_Used_TE_cls1",
+      9.867116928100586
+    ],
+    [
+      "Previous_Irrigation_mm_digit1_TE_cls2",
+      9.058865547180176
+    ],
+    [
+      "rain_lt_300_TE_cls0",
+      8.675216674804688
+    ],
+    [
+      "Temperature_C",
+      8.553271293640137
+    ]
+  ],
+  "fold_scores": [
+    0.9604900262953403,
+    0.9614558587030201
+  ],
+  "overall_argmax": 0.9609714767659954,
+  "tuned_bal": 0.9640431402294327,
+  "tuned_bias": [
+    0.6309433006850921,
+    1.2710109440743882,
+    2.003700511880274
+  ],
+  "elapsed_sec": 42.29261589050293
+}
