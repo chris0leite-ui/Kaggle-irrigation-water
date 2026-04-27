@@ -1250,3 +1250,6 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 !scripts/artifacts/test_recipe_full_te_btta095k10s005.npy
 !scripts/artifacts/recipe_full_te_btta095k10s005_results.json
 !scripts/artifacts/mech_a_blend_gate_btta095k10s005_results.json
+# Experiment v7 (XGB metastack on bank with mlp + lr-v2 explicit adds — bank-extension diagnostic)
+!scripts/artifacts/oof_xgb_metastack_v7.npy
+!scripts/artifacts/test_xgb_metastack_v7.npy
