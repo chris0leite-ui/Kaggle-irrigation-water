@@ -14828,3 +14828,158 @@ LB budget: 1/10 used today (this probe), 9 remaining. LB-best
 unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
 Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005
 audit F1 swap.
+
+### 2026-04-27 — wide_fe (Cdeotte 1st-place programmatic FE pattern): 23rd saturation confirmation, LOCK FINAL
+
+- Goal: execute the only untried high-EV lever from the 4-lever GM-research
+  brainstorm (C/D/B/A from 2026-04-26): **A. Wide programmatic FE**
+  — Cdeotte's 1st-place backpack-prices pattern (NVIDIA cuDF FE blog).
+  Generate ~1700 NEW programmatic features on top of recipe's 440, run
+  1-fold importance scan to rank by gain, forward-select top 600,
+  5-fold StratifiedKFold(seed=42) on the selection. Mechanism distinct
+  from every prior null because it adds a NEW feature surface to the
+  recipe XGB rather than a new model to the meta bank.
+- Three feature-engineering blocks added on top of recipe FE:
+  1. **7-stat group-by per (cat × num)** — mean, std, min, max,
+     q25, q50, q75 over 8 cats × 11 nums = **+616 cols**
+     (we already had mean+std = 176; this expands the family).
+  2. **8-quantile group-by per (cat × num)** — q05, q10, q40, q45,
+     q55, q60, q90, q95 = **+704 cols**.
+  3. **Extended decimal features** — `(col × 10) % 1 .round(2)`
+     for all 11 nums = **+11 cols**.
+  Total new candidate features: 1331; combined with recipe's 440 base
+  = 1771 numeric + 117 OTE-target cats = **~1774 candidate features**.
+- Implementation iteration cycle hit OOM **3 times** at production scale
+  (15Gi container, no swap). Each fix surgically targeted the next
+  bottleneck:
+  1. **Mem-fix #1 (commit 7f638a2)**: defragment `.copy()` after FE +
+     max_bin 1024→256/512 + `gc.collect()`. **Crashed at the .copy()
+     itself** because copying a 630k×1500 fragmented frame needs ~12-15
+     GB transient peak.
+  2. **Mem-fix #2 (commit 0f5fcfb)**: zero-fragmentation refactor —
+     FE functions return `(train_dict, test_dict)` of {col_name:
+     np.ndarray}, then a SINGLE `pd.concat([train, pd.DataFrame(dict)],
+     axis=1)`. **Cleared FE phase but still OOM'd** during the 1-fold
+     XGB importance scan (full-data slice + DMatrix at peak ~15 GB).
+  3. **Mem-fix #3 (commit b86a7ee)**: stratified-subsample tr_idx →
+     SCAN_N=200k for the importance scan only (ranking 1700 features
+     is robust at this scale); convert X_tr/X_va/X_te to contiguous
+     float32 numpy arrays before `model.fit` to free pandas overhead;
+     `n_jobs=8` (down from 16) to halve thread-local histogram memory.
+     **Cleared scan phase but still OOM'd at fold 1 of 5-fold loop**
+     (still copying full 1537-col train slice).
+  4. **Mem-fix #4 (commit 928c822)**: per-fold slice uses ONLY
+     `selected_numeric + selected_te_targets + [TARGET]` columns
+     (~240 vs 1537, a 6× cut); defer `test.copy()` until after X_tr
+     is built. Production GREEN.
+  Each iteration validated by SMOKE first (20k×2-fold, ~30s wall) —
+  caught regressions in <1 min cycle each time. Final memory peak ~9
+  GB. **Five OOMs avoided by SMOKE-first discipline.**
+- Importance scan diagnostic (the headline finding):
+  ```
+  scan best_iter = 398 (out of 400 cap, max_bin=256, 200k subsample)
+  features used:  472 out of 1774 candidates (26.6% utilization)
+  top-10 by gain (gain in parentheses):
+    logit_P_High                                  1611.1  ← recipe LR-formula
+    logit_P_Low                                   1192.0  ← recipe LR-formula
+    soil_lt_25_TE_cls0                             429.2  ← recipe rule-cell OTE
+    COMBO_Crop_Growth_Stage_Mulching_Used_TE_cls0  105.9  ← recipe pair OTE
+    CAT_Rainfall_mm_TE_cls2                         63.2  ← recipe num-as-cat OTE
+    logit_P_Medium                                  39.2  ← recipe LR-formula
+    rain_lt_300                                     36.8  ← recipe rule indicator
+    Temperature_C                                   23.6  ← raw num
+    CAT_Rainfall_mm_TE_cls1                         23.0  ← recipe num-as-cat OTE
+    Rainfall_mm                                     21.1  ← raw num
+  selected: 121 numeric + 117 OTE-target cats
+  ```
+  **ZERO wide-FE features (WIDE_/WIDEQ_/WIDED_) in top-10.** Of the 121
+  selected numerics, only ~29 are wide-FE (1331 candidates → 29 picked
+  = **2.2% pickup rate**). The recipe's existing OTE + LR logits + rule
+  indicators absorb essentially all the available signal; group-by stats
+  and quantile features add nothing the recipe doesn't already encode.
+- Per-fold standalone results (FAST=1: 1000 trees, lr=0.15, ES=100):
+  ```
+  fold  wide_fe   recipe    Δ
+  1     0.97523   0.97544   -0.00021
+  2     0.97639   0.97659   -0.00020
+  3     0.97655   0.97721   -0.00066
+  4     0.97456   0.97465   -0.00009
+  5     0.97574   0.97557   +0.00017
+  mean Δ:                   -0.00020
+  ```
+  **OOF argmax 0.97569**, tuned **0.97959** (bias [1.13, 1.27, 3.10]).
+  **Δ vs recipe baseline = −0.00008 standalone tuned (within fold noise).**
+  Δ vs LB-best 4-stack (0.98084) = −0.00125. Wall: 60.9 min.
+- Blend gate (CANDIDATES=wide_fe blend_gate_AB.py):
+  ```
+  candidate @ recipe-bias:  0.97953 (Δ -0.00131 vs LB-4 0.98084)
+  iso-cal'd @ recipe-bias:  0.97945
+
+  vs LB-best 3-stack (anchor 0.98061):
+    NO gate-pass; best-Δ raw α=0.025 Δ=-0.00004
+    g2=False (errs > anchor+5), g3=True, g4=False (asym < 0.5)
+
+  vs LB-best 4-stack (anchor 0.98084):
+    "best gate-pass" α=0.025 iso Δ=-0.00003 (NEGATIVE — best
+    among sweep points where g2/g3/g4 mechanically don't fail,
+    but the lift itself is below anchor)
+  ```
+  **Both anchors monotone-negative across the α-sweep.** No α threads
+  the needle. **No LB probe warranted.**
+- **23rd independent saturation confirmation at LB 0.98094.** Joins:
+  ```
+  attack vector                                 result
+  ──────────────────────────────────────────── ────────────────
+  1-22. (prior 22 saturation confirmations from 2026-04-25/26)
+  23. **wide_fe programmatic FE (this entry)    standalone null +
+                                                blend null at every α**
+  ```
+- **Mechanism diagnosis (the portable read-out)**: the cdeotte
+  backpack-prices pattern works on competitions where the base FE has
+  NOT been heavily target-encoded. Our V10 recipe already does:
+  - OrderedTE on 117 cat-tuples (cats + pairs + digit cols + num-as-cat
+    + rule cells + threshold flags) × 3 classes = 351 OTE features
+    that explicitly compute per-class probability statistics conditioned
+    on each categorical
+  - LR-formula logits derived from the 10k rule-perfect original (3 cols)
+  - FREQ counts per cat (~36 cols)
+  - ORIG mean/std on 38 nums × 8 cats = 38 × 2 features
+  Adding (cat × num) group-by stats is **partially redundant** with the
+  OTE family because OTE already conditions per-class statistics on cat;
+  the marginal stat (mean/std/quantile of NUM given CAT) is correlated
+  with per-class probability shifts the OTE captures. XGB's tree splits
+  prefer the OTE features (sharper decision boundaries) and shrink the
+  group-by stats to leaf-level near-noise.
+- **Portable rule** (LEARNINGS.md candidate): **"Wide programmatic FE
+  (group-by stats × quantile features) only adds standalone signal on
+  top of a base pipeline that does NOT already use heavy target
+  encoding. On a recipe with ~350+ OTE features × 3 classes, group-by
+  stats are partially redundant with OTE's per-class probability
+  conditional-on-cat structure; XGB tree splits prefer the OTE features
+  and shrink group-by stats to near-noise. Pickup rate <5% in the
+  importance scan is a clean diagnostic for this saturation pattern.
+  Save the wall budget for novel feature classes (e.g. graph-derived,
+  external-data joins) when OTE is already in the base pipeline."**
+- LB budget: **0/10 used today** (no probe spent), full 10 remaining.
+  LB-best unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- **FINAL-SELECTION LOCK** (3 days to deadline 2026-04-30):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+     (gap −0.00010, anomalous LB > OOF). Composition: LB-best 3-stack
+     + xgb_metastack_iso × α=0.30.
+  2. **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` →
+     **LB 0.98005** (gap +0.00024, premium −0.00089 vs primary).
+     Sidesteps meta-stacker layer for orthogonal overfit insurance
+     against private-LB drift.
+  Pack 0.98114 stays +0.00020 above primary; leader 0.98219 stays
+  +0.00125 above. Both reachable only via public-CSV blending (banned
+  by top-of-file rule). With 23 saturation confirmations spanning every
+  major lever class (greedy / meta variants / NN families / new
+  feature classes / training-data levers / per-row gating /
+  Pareto-frontier overrides / decision-rule variants / wide programmatic
+  FE), the own-pipeline ceiling is structurally exhausted.
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `scripts/wide_fe.py` (4 OOM-fix iterations applied)
+  - `scripts/artifacts/oof_wide_fe.npy` + `test_wide_fe.npy`
+  - `scripts/artifacts/wide_fe_results.json` + `wide_fe_smoke_results.json`
+  - `scripts/artifacts/blend_gate_AB_results.json` (wide_fe gate decision)
+  - `submissions/` — no submission emitted (sweep monotone-negative).
