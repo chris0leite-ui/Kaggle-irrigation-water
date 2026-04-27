@@ -15835,3 +15835,26 @@ at preserving the H signal while flipping G4:
   **Skip**: re-running with different XGB HPs (depth/lr sweep) — the
   surrogate's behavior is dominated by the gradient shape, not tree
   depth. HP sweeps were already exhausted in 2026-04-22 Optuna run.
+
+### R1 concrete EXTRA_EXCLUDE list (post-N1 G4 RESHUFFLE finding)
+
+The N1 meta-stacker pool ballooned to 170 because `EXCLUDE` only listed
+historical regressors. The macro-recall meta needs a tighter pool. Add to
+EXCLUDE for R1 re-run:
+
+  Circular (macrorec output as macrorec-meta input):
+    - recipe_full_te_macrorec_T1_lam03
+    - xgb_metastack_metamacrorec_lam03  (this experiment's own output)
+  Recently-confirmed branch-NULL components (this branch + adjacent):
+    - recipe_full_te_residte             (24th saturation)
+    - recipe_full_te_basemargin_K2       (25th saturation)
+    - recipe_full_te_dropdet             (training-data lever NULL)
+    - tier1b_greedy_meta_l1override      (L1 override LB regressor -0.00032)
+  LB-regressor metas (variance test ratios -1x to -3x):
+    - xgb_metastack_classw, xgb_metastack_n5b_both
+    - lr_metastack, lr_metastack_v2, mlp_metastack
+    - xgb_metastack_bag3, xgb_metastack_v3, v4, varB, varC
+
+Curated bank target: ~40-50 LB-validated components. Same script
+(`scripts/n1_metamacrorec.py`) but extend the imported EXCLUDE set.
+
