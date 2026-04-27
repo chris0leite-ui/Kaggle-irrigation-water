@@ -15136,3 +15136,76 @@ audit F1 swap.
   - `scripts/artifacts/preflight_residual_auc.json` (3-target AUCs)
   - `submissions/submission_recipe_full_te_residte.csv` (diagnostic,
     not for LB probe — stratifies as REMOVE-High)
+
+### 2026-04-27 — Phase B K=2 base-margin completed: 25th saturation NULL, first ADD-High direction but asymmetry too weak
+
+- Continuation of the residual-target-encodings session: Phase B K=2 base-margin
+  full 5-fold completed after Phase A's 24th saturation.
+- Per-fold standalone (vs recipe baseline):
+  ```
+  fold    K=2        recipe      Δ
+  1       0.97513    0.97544    -0.00031
+  2       0.97579    0.97659    -0.00080
+  3       0.97704    0.97721    -0.00017
+  4       0.97447    0.97465    -0.00018
+  5       0.97606    0.97557    +0.00049   (positive)
+  mean fold delta:               -0.00019   (closer to recipe than Phase A's -0.00033)
+  ```
+  K=2 5-fold tuned OOF = 0.97954 (recipe 0.97967, Δ -0.00013, within fold-noise).
+  Bias [0.93, 1.07, 2.90] — High bias 2.90 is much lower than recipe's 3.40,
+  consistent with the K=2 prior already pushing High preds up at training
+  time (less post-hoc bias correction needed).
+- 4-gate analyzer FAIL on both raw and iso paths:
+  ```
+                                  raw           iso
+  standalone @ recipe-bias       0.97950       0.97935
+  errs                            10,027        9,612
+  Jaccard vs LB-best 4-stack     ~0.84         ~0.84
+  errs ratio (B/LB4)             1.065         1.021
+
+  blend sweep α=0.30 (fixed bias):
+    OOF        0.98035 / 0.98040
+    Δ vs LB4  -0.00049 / -0.00044     FAIL G1 (need ≥+0.0003)
+    PCR L      -2e-5  / +6e-5         PASS L
+    PCR M      -1e-4  / +7e-4         PASS M (helped)
+    PCR H      -0.00133 / -0.00205    FAIL G2 (-5e-4 floor)
+    net_high   +18 raw / -85 iso      G4 RAW direction-PASS, iso-FAIL
+    G3 ratio   NaN (negative deltas)  FAIL
+
+  OVERALL: FAIL on G1, G2, G3, G4 (raw and iso both)
+  ```
+
+- **Notable: K=2 raw is the FIRST candidate this comp with net_H > 0 (+18)**
+  — direction is ADD-High, the macro-recall-favorable side. But asymmetry
+  ratio = 18/106 = 0.17, well below G4's 0.5 floor. The rule prior at K=2
+  causes trees to push some boundary rows to High correctly (~62 wins) but
+  also gambles on ~44 wrong High predictions. The +18 net is real but
+  swamped by churn — same pattern as the LR meta-stacker (LB 0.98091, gap
+  +0.00027). Iso-cal collapses the direction win (−85 net_H), suggesting
+  the direction gain comes from the natural log-bias correction on K=2's
+  shifted prob scale, not from new orthogonal signal.
+
+- **Mechanism diagnosis** (portable):
+  Phase B's base-margin = K * one_hot(rule_pred) - K/2 anchors trees
+  to the rule's predictions. The rule has 98.4% raw acc, but only 96.5%
+  on the High class (15k+ rows in scores 7-9). Trees with K=4 cannot
+  flip enough High boundary rows (PCR_H -1.1pp); K=2 leaves more room
+  but H recall still falls -0.26pp standalone; K→0 reduces to recipe
+  baseline. **No K simultaneously satisfies (Jaccard < 0.80) AND
+  (PCR_H within -5e-4)**. The mechanism is structurally bounded by the
+  rule's information content.
+
+- **25th independent saturation confirmation at LB 0.98094.** Phase A
+  (residual TE) and Phase B (base-margin) close together as 24th + 25th.
+
+- LB-best primary unchanged: **LB 0.98094** (`submission_tier1b_greedy_meta.csv`).
+  Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005.
+  LB budget: 0 spent today.
+
+- Artefacts on `claude/residual-target-encodings-Duy1o`:
+  - `scripts/artifacts/oof_recipe_full_te_basemargin_K2.npy` + test +
+    results JSON
+  - `scripts/artifacts/blend_gate_4gate_basemargin_K2_results.json` +
+    `_iso_results.json` (definitive NULL)
+  - `submissions/submission_recipe_full_te_basemargin_K2.csv` (diagnostic
+    only — not for LB probe)
