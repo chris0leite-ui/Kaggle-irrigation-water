@@ -15728,3 +15728,110 @@ inheriting the failure:
   If gates positive, LB-probe with tomorrow's fresh slots. If null, N2 next.
   N3 last because Phase A has primed us to expect feature-level macrorec
   delivery would be redundant with existing OTE+digit FE.
+
+### 2026-04-27 — N1 macro-recall meta-stacker on 170-component bank: 3/4 gates PASS but G4 RESHUFFLE
+
+- Goal: execute N1 from the 3-idea brainstorm — apply the macro-recall
+  surrogate gradient at the meta-stacker level (`scripts/n1_metamacrorec.py`).
+  Reuses tier1b_xgb_metastack pool + meta-feature construction; only the
+  XGB obj swaps to the surrogate from `recipe_macrorecall.py`.
+- Pool ballooned to 170 components (every 3-class OOF on disk that's not
+  in EXCLUDE — includes recently-added macrorec_T1_lam03 itself, residte,
+  basemargin_K2, plus all components from prior sessions).
+- 5-fold seed=42 (~22 min wall total):
+  ```
+  fold    bal_acc    best_iter
+  1       0.98118    62
+  2       0.98209    120
+  3       0.98306    15
+  4       0.98209    4
+  5       0.98219    191
+  OOF argmax = 0.98212  (LB-best 4-stack OOF 0.98084, +0.00128 standalone)
+  iso-cal'd @ recipe-bias = 0.98196
+  ```
+  Best_iters wildly variable — surrogate satiates near-instantly at meta
+  level when component bank already gives p_true ~ 0.99 (gradient
+  ∝ p_true(1-p_true) → 0).
+- REPLACE-v1 architecture (N1_iso × α=0.30 onto LB-best 3-stack) vs
+  LB-best 4-stack:
+  ```
+  α=0.10 → OOF 0.98115  (+0.00031)
+  α=0.20 → OOF 0.98142  (+0.00058)
+  α=0.30 → OOF 0.98149  (+0.00065)
+  α=0.50 → OOF 0.98172  (+0.00088)
+  ```
+  Standalone N1 iso has +0.00376 H recall vs LB-best 4-stack — the
+  base-level macrorec H-direction signal SURVIVES at meta level.
+
+- **4-gate analyzer @ α=0.30 iso (the recommended path):**
+  ```
+  G1: +0.00075   PASS  (≥+0.0003)
+  G2: PCR L -0.00018 / M +0.00043 / H +0.00200   PASS  (no class drops
+                                                         below -5e-4 floor)
+  G3: ratio 1.08   PASS  (in [1.0, 2.0] stable range)
+  G4: net_H +49, churn 277, ratio 0.18   FAIL  (RESHUFFLE pattern,
+                                                ratio < 0.5 floor)
+  ```
+  **First experiment in 27 saturation confirmations to clear 3 of 4
+  gates**, but G4 binds. The H-direction is POSITIVE (+49 net) but
+  RESHUFFLE dominates (114 H-revokes + 163 H-adds = 277 churn).
+  Same pattern as LR-meta v2 / classw / D 3-meta — all of which
+  LB-regressed despite passing G1-G3.
+
+- **Decision (per user direction)**: refine N1 further before LB-probe.
+  Tomorrow's fresh LB slot reserved for one final-form variant with
+  better G4 asymmetry. See "Next steps: N1 refinements" below.
+
+- LB-best primary unchanged: **LB 0.98094**. LB budget unchanged.
+
+### Next steps: 3 N1 refinements (ranked by EV/cost) — 2026-04-27
+
+The N1 result clears G1+G2+G3 cleanly but G4 RESHUFFLE pattern is the
+exact failure signature that LR-meta v2 / classw / D 3-meta showed
+before LB-regressing. The H-direction signal IS real (PCR_H +0.002 at
+α=0.30, +0.00376 standalone) but the meta-stacker is reshuffling H
+predictions rather than cleanly adding them. Three refinements aimed
+at preserving the H signal while flipping G4:
+
+  **R1. Curated-pool re-run** (top pick, ~25 min CPU + 5 min meta).
+  The 170-component pool includes circularity-risk components (macrorec
+  itself, residte, basemargin) AND known LB-regressors (soft_distill,
+  recipe_pseudolabel_stage2, several c0_v* derived metas). Curate to
+  ~50 LB-validated, structurally diverse components by ADDING explicit
+  EXCLUDE entries for:
+    - macrorec_T1_lam03            (circular: macrorec output as macrorec-meta input)
+    - residte / basemargin_K2      (LB-regressors / null branches)
+    - soft_distill (already excluded — confirm)
+    - all c0_* + xgb_metastack_v* (prior meta outputs, already excluded)
+  Re-run N1 with this curated set. Hypothesis: smaller bank → less
+  overfit → meta finds a cleaner ADD-High signal rather than RESHUFFLE.
+  Cost: re-run scripts/n1_metamacrorec.py with extended EXCLUDE.
+  Bayesian prior of clearing G4: 30%.
+
+  **R2. Pure macrorec at meta level (lam_ce=0.0)** (~5 min CPU).
+  Currently lam_ce=0.3 (30% CE). The CE component may be pushing the
+  meta toward log-loss-optimal — which on a saturated bank means
+  RESHUFFLE around the existing operating point. lam_ce=0.0 gives pure
+  surrogate that satiates fast (best_iter=3 at base level) but might
+  preserve the clean ADD-High direction. The "directional purity" of
+  pure surrogate IS what we want to preserve, even if at fewer rounds.
+  Cost: rerun with `MR_LAMBDA=0`, suffix `_metamacrorec_lam0`.
+  Bayesian prior: 25%.
+
+  **R3. Anchor-anchored meta loss with KL regularizer** (~30 min CPU
+  for new obj implementation + 25 min run).
+  Add a NEW penalty term to the surrogate: `λ_kl × KL(meta_probs ||
+  lb_best_4stack_probs)`. Forces meta predictions to stay near the
+  LB-best 4-stack except where macrorec gradient is strong enough to
+  overcome the KL pull. Mathematically prevents the H-revoke direction
+  (G4 RESHUFFLE failure) while preserving H-add. Different from
+  iso-cal which is a per-class monotonic mapping (post-hoc); this is
+  a per-row constraint at training time. Bayesian prior: 20%.
+
+  **Execution order**: R1 first (cheapest, addresses obvious circularity
+  and overfit risk). If G4 still fails, R2 next (also cheap). R3 only
+  if R1+R2 don't clear G4 — implementation requires 1 new obj closure.
+
+  **Skip**: re-running with different XGB HPs (depth/lr sweep) — the
+  surrogate's behavior is dominated by the gradient shape, not tree
+  depth. HP sweeps were already exhausted in 2026-04-22 Optuna run.
