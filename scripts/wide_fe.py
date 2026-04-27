@@ -27,7 +27,7 @@ Outputs:
   wide_fe_results.json
 """
 from __future__ import annotations
-import json, os, sys, time
+import gc, json, os, sys, time
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -130,6 +130,12 @@ def main():
     te_cols = info["te_cols"]
     log(f"total candidate features: {len(numeric_feats)} numeric + {len(te_cols)} OTE-target cats")
 
+    # Defragment (we inserted ~1331 cols one-at-a-time → highly fragmented blocks)
+    log(f"defragmenting train/test (mem cleanup)")
+    train = train.copy()
+    test = test.copy()
+    gc.collect()
+
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     folds = list(skf.split(train, y))
     tr_idx, va_idx = folds[0]
@@ -150,14 +156,17 @@ def main():
     log(f"  feat_cols total: {len(feat_cols)}  (importance-scan fold 1)")
 
     sw = compute_sample_weight("balanced", y[tr_idx])
+    # max_bin=256 (down from 1024) and n_estimators=400 (down from 800) to fit
+    # the QuantileDMatrix in 15Gi RAM with 1423 numeric + 351 OTE features.
+    # Importance ranking is robust to fewer rounds — gains accumulate fast.
     booster = xgb.XGBClassifier(
-        n_estimators=200 if SMOKE else 800,
+        n_estimators=200 if SMOKE else 400,
         max_depth=4, max_leaves=30, learning_rate=0.1,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=2,
-        reg_alpha=5, reg_lambda=5, max_bin=256 if SMOKE else 1024,
+        reg_alpha=5, reg_lambda=5, max_bin=256,
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss", n_jobs=-1, random_state=SEED,
-        early_stopping_rounds=30 if SMOKE else 100, verbosity=0,
+        early_stopping_rounds=30 if SMOKE else 75, verbosity=0,
     )
     booster.fit(X_tr[feat_cols], y[tr_idx], sample_weight=sw,
                 eval_set=[(X_va[feat_cols], y[va_idx])], verbose=200)
@@ -170,6 +179,10 @@ def main():
     log(f"  importance scan: {len(used)} features used, selecting top {TOP_N}")
     log(f"  top-10: {[(n, round(g, 1)) for n, g in used[:10]]}")
     log(f"  bottom-of-selected gain: {round(used[min(TOP_N-1, len(used)-1)][1], 2)}")
+
+    # Free the importance-scan booster + scan-fold data (multi-GB) before 5-fold.
+    del booster, X_tr, X_va, X_tr_shuf, te
+    gc.collect()
 
     selected_numeric = [c for c in numeric_feats if c in top_feats]
     selected_te_targets = []
@@ -200,7 +213,7 @@ def main():
         n_estimators=300 if SMOKE else (1000 if FAST else 3000),
         max_depth=4, max_leaves=30, learning_rate=0.15 if FAST else 0.1,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=2,
-        reg_alpha=5, reg_lambda=5, max_bin=256 if SMOKE else 1024,
+        reg_alpha=5, reg_lambda=5, max_bin=256 if SMOKE else 512,
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss", n_jobs=-1, random_state=SEED,
         early_stopping_rounds=50 if SMOKE else (100 if FAST else 200), verbosity=0,
@@ -246,6 +259,8 @@ def main():
         bal = balanced_accuracy_score(y[va_idx], vp.argmax(1))
         fold_scores.append(bal)
         log(f"  fold {fold} bal={bal:.5f} best_iter={model.best_iteration}")
+        del model, X_tr, X_va, X_te, X_tr_shuf, te, vp, tp, sw
+        gc.collect()
 
     overall = balanced_accuracy_score(y, oof.argmax(1))
     log(f"=== OOF argmax bal_acc = {overall:.5f}")
