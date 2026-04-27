@@ -114,7 +114,7 @@ def main() -> None:
 
     # Sweep α ∈ {0, 0.10, 0.20, 0.30, 0.40, 0.50}.
     print("\nblend sweep (fixed recipe bias):")
-    print(f"  {'α':>5}  {'OOF':>8}  {'Δ':>+9}  {'errs':>6}  {'recL':>7} {'recM':>7} {'recH':>7}")
+    print(f"  {'α':>5}  {'OOF':>8}  {'delta':>9}  {'errs':>6}  {'recL':>7} {'recM':>7} {'recH':>7}")
     sweep = {}
     blend_test_at: dict[float, np.ndarray] = {}
     for alpha in (0.0, 0.10, 0.20, 0.30, 0.40, 0.50):
