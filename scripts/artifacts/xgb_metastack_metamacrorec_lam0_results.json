@@ -1,0 +1,29 @@
+{
+  "n_folds": 5,
+  "smoke": false,
+  "lam_ce": 0.0,
+  "temperature": 1.0,
+  "n_components": 172,
+  "meta_feature_shape": [
+    630000,
+    533
+  ],
+  "fold_scores_argmax": [
+    0.9810818064326637,
+    0.9820224285586434,
+    0.9828079191595404,
+    0.981578658606845,
+    0.9820579409995007
+  ],
+  "best_iters": [
+    98,
+    100,
+    86,
+    4,
+    116
+  ],
+  "overall_argmax_bal_acc": 0.9819098093575153,
+  "overall_tuned_bal_acc": 0.8519578343983164,
+  "iso_argmax_bal_acc": 0.9810325044982234,
+  "iso_tuned_bal_acc": 0.981886892302883
+}
