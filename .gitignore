@@ -91,3 +91,4 @@ kaggle_kernel/kernel_*/output/
 # Kaggle dataset npy payloads (uploaded once, regenerable)
 kaggle_kernel/ds_*/test_*.npy
 kaggle_kernel/ds_*/oof_*.npy
+kernel_audit*/
