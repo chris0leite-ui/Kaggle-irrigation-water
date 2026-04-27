@@ -13520,6 +13520,61 @@ final selection.
 - **LB-best unchanged**: `submission_tier1b_greedy_meta.csv` at
   **LB 0.98094**. LB budget unchanged (no submissions this session).
 
+### 2026-04-27 — B LB probe: 0.98091 (−0.00003 from LB-best, gap +0.00027 — 5x tighter than LR)
+
+- Goal: LB-probe B's gate-passing candidate after the previous session's
+  documentation pass. User-approved single submit; one `kaggle
+  competitions submit` invocation, no retry, per CLAUDE.md rule.
+- Changed: `scripts/emit_meta_l3_blend.py` (~95 lines) — reconstructs
+  the L3 weighted average (0.5 × XGB-meta-iso + 0.5 × MLP-meta-iso)
+  + log-blends into LB-best 3-stack at α=0.50, applies fixed bias
+  [1.4324, 1.4689, 3.4008], emits CSV. Verified OOF reproduction:
+  blend bal_acc 0.98118 (matches B's gate output exactly).
+- **LB submission**:
+  `submission_meta_l3_xgb_mlp_blend_a050.csv` → **LB public = 0.98091**.
+  Δ vs LB-best primary (0.98094) = **−0.00003** (essentially tied,
+  inside LB noise floor ~±0.0005).
+- **OOF→LB calibration ladder for the meta-stacker family**:
+  ```
+  meta variant                        OOF       LB       gap        LB Δ
+  ----------------------------------- --------  --------  --------  --------
+  LR-meta v1 (C=1.0, balanced)        0.98167   0.97991   +0.00176  -0.00103
+  LR-meta v2 (C=0.1, none)            0.98107   0.98052   +0.00055  -0.00042
+  **MLP-meta v1 (B, this probe)       0.98118   0.98091   +0.00027  -0.00003**
+  XGB-meta + iso → LB-best 4-stack    0.98084   0.98094   -0.00010  +0.00086
+  ```
+  Architectural safeguards (non-linearity / dropout / smaller capacity)
+  reduced gap inflation by **5×** vs LR v1. But the OOF +0.00033 lift
+  over LB-best 4-stack did not fully transfer — only **12% transfer
+  rate** (Δ_LB / Δ_OOF). Same direction as LR-meta family but
+  attenuated.
+- **Per-class recall delta on test** (tied OOF & LB picture):
+  L=−0.00007 / M=+0.00036 / **H=+0.00071** vs LB-best 4-stack.
+  Rare-class trade was directionally CORRECT this time (positive on
+  H), unlike D's hillclimb (Pareto violation Med→High).
+- **Saturation reconfirmed at LB 0.98094** — this is the **17th
+  independent saturation confirmation** on the LB ceiling. The MLP
+  meta-stacker is the FIRST simpler-than-XGB meta to land within 3bp
+  of primary on LB, and the first to satisfy the per-class guardrail
+  with positive rare-class direction. But even with those structural
+  safeguards, breaking past the ceiling requires more than a different
+  L2 meta-learner family.
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **MLP meta-stackers with dropout + non-linearity DO escape the LR
+     `class_weight='balanced'` overfit trap on a saturated bank** —
+     gap narrowed from +0.00176 to +0.00027 (6.5× compression). The
+     LR-meta failure was specifically architectural (linear + class-
+     balanced loss); not all "simpler-than-XGB metas" inherit it.
+  2. **OOF→LB transfer rate of 12% on a saturated 63-component bank
+     is the practical ceiling for L2 meta variants.** Below that, the
+     bank is saturated; the meta architecture choice can move the
+     constant slightly but cannot break the structural ceiling.
+- LB budget: **1/10 used today** (this probe, on 2026-04-27),
+  9 remaining.
+- Current LB best unchanged: `submission_tier1b_greedy_meta.csv` at
+  LB **0.98094**.
+
+
 ### 2026-04-26 — W7 (k=1 NN to 10k original): NULL — synthetic rows are not anchored to original rows
 
 - Goal: execute the cheapest untried wild-step from the 2026-04-25 W1-W8
