@@ -1,95 +1,251 @@
-[{"stream_name":"stdout","time":0.92751682,"data":"[boot] gpu compute_cap = ['6.0']\n"}
-,{"stream_name":"stdout","time":0.927614302,"data":"[boot] sm_60/61 detected - pinning torch+torchvision cu121\n"}
-,{"stream_name":"stdout","time":12.490038906,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":18.225944973,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 2.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":73.678966486,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 4.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":73.874795017,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 83.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":74.200484454,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 51.7 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":74.239422093,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 39.3 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":82.6689552,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.7 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":84.721056073,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 7.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":85.416320991,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 31.5 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":87.05652161,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 14.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":90.551411181,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 5.1 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":92.775553246,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.7/188.7 MB 9.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":92.805736368,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 7.4 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":92.890395876,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 97.2 MB/s eta 0:00:00\n"}
-,{"stream_name":"stdout","time":100.347993151,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.6/209.6 MB 1.6 MB/s eta 0:00:00\n"}
-,{"stream_name":"stderr","time":189.104625284,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
-,{"stream_name":"stderr","time":189.104682028,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.5.1+cu121 which is incompatible.\n"}
-,{"stream_name":"stdout","time":189.616510446,"data":"[boot] installed efficient-kan\n"}
-,{"stream_name":"stdout","time":194.947536305,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
-,{"stream_name":"stdout","time":194.947598839,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
-,{"stream_name":"stdout","time":194.975526107,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
-,{"stream_name":"stdout","time":194.975563423,"data":"[main] SMOKE=False PROBE=True N_FOLDS=5 MAX_FOLDS=1 N_EPOCHS=12\n"}
-,{"stream_name":"stdout","time":194.975571445,"data":"[data] loading train / test / orig\n"}
-,{"stream_name":"stdout","time":198.113812531,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
-,{"stream_name":"stdout","time":198.277312307,"data":"[fe] cat Soil_Type: card=4\n"}
-,{"stream_name":"stdout","time":198.448905769,"data":"[fe] cat Crop_Type: card=6\n"}
-,{"stream_name":"stdout","time":198.617633728,"data":"[fe] cat Crop_Growth_Stage: card=4\n"}
-,{"stream_name":"stdout","time":198.777461737,"data":"[fe] cat Season: card=3\n"}
-,{"stream_name":"stdout","time":198.948718727,"data":"[fe] cat Irrigation_Type: card=4\n"}
-,{"stream_name":"stdout","time":199.110619372,"data":"[fe] cat Water_Source: card=4\n"}
-,{"stream_name":"stdout","time":199.284420633,"data":"[fe] cat Mulching_Used: card=2\n"}
-,{"stream_name":"stdout","time":200.22566704,"data":"[fe] cat Region: card=5\n"}
-,{"stream_name":"stdout","time":200.225689306,"data":"[fe] feat_dim=43  X_train=(630000, 43) X_test=(270000, 43) X_orig=(10000, 43)\n"}
-,{"stream_name":"stdout","time":200.22569541,"data":"=== fold 1/5 ===\n"}
-,{"stream_name":"stdout","time":200.225700942,"data":"      build KAN [43, 192, 96, 48, 3] device=cuda\n"}
-,{"stream_name":"stdout","time":200.25592047,"data":"      params=314,400\n"}
-,{"stream_name":"stdout","time":205.527363779,"data":"      epoch 1/12 loss=0.46672 lr=9.83e-04 wall=3.6s\n"}
-,{"stream_name":"stdout","time":208.936423737,"data":"      epoch 2/12 loss=0.29653 lr=9.33e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":212.361786131,"data":"      epoch 3/12 loss=0.27428 lr=8.54e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":215.809216786,"data":"      epoch 4/12 loss=0.26623 lr=7.50e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":219.208774945,"data":"      epoch 5/12 loss=0.25909 lr=6.29e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":222.623472791,"data":"      epoch 6/12 loss=0.25409 lr=5.00e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":226.02663225,"data":"      epoch 7/12 loss=0.25128 lr=3.71e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":229.4438494,"data":"      epoch 8/12 loss=0.24739 lr=2.50e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":232.877387507,"data":"      epoch 9/12 loss=0.24671 lr=1.46e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":236.289134821,"data":"      epoch 10/12 loss=0.24368 lr=6.70e-05 wall=3.4s\n"}
-,{"stream_name":"stdout","time":239.687479677,"data":"      epoch 11/12 loss=0.24203 lr=1.70e-05 wall=3.4s\n"}
-,{"stream_name":"stdout","time":243.111659713,"data":"      epoch 12/12 loss=0.24049 lr=0.00e+00 wall=3.4s\n"}
-,{"stream_name":"stdout","time":243.860395635,"data":"  fold 1 argmax bal_acc = 0.93786 (elapsed 0.7m)\n"}
-,{"stream_name":"stdout","time":243.860428357,"data":"!! MAX_FOLDS reached (1)\n"}
-,{"stream_name":"stdout","time":247.372041701,"data":"tuned OOF bal_acc = 0.93868 bias=[2.0324, 1.9689, 2.2008] (1/5 folds, covered=126,000/630,000)\n"}
-,{"stream_name":"stdout","time":247.70392949,"data":"wrote oof_kan_probe.npy / test_kan_probe.npy / submission_kan_probe_tuned.csv / kan_probe_results.json\n"}
-,{"stream_name":"stdout","time":247.721787294,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
-,{"stream_name":"stdout","time":247.721824312,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
-,{"stream_name":"stdout","time":247.747585937,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
-,{"stream_name":"stdout","time":247.747621462,"data":"[main] SMOKE=False PROBE=True N_FOLDS=5 MAX_FOLDS=1 N_EPOCHS=12\n"}
-,{"stream_name":"stdout","time":247.747628884,"data":"[data] loading train / test / orig\n"}
-,{"stream_name":"stdout","time":250.043878614,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
-,{"stream_name":"stdout","time":250.201287805,"data":"[fe] cat Soil_Type: card=4\n"}
-,{"stream_name":"stdout","time":250.364906353,"data":"[fe] cat Crop_Type: card=6\n"}
-,{"stream_name":"stdout","time":250.528846698,"data":"[fe] cat Crop_Growth_Stage: card=4\n"}
-,{"stream_name":"stdout","time":250.686899172,"data":"[fe] cat Season: card=3\n"}
-,{"stream_name":"stdout","time":250.851794869,"data":"[fe] cat Irrigation_Type: card=4\n"}
-,{"stream_name":"stdout","time":251.005502969,"data":"[fe] cat Water_Source: card=4\n"}
-,{"stream_name":"stdout","time":251.169033961,"data":"[fe] cat Mulching_Used: card=2\n"}
-,{"stream_name":"stdout","time":251.375631713,"data":"[fe] cat Region: card=5\n"}
-,{"stream_name":"stdout","time":251.825227538,"data":"[fe] feat_dim=43  X_train=(630000, 43) X_test=(270000, 43) X_orig=(10000, 43)\n"}
-,{"stream_name":"stdout","time":251.904607423,"data":"=== fold 1/5 ===\n"}
-,{"stream_name":"stdout","time":251.989261409,"data":"      build KAN [43, 192, 96, 48, 3] device=cuda\n"}
-,{"stream_name":"stdout","time":252.013306978,"data":"      params=314,400\n"}
-,{"stream_name":"stdout","time":255.441508561,"data":"      epoch 1/12 loss=0.47380 lr=9.83e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":258.850470303,"data":"      epoch 2/12 loss=0.29251 lr=9.33e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":262.281736382,"data":"      epoch 3/12 loss=0.27183 lr=8.54e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":265.665414386,"data":"      epoch 4/12 loss=0.26517 lr=7.50e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":269.06116072,"data":"      epoch 5/12 loss=0.26292 lr=6.29e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":272.47625993,"data":"      epoch 6/12 loss=0.26036 lr=5.00e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":275.879335768,"data":"      epoch 7/12 loss=0.25533 lr=3.71e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":279.285971055,"data":"      epoch 8/12 loss=0.25563 lr=2.50e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":282.715230338,"data":"      epoch 9/12 loss=0.25185 lr=1.46e-04 wall=3.4s\n"}
-,{"stream_name":"stdout","time":286.083842228,"data":"      epoch 10/12 loss=0.25110 lr=6.70e-05 wall=3.4s\n"}
-,{"stream_name":"stdout","time":289.475518092,"data":"      epoch 11/12 loss=0.25193 lr=1.70e-05 wall=3.4s\n"}
-,{"stream_name":"stdout","time":292.883382887,"data":"      epoch 12/12 loss=0.25168 lr=0.00e+00 wall=3.4s\n"}
-,{"stream_name":"stdout","time":293.625808542,"data":"  fold 1 argmax bal_acc = 0.93286 (elapsed 0.7m)\n"}
-,{"stream_name":"stdout","time":293.625861089,"data":"!! MAX_FOLDS reached (1)\n"}
-,{"stream_name":"stdout","time":296.973932066,"data":"tuned OOF bal_acc = 0.93359 bias=[2.1324, 1.9689, 2.0008] (1/5 folds, covered=126,000/630,000)\n"}
-,{"stream_name":"stdout","time":297.316450823,"data":"wrote oof_kan_probe.npy / test_kan_probe.npy / submission_kan_probe_tuned.csv / kan_probe_results.json\n"}
-,{"stream_name":"stderr","time":300.581207946,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
-,{"stream_name":"stderr","time":300.581276967,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
-,{"stream_name":"stderr","time":300.830852341,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
-,{"stream_name":"stderr","time":300.830880655,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
-,{"stream_name":"stderr","time":301.845001178,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
-,{"stream_name":"stderr","time":303.296028941,"data":"[NbConvertApp] Writing 378759 bytes to __results__.html\n"}
+[{"stream_name":"stdout","time":0.716719258,"data":"[boot] gpu compute_cap = ['6.0']\n"}
+,{"stream_name":"stdout","time":0.716789055,"data":"[boot] sm_60/61 detected - pinning torch+torchvision cu121\n"}
+,{"stream_name":"stdout","time":12.011480186,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 780.4/780.4 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":18.148386218,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 2.9 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":69.682793983,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 4.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":69.800872002,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 106.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":70.009133384,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 74.9 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":70.032453038,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 50.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":76.297258518,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":78.3744696,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 6.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":78.875751659,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 34.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":79.963736553,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 15.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":81.733479163,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 9.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":87.268920794,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.7/188.7 MB 2.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":87.289085469,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 8.0 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":87.352587312,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 109.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":89.39358545,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.6/209.6 MB 9.0 MB/s eta 0:00:00\n"}
+,{"stream_name":"stderr","time":171.853910903,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":171.853957644,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.5.1+cu121 which is incompatible.\n"}
+,{"stream_name":"stdout","time":172.289536522,"data":"[boot] installed efficient-kan\n"}
+,{"stream_name":"stdout","time":176.617015611,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
+,{"stream_name":"stdout","time":176.61705089,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
+,{"stream_name":"stdout","time":176.640184697,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":176.640206304,"data":"[main] SMOKE=False PROBE=False N_FOLDS=5 MAX_FOLDS=5 N_EPOCHS=15\n"}
+,{"stream_name":"stdout","time":176.640210704,"data":"[data] loading train / test / orig\n"}
+,{"stream_name":"stdout","time":179.380936591,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
+,{"stream_name":"stdout","time":179.392509164,"data":"[fe] threshold flags: 4\n"}
+,{"stream_name":"stdout","time":180.098609908,"data":"[fe] LR logits: 3 (standardised)\n"}
+,{"stream_name":"stdout","time":183.083494012,"data":"[fe] digits: 77 (scaled to [0, 0.9])\n"}
+,{"stream_name":"stdout","time":184.394928379,"data":"[fe] cats one-hot: 32\n"}
+,{"stream_name":"stdout","time":185.488298049,"data":"[fe] FREQ: 8\n"}
+,{"stream_name":"stdout","time":187.318205235,"data":"[fe] ORIG mean/std: 22 (standardised)\n"}
+,{"stream_name":"stdout","time":187.452524276,"data":"[fe] raw nums: 11 (standardised)\n"}
+,{"stream_name":"stdout","time":188.204003085,"data":"[fe] feat_dim=157  X_train=(630000, 157) X_test=(270000, 157) X_orig=(10000, 157)\n"}
+,{"stream_name":"stdout","time":188.273639458,"data":"=== fold 1/5 ===\n"}
+,{"stream_name":"stdout","time":188.510573322,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":188.671205424,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":195.216670262,"data":"      epoch 1/15 loss=0.63123 lr=9.89e-04 wall=5.1s\n"}
+,{"stream_name":"stdout","time":200.047096847,"data":"      epoch 2/15 loss=0.54084 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":204.88192496,"data":"      epoch 3/15 loss=0.53691 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":209.695344262,"data":"      epoch 4/15 loss=0.53381 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":214.51022391,"data":"      epoch 5/15 loss=0.53156 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":219.300003324,"data":"      epoch 6/15 loss=0.52981 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":224.10449977,"data":"      epoch 7/15 loss=0.52914 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":228.8936776,"data":"      epoch 8/15 loss=0.52770 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":233.705438092,"data":"      epoch 9/15 loss=0.52693 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":238.509668658,"data":"      epoch 10/15 loss=0.52663 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":243.320505415,"data":"      epoch 11/15 loss=0.52541 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":248.102267925,"data":"      epoch 12/15 loss=0.52507 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":252.905574997,"data":"      epoch 13/15 loss=0.52465 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":257.702048906,"data":"      epoch 14/15 loss=0.52421 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":262.507172684,"data":"      epoch 15/15 loss=0.52394 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":263.683582479,"data":"  fold 1 argmax bal_acc = 0.96374 (elapsed 1.3m)\n"}
+,{"stream_name":"stdout","time":263.689854119,"data":"=== fold 2/5 ===\n"}
+,{"stream_name":"stdout","time":264.118606415,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":264.155033795,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":269.007973519,"data":"      epoch 1/15 loss=0.62737 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":273.809822397,"data":"      epoch 2/15 loss=0.54225 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":278.618193699,"data":"      epoch 3/15 loss=0.53709 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":283.451818151,"data":"      epoch 4/15 loss=0.53477 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":288.253238929,"data":"      epoch 5/15 loss=0.53211 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":293.058232987,"data":"      epoch 6/15 loss=0.53135 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":297.879535326,"data":"      epoch 7/15 loss=0.52993 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":302.709317722,"data":"      epoch 8/15 loss=0.52910 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":307.50801739,"data":"      epoch 9/15 loss=0.52772 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":312.334057406,"data":"      epoch 10/15 loss=0.52725 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":317.134393687,"data":"      epoch 11/15 loss=0.52666 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":321.919769789,"data":"      epoch 12/15 loss=0.52592 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":326.739580967,"data":"      epoch 13/15 loss=0.52498 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":331.546222452,"data":"      epoch 14/15 loss=0.52514 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":336.368735151,"data":"      epoch 15/15 loss=0.52504 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":337.547181863,"data":"  fold 2 argmax bal_acc = 0.96643 (elapsed 2.5m)\n"}
+,{"stream_name":"stdout","time":337.55374729,"data":"=== fold 3/5 ===\n"}
+,{"stream_name":"stdout","time":337.842262499,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":337.87545981,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":342.727507426,"data":"      epoch 1/15 loss=0.63436 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":347.533639111,"data":"      epoch 2/15 loss=0.54256 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":352.320387897,"data":"      epoch 3/15 loss=0.53782 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":357.123269468,"data":"      epoch 4/15 loss=0.53376 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":361.923520548,"data":"      epoch 5/15 loss=0.53182 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":366.759648399,"data":"      epoch 6/15 loss=0.53080 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":371.59512931,"data":"      epoch 7/15 loss=0.52925 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":376.404631098,"data":"      epoch 8/15 loss=0.52860 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":381.234571725,"data":"      epoch 9/15 loss=0.52767 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":386.096262716,"data":"      epoch 10/15 loss=0.52742 lr=2.50e-04 wall=4.9s\n"}
+,{"stream_name":"stdout","time":390.91580626,"data":"      epoch 11/15 loss=0.52630 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":395.73286623,"data":"      epoch 12/15 loss=0.52577 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":400.532648786,"data":"      epoch 13/15 loss=0.52496 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":405.374887627,"data":"      epoch 14/15 loss=0.52474 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":410.19461259,"data":"      epoch 15/15 loss=0.52463 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":411.374840409,"data":"  fold 3 argmax bal_acc = 0.96684 (elapsed 3.7m)\n"}
+,{"stream_name":"stdout","time":411.382284821,"data":"=== fold 4/5 ===\n"}
+,{"stream_name":"stdout","time":411.636587389,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":411.672605307,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":416.560282486,"data":"      epoch 1/15 loss=0.62675 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":421.373487849,"data":"      epoch 2/15 loss=0.54183 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":426.196574739,"data":"      epoch 3/15 loss=0.53741 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":431.02129038,"data":"      epoch 4/15 loss=0.53467 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":435.8408819,"data":"      epoch 5/15 loss=0.53262 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":440.669722193,"data":"      epoch 6/15 loss=0.53109 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":445.50603799,"data":"      epoch 7/15 loss=0.52965 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":450.325045825,"data":"      epoch 8/15 loss=0.52826 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":455.152823133,"data":"      epoch 9/15 loss=0.52774 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":459.966466193,"data":"      epoch 10/15 loss=0.52748 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":464.786655532,"data":"      epoch 11/15 loss=0.52634 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":469.603781269,"data":"      epoch 12/15 loss=0.52587 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":474.41536684,"data":"      epoch 13/15 loss=0.52532 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":479.212778361,"data":"      epoch 14/15 loss=0.52450 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":484.035855235,"data":"      epoch 15/15 loss=0.52461 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":485.211824922,"data":"  fold 4 argmax bal_acc = 0.96440 (elapsed 5.0m)\n"}
+,{"stream_name":"stdout","time":485.218326,"data":"=== fold 5/5 ===\n"}
+,{"stream_name":"stdout","time":485.470879501,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":485.505000276,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":490.382838014,"data":"      epoch 1/15 loss=0.63179 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":495.199699694,"data":"      epoch 2/15 loss=0.54174 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":499.991394331,"data":"      epoch 3/15 loss=0.53763 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":504.825475356,"data":"      epoch 4/15 loss=0.53410 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":509.650379841,"data":"      epoch 5/15 loss=0.53270 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":514.478764357,"data":"      epoch 6/15 loss=0.53083 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":519.281873369,"data":"      epoch 7/15 loss=0.53034 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":524.118167964,"data":"      epoch 8/15 loss=0.52841 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":528.955232896,"data":"      epoch 9/15 loss=0.52803 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":533.764518052,"data":"      epoch 10/15 loss=0.52713 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":538.564531713,"data":"      epoch 11/15 loss=0.52645 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":543.383638664,"data":"      epoch 12/15 loss=0.52574 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":548.201914644,"data":"      epoch 13/15 loss=0.52516 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":553.045993006,"data":"      epoch 14/15 loss=0.52503 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":557.85664259,"data":"      epoch 15/15 loss=0.52464 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":559.030926813,"data":"  fold 5 argmax bal_acc = 0.96344 (elapsed 6.2m)\n"}
+,{"stream_name":"stdout","time":559.030954021,"data":"!! MAX_FOLDS reached (5)\n"}
+,{"stream_name":"stdout","time":572.810128595,"data":"tuned OOF bal_acc = 0.96628 bias=[4.3324, 2.7689, 3.4008] (5/5 folds, covered=630,000/630,000)\n"}
+,{"stream_name":"stdout","time":573.082271498,"data":"wrote oof_kan.npy / test_kan.npy / submission_kan_tuned.csv / kan_results.json\n"}
+,{"stream_name":"stdout","time":573.099558608,"data":"[boot] torch=2.5.1+cu121 cuda_avail=True\n"}
+,{"stream_name":"stdout","time":573.099582334,"data":"[boot] efficient_kan from /usr/local/lib/python3.12/dist-packages/efficient_kan/__init__.py\n"}
+,{"stream_name":"stdout","time":573.124471259,"data":"[boot] GPU info: Tesla P100-PCIE-16GB, 6.0, 16384 MiB\n"}
+,{"stream_name":"stdout","time":573.124498726,"data":"[main] SMOKE=False PROBE=False N_FOLDS=5 MAX_FOLDS=5 N_EPOCHS=15\n"}
+,{"stream_name":"stdout","time":573.124503094,"data":"[data] loading train / test / orig\n"}
+,{"stream_name":"stdout","time":575.064591667,"data":"[data] train=630,000 test=270,000 orig=10,000\n"}
+,{"stream_name":"stdout","time":575.075961717,"data":"[fe] threshold flags: 4\n"}
+,{"stream_name":"stdout","time":575.798140006,"data":"[fe] LR logits: 3 (standardised)\n"}
+,{"stream_name":"stdout","time":578.645369059,"data":"[fe] digits: 77 (scaled to [0, 0.9])\n"}
+,{"stream_name":"stdout","time":579.943692532,"data":"[fe] cats one-hot: 32\n"}
+,{"stream_name":"stdout","time":581.06673518,"data":"[fe] FREQ: 8\n"}
+,{"stream_name":"stdout","time":582.940692167,"data":"[fe] ORIG mean/std: 22 (standardised)\n"}
+,{"stream_name":"stdout","time":583.066533095,"data":"[fe] raw nums: 11 (standardised)\n"}
+,{"stream_name":"stdout","time":583.674190887,"data":"[fe] feat_dim=157  X_train=(630000, 157) X_test=(270000, 157) X_orig=(10000, 157)\n"}
+,{"stream_name":"stdout","time":583.740884499,"data":"=== fold 1/5 ===\n"}
+,{"stream_name":"stdout","time":583.986488889,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":584.019803623,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":588.91456847,"data":"      epoch 1/15 loss=0.63329 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":593.721703911,"data":"      epoch 2/15 loss=0.54073 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":598.521947547,"data":"      epoch 3/15 loss=0.53700 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":603.343289745,"data":"      epoch 4/15 loss=0.53388 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":608.172999103,"data":"      epoch 5/15 loss=0.53207 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":612.999265408,"data":"      epoch 6/15 loss=0.53059 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":617.803532031,"data":"      epoch 7/15 loss=0.52951 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":622.602948092,"data":"      epoch 8/15 loss=0.52774 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":627.433865338,"data":"      epoch 9/15 loss=0.52754 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":632.282121382,"data":"      epoch 10/15 loss=0.52693 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":637.112810331,"data":"      epoch 11/15 loss=0.52607 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":641.907906143,"data":"      epoch 12/15 loss=0.52558 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":646.729582237,"data":"      epoch 13/15 loss=0.52493 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":651.542580929,"data":"      epoch 14/15 loss=0.52500 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":656.377687258,"data":"      epoch 15/15 loss=0.52485 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":657.553323153,"data":"  fold 1 argmax bal_acc = 0.96329 (elapsed 1.2m)\n"}
+,{"stream_name":"stdout","time":657.560440425,"data":"=== fold 2/5 ===\n"}
+,{"stream_name":"stdout","time":657.80851211,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":657.842494556,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":662.704858311,"data":"      epoch 1/15 loss=0.63342 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":667.516643257,"data":"      epoch 2/15 loss=0.54240 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":672.311754743,"data":"      epoch 3/15 loss=0.53726 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":677.125940977,"data":"      epoch 4/15 loss=0.53510 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":681.923376759,"data":"      epoch 5/15 loss=0.53277 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":686.727808602,"data":"      epoch 6/15 loss=0.53121 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":691.564229271,"data":"      epoch 7/15 loss=0.53031 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":696.370302249,"data":"      epoch 8/15 loss=0.52937 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":701.15865465,"data":"      epoch 9/15 loss=0.52827 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":705.958355365,"data":"      epoch 10/15 loss=0.52740 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":710.77068854,"data":"      epoch 11/15 loss=0.52691 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":715.590464812,"data":"      epoch 12/15 loss=0.52601 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":720.412617626,"data":"      epoch 13/15 loss=0.52519 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":725.25496794,"data":"      epoch 14/15 loss=0.52486 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":730.058548632,"data":"      epoch 15/15 loss=0.52540 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":731.234178177,"data":"  fold 2 argmax bal_acc = 0.96474 (elapsed 2.5m)\n"}
+,{"stream_name":"stdout","time":731.240652234,"data":"=== fold 3/5 ===\n"}
+,{"stream_name":"stdout","time":731.499413274,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":731.536351159,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":736.454731148,"data":"      epoch 1/15 loss=0.63643 lr=9.89e-04 wall=4.9s\n"}
+,{"stream_name":"stdout","time":741.268769891,"data":"      epoch 2/15 loss=0.54211 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":746.088205918,"data":"      epoch 3/15 loss=0.53791 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":750.922594168,"data":"      epoch 4/15 loss=0.53433 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":755.731357809,"data":"      epoch 5/15 loss=0.53192 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":760.550415423,"data":"      epoch 6/15 loss=0.53059 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":765.376999824,"data":"      epoch 7/15 loss=0.52910 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":770.203746973,"data":"      epoch 8/15 loss=0.52861 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":775.12291756,"data":"      epoch 9/15 loss=0.52789 lr=3.45e-04 wall=4.9s\n"}
+,{"stream_name":"stdout","time":779.942582511,"data":"      epoch 10/15 loss=0.52684 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":784.757495545,"data":"      epoch 11/15 loss=0.52624 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":789.600796604,"data":"      epoch 12/15 loss=0.52550 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":794.430130332,"data":"      epoch 13/15 loss=0.52499 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":799.269911116,"data":"      epoch 14/15 loss=0.52455 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":804.112941306,"data":"      epoch 15/15 loss=0.52439 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":805.289843644,"data":"  fold 3 argmax bal_acc = 0.96584 (elapsed 3.7m)\n"}
+,{"stream_name":"stdout","time":805.29687121,"data":"=== fold 4/5 ===\n"}
+,{"stream_name":"stdout","time":805.54748702,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":805.583660032,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":810.469644388,"data":"      epoch 1/15 loss=0.63240 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":815.271562008,"data":"      epoch 2/15 loss=0.54213 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":820.077717692,"data":"      epoch 3/15 loss=0.53696 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":824.91438829,"data":"      epoch 4/15 loss=0.53359 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":829.723437661,"data":"      epoch 5/15 loss=0.53161 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":834.545843484,"data":"      epoch 6/15 loss=0.53078 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":839.349623689,"data":"      epoch 7/15 loss=0.52924 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":844.159102262,"data":"      epoch 8/15 loss=0.52801 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":848.960657327,"data":"      epoch 9/15 loss=0.52751 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":853.780014825,"data":"      epoch 10/15 loss=0.52660 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":858.610721147,"data":"      epoch 11/15 loss=0.52606 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":863.435615185,"data":"      epoch 12/15 loss=0.52544 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":868.243074451,"data":"      epoch 13/15 loss=0.52495 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":873.033575645,"data":"      epoch 14/15 loss=0.52442 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":877.829824786,"data":"      epoch 15/15 loss=0.52484 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":879.004282343,"data":"  fold 4 argmax bal_acc = 0.96466 (elapsed 4.9m)\n"}
+,{"stream_name":"stdout","time":879.011201183,"data":"=== fold 5/5 ===\n"}
+,{"stream_name":"stdout","time":879.274395475,"data":"      build KAN [157, 256, 128, 64, 3] device=cuda\n"}
+,{"stream_name":"stdout","time":879.3080577,"data":"      params=813,440\n"}
+,{"stream_name":"stdout","time":884.182580806,"data":"      epoch 1/15 loss=0.62933 lr=9.89e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":888.986796871,"data":"      epoch 2/15 loss=0.54232 lr=9.57e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":893.784598553,"data":"      epoch 3/15 loss=0.53747 lr=9.05e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":898.591193523,"data":"      epoch 4/15 loss=0.53386 lr=8.35e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":903.422665317,"data":"      epoch 5/15 loss=0.53210 lr=7.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":908.229912139,"data":"      epoch 6/15 loss=0.53094 lr=6.55e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":913.042878076,"data":"      epoch 7/15 loss=0.53008 lr=5.52e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":917.866298125,"data":"      epoch 8/15 loss=0.52861 lr=4.48e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":922.647996001,"data":"      epoch 9/15 loss=0.52829 lr=3.45e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":927.483416273,"data":"      epoch 10/15 loss=0.52732 lr=2.50e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":932.326357248,"data":"      epoch 11/15 loss=0.52684 lr=1.65e-04 wall=4.8s\n"}
+,{"stream_name":"stdout","time":937.157351502,"data":"      epoch 12/15 loss=0.52595 lr=9.55e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":941.989427871,"data":"      epoch 13/15 loss=0.52572 lr=4.32e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":946.808356926,"data":"      epoch 14/15 loss=0.52511 lr=1.09e-05 wall=4.8s\n"}
+,{"stream_name":"stdout","time":951.609698867,"data":"      epoch 15/15 loss=0.52488 lr=0.00e+00 wall=4.8s\n"}
+,{"stream_name":"stdout","time":952.784132398,"data":"  fold 5 argmax bal_acc = 0.96394 (elapsed 6.2m)\n"}
+,{"stream_name":"stdout","time":952.784163295,"data":"!! MAX_FOLDS reached (5)\n"}
+,{"stream_name":"stdout","time":966.096381575,"data":"tuned OOF bal_acc = 0.96604 bias=[3.9324, 2.4689, 3.4008] (5/5 folds, covered=630,000/630,000)\n"}
+,{"stream_name":"stdout","time":966.363959873,"data":"wrote oof_kan.npy / test_kan.npy / submission_kan_tuned.csv / kan_results.json\n"}
+,{"stream_name":"stderr","time":969.161287039,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":969.161315643,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":969.396489058,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":969.396515035,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":970.084227515,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":971.31917895,"data":"[NbConvertApp] Writing 425706 bytes to __results__.html\n"}
 ]

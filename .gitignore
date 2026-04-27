@@ -42,11 +42,26 @@ venv/
 explore.py
 scratch.py
 
-# Model artifacts — keep summary JSONs, skip bulky OOF/test prob arrays and logs
-scripts/artifacts/*.npy
+# Model artifacts — INVERTED POLICY (2026-04-27 d8f9c3 onwards):
+# Track oof_*.npy, test_*.npy, *_results.json, *.json by default.
+# Ignore only regenerable per-fold checkpoints + transient patterns.
+# This eliminates the 536-line per-file whitelist that previously
+# required a `!scripts/artifacts/oof_X.npy` entry for every new
+# candidate. Cross-branch artifact sharing is now the default.
+#
+# To exclude a specific .npy from tracking, name it with one of the
+# transient prefixes (smoke_/tmp_/scratch_) or add an explicit pattern.
 scripts/artifacts/*.log
 scripts/artifacts/*.db
 scripts/artifacts/*.pkl
+scripts/artifacts/*_fold[0-9].npy
+scripts/artifacts/*_fold[0-9][0-9].npy
+scripts/artifacts/*_smoke.npy
+scripts/artifacts/_smoke_*.npy
+scripts/artifacts/*_tmp.npy
+scripts/artifacts/_tmp_*.npy
+scripts/artifacts/tmp_*.npy
+scripts/artifacts/scratch_*.npy
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
@@ -58,222 +73,18 @@ logs/
 # of scripts/artifacts/ — skip
 kaggle_kernel/output_*/oof_*.npy
 kaggle_kernel/output_*/test_*.npy
-kaggle_kernel/ds_*/oof_*.npy
-kaggle_kernel/ds_*/test_*.npy
 
 # Transient downloaded public-kernel notebooks for B1 kernel audit.
 # Regenerated ad-hoc via `kaggle kernels pull`. Not worth committing.
-kernel_audit*/
+kaggle_pulls/
 
-# Exception: commit these OOF/test artifacts for cross-branch blending.
-# Each file is ~6-15 MB; total ~84 MB. Add more with care — check
-# OOFS.md for what's tracked and what's not.
-!scripts/artifacts/oof_hybrid_lgbmxgb_blend.npy
-!scripts/artifacts/test_hybrid_lgbmxgb_blend.npy
-!scripts/artifacts/oof_xgb_dist_routed_v3.npy
-!scripts/artifacts/test_xgb_dist_routed_v3.npy
-!scripts/artifacts/oof_xgb_spec_678.npy
-!scripts/artifacts/test_xgb_spec_678.npy
-!scripts/artifacts/oof_xgb_spec_36.npy
-!scripts/artifacts/test_xgb_spec_36.npy
-!scripts/artifacts/oof_xgb_bin_medium.npy
-!scripts/artifacts/test_xgb_bin_medium.npy
-!scripts/artifacts/oof_xgb_vanilla_dist.npy
-!scripts/artifacts/test_xgb_vanilla_dist.npy
-!scripts/artifacts/oof_lgbm_te_orig.npy
-!scripts/artifacts/test_lgbm_te_orig.npy
-!scripts/artifacts/oof_xgb_bin_high.npy
-!scripts/artifacts/test_xgb_bin_high.npy
-!scripts/artifacts/oof_hybrid_binhigh.npy
-!scripts/artifacts/test_hybrid_binhigh.npy
-!scripts/artifacts/oof_greedy_blend.npy
-!scripts/artifacts/test_greedy_blend.npy
-!scripts/artifacts/oof_xgb_nonrule.npy
-!scripts/artifacts/test_xgb_nonrule.npy
-!scripts/artifacts/oof_xgb_corn.npy
-!scripts/artifacts/test_xgb_corn.npy
-!scripts/artifacts/oof_tabpfn.npy
-!scripts/artifacts/test_tabpfn.npy
-# P3 transductive label-propagation (null vs recipe and LB-best but
-# Jaccard 0.65 — kept for cross-branch diversity experiments)
-!scripts/artifacts/oof_p3_embed_propagate.npy
-!scripts/artifacts/test_p3_embed_propagate.npy
-# Session B (multi-seed fold bagging): keep per-seed LB-best OOF/test so
-# any branch can reproduce the bag without re-running the 8-min pipeline.
-!scripts/artifacts/oof_lb_best_fs7.npy
-!scripts/artifacts/test_lb_best_fs7.npy
-!scripts/artifacts/oof_lb_best_fs123.npy
-!scripts/artifacts/test_lb_best_fs123.npy
-# Digit-extraction features (NEW LB BEST 0.97468 via digit-XGB, from
-# claude/ensemble-model-pipelines-cvHRz)
-!scripts/artifacts/oof_xgb_dist_digits.npy
-!scripts/artifacts/test_xgb_dist_digits.npy
-!scripts/artifacts/oof_lgbm_dist_digits.npy
-!scripts/artifacts/test_lgbm_dist_digits.npy
-# OTE (ordered target encoding) on digit-enriched feature set — null on
-# top of digit-XGB (α=0 peak), but kept for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_xgb_dist_digits_ote.npy
-!scripts/artifacts/test_xgb_dist_digits_ote.npy
-# ExtraTrees variants on dist+digits (v1 class_weight=balanced, v2 none):
-# both null vs XGB but saved for greedy-selection experiments
-!scripts/artifacts/oof_extratrees_dist_digits.npy
-!scripts/artifacts/test_extratrees_dist_digits.npy
-!scripts/artifacts/oof_extratrees_dist_digits_v2.npy
-!scripts/artifacts/test_extratrees_dist_digits_v2.npy
-# Full public-notebook recipe: cat-pair combos + digits + num-as-cat +
-# FREQ + ORIG mean/std + LR-formula logits + OrderedTE on ~140 cats,
-# heavy-reg XGB. OOF 0.97967 / LB pending. New top candidate.
-!scripts/artifacts/oof_recipe_full_te.npy
-!scripts/artifacts/test_recipe_full_te.npy
-# CatBoost on recipe feature set: CPU (Bernoulli bootstrap, 2000 iter,
-# OOF 0.97936 / LB 0.97935) and GPU (Bayesian bootstrap, 16000 iter,
-# converged at ~8600 avg, OOF 0.97894 — worse). GPU is null but kept
-# for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_recipe_full_te_catboost.npy
-!scripts/artifacts/test_recipe_full_te_catboost.npy
-!scripts/artifacts/oof_catboost_recipe_gpu.npy
-!scripts/artifacts/test_catboost_recipe_gpu.npy
-# LGBM on recipe feature set: 4th tree-family null (tuned 0.97926).
-# Error count 10,082 (FEWER than recipe's 10,114) + Jaccard 0.835 but
-# blend still null - disagreement space too small. Kept for
-# cross-branch diagnostic reuse.
-!scripts/artifacts/oof_recipe_full_te_lgbm.npy
-!scripts/artifacts/test_recipe_full_te_lgbm.npy
-# Recipe variant OOFs (OTE multi-strength + DART booster) for blend
-# analysis and cross-branch reuse. See recipe_full_te.py env vars
-# OTE_ALPHA and XGB_BOOSTER.
-!scripts/artifacts/oof_recipe_full_te_a01.npy
-!scripts/artifacts/test_recipe_full_te_a01.npy
-!scripts/artifacts/oof_recipe_full_te_a10.npy
-!scripts/artifacts/test_recipe_full_te_a10.npy
-!scripts/artifacts/oof_recipe_full_te_dart.npy
-!scripts/artifacts/test_recipe_full_te_dart.npy
-# A4 FE transplant (utaazu 11 domain interactions + 5 decimal-fraction
-# features via EXTRA_FE=both). Null vs recipe (Δ −0.00012) and vs
-# LB-best anchors (Jaccard 0.83-0.87, blend Δ +0.00001 to +0.00006).
-# Kept for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_recipe_full_te_fexboth.npy
-!scripts/artifacts/test_recipe_full_te_fexboth.npy
-# DROP_SCORES=0,1,2 routed-XGB lever ported from 2026-04-21 v3 onto the
-# recipe pipeline. Tuned OOF 0.97940 (Δ -0.00027 vs recipe). Jaccard
-# vs recipe 0.7578 (LOWEST tree-family Jaccard ever recorded) BUT
-# per-class High recall drops -0.0021 vs recipe at fixed bias —
-# unfavourable trade under macro-recall. Blend gate FAILS on every
-# anchor (peak Δ +0.00017 vs recipe but pcr-fail; null vs LB-best
-# 3-stack and 4-stack). Kept for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_recipe_full_te_ds012.npy
-!scripts/artifacts/test_recipe_full_te_ds012.npy
-# GBY rohit8527 group-by cat×num stats (176 extra numerics from
-# per-cat-group mean/std on synthetic 630k pool). Null vs recipe
-# (Δ −0.00008) and vs LB-best anchors (Jaccard 0.83-0.87, blend Δ
-# +0.00001 to +0.00014). Kept for cross-branch diagnostic reuse.
-!scripts/artifacts/oof_recipe_full_te_gby.npy
-!scripts/artifacts/test_recipe_full_te_gby.npy
-# N1 recipe-subset XGB variants (drop one feature block each).
-# All 4 null vs 2-way pseudolabel blend (+0.00015 5-way OOF ceiling, below
-# +0.0002 LB-transfer threshold). Kept for cross-branch greedy selection.
-!scripts/artifacts/oof_recipe_no_digits.npy
-!scripts/artifacts/test_recipe_no_digits.npy
-!scripts/artifacts/oof_recipe_no_combos.npy
-!scripts/artifacts/test_recipe_no_combos.npy
-!scripts/artifacts/oof_recipe_no_orig.npy
-!scripts/artifacts/test_recipe_no_orig.npy
-# N1 no_ote variant + digit-OTE family + greedy_full_bank 6-way blend.
-# All null vs 0.97998 LB-best but kept for cross-branch greedy composition.
-!scripts/artifacts/oof_recipe_no_ote.npy
-!scripts/artifacts/test_recipe_no_ote.npy
-!scripts/artifacts/oof_greedy_full_bank_6way.npy
-!scripts/artifacts/test_greedy_full_bank_6way.npy
-!scripts/artifacts/oof_xgb_dist_digits_ote_digits.npy
-!scripts/artifacts/test_xgb_dist_digits_ote_digits.npy
-!scripts/artifacts/oof_xgb_dist_digits_ote_digits_pairs.npy
-!scripts/artifacts/test_xgb_dist_digits_ote_digits_pairs.npy
-!scripts/artifacts/oof_xgb_dist_digits_ote_digits_light.npy
-!scripts/artifacts/test_xgb_dist_digits_ote_digits_light.npy
-!scripts/artifacts/oof_xgb_dist_digits_ote_light.npy
-!scripts/artifacts/test_xgb_dist_digits_ote_light.npy
-!scripts/artifacts/oof_lgbm_dist_digits_ote.npy
-!scripts/artifacts/test_lgbm_dist_digits_ote.npy
-# 171-pair OTE recipe (Ali Afzal lever): bins 11 numerics to 16-bin
-# quantile cats, builds all C(19,2)=171 pair combos vs the V10 recipe's
-# 28 cat x cat pairs. Architecturally distinct from every prior tree
-# blend leg (different feature surface, not just a different model).
-!scripts/artifacts/oof_recipe_171pair.npy
-!scripts/artifacts/test_recipe_171pair.npy
-# Cross-branch imports (2026-04-23): pulling OOF/test bank from three
-# feature branches so main has the full blend-candidate inventory.
-# - bagged_greedy_nonrule: multi-seed fold-bag of greedy+nonrule (LB
-#   regressed previously, kept for diagnostic reuse).
-!scripts/artifacts/oof_bagged_greedy_nonrule.npy
-!scripts/artifacts/test_bagged_greedy_nonrule.npy
-# - recipe_full_te_a01: α=0.1 OTE variant of the recipe (vs default a=1).
-!scripts/artifacts/oof_recipe_full_te_a01.npy
-!scripts/artifacts/test_recipe_full_te_a01.npy
-# - ovo_*: one-vs-one binary decomposition (LowvMed + MedvHigh heads,
-#   plus nonrule variants, plus composed boundary blend). Architecturally
-#   distinct from multi:softprob + CORN Frank-Hall ordinal.
-!scripts/artifacts/oof_ovo_boundary_blend.npy
-!scripts/artifacts/test_ovo_boundary_blend.npy
-!scripts/artifacts/oof_ovo_nonrule_blend.npy
-!scripts/artifacts/test_ovo_nonrule_blend.npy
-!scripts/artifacts/oof_xgb_ovo_lowmed.npy
-!scripts/artifacts/test_xgb_ovo_lowmed.npy
-!scripts/artifacts/oof_xgb_ovo_lowmed_nonrule.npy
-!scripts/artifacts/test_xgb_ovo_lowmed_nonrule.npy
-!scripts/artifacts/oof_xgb_ovo_medhigh.npy
-!scripts/artifacts/test_xgb_ovo_medhigh.npy
-!scripts/artifacts/oof_xgb_ovo_medhigh_nonrule.npy
-!scripts/artifacts/test_xgb_ovo_medhigh_nonrule.npy
+# Per-inner-fold checkpoints for the rehydrate-resilient leakfree teacher.
+# Regenerable + auto-cleaned when each outer fold consolidates.
+scripts/artifacts/_lf_inner_*.npy
 
-# V10 pseudo-label pipeline (stage-1 = the component of LB-best 0.97998).
-# At tau=0.98 keeps 226k/270k test rows, pseudo-labels from recipe_full_te
-# argmax. Retrained XGB on real+pseudo. Essential for downstream blending
-# since the current LB-best submission is 50/50 log-blend with recipe.
-!scripts/artifacts/oof_recipe_pseudolabel.npy
-!scripts/artifacts/test_recipe_pseudolabel.npy
-# Stage-2 pseudo-label (labeler = LB-best blend). OOF-overfit on the
-# training folds, LB null despite OOF lift. Kept for cross-session
-# confirmation that self-refinement saturates at this labeler strength.
-!scripts/artifacts/oof_recipe_pseudolabel_stage2.npy
-!scripts/artifacts/test_recipe_pseudolabel_stage2.npy
-# recipe_allpairs (cat x cat + cat x num = 116 pairs, 795 features).
-# Errors 9,938 (LOWEST of any variant) + Jaccard 0.81 vs recipe —
-# satisfies both "Jaccard < 0.80 AND err <= anchor" blend heuristics
-# without OOF-overfit. Contributes +0.00020 in 3-way blends.
-!scripts/artifacts/oof_recipe_allpairs.npy
-!scripts/artifacts/test_recipe_allpairs.npy
-# recipe_lgbm (LGBM mirror of recipe_full_te). Null blend leg (Jaccard
-# 0.86 with XGB-recipe, near-identical error set). Kept for diagnostic.
-!scripts/artifacts/oof_recipe_lgbm.npy
-!scripts/artifacts/test_recipe_lgbm.npy
-# recipe_catboost (CatBoost mirror of recipe_full_te, CPU depth=4,
-# l2=5, 3000 iter). Tuned OOF 0.97897, blend null under recipe bias
-# (High-class calibration mismatch), but gets weight in 4-way greedy
-# blends. Kept for blend-stack experiments.
-!scripts/artifacts/oof_recipe_catboost.npy
-!scripts/artifacts/test_recipe_catboost.npy
-# Stage-1 blend labeler = 50/50 log-blend of recipe + pseudo stage-1
-# at recipe's tuned bias (= the test probs of LB-0.97998 submission).
-# Used as labeler for stage-2 pseudo-label.
-!scripts/artifacts/test_recipe_blend_stage1.npy
-# Soft-target distillation student — XGB on recipe features trained with
-# custom soft cross-entropy against 50/50 log-blend teacher (= LB-best).
-# Standalone OOF tuned 0.98096 (+0.00084 over LB-best teacher). First
-# own-pipeline lever to break the 0.97998 stacking-inflation ceiling.
-# Errors 9,520 vs teacher's 9,851. Jaccard 0.7924 vs recipe, 0.8155 vs
-# LB-best. Distillation regularizes + effectively ensembles teacher's
-# 2 components into a smoother decision surface.
-!scripts/artifacts/oof_soft_distill.npy
-!scripts/artifacts/test_soft_distill.npy
-# Multi-seed pseudo-label: recipe_full_te at FOLD_SEED=7 (labeler source)
-# + recipe_pseudolabel with seed7 labeler (target model at FOLD_SEED=42).
-# Labeler's fold split is decoupled from target's - bypasses stage-2
-# OOF-overfit mechanism.
-!scripts/artifacts/oof_recipe_full_te_seed7.npy
-!scripts/artifacts/test_recipe_full_te_seed7.npy
-!scripts/artifacts/oof_recipe_pseudolabel_seed7labeler.npy
-!scripts/artifacts/test_recipe_pseudolabel_seed7labeler.npy
-!scripts/artifacts/recipe_pseudolabel_seed7labeler_results.json
+# Kaggle kernel build outputs (assembled dist/ files via build.py).
+# Regenerated locally before each push; not source of truth.
+kaggle_kernel/kernel_*/dist/
 
 # Third multi-seed pseudo-label leg: recipe at FOLD_SEED=123 +
 # pseudo_seed123labeler (target at FOLD_SEED=42). Third independent
@@ -1262,3 +1073,8 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 # Per-fold checkpoints for C (rehydrate-resilient)
 !scripts/artifacts/oof_distill_no_rule_fold[1-9].npy
 !scripts/artifacts/test_distill_no_rule_fold[1-9].npy
+# Kaggle kernel pulled outputs (regenerable via `kaggle kernels output`)
+kaggle_kernel/kernel_*/output/
+# Kaggle dataset npy payloads (uploaded once, regenerable)
+kaggle_kernel/ds_*/test_*.npy
+kaggle_kernel/ds_*/oof_*.npy

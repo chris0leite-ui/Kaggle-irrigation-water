@@ -15,16 +15,15 @@ Adapted to our 21GB CPU box (no cuDF):
       - 8-quantile group-by per (cat, num): [5,10,40,45,55,60,90,95]
         = 704 features
       - extended decimal features: (col * 10) % 1 .round(2) for all 11 nums
-        = 11 features (we have 5 from prior FE)
+        = 11 features
   - 1-fold importance scan (~5 min on full 630k).
   - Select top 600 by gain.
   - 5-fold StratifiedKFold(seed=42) on selected features.
-  - Standard iso-cal + blend gate vs LB-best 4-stack.
-
-Total wall: ~2h CPU.
+  - Per-fold checkpointing for rehydrate-resilience.
 
 Outputs:
   oof_wide_fe.npy / test_wide_fe.npy
+  oof_wide_fe_fold{N}.npy / test_wide_fe_fold{N}.npy (per-fold checkpoints)
   wide_fe_results.json
 """
 from __future__ import annotations
@@ -56,11 +55,7 @@ def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
 
 def add_wide_groupby_stats(train: pd.DataFrame, test: pd.DataFrame,
                            cats: list[str], nums: list[str]) -> list[str]:
-    """For each (cat, num) pair, compute 7 group-by stats fitted on train.
-
-    Stats: mean, std, min, max, q25, q50, q75. Merged onto train and test
-    by cat key. Returns list of new column names (~616 for 8 cats × 11 nums).
-    """
+    """For each (cat, num) pair, compute 7 group-by stats fitted on train."""
     new_cols = []
     for c in cats:
         for n in nums:
@@ -100,11 +95,7 @@ def add_wide_quantile_features(train: pd.DataFrame, test: pd.DataFrame,
 
 
 def add_extended_decimals(df: pd.DataFrame, nums: list[str]) -> list[str]:
-    """`(col * 10) % 1 .round(2)` — 1-decimal-shifted decimal features.
-
-    Distinct from the 5 decimal features already in recipe (which use
-    `(col % 1).round(2)`). This shifts by one decimal position.
-    """
+    """`(col * 10) % 1 .round(2)` — 1-decimal-shifted decimal features."""
     new = []
     for c in nums:
         if c not in df.columns:
@@ -121,7 +112,6 @@ def main():
     train, test, info, test_ids = load_and_engineer()
     y = train[TARGET].to_numpy(dtype=np.int32)
 
-    # Generate wide FE on the recipe-augmented frames.
     log(f"adding wide group-by 7-stat features (cats={len(info['cats'])} × nums={len(info['nums'])})")
     wide_gby = add_wide_groupby_stats(train, test, info["cats"], info["nums"])
     log(f"  +{len(wide_gby)} cols")
@@ -134,22 +124,18 @@ def main():
         wide_dec = add_extended_decimals(df, info["nums"])
     log(f"  +{len(wide_dec)} cols")
 
-    # Numeric feature pool: recipe nums + tres + logits + freq + orig_stats +
-    # all wide additions (no DAE/extras here).
     base_numeric = (info["nums"] + info["tres"] + info["logits"] +
                     info["freq"] + info["orig_stats"])
     numeric_feats = base_numeric + wide_gby + wide_qs + wide_dec
     te_cols = info["te_cols"]
-    log(f"total candidate features: {len(numeric_feats)} numeric + {len(te_cols)} OTE-target cats = {len(numeric_feats) + len(te_cols) * 3}")
+    log(f"total candidate features: {len(numeric_feats)} numeric + {len(te_cols)} OTE-target cats")
 
-    # ---------------------------------------------------- 1-fold importance scan.
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     folds = list(skf.split(train, y))
     tr_idx, va_idx = folds[0]
     log(f"\n=== 1-fold importance scan (fold 1 of {N_FOLDS}) ===")
     X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
     X_va = train.iloc[va_idx].copy().reset_index(drop=True)
-    X_te = test.copy().reset_index(drop=True)
 
     log(f"  fitting OrderedTE on fold 1 train")
     rng = np.random.default_rng(SEED + 1)
@@ -160,7 +146,6 @@ def main():
     inv = np.empty_like(perm); inv[perm] = np.arange(len(perm))
     X_tr = X_tr_shuf.iloc[inv].reset_index(drop=True)
     X_va = te.transform(X_va)
-    X_te = te.transform(X_te)
     feat_cols = numeric_feats + te.te_col_names()
     log(f"  feat_cols total: {len(feat_cols)}  (importance-scan fold 1)")
 
@@ -178,19 +163,14 @@ def main():
                 eval_set=[(X_va[feat_cols], y[va_idx])], verbose=200)
     log(f"  fold 1 best_iter = {booster.best_iteration}")
 
-    # Get gain importance, select top TOP_N.
     importances = booster.get_booster().get_score(importance_type="gain")
-    # XGBClassifier preserves feature names — values keyed directly by name.
     name2gain = dict(importances)
-    # Keep only features with gain > 0.
     used = sorted(name2gain.items(), key=lambda kv: -kv[1])
     top_feats = set(n for n, _ in used[:TOP_N])
     log(f"  importance scan: {len(used)} features used, selecting top {TOP_N}")
     log(f"  top-10: {[(n, round(g, 1)) for n, g in used[:10]]}")
     log(f"  bottom-of-selected gain: {round(used[min(TOP_N-1, len(used)-1)][1], 2)}")
 
-    # Filter te_cols to only those whose any of the 3-class encodings are in top_feats.
-    # OrderedTE.te_col_names() produces names like '<tc>_TE_cls0/1/2'.
     selected_numeric = [c for c in numeric_feats if c in top_feats]
     selected_te_targets = []
     for tc in te_cols:
@@ -198,7 +178,6 @@ def main():
             selected_te_targets.append(tc)
     log(f"  selected: {len(selected_numeric)} numeric + {len(selected_te_targets)} OTE-target cats")
 
-    # ---------------------------------------------------- 5-fold full training on selected.
     log(f"\n=== 5-fold full training on selected features ===")
     oof = np.zeros((len(train), 3), dtype=np.float32)
     test_pred = np.zeros((len(test), 3), dtype=np.float32)
