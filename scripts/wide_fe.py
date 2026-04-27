@@ -53,10 +53,23 @@ SUB = Path("submissions")
 def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
 
 
+def _map_lookup(key_series: pd.Series, lookup: pd.DataFrame, key_col: str,
+                val_col: str) -> np.ndarray:
+    """Order-preserving merge: returns float32 array aligned to key_series."""
+    mapping = lookup.set_index(key_col)[val_col]
+    return key_series.map(mapping).fillna(0).astype(np.float32).values
+
+
 def add_wide_groupby_stats(train: pd.DataFrame, test: pd.DataFrame,
-                           cats: list[str], nums: list[str]) -> list[str]:
-    """For each (cat, num) pair, compute 7 group-by stats fitted on train."""
-    new_cols = []
+                           cats: list[str], nums: list[str]
+                           ) -> tuple[dict, dict]:
+    """For each (cat, num) pair, compute 7 group-by stats fitted on train.
+
+    Returns (train_cols_dict, test_cols_dict) — to be concatenated onto
+    train/test ONCE after all FE is collected, avoiding fragmentation.
+    """
+    tr_dict: dict[str, np.ndarray] = {}
+    te_dict: dict[str, np.ndarray] = {}
     for c in cats:
         for n in nums:
             grp = train.groupby(c, observed=False)[n]
@@ -65,45 +78,41 @@ def add_wide_groupby_stats(train: pd.DataFrame, test: pd.DataFrame,
             qs.columns = [c, f"WIDE_{c}_{n}_q25", f"WIDE_{c}_{n}_q50", f"WIDE_{c}_{n}_q75"]
             stats.columns = [c, f"WIDE_{c}_{n}_mean", f"WIDE_{c}_{n}_std",
                              f"WIDE_{c}_{n}_min", f"WIDE_{c}_{n}_max"]
-            for df in (train, test):
-                m = df.merge(stats, on=c, how="left")
-                for col in stats.columns[1:]:
-                    df[col] = m[col].fillna(0).astype(np.float32).values
-                m2 = df.merge(qs, on=c, how="left")
-                for col in qs.columns[1:]:
-                    df[col] = m2[col].fillna(0).astype(np.float32).values
-            new_cols += list(stats.columns[1:]) + list(qs.columns[1:])
-    return new_cols
+            for col in stats.columns[1:]:
+                tr_dict[col] = _map_lookup(train[c], stats, c, col)
+                te_dict[col] = _map_lookup(test[c], stats, c, col)
+            for col in qs.columns[1:]:
+                tr_dict[col] = _map_lookup(train[c], qs, c, col)
+                te_dict[col] = _map_lookup(test[c], qs, c, col)
+    return tr_dict, te_dict
 
 
 def add_wide_quantile_features(train: pd.DataFrame, test: pd.DataFrame,
-                                cats: list[str], nums: list[str]) -> list[str]:
+                                cats: list[str], nums: list[str]
+                                ) -> tuple[dict, dict]:
     """For each (cat, num), compute 8 quantiles [5,10,40,45,55,60,90,95]."""
     qs_pct = [0.05, 0.10, 0.40, 0.45, 0.55, 0.60, 0.90, 0.95]
-    new_cols = []
+    tr_dict: dict[str, np.ndarray] = {}
+    te_dict: dict[str, np.ndarray] = {}
     for c in cats:
         for n in nums:
             grp = train.groupby(c, observed=False)[n]
             quants = grp.quantile(qs_pct).unstack().reset_index()
             quants.columns = [c] + [f"WIDEQ_{c}_{n}_q{int(q*100):02d}" for q in qs_pct]
-            for df in (train, test):
-                m = df.merge(quants, on=c, how="left")
-                for col in quants.columns[1:]:
-                    df[col] = m[col].fillna(0).astype(np.float32).values
-            new_cols += list(quants.columns[1:])
-    return new_cols
+            for col in quants.columns[1:]:
+                tr_dict[col] = _map_lookup(train[c], quants, c, col)
+                te_dict[col] = _map_lookup(test[c], quants, c, col)
+    return tr_dict, te_dict
 
 
-def add_extended_decimals(df: pd.DataFrame, nums: list[str]) -> list[str]:
+def add_extended_decimals_dict(df: pd.DataFrame, nums: list[str]) -> dict:
     """`(col * 10) % 1 .round(2)` — 1-decimal-shifted decimal features."""
-    new = []
+    out: dict[str, np.ndarray] = {}
     for c in nums:
         if c not in df.columns:
             continue
-        name = f"WIDED_{c}"
-        df[name] = ((df[c] * 10) % 1).round(2).astype(np.float32)
-        new.append(name)
-    return new
+        out[f"WIDED_{c}"] = ((df[c].values * 10) % 1).round(2).astype(np.float32)
+    return out
 
 
 def main():
@@ -112,29 +121,38 @@ def main():
     train, test, info, test_ids = load_and_engineer()
     y = train[TARGET].to_numpy(dtype=np.int32)
 
+    # Collect all wide-FE cols into dicts, then concat ONCE — avoids
+    # the O(N) pandas fragmentation that caused both prior OOMs.
     log(f"adding wide group-by 7-stat features (cats={len(info['cats'])} × nums={len(info['nums'])})")
-    wide_gby = add_wide_groupby_stats(train, test, info["cats"], info["nums"])
-    log(f"  +{len(wide_gby)} cols")
+    gby_tr, gby_te = add_wide_groupby_stats(train, test, info["cats"], info["nums"])
+    log(f"  +{len(gby_tr)} cols")
     log(f"adding wide group-by 8-quantile features")
-    wide_qs = add_wide_quantile_features(train, test, info["cats"], info["nums"])
-    log(f"  +{len(wide_qs)} cols")
+    qs_tr, qs_te = add_wide_quantile_features(train, test, info["cats"], info["nums"])
+    log(f"  +{len(qs_tr)} cols")
     log(f"adding extended decimal features (×10 shift) on all {len(info['nums'])} nums")
-    wide_dec = []
-    for df in (train, test):
-        wide_dec = add_extended_decimals(df, info["nums"])
-    log(f"  +{len(wide_dec)} cols")
+    dec_tr = add_extended_decimals_dict(train, info["nums"])
+    dec_te = add_extended_decimals_dict(test, info["nums"])
+    log(f"  +{len(dec_tr)} cols")
 
     base_numeric = (info["nums"] + info["tres"] + info["logits"] +
                     info["freq"] + info["orig_stats"])
+    wide_gby = list(gby_tr.keys())
+    wide_qs = list(qs_tr.keys())
+    wide_dec = list(dec_tr.keys())
     numeric_feats = base_numeric + wide_gby + wide_qs + wide_dec
     te_cols = info["te_cols"]
     log(f"total candidate features: {len(numeric_feats)} numeric + {len(te_cols)} OTE-target cats")
 
-    # Defragment (we inserted ~1331 cols one-at-a-time → highly fragmented blocks)
-    log(f"defragmenting train/test (mem cleanup)")
-    train = train.copy()
-    test = test.copy()
+    log(f"single-shot pd.concat of {len(wide_gby)+len(wide_qs)+len(wide_dec)} new cols")
+    new_tr = pd.DataFrame({**gby_tr, **qs_tr, **dec_tr}, index=train.index)
+    new_te = pd.DataFrame({**gby_te, **qs_te, **dec_te}, index=test.index)
+    del gby_tr, gby_te, qs_tr, qs_te, dec_tr, dec_te
     gc.collect()
+    train = pd.concat([train, new_tr], axis=1)
+    test = pd.concat([test, new_te], axis=1)
+    del new_tr, new_te
+    gc.collect()
+    log(f"  train shape: {train.shape}  test shape: {test.shape}")
 
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     folds = list(skf.split(train, y))
