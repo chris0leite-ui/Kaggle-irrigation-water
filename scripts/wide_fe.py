@@ -158,48 +158,81 @@ def main():
     folds = list(skf.split(train, y))
     tr_idx, va_idx = folds[0]
     log(f"\n=== 1-fold importance scan (fold 1 of {N_FOLDS}) ===")
-    X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
-    X_va = train.iloc[va_idx].copy().reset_index(drop=True)
 
-    log(f"  fitting OrderedTE on fold 1 train")
+    # Memory budget for the scan: train (~4GB) + X_tr (~3GB) + X_tr_shuf
+    # (~3GB) + DMatrix (~3GB) > 15GB cap. Two fixes:
+    #   (a) stratified-subsample tr_idx to SCAN_N (200k default) for the
+    #       scan only. Importance ranking on 1700 features is robust at
+    #       this scale; the 5-fold full training uses the full tr_idx.
+    #   (b) del X_tr_shuf after inv-permutation, before XGB fit.
+    SCAN_N = 50_000 if SMOKE else 200_000
+    rng_scan = np.random.default_rng(SEED + 99)
+    if len(tr_idx) > SCAN_N:
+        per_class = SCAN_N // 3
+        scan_idx = []
+        for cls in range(3):
+            cls_idx = tr_idx[y[tr_idx] == cls]
+            take = min(per_class, len(cls_idx))
+            scan_idx.append(rng_scan.choice(cls_idx, size=take, replace=False))
+        scan_idx = np.concatenate(scan_idx)
+        rng_scan.shuffle(scan_idx)
+        log(f"  stratified-subsample scan_idx: {len(scan_idx):,} (from {len(tr_idx):,})")
+    else:
+        scan_idx = tr_idx
+
+    X_tr = train.iloc[scan_idx].copy().reset_index(drop=True)
+    X_va = train.iloc[va_idx].copy().reset_index(drop=True)
+    y_scan = y[scan_idx]
+
+    log(f"  fitting OrderedTE on scan subsample")
     rng = np.random.default_rng(SEED + 1)
     perm = rng.permutation(len(X_tr))
     X_tr_shuf = X_tr.iloc[perm].reset_index(drop=True)
+    del X_tr; gc.collect()
     te = OrderedTE(a=1.0)
     X_tr_shuf = te.fit(X_tr_shuf, cat_cols=te_cols, target=TARGET)
     inv = np.empty_like(perm); inv[perm] = np.arange(len(perm))
     X_tr = X_tr_shuf.iloc[inv].reset_index(drop=True)
+    del X_tr_shuf, perm, inv; gc.collect()
     X_va = te.transform(X_va)
     feat_cols = numeric_feats + te.te_col_names()
-    log(f"  feat_cols total: {len(feat_cols)}  (importance-scan fold 1)")
+    log(f"  feat_cols total: {len(feat_cols)}  (importance-scan)")
 
-    sw = compute_sample_weight("balanced", y[tr_idx])
-    # max_bin=256 (down from 1024) and n_estimators=400 (down from 800) to fit
-    # the QuantileDMatrix in 15Gi RAM with 1423 numeric + 351 OTE features.
-    # Importance ranking is robust to fewer rounds — gains accumulate fast.
+    # Convert to numpy float32 contiguous BEFORE XGB. Frees pandas
+    # block-manager overhead and lets us del the DataFrames.
+    X_tr_arr = X_tr[feat_cols].to_numpy(dtype=np.float32, copy=True)
+    X_va_arr = X_va[feat_cols].to_numpy(dtype=np.float32, copy=True)
+    del X_tr, X_va; gc.collect()
+    log(f"  scan arrays: X_tr {X_tr_arr.shape} ({X_tr_arr.nbytes/1e9:.2f}GB), "
+        f"X_va {X_va_arr.shape} ({X_va_arr.nbytes/1e9:.2f}GB)")
+
+    sw = compute_sample_weight("balanced", y_scan)
     booster = xgb.XGBClassifier(
         n_estimators=200 if SMOKE else 400,
         max_depth=4, max_leaves=30, learning_rate=0.1,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=2,
         reg_alpha=5, reg_lambda=5, max_bin=256,
         objective="multi:softprob", tree_method="hist",
-        eval_metric="mlogloss", n_jobs=-1, random_state=SEED,
+        eval_metric="mlogloss", n_jobs=8, random_state=SEED,
         early_stopping_rounds=30 if SMOKE else 75, verbosity=0,
     )
-    booster.fit(X_tr[feat_cols], y[tr_idx], sample_weight=sw,
-                eval_set=[(X_va[feat_cols], y[va_idx])], verbose=200)
-    log(f"  fold 1 best_iter = {booster.best_iteration}")
+    booster.fit(X_tr_arr, y_scan, sample_weight=sw,
+                eval_set=[(X_va_arr, y[va_idx])], verbose=200)
+    log(f"  scan best_iter = {booster.best_iteration}")
 
-    importances = booster.get_booster().get_score(importance_type="gain")
-    name2gain = dict(importances)
+    # XGB-on-numpy emits feature names f0..fN; map back to names.
+    raw_imp = booster.get_booster().get_score(importance_type="gain")
+    name2gain: dict[str, float] = {}
+    for fkey, gain in raw_imp.items():
+        idx = int(fkey[1:])  # strip 'f'
+        name2gain[feat_cols[idx]] = gain
     used = sorted(name2gain.items(), key=lambda kv: -kv[1])
     top_feats = set(n for n, _ in used[:TOP_N])
     log(f"  importance scan: {len(used)} features used, selecting top {TOP_N}")
     log(f"  top-10: {[(n, round(g, 1)) for n, g in used[:10]]}")
     log(f"  bottom-of-selected gain: {round(used[min(TOP_N-1, len(used)-1)][1], 2)}")
 
-    # Free the importance-scan booster + scan-fold data (multi-GB) before 5-fold.
-    del booster, X_tr, X_va, X_tr_shuf, te
+    del booster, X_tr_arr, X_va_arr, sw, te
     gc.collect()
 
     selected_numeric = [c for c in numeric_feats if c in top_feats]
@@ -255,21 +288,30 @@ def main():
         rng = np.random.default_rng(SEED + fold)
         perm = rng.permutation(len(X_tr))
         X_tr_shuf = X_tr.iloc[perm].reset_index(drop=True)
+        del X_tr; gc.collect()
         te = OrderedTE(a=1.0)
         X_tr_shuf = te.fit(X_tr_shuf, cat_cols=selected_te_targets, target=TARGET)
         inv = np.empty_like(perm); inv[perm] = np.arange(len(perm))
         X_tr = X_tr_shuf.iloc[inv].reset_index(drop=True)
+        del X_tr_shuf, perm, inv; gc.collect()
         X_va = te.transform(X_va)
         X_te = te.transform(X_te)
         log(f"    OTE done in {time.time()-t1:.1f}s")
         feat_cols_sel = selected_numeric + te.te_col_names()
         log(f"  training XGB on {len(feat_cols_sel)} features, {len(X_tr):,} rows")
+
+        # Convert to numpy float32 BEFORE fit to free pandas overhead.
+        X_tr_arr = X_tr[feat_cols_sel].to_numpy(dtype=np.float32, copy=True)
+        X_va_arr = X_va[feat_cols_sel].to_numpy(dtype=np.float32, copy=True)
+        X_te_arr = X_te[feat_cols_sel].to_numpy(dtype=np.float32, copy=True)
+        del X_tr, X_va, X_te; gc.collect()
+
         sw = compute_sample_weight("balanced", y[tr_idx])
         model = xgb.XGBClassifier(**xgb_params)
-        model.fit(X_tr[feat_cols_sel], y[tr_idx], sample_weight=sw,
-                  eval_set=[(X_va[feat_cols_sel], y[va_idx])], verbose=500)
-        vp = model.predict_proba(X_va[feat_cols_sel]).astype(np.float32)
-        tp = model.predict_proba(X_te[feat_cols_sel]).astype(np.float32)
+        model.fit(X_tr_arr, y[tr_idx], sample_weight=sw,
+                  eval_set=[(X_va_arr, y[va_idx])], verbose=500)
+        vp = model.predict_proba(X_va_arr).astype(np.float32)
+        tp = model.predict_proba(X_te_arr).astype(np.float32)
         oof[va_idx] = vp
         test_pred += tp / N_FOLDS
         np.save(ART / f"oof_{ck_prefix}_fold{fold}.npy", vp)
@@ -277,7 +319,7 @@ def main():
         bal = balanced_accuracy_score(y[va_idx], vp.argmax(1))
         fold_scores.append(bal)
         log(f"  fold {fold} bal={bal:.5f} best_iter={model.best_iteration}")
-        del model, X_tr, X_va, X_te, X_tr_shuf, te, vp, tp, sw
+        del model, X_tr_arr, X_va_arr, X_te_arr, te, vp, tp, sw
         gc.collect()
 
     overall = balanced_accuracy_score(y, oof.argmax(1))
