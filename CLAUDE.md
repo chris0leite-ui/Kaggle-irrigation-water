@@ -2,6 +2,23 @@
 
 Guidance for Claude Code when working in this repository.
 
+## ⚠️ ARTIFACTS ARE TRACKED BY DEFAULT (gitignore inverted 2026-04-27)
+
+`scripts/artifacts/` follows an INVERTED gitignore policy:
+- **Tracked by default**: `oof_*.npy`, `test_*.npy`, `*_results.json`,
+  any other `.npy`/`.json` not matching an ignore pattern.
+- **Ignored**: per-fold checkpoints (`*_fold[0-9]*.npy`),
+  `.log`/`.db`/`.pkl`, and transient prefixes (`_smoke_*.npy`,
+  `tmp_*.npy`, `scratch_*.npy`).
+
+This eliminates the prior 536-line per-file whitelist. Cross-branch
+artifact sharing is now zero-friction: if you produce an OOF/test
+.npy, just `git add` it and commit. No need to edit `.gitignore`.
+
+If you need a transient .npy (smoke / debug / scratch), name it
+with one of the ignored prefixes (`tmp_xxx.npy`, `scratch_xxx.npy`)
+or it WILL be tracked.
+
 ## ⚠️ NEVER GIVE UP — ALWAYS ASSUME THERE'S MORE LIFT AVAILABLE
 
 **Every session pulled from GitHub must take it as given that the
@@ -14171,3 +14188,461 @@ r2r5_perfoldiso_a045 (REMOVE-High asym)+0.00029      -0.00098  -3.38x   0.78  RE
 LOCK + STOP RECOMMENDED:
   PRIMARY: submission_tier1b_greedy_meta.csv → LB 0.98094
   HEDGE:   submission_3way_recipe025_s1035_s7040.csv → LB 0.98005
+### 2026-04-26 — senior-engineer "reopen and dig deeper" 3-way: 2 NULLs + 1 in-flight (12th saturation confirmation)
+
+- Goal: at user request to reopen the 3 most promising closed-with-
+  methodological-flaw experiments and dig deeper. Per the senior-engineer
+  recommendation:
+  1. **Multi-task XGB at base level** — aux signals (flipped/missed_high/
+     missed_med, AUC 0.90/0.98/0.95) inserted via custom xgb.train
+     num_class=6 obj. Aux had only ever been tested at meta-stacker level
+     (combined v6 = circular OOF inflation); base-level joint loss was
+     untested.
+  2. **KAN at production capacity with recipe FE** — prior PROBE used
+     19 raw one-hot features and hit Jaccard 0.13 (record low) but +500%
+     errs. Hypothesis: richer FE shrinks magnitude trap below the +5%
+     threshold while preserving orthogonality.
+  3. **Leak-eliminated soft-distillation** — proper k-fold-of-k-fold
+     teacher: for each outer fold f, retrain recipe with inner CV
+     restricted to (full_train \ V_f) so the teacher targets for student-
+     fold-f's training rows come from a teacher that never saw V_f.
+     Targets the persistent +0.00201 to +0.00246 OOF→LB gap across the
+     soft_distill family.
+
+- Branch: `claude/review-ml-experiments-xUrd3`. New scripts: `multitask_common.py`,
+  `multitask_xgb.py`, `leakfree_teacher_oof.py`, `leakfree_distill.py`,
+  `blend_gate_3way_v2.py`, `auto_chain_v2.sh` (self-restarting loop).
+  KAN kernel: `kaggle_kernel/kernel_kan/features.py` rewritten to recipe
+  style (157 dim vs prior 51).
+
+- **#1 KAN at recipe FE** — production complete on Kaggle P100 (16 min wall):
+  ```
+  per-fold argmax: 0.9633 / 0.9647 / 0.9658 / 0.9647 / 0.9639  σ=0.001
+  OOF argmax       0.96449
+  Tuned OOF        0.96604  bias [3.93, 2.47, 3.40]
+  ```
+  - KAN's class-balanced + label_smoothing=0.05 produces raw probs that
+    underpredict Low badly → bias [3.93] vs recipe [1.43]. Iso-cal aligns
+    scales: KAN_iso @ recipe bias = 0.96530.
+  - Vs LB-best 4-stack (anchor 0.98084):
+    - **Jaccard 0.586** with iso — **record-low** orthogonality for any
+      NN family with iso alignment (prior best Mambular 0.49, Trompt 0.53)
+    - errs 10446 vs anchor 9415 (+11%) — magnitude trap
+    - PCR: L 0.9957 / M 0.9690 / **H 0.9312** vs anchor [0.9955, 0.9695, 0.9775]
+      → **High recall drops 0.046** at any positive α
+  - α-sweep monotone-negative from α=0.025. **GATE FAIL.**
+  - **16th NN-family null** on this problem. Recipe FE shrunk the
+    magnitude trap from 6.28× (KAN PROBE 19 raw) to 1.11× (recipe FE
+    157 dim) while keeping orthogonality competitive — but the +0.00084
+    needed to break the LB-best ceiling requires errs ≤ 1.05× anchor
+    AND no rare-class recall trade.
+
+- **#2 Multi-task XGB at base level** — production complete on CPU (~2h 12min wall):
+  ```
+  per-fold argmax: 0.97566 / 0.97616 / 0.97759 / 0.97527 / 0.97465
+  recipe baseline: 0.97544 / 0.97659 / 0.97721 / 0.97465 / 0.97557
+  per-fold delta:  +0.00022 / -0.00043 / +0.00038 / +0.00062 / -0.00092
+  OOF argmax       0.97567   sigma 0.00095
+  Tuned OOF        0.97909   bias [1.2324, 1.0689, 3.4008]
+                              (recipe 0.97967 with bias [1.43, 1.47, 3.40])
+  ```
+  - Custom xgb.train num_class=6 obj produces 6 outputs per row: 3 main
+    softmax + 3 sigmoid-aux. AUX_W=0.3 weights aux loss vs main.
+  - Per-fold deltas straddle zero (mean -0.00006, σ 0.00064 — within
+    fold-noise band). Standalone tuned OOF -0.00058 vs recipe.
+  - Vs LB-best 4-stack:
+    - **Raw**: bal 0.97896, errs 9934, **Jaccard 0.808** (high redundancy)
+    - **Iso**: bal 0.97875, errs 9213, Jaccard 0.811
+    - PCR identical to anchor at peak α=0.000 (no boundary correction)
+    - α-sweep monotone-negative from α=0.025 vs both 3-stack and 4-stack
+  - **Mechanism diagnosis**: aux supervision DID shift trees (different
+    bias profile, fewer iso errors) but the joint-loss equilibrium picked
+    a slightly-worse main task corner that's redundant with the LB-best
+    4-stack. The base-level insertion AVOIDS the meta-stacker overfit
+    blow-up (gap stayed normal) but doesn't translate to LB-positive
+    contribution — same Pareto frontier, just from a different angle.
+  - **GATE FAIL at every α.** This is the **12th independent saturation
+    confirmation at LB 0.98094**.
+
+- **#3 Leak-eliminated soft-distillation** — IN FLIGHT after 3 rehydrates.
+  - Teacher build (`leakfree_teacher_oof.py`): for each outer fold f,
+    inner-CV recipe on tr_outer (504k rows). N_INNER=3, N_OUTER=5.
+    Original wall estimate: 5h. Per-outer cost observed: ~63 min × 5
+    = ~5.25h.
+  - **Container rehydrated 3 times** during the run (12:32, 13:19, 17:19),
+    killing the process. Each restart cost ~30-60 min until per-inner
+    checkpointing was added.
+  - Resilience hardening (committed):
+    1. **Per-inner-fold checkpointing** via `_atomic_save()` helper.
+       Each inner training writes its OOF + test + va_idx to disk
+       atomically (write to `*.tmp.npy` then rename). Lost work per
+       rehydrate ≤ 1 inner fold (~5-13 min).
+    2. **Skip per-outer full-fit retrain**. Test-side teacher uses
+       inner-fold test averages (computed for free during inner CV)
+       instead of separate full-fit. Saves ~22 min/outer × 5 = ~1.8h.
+    3. **Self-restarting auto_chain_v2.sh**. Restart-loop: keeps
+       calling `leakfree_teacher_oof.py` until all 5 outer-fold OOF +
+       test artifacts exist, then triggers distill + blend gate.
+       Survives unlimited rehydrates.
+  - **Progress at session wrap-up (17:20 UTC)**:
+    - Outer 1: ✅ saved (production-scale, from first run before rehydrate)
+    - Outer 2 inner 1: ✅ checkpointed (bal 0.97516, best_iter 1077)
+    - Outer 2 inner 2-3, outer 3-5: ⏳ pending
+    - Auto-chain v2 PID 1264 → leakfree teacher PID 1268 running.
+  - **Expected outcome**: based on the 2026-04-24 closure note
+    ("the OOF→LB gap is structural to teacher OOF construction itself —
+    distill family fully closed") and 11+ saturation confirmations,
+    estimated ~15-20% probability of clearing the +2e-4 gate even with
+    proper outer-fold leak elimination. Auto-chain left running as a
+    free overnight attempt; if it completes and clears the gate, that's
+    pure upside.
+
+- **Three portable rules logged for future synthetic tabular comps**:
+  1. **Per-inner-fold atomic checkpoints are essential for any CPU
+     pipeline > 30 min wall on rehydrate-prone containers**. Pattern:
+     `_atomic_save(final_path, arr)` writes `final_path.with_name(stem +
+     ".tmp.npy")` then renames. Path.with_suffix('.npy.tmp') is BUGGY —
+     np.save appends `.npy` to filenames not ending in `.npy/.npz`,
+     producing `*.npy.tmp.npy` and breaking subsequent `.rename(orig)`.
+  2. **Self-restarting auto-chain script** (retry-loop bash that polls
+     for completion artifacts) is the cleanest pattern for rehydrate-
+     prone hosts. Runs the long pipeline in a `while ! is_done; do
+     python ...; done` loop. Each rehydrate kills the inner python; the
+     bash loop wakes back up and re-launches, leveraging the python
+     script's own checkpoint-aware resume logic.
+  3. **Aux supervision at base level avoids meta-stacker overfit but
+     doesn't add orthogonal signal beyond what the recipe already
+     captures**. Multi-task XGB with aux heads on the recipe feature
+     set produces predictions with Jaccard 0.81 vs LB-best — the joint
+     loss equilibrium converges to nearly the same decision surface as
+     pure softmax CE, just at a slightly different operating point.
+     For aux heads to lift, they need to be inserted at a feature-
+     ENGINEERING level (e.g., as additional features the model sees)
+     rather than at the loss level on the same features.
+
+- LB delta: n/a. No LB probe spent (both completed candidates failed
+  the OOF gate cleanly; leakfree pending). LB-best unchanged at
+  **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Final-selection lock UNCHANGED** (4 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+  2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer)
+
+- Artefacts on `claude/review-ml-experiments-xUrd3`:
+  - `scripts/multitask_common.py` + `multitask_xgb.py` + multitask OOF/test
+    + submission CSV + results JSON
+  - `kaggle_kernel/kernel_kan/features.py` (recipe-style FE for KAN) +
+    KAN OOF/test + submission CSV + results JSON
+  - `scripts/leakfree_teacher_oof.py` (resume-aware, per-inner checkpoint)
+    + `leakfree_distill.py` + `auto_chain_v2.sh` (self-restarting)
+  - `scripts/blend_gate_3way.py` + `blend_gate_3way_v2.py`
+  - Branch pushed to remote; merge to main when ready.
+
+### 2026-04-26 — three-pronged "imitate the leader" experiment + T1/T7 close-out
+
+Brainstorm-driven session focused on the +0.00125 leader gap (Chris Deotte
+0.98219 vs our LB-best 0.98094). Three mechanism-distinct attempts at
+"imitating" the likely leader recipe, plus two diagnostic levers.
+
+#### Path A — PyTorch MLP on full recipe FE (Kaggle GPU)
+
+Brainstorm hypothesis: every prior NN attempt used 19-66 raw features
+(MLP v5-v9, RealMLP, Trompt, Mamba, KAN, FT-T, TabPFN, DAE,
+pretrain-FT, NN-on-orig). **None saw the full V10 recipe FE matrix
+(443 cols incl. OTE + digits + FREQ + ORIG_stats)**. Hypothesis: NN
+inductive bias + recipe FE (precomputed soft signal via OTE) might
+finally clear the magnitude floor.
+
+- 4-layer MLP [443→1024→512→256→128→3] with BN+GELU+dropout 0.15,
+  AdamW + cosine schedule, class-balanced sample weights, 25 epochs.
+- Inlined recipe FE (copy of catboost_recipe_gpu) in self-contained
+  Kaggle kernel. P100 sm_60 torch shim required (same as 2026-04-24
+  RealMLP retry; new wheel pinning baked into boot).
+- Slug rejected once (irrigation-path-a-recipe-mlp → "Notebook not
+  found"); renamed to irrigation-recipe-mlp-path-a, pushed clean.
+
+PROBE (1 fold full data): standalone tuned **0.97648** at own bias
+[2.23, 2.17, 1.90]. Jaccard 0.65 vs LB-best 4-stack on fold-1 rows —
+strong orthogonality, in RealMLP n_ens=1 band. **But errs ratio
+2080/1914 = 1.087×** (8.7% over anchor) — magnitude-trap territory.
+Blend sweep vs LB-4 monotone-negative from α=0.025; peak +0.00007 at
+α=0.15 (within fold noise). High recall drops -0.0019 to -0.0024
+across α range (wrong direction under macro-recall).
+
+5-fold production (Kaggle v5/v6): standalone tuned **0.97640** with
+bias [2.73, 2.57, 2.50] — comparable to RealMLP n_ens=1 (0.97633).
+**16th NN-family null on this problem**. The recipe FE is the
+strongest substrate any NN has ever seen here AND still fails the
+magnitude rule. Pareto-frontier closure (2026-04-24) holds: rare-
+class-orthogonal NN errors don't survive fixed-bias evaluation.
+
+**Kaggle infra bug**: long-running kernels (>20 min) consistently hit
+"DNS cache overflow" during output save — both v5 and v6 saved 18-byte
+error stubs instead of real arrays. Metrics fully recoverable from
+kernel logs but arrays unrecoverable without retry. Affected v3, v5,
+v6 path A and v2 path C.
+
+#### Path B — per-cell MLP on rule-cell partition (local CPU)
+
+Brainstorm hypothesis: per-cell LR (2026-04-21) was rejected at
+linear capacity (0.96280); MLP capacity in EACH cell could break the
+cross-cell flip-signal bottleneck.
+
+- 128 rule-cells (stage × dry × norain × hot × windy × nomulch).
+- 15 features per cell: 11 raw nums + 4 signed dist-to-threshold.
+- Per-cell sklearn MLPClassifier(hidden=(64, 32), max_iter=150).
+- Cells with <200 train rows fall back to empirical class prior.
+- 5-fold seed=42 production wall ~5 min (much faster than estimated).
+
+Standalone OOF tuned **0.89357** (vs LB-best 4-stack 0.98084, way
+below). 28/96 cells fell back to empirical prior in production
+(small-cell-MLP can't fit reliably). Jaccard vs LB-best 4-stack =
+**0.083** — RECORD LOW orthogonality on this problem. But per-row
+magnitude is 72,880 errors vs LB-best 9,415 → **7.7× magnitude trap**.
+Blend sweep monotone-negative from α=0.025 (Δ −0.00021 → −0.00736
+across α range). High recall drops sharply with α (-0.0021 at α=0.05,
+-0.0040 at α=0.10).
+
+**NULL — fragmentation overrides orthogonality.** Per-cell partition
+fragments the data too much; small-cell MLPs can't learn the cross-
+cell flip signal.
+
+#### Path C — pseudo-label retraining with LB-best 4-stack as labeler
+
+Brainstorm hypothesis: the prior pseudo-label stage-1 used
+recipe_full_te (LB 0.97939) as labeler; using LB-best 4-stack
+(LB 0.98094) at τ=0.99 should produce purer pseudo labels and a
+cleaner gradient.
+
+- Reconstructed LB-best 4-stack test posterior locally (matches
+  hypothesis-board OOF 0.98084 exactly via tier1b_helpers.build_lbbest_stack
+  + xgb_metastack_iso log-blend at α=0.30).
+- Saved as scripts/artifacts/test_path_c_primary_labeler.npy +
+  path_c_primary_labeler_results.json (log_bias = [1.4324, 1.4689, 3.4008]).
+- Local CPU runs killed 3× by container rehydrate (~30-min cycles
+  vs 50-min wall). Pivoted to Kaggle CPU kernel.
+
+**Kaggle CPU kernel scaffold**:
+  - kaggle_kernel/ds_path_c_scripts/ — uploaded as Kaggle dataset
+    `chrisleitescha/irrigation-pseudolabel-scripts`
+    (common.py + recipe_features.py + recipe_ote.py +
+    recipe_full_te.py + recipe_pseudolabel.py +
+    test_path_c_primary_labeler.npy + path_c_primary_labeler_results.json)
+  - kaggle_kernel/kernel_path_c/path_c_pseudolabel.py — 118-LoC
+    wrapper that mirrors local repo layout (scripts/, data/),
+    symlinks competition CSVs, **zips orig CSV into data/archive.zip**
+    (recipe_full_te.py expects ZIP not raw CSV — v1 BadZipFile error
+    fixed in v2), exports env vars, exec()s recipe_pseudolabel.py.
+
+v2 ran ~6.5 hours on Kaggle CPU (much slower than local — fold wall
+~75 min vs ~10 min). Per-fold argmax: 0.97592 / 0.97606 / 0.97705 /
+0.97513 / 0.97607. Overall OOF argmax 0.97605, **tuned 0.97998** with
+bias [1.03, 1.07, 3.40].
+
+Comparison ladder:
+  ```
+  recipe_full_te (no pseudo)              0.97967
+  recipe_pseudolabel (recipe labeler)     0.97993
+  **path_c_stage1 (LB-4 labeler, τ=0.99)  0.97998**   +0.00005 vs vanilla
+  LB-best 3-stack                         0.98061
+  LB-best 4-stack                         0.98084
+  ```
+
+**NULL — matches stage-2 LB-blend-labeler pattern exactly**: prior
+stage-2 OOF 0.98002 → LB 0.97989 (gap +0.00038). Path C standalone
+0.97998 with predicted LB ~0.9796. The +0.00005 OOF lift over vanilla
+pseudo is within fold noise. Stronger labeler tightens OOF but the
+LB gap blows up — same documented mechanism that closed every prior
+stage-2 attempt.
+
+**Kaggle DNS cache overflow** struck this run too — arrays corrupted to
+18-byte stubs. Metric extracted from kernel log only. Without arrays,
+blend gate can't be computed exactly, but the standalone metric
+together with the documented stage-2 pattern make the verdict
+conclusive.
+
+#### T1 — score-conditional 2-bucket log-bias on LB-best 4-stack
+
+Per_bin_blend.py at 5 buckets × 30 params overfit on a single CV
+split (in-sample +0.00009 → nested −0.00031, 2026-04-25). T1 reduces
+the bucket count to 2 (`{score ∈ {3,6,7,8}}` = 25.1% of rows / 83% of
+error mass vs `{others}`). 6 free params — between global underfit
+(3 params) and per-bin overfit (30 params).
+
+In-sample per-bucket OOF = **0.97686** with
+bias_A=[0.49, 1.29, 2.00], bias_B=[1.35, 0.88, 4.92].
+Vs LB-4 global = 0.98084 → **−0.00398 even in-sample**. The per-
+bucket optimum found `bias_A.High = 2.00` (vs global 3.40, suppressing
+High in boundary rows) and `bias_B.High = 4.92` (vs global 3.40,
+amplifying High in clean rows). Both of these regress macro-recall:
+  - Low recall: 0.9955 → 0.9931 (−0.0025)
+  - Medium recall: 0.9695 → 0.9704 (+0.0009)
+  - High recall: 0.9775 → 0.9646 (−0.0129)
+Nested 5-fold = 0.97602 (−0.00482 vs global). In-sample inflation
++0.00084 (smaller than per_bin's +0.00040 because fewer params).
+
+**NULL.** Even at 6 free params the bucketed bias actively hurts —
+**the global 3-param log-bias is locally optimal**. Confirms that
+single-axis (dgp_score) bucketing isn't enough granularity to capture
+the per-row decision-rule asymmetry. Mechanism: bucket A mixes
+boundary-Medium rows AND clean-High rows; the High-bias optimum for
+each is opposite, so any single bias_A value compromises both.
+
+**New rule** (LEARNINGS.md candidate): **"For tree-stack outputs
+calibrated on a class-balanced sample-weight base, single-axis bias
+bucketing is locally optimal at the global granularity. Reducing
+bucket count from 5 → 2 doesn't avoid the per-bucket overfit because
+the optimization objective itself is non-decomposable (per-class
+recall trade-offs require row-level, not bucket-level, decision)."**
+
+#### T7 — test prediction agreement matrix (LB-verified subs)
+
+Diagnostic: identify the test rows where our 6 LB-verified
+submissions disagree most, mapping where the +0.00020 lift to pack
+0.98114 actually lives.
+
+Candidates loaded:
+  ```
+  primary  submission_tier1b_greedy_meta.csv         LB 0.98094
+  realmlp  submission_lb3_realmlp_nonruleiso.csv     LB 0.98008
+  3way     submission_3way_recipe025_s1035_s7040.csv LB 0.98005
+  pseudo   submission_recipe_greedy_recipe_pseudolabel.csv  LB 0.97998
+  recipe   submission_recipe_full_te.csv             LB 0.97939
+  catboost submission_recipe_full_te_catboost.csv    LB 0.97935
+  ```
+
+Pairwise disagreement counts (of 270k test rows):
+  ```
+              primary  realmlp   3way pseudo recipe catboost
+  primary           0     196    349    348    484      677
+  realmlp         196       0    279    284    434      625
+  3way            349     279      0    163    409      644
+  pseudo          348     284    163      0    282      579
+  recipe          484     434    409    282      0      559
+  catboost        677     625    644    579    559        0
+  ```
+
+Disagreement summary:
+  - **981 rows (0.36%)** where any non-primary differs from primary.
+  - **314 rows (0.116%)** where ≥3/5 non-primary candidates disagree
+    with primary.
+  - Distribution by `dgp_score`:
+    - score 6: 175 high-minority rows (out of 16,652 = 1.05%)
+    - score 3: 94 high-minority rows (out of 43,746 = 0.21%)
+    - All other scores: ≤19 high-minority rows each
+    - **score 6 + score 3 = 269 / 314 = 86% of disagreement mass**
+
+Direction of disagreement (on the 314 high-minority rows):
+  - **Primary "Medium" (196 rows)**: 164/196 majority-non-primary →
+    High; 32/196 → Low
+  - Primary "Low" (81 rows): 100% majority-non-primary → Medium
+  - Primary "High" (37 rows): 100% majority-non-primary → Medium
+
+**The 196 rows where primary=Medium and consensus=High are the
+strongest "lift-to-pack" candidates**. INITIAL framing: if 50%+ are
+truly High, override could lift LB by +0.0005 to +0.0015.
+
+#### T7 train-OOF validation — KILLS the override hypothesis
+
+Replicating the test-side disagreement pattern on TRAIN OOF (where
+truth is known) using the same 6 candidate constructions:
+
+  ```
+  Cluster                              OOF n    Truth (L/M/H)    Precision   Break-even   Verdict
+  primary=Medium → consensus=High        512    0 / 482 / 30        5.9%       8.1%       BELOW
+  primary=Low    → consensus=Medium      241    155 / 86 / 0       35.7%      39.3%       BELOW
+  primary=High   → consensus=Medium       96    0 / 73 / 23        76.0%      91.9%       BELOW
+  ```
+
+Macro-recall arithmetic for the M→H cluster (the largest opportunity
+on test): if the 512 OOF rows were override-flipped Medium→High,
+gain = +30/N_H = +0.001428 High recall; loss = −482/N_M = −0.002017
+Medium recall. **Net = −0.000589 macro-recall regression**.
+
+All three clusters are LB-NEGATIVE under macro-recall. **Even
+cluster 3 with 76% override-precision LOSES** because High is the
+rare class — demoting wrong-Highs to Medium costs more on High recall
+than it gains on Medium recall. (Same Pareto-frontier closure as
+2026-04-24 disagree-stacker / selective-router / missed-High detector.)
+
+**T7's value is the OPPOSITE of the initial framing**:
+  1. **U1 hardcoded override is FALSIFIED** — would have cost
+     ~−0.0006 LB if probed. Saved an LB slot.
+  2. T7 is a **TIGHT confirmation** that the consensus-disagreement
+     signal in our existing OOF bank is insufficient to override
+     primary at the macro-recall optimum.
+  3. The 5 weaker LB-verified candidates collectively make the SAME
+     M↔H boundary mistakes that primary makes, just at lower
+     calibration confidence. Their consensus carries information
+     about WHERE the boundary is uncertain but NOT which side is
+     correct.
+  4. Validates the audit's hedge swap recommendation — primary IS
+     the best calibration available; hedge via independent
+     `recipe_full_te` (different surface, no meta-stacker) is the
+     right private-LB insurance.
+
+Saved as `scripts/artifacts/t7_disagreement_rows.csv` (314 rows ×
+{test_id, score, primary, realmlp, 3way, pseudo, recipe, catboost})
+for cross-branch reference; treat as documentation, not a deploy
+candidate.
+
+LB delta: n/a (no LB probe — train-OOF check killed it pre-emptively).
+LB-best unchanged at **0.98094**.
+
+#### Combined session read-out
+
+Three mechanism-distinct paths (NN on recipe / per-cell MLP / iterative
+pseudo-label) + two diagnostic levers (per-bucket bias / disagreement
+matrix with train-OOF precision validation). All five close NULL.
+Together they reconfirm the LB 0.98094 ceiling is structural across:
+  - bucket-bias axis (T1: even 6-param 2-bucket bias regresses
+    in-sample by −0.00398 vs global)
+  - row-level disagreement axis (T7: all 3 disagreement clusters
+    below break-even precision under macro-recall)
+  - architecturally-novel NN substrates (path A: recipe FE, the
+    strongest substrate any NN ever saw)
+  - per-row partition (path B: 128-cell per-cell MLP — Jaccard 0.083
+    record-low orthogonality but 7.7× magnitude trap)
+  - pseudo-label labeler strength (path C: LB-best 4-stack labeler
+    OOF +0.00005 over recipe labeler — within fold noise, matches
+    documented stage-2 LB-blend chain pattern)
+
+**LB best unchanged**: `submission_tier1b_greedy_meta.csv` at LB
+0.98094. Final-selection lock from prior session stands (primary +
+3way hedge at LB 0.98005).
+
+### Next steps: lock + stop (post-2026-04-26 close-out)
+
+After Path A/B/C + T1 + T7, the remaining-bet shortlist from
+2026-04-26 needs revision:
+
+  **U1 (hardcoded override) — FALSIFIED by T7 train-OOF check.**
+  Would have cost ~−0.0006 LB. Do not probe.
+
+  **U2. Score-6 binary specialist with FULL candidate feature set**
+  (~30 min CPU). Train XGB binary on `[6 candidates × 3 classes (18
+  dims) + dist + dgp_score]` to predict `(y == High)` on
+  score=6 train rows. Different from U1 because it uses LEARNED
+  weighting instead of consensus voting. **But the underlying signal
+  ceiling on these rows is ~5.9% precision** (T7 cluster 1) — even
+  a calibrated learner is unlikely to push above 8.1% break-even on
+  test. Predicted null. Skip unless an LB slot is genuinely free.
+
+  **U3. Multi-seed-bag of LB-verified primary** (~30 min CPU + 2-3
+  LB probes). Resubmit primary at random seeds at end-of-comp as a
+  final variance check. Highest-EV remaining LB-slot use:
+  - Probe 1: primary as-is (variance check vs locked LB 0.98094)
+  - Probe 2 (if the 1st is materially different): seed-rotated copy
+  Useful for private-LB hedging but no expected lift.
+
+  **Skip on principled grounds (re-confirmed by T1 + T7)**:
+  - Further bucket-bias or row-override variants — both axes proven
+    structurally below break-even by today's session.
+  - More NN families (16+ nulls; structural ceiling confirmed).
+  - More meta-stacker variants (10+ saturation confirmations).
+  - Public-CSV blending (banned).
+  - Further bucket-bias variants (T1 confirmed locally optimal).
+  - More NN families (16+ nulls; structural ceiling confirmed).
+  - More meta-stacker variants (9+ saturation confirmations).
+  - Public-CSV blending (banned).

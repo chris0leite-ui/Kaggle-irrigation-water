@@ -1,0 +1,81 @@
+{
+  "candidates": {
+    "primary": [
+      "submission_tier1b_greedy_meta.csv",
+      "LB 0.98094"
+    ],
+    "realmlp": [
+      "submission_lb3_realmlp_nonruleiso.csv",
+      "LB 0.98008"
+    ],
+    "3way": [
+      "submission_3way_recipe025_s1035_s7040.csv",
+      "LB 0.98005"
+    ],
+    "pseudo": [
+      "submission_recipe_greedy_recipe_pseudolabel.csv",
+      "LB 0.97998"
+    ],
+    "recipe": [
+      "submission_recipe_full_te.csv",
+      "LB 0.97939"
+    ],
+    "catboost": [
+      "submission_recipe_full_te_catboost.csv",
+      "LB 0.97935"
+    ]
+  },
+  "pairwise_disagreements": {
+    "primary": {
+      "primary": 0,
+      "realmlp": 196,
+      "3way": 349,
+      "pseudo": 348,
+      "recipe": 484,
+      "catboost": 677
+    },
+    "realmlp": {
+      "primary": 196,
+      "realmlp": 0,
+      "3way": 279,
+      "pseudo": 284,
+      "recipe": 434,
+      "catboost": 625
+    },
+    "3way": {
+      "primary": 349,
+      "realmlp": 279,
+      "3way": 0,
+      "pseudo": 163,
+      "recipe": 409,
+      "catboost": 644
+    },
+    "pseudo": {
+      "primary": 348,
+      "realmlp": 284,
+      "3way": 163,
+      "pseudo": 0,
+      "recipe": 282,
+      "catboost": 579
+    },
+    "recipe": {
+      "primary": 484,
+      "realmlp": 434,
+      "3way": 409,
+      "pseudo": 282,
+      "recipe": 0,
+      "catboost": 559
+    },
+    "catboost": {
+      "primary": 677,
+      "realmlp": 625,
+      "3way": 644,
+      "pseudo": 579,
+      "recipe": 559,
+      "catboost": 0
+    }
+  },
+  "rows_any_diff_vs_primary": 981,
+  "rows_high_minority_vs_primary": 314,
+  "n_test": 270000
+}
