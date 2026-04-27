@@ -1,0 +1,28 @@
+{
+  "n_pure_cells": 2,
+  "pure_cell_ids": [
+    0,
+    8
+  ],
+  "n_subcell_rules": 118,
+  "n_drop_train": 179851,
+  "n_drop_test": 76324,
+  "frac_drop_train": 0.2854777777777778,
+  "frac_drop_test": 0.2826814814814815,
+  "primary_disagree_on_dropped_test": 36,
+  "drop_class_breakdown_train": [
+    148327,
+    28289,
+    3235
+  ],
+  "retained_class_shares": [
+    0.4922592297217144,
+    0.46825606632470584,
+    0.039484703953579815
+  ],
+  "full_class_shares": [
+    0.5871698412698413,
+    0.3794825396825397,
+    0.03334761904761905
+  ]
+}
