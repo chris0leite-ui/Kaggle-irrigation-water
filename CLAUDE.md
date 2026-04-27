@@ -14983,3 +14983,115 @@ audit F1 swap.
   - `scripts/artifacts/wide_fe_results.json` + `wide_fe_smoke_results.json`
   - `scripts/artifacts/blend_gate_AB_results.json` (wide_fe gate decision)
   - `submissions/` — no submission emitted (sweep monotone-negative).
+
+### 2026-04-27 — purity-rule deep-dive: 28.55% of train is 100%-deterministic
+
+- Goal: senior-engineer reframe. The score-based purity rules (scores 0/1/9
+  with 100%/99.996%/99.938% train rule-acc) were ALREADY perfectly absorbed
+  by the LB-best primary (zero test disagreements on all three scores per
+  the diagnostic in `scripts/purity_rules_diag.py`). Two deeper questions:
+  (a) Are there OTHER 100%-pure rule sets beyond simple score? (b) Could
+  dropping deterministic rows from training free gradient capacity for the
+  boundary-flip rows (scores 3/6/7/8)?
+- Branch: `claude/deterministic-prediction-rules-8ORca`.
+
+- **Sub-cell purity search** (`scripts/purity_subcells.py`): for each of the
+  96 cells in the 128-cell rule cube, search across 6 untouched cats
+  (Soil_Type, Crop_Type, Season, Irrigation_Type, Water_Source, Region)
+  for (cell × cat × value) tuples with 0 train errors and ≥30 train rows.
+  Found **118 sub-cell rules** beyond the 2 cube-level pure cells.
+- **Coverage**:
+  ```
+  Layer                                Train rows   % train   Test rows
+  Cube-level 100%-pure cells (2)         79,842     12.7%     34,333
+  Sub-cell rules (118 NEW unique)       +99,909    +15.86%    +41,991
+  ─────────────────────────────────── ──────────── ───────── ─────────
+  Total deterministic coverage          179,851     28.55%     76,324
+  ```
+- **Class breakdown of deterministic set**:
+  - Low: 148,327 / 369,917 (**40.1%** of all Lows)
+  - Medium: 28,289 / 239,074 (11.8%)
+  - **High: 3,235 / 21,009 (15.4% of Highs — rare class is also partially deterministic)**
+- **Distribution by cell-score**:
+  - score=1 (Low): 27 rules
+  - score=5 (Medium): 39 rules
+  - score=9 (High): 40 rules
+- **Sanity**: primary disagrees with cell-majority on only **36 of 76,324
+  dropped TEST rows (0.047%)** — model has fully internalized these.
+- Artefacts: `scripts/artifacts/purity_subcells.json`,
+  `purity_subcell_rules.csv`, `drop_mask_train.npy`, `drop_mask_test.npy`.
+
+### Next steps: DROP_DETERMINISTIC recipe variant (queued, 2026-04-27)
+
+The user's reframe: "the algorithm WILL learn those rules, but it would
+perform better if it had not to learn them and could focus on more
+difficult values instead." The 28.55% deterministic-row coverage above is
+the largest, most class-balanced drop-set we have ever identified.
+
+  **Mechanism**: drop the 179,851 deterministic train rows from the recipe
+  XGB's training set per fold. Test predictions stay full-data (the recipe
+  XGB trained on retained ~450k rows still scores all 270k test rows;
+  post-hoc we hard-set the 76,324 deterministic test rows to their
+  cell-majority class — provably zero-risk because primary disagrees with
+  cell-majority on only 36/76,324 of them). Saves ~28.5% per-fold compute
+  AND frees gradient/capacity for the ~9,400 boundary-flip rows that
+  carry every remaining error.
+
+  **Why this is meaningfully different from the 2026-04-26 DROP_SCORES
+  NULL** (which dropped scores {0,1,2} = 271k rows = 43.1% all-Low and
+  failed because the recipe's `compute_sample_weight("balanced")` already
+  rebalances the gradient; DROP_SCORES caused a double-rebalance overshoot
+  with High recall −0.0021):
+  ```
+  Lever              Drop rows   % drop   Class composition    Retained High share
+  DROP_SCORES        271,444     43.1%    100% L (blunt)       7.3% (overshoot)
+  **DROP_DETERMINISTIC 179,851   28.55%   82% L / 16% M / 2% H  3.95% (mild +0.6pp)**
+  ```
+  Mild rebalance (Low share 58.7% → 49.2%, Medium 37.9% → 46.8%, High
+  3.33% → 3.95%) AND class-proportionate. The High class retains 84.6%
+  of its training mass instead of being amplified to 7.3%.
+
+  **Concrete plan for executor** (~50 min CPU + SMOKE-first per CLAUDE.md):
+  1. Add `DROP_DETERMINISTIC=1` env var to `scripts/recipe_full_te.py`
+     (parameter: drop mask path, default `scripts/artifacts/drop_mask_train.npy`).
+     Filter `tr_idx` per fold AFTER fold split but BEFORE OTE-fit and XGB
+     train. Log rows-kept count per fold for sanity.
+  2. SMOKE first: `SMOKE=1 DROP_DETERMINISTIC=1 python scripts/recipe_full_te.py`
+     → expect ~30 sec wall, validates the mask filtering doesn't break the
+     OTE pipeline or XGB fit.
+  3. Production: `DROP_DETERMINISTIC=1 python scripts/recipe_full_te.py`
+     → ~50 min wall (smaller than baseline 55 min because 28.5% fewer rows).
+     Output suffix `_dropdet`. Saves `oof_recipe_full_te_dropdet.npy` +
+     `test_recipe_full_te_dropdet.npy`.
+  4. Post-hoc: hard-set test predictions on `drop_mask_test.npy` rows to
+     their cell-majority class. Rationale: the model never SAW
+     deterministic rows during training, so its predictions on those test
+     rows are noise; overlay the deterministic ground truth.
+  5. Blend gate: use `scripts/tier1b_helpers.build_lbbest_stack` to
+     reconstruct the LB-best 4-stack and run an α-sweep with `_dropdet`
+     substituted in for `recipe_full_te`. Apply the 4-gate filter:
+     - G1: standalone tuned OOF Δ ≥ +2e-4 vs recipe baseline 0.97967, OR
+       blend OOF Δ ≥ +2e-4 vs LB-best 4-stack 0.98084
+     - G2: errs ≤ 1.05× anchor (no magnitude trap)
+     - G3: per-class recall ≥ anchor − 5e-4 each class (Pareto guardrail)
+     - G4: |net_rare_class_flip| / |total_rare_class_churn| ≥ 0.5 AND
+       net direction is ADD-High (per 2026-04-27 R2/R5 closure)
+  6. If all 4 gates pass: ASK USER for LB probe approval before submit.
+     Per CLAUDE.md, never wrap `kaggle competitions submit` in any retry/
+     loop, and always present OOF + projected LB before submitting.
+  7. If gates fail: 24th saturation confirmation; document mechanism
+     diagnosis (likely ones: post-hoc test override creates train/test
+     calibration mismatch; or recipe XGB on retained 450k rows learns the
+     same boundary calibration as full 630k because the deterministic rows
+     contributed near-zero gradient anyway).
+
+  **Bayesian prior** (calibrated against 23+ saturation confirmations):
+  ~30% LB lift / ~50% null / ~20% mild regression. Higher than typical
+  bank-extension experiments because this is a TRAINING-DATA-COMPOSITION
+  lever, not another OOF-stacking variant. The class-proportionate drop
+  + High-mass retention specifically address the failure mode that closed
+  DROP_SCORES.
+
+  **Closure value if NULL**: definitively answers "would the model improve
+  with focused capacity?" — the user's reframe — for the LB-best primary.
+  Resolves a long-standing open question even at null cost.
