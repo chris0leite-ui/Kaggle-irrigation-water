@@ -14646,3 +14646,75 @@ After Path A/B/C + T1 + T7, the remaining-bet shortlist from
   - More NN families (16+ nulls; structural ceiling confirmed).
   - More meta-stacker variants (9+ saturation confirmations).
   - Public-CSV blending (banned).
+
+### 2026-04-27 — C blend gate FAIL (19th saturation) + A queued as next step
+
+- **C (distill_no_rule) full 5-fold complete** (FAST mode lr=0.15 /
+  n_est=1000 / es=100 — chosen so fold wall fits inside the container's
+  ~10-min idle-reboot window):
+  ```
+  Fold scores: 0.97527 / 0.97664 / 0.97735 / 0.97502 / 0.97515
+  OOF argmax  = 0.97589 ± 0.00094
+  Tuned       = 0.97950, bias=[1.4324, 1.3689, 3.2008]
+  vs recipe baseline 0.97967 = -0.00017 (within fold noise)
+  ```
+  Standalone trees CAN match recipe-strength OOF on a basis that
+  excludes rule-derived features (4 threshold flags + 3 LR-formula
+  logits removed → 424 features vs recipe's 433).
+- **Blend gate: FAIL — magnitude trap.**
+  ```
+  C @ recipe bias = 0.97944  (Δ -0.00140 vs LB-best 4-stack 0.98084)
+  errs C = 10,279  vs anchor 9,415  (+864 = +9% more errors)
+  Jaccard(C, 4-stack) = 0.7728  ✓ (genuine novel orthogonality)
+  PCR delta: L=-0.00083 / M=-0.00223 / H=-0.00114  (all NEGATIVE)
+  Best gate-passing α=0.10, blend Δ=-0.00019  (still below anchor)
+  ```
+  Classic magnitude-trap pattern documented 18 prior times: orthogonal
+  errors but in greater absolute count → blend math defeats the gain.
+- **19th saturation confirmation at LB 0.98094.**
+- New rules confirmed (LEARNINGS.md candidates):
+  - **Feature-restricted variants (drop a class of input features)
+    produce orthogonal errors but typically at +5-15% magnitude vs
+    full-feature recipe.** Same structural pattern as feature-restricted
+    NN variants (v6/v7/v9 in 2026-04-22 NN closure session).
+  - **Container-rehydrate-resilient compute pattern at 10-min reboot
+    intervals**: per-fold checkpoint + foreground bash invocation per
+    fold + reduced XGB params (FAST mode: lr=0.15 / n_est=1000 / es=100)
+    fits a single fold inside the reboot window. 5 sequential
+    foreground iterations completed C in ~50 min wall.
+
+### Next step: A (wide programmatic FE) — queued
+
+The original 4-lever brainstorm (C/D/B/A) leaves only A unrun. C
+ruled out (above), D ruled out (Pareto violation), B passed gate
+(LB 0.98091, 5× tighter than LR-meta, did not lift LB-best).
+
+A is the wide programmatic FE pattern from cdeotte's 1st-place
+backpack-prices kernel (NVIDIA cuDF FE blog):
+  1. Generate THOUSANDS of features programmatically:
+     - 7-stat group-by per (cat, num): mean/std/min/max/q25/q50/q75
+     - 8-quantile group-by per (cat, num): [5,10,40,45,55,60,90,95]
+     - extended decimal features: (col*10) % 1 .round(2) on all 11 nums
+     Total: ~1700 NEW features on top of recipe's 440 = ~2140 candidates.
+  2. 1-fold importance scan to get gain rankings.
+  3. Forward-select top ~600 features by gain.
+  4. 5-fold StratifiedKFold(seed=42) full training on selected.
+  5. Blend gate vs LB-best 4-stack.
+
+Cost (FAST mode, with rehydrate-resilient foreground iterations):
+  - Phase 1: data load + FE gen + 1-fold importance scan ~= 10 min
+  - Phase 2: 5-fold full training ~= 5 × 8 min = 40 min
+  - Total: ~6 sequential 9-min foreground iterations.
+
+Per-fold checkpointing already in place (`oof_wide_fe_fold{N}.npy`).
+FAST=1 env var added to `wide_fe.py` to match C's resilience config.
+
+**Why A still has nonzero EV after 19 saturation confirmations**: A
+generates a NEW feature surface that was never in the bank. Unlike
+all prior bank-extension variants (which add new MODELS to the meta
+bank), A adds new FEATURES to the recipe XGB. Different mechanism,
+different failure mode. Bayesian prior of LB lift: ~15-20% (lower
+than B's was, but mechanism-novel).
+
+If A nulls: lock final-selection at LB 0.98094 + safe hedge,
+reserve remaining LB submissions for end-of-comp variance check.

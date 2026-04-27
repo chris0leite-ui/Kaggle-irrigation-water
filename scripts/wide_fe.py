@@ -192,14 +192,18 @@ def main():
     if cached:
         log(f"  resume: {len(cached)} fold(s) cached: {sorted(cached)}")
 
+    # FAST=1: smaller n_estimators + larger lr + tighter early-stop. Cuts
+    # per-fold wall ~50% so a fold completes inside the container's
+    # ~10-min idle-reboot window.
+    FAST = os.environ.get("FAST") == "1"
     xgb_params = dict(
-        n_estimators=300 if SMOKE else 3000,
-        max_depth=4, max_leaves=30, learning_rate=0.1,
+        n_estimators=300 if SMOKE else (1000 if FAST else 3000),
+        max_depth=4, max_leaves=30, learning_rate=0.15 if FAST else 0.1,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=2,
         reg_alpha=5, reg_lambda=5, max_bin=256 if SMOKE else 1024,
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss", n_jobs=-1, random_state=SEED,
-        early_stopping_rounds=50 if SMOKE else 200, verbosity=0,
+        early_stopping_rounds=50 if SMOKE else (100 if FAST else 200), verbosity=0,
     )
     for fold, (tr_idx, va_idx) in enumerate(folds, 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
