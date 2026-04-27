@@ -1092,3 +1092,4 @@ kaggle_kernel/*/dist/
 !scripts/artifacts/tier1b_xgb_metastack_classw_results.json
 !scripts/artifacts/oof_xgb_metastack_classw.npy
 !scripts/artifacts/test_xgb_metastack_classw.npy
+!scripts/artifacts/meta_ensemble_v1_classw_results.json

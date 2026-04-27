@@ -57,6 +57,10 @@ META_OUT_SUFFIX = os.environ.get("META_OUT_SUFFIX", "")
 # transfer through uniform-weight meta-stacker. Audit kernels 5+6 use
 # class-weighted LR meta; this is the XGB analog.
 CLASS_WEIGHTED = os.environ.get("CLASS_WEIGHTED", "") == "1"
+# XGB_SEED — override XGB's internal seed only (NOT StratifiedKFold seed,
+# which must stay SEED=42 for OOF alignment with all other components).
+# Use for variance-reduction seed-bagging the meta itself.
+XGB_SEED = int(os.environ.get("XGB_SEED", str(SEED)))
 
 EXCLUDE = {
     "soft_distill",              # LB regressor
@@ -201,7 +205,7 @@ def main():
         learning_rate=0.05, max_depth=4, min_child_weight=5,
         subsample=0.9, colsample_bytree=0.9,
         reg_alpha=5.0, reg_lambda=5.0,
-        tree_method="hist", verbosity=0, seed=SEED, nthread=-1,
+        tree_method="hist", verbosity=0, seed=XGB_SEED, nthread=-1,
     )
     max_rounds = 3000
     es_rounds = 200
