@@ -13988,3 +13988,114 @@ final selection.
     until 2026-04-30 deadline).
 - Artefacts: `submissions/submission_n5b_followup_angle2_swap_a425.csv`
   (LB 0.97988, the variance-test third data point).
+
+### 2026-04-27 — classw + D 3-meta lever family closed; net-rare-class-flip rule
+
+After last night's submit-loop bug burned 4 LB slots on `v6_full_a350` and
+container rehydrated, three follow-up architecture experiments closed
+NULL with a NEW diagnostic:
+
+- **classw α=0.40 (carryover-test resubmit, 05:26 UTC)**: LB 0.98011
+  (Δ −0.00083 vs PRIMARY, ratio −2.96x). The "−0.5x carryover at α=0.30"
+  finding was an ILLUSION — at small α, v1 meta's calibration dominated
+  the blend; at α=0.40 classw's mismatched calibration was exposed and
+  carryover snapped back to bank-extension range. **classw lever closed.**
+- **D 3-meta ensemble (v1=0, classw=0.4, mlp=0.6, α=0.30, 05:37 UTC)**:
+  LB 0.98073 (Δ −0.00021, ratio −0.57x). The OOF optimum DROPPED v1
+  entirely (red flag), but dual-α probe at OOF level passed (1.26x linear
+  scaling 0.30→0.40). Dual-α was insufficient — needed per-row check.
+
+- **Per-row error decomposition (the diagnostic that explains why D failed)**:
+  ```
+  D vs PRIMARY (152 differing test rows):
+    D demotes 58 Highs → Medium    │ near-zero NET High flips (+1)
+    D promotes 59 Mediums → High   │ but high CHURN (117 row movements)
+    D promotes 28 Lows → Medium
+    D demotes 7 Mediums → Low
+
+  Net per-class shifts:
+    Net High:    +1   (RESHUFFLE, not lift)
+    Net Medium:  +20
+    Net Low:     -21
+  ```
+  D doesn't ADD High predictions, it RESHUFFLES them. On OOF, the
+  specific reshuffles win (D errs 9318 vs PRIMARY 9415, -97). On LB,
+  ~50% of new picks reverse. The OOF macro-recall surface is sensitive
+  enough to small per-row changes that 1/(3 × N_high) ≈ 1.6e-5 weighted
+  rare-class flips can fit OOF noise.
+
+- **Two new portable rules** (added to LEARNINGS.md):
+  1. **Net-rare-class-flip rule**: blend candidates with near-zero NET
+     change in rare-class predictions (|net| < 5) but high CHURN (>50
+     movements either direction) are OOF-overfit even when passing
+     OOF Δ + dual-α + per-class guardrail. The blend isn't lifting
+     macro-recall; it's reshuffling predictions to fit OOF surface.
+  2. **Asymmetric-flip preference**: candidates that monotonically
+     GROW or SHRINK rare-class count (e.g., +49/-5 = +44) are
+     structurally cleaner than balanced shuffles. Add a 4th gate:
+     `|net_rare_class_flip| / |total_rare_class_churn| ≥ 0.5`.
+
+- **Updated 4-gate criterion for blend candidates going forward**:
+  (1) +0.0003 OOF Δ vs PRIMARY
+  (2) per-class recall guardrail PASS (each class ≥ baseline − 5e-4)
+  (3) dual-α stability (1.0x to 2.0x linear scaling between α=0.30 and α=0.40)
+  (4) **NEW**: |net_rare_class_change| / |churn_total| ≥ 0.5
+  Without rule #4, classw a030 AND D 3-meta would both pass — and both
+  regressed.
+
+- **Carryover ladder updated**:
+  ```
+  classw  α=0.30:  OOF +0.00023 → LB -0.00011  ratio -0.48x  RESHUFFLE
+  D 3-meta α=0.30: OOF +0.00037 → LB -0.00021  ratio -0.57x  RESHUFFLE
+  classw  α=0.40:  OOF +0.00028 → LB -0.00083  ratio -2.96x  bank-ext range
+  ```
+  The −0.5x ratio at small α is consistent for RESHUFFLE-class candidates.
+
+- LB best unchanged at **0.98094**. LB budget: 3/10 used today (a040 +
+  3meta_d + retry_resolved_classw_a030_yesterday counted), 7 remaining.
+- Final-selection lock unchanged: PRIMARY = `submission_tier1b_greedy_meta.csv`
+  (LB 0.98094), HEDGE = `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005).
+- **19th saturation confirmation at LB 0.98094.**
+
+### 2026-04-27 — 4-gate filter sweep: 0 survivors among 19 metas (deepest saturation signature)
+
+Applied the new 4-gate filter retroactively to all xgb_metastack* +
+mlp_metastack + meta_l3_xgb_mlp candidates on disk (19 metas total) at
+LB-validated PRIMARY architecture (0.7 × LB3 + α × candidate_iso, α=0.30).
+
+**Result: ZERO candidates pass all 4 gates.** Stark dichotomy:
+  - Candidates passing G4 (asymmetric flip ≥0.5): xgb_v4 (0.603),
+    classw (0.548), n5b_both (0.524), varC (0.526) — ALL fail G1
+    (sub-+0.0003 OOF Δ).
+  - Candidates passing G1 (≥+0.0003 OOF): only mlp_metastack (+0.00033) —
+    fails G4 (ratio 0.357, between pure reshuffle ~0.1 and clean asymmetric
+    ≥0.5).
+
+**This is the deepest empirical signature of saturation we have**: the
+OOF macro-recall surface and LB-transferable directions are now provably
+orthogonal in our candidate space. No re-arrangement of existing
+components can simultaneously satisfy both.
+
+**One borderline case**: mlp_metastack standalone at α=0.30 (LB-validated
+arch). 3 of 4 gates PASS (G1+G2+G3); G4 fails at 0.357 (close to 0.5).
+Net High flips on test = +41 (meaningfully asymmetric direction). **HAS
+NEVER BEEN LB-TESTED standalone** — the B experiment was BLENDED with v1
+at α=0.50.
+
+**Updated calibration ladder for the gate framework**:
+```
+Pre-rule submissions (gates 1-3 only, no G4):
+  classw α=0.30:  passed  →  LB -0.00011  (G4 ratio ~0)  RESHUFFLE
+  D 3-meta α=0.30: passed → LB -0.00021  (G4 ratio 0.009) RESHUFFLE
+  classw α=0.40:  passed →  LB -0.00083  (carryover snap-back)
+Post-rule prediction:
+  mlp_metastack α=0.30: passes G1-G3, G4 0.357 borderline. Predicted
+    LB ≈ -0.00010 to +0.00005 if 4-gate rule is binary.
+    If G4 has slack at the borderline, may tie or slightly lift.
+```
+
+LB best unchanged at **0.98094**. LB budget: 3/10 used today, 7 remaining.
+Final-selection lock unchanged.
+
+20th saturation confirmation (now LB-validated AND theoretically
+characterized via the 4-gate filter).

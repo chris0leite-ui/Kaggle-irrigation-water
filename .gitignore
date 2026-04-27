@@ -1235,6 +1235,18 @@ scripts/artifacts/test_recipe_full_te_anchw20_fold[0-9].npy
 !scripts/artifacts/oof_recipe_full_te_ood_knn10k_ood9.npy
 !scripts/artifacts/test_recipe_full_te_ood_knn10k_ood9.npy
 !scripts/artifacts/recipe_full_te_ood_knn10k_ood9_results.json
+# 2026-04-26 round 6 audit experiments — joint Optuna + DE thresholds (both NULL)
+!scripts/artifacts/audit1_joint_optuna_results.json
+!scripts/artifacts/audit2_de_thresholds_results.json
+!scripts/artifacts/audit3_per_row_calib_results.json
+!scripts/artifacts/audit3_v2_per_row_calib_results.json
+!scripts/artifacts/test_n5b_residual_auc.npy
+!scripts/artifacts/oof_n5b_residual_3class.npy
+!scripts/artifacts/test_n5b_residual_3class.npy
+!scripts/artifacts/tier1b_xgb_metastack_classw_results.json
+!scripts/artifacts/oof_xgb_metastack_classw.npy
+!scripts/artifacts/test_xgb_metastack_classw.npy
+!scripts/artifacts/meta_ensemble_v1_classw_results.json
 # 2026-04-26 Mech A boundary-confined TTA (NULL).
 # Threshold 0.95 → 7% boundary rows. K=10 σ=0.05 IQR perturbations on
 # 4 rule axes per fold. Standalone iso OOF 0.97951 (+0.00025 vs vanilla,
@@ -1259,3 +1271,6 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 # Experiment 3-meta L3 (XGB+MLP+LR weighted average) — BEST OOF Δ to date
 !scripts/artifacts/oof_three_meta_l3.npy
 !scripts/artifacts/test_three_meta_l3.npy
+!scripts/artifacts/d_3meta_ensemble_results.json
+!scripts/artifacts/d_dual_alpha_probe_results.json
+!scripts/artifacts/four_gate_sweep_results.json
