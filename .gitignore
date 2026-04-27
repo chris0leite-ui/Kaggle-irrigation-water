@@ -1078,3 +1078,10 @@ kaggle_kernel/kernel_*/output/
 # Kaggle dataset npy payloads (uploaded once, regenerable)
 kaggle_kernel/ds_*/test_*.npy
 kaggle_kernel/ds_*/oof_*.npy
+# cuML kernel pull diagnostic (transient, JSON-encoded logs)
+kaggle_kernel/output_cuml_smoke/
+# cuML meta-stacker input npz: 93 MB staging artefact, regenerable via
+# scripts/build_cuml_meta_input.py + hosted on Kaggle dataset
+# chrisleitescha/irrigation-cuml-meta-input
+scripts/artifacts/cuml_meta_input.npz
+kaggle_kernel/ds_cuml_meta/cuml_meta_input.npz

@@ -14718,3 +14718,113 @@ than B's was, but mechanism-novel).
 
 If A nulls: lock final-selection at LB 0.98094 + safe hedge,
 reserve remaining LB submissions for end-of-comp variance check.
+
+### 2026-04-27 — A adversarial recipe + B' sklearn RF meta: 22nd saturation, RF gap +0.00010 (tightest non-XGB-meta calibration)
+
+Two-pronged session: (A) training-side input perturbation on recipe XGB,
+(B) cuML meta-stacker on Kaggle GPU. B blocked by P100 sm_60 incompat
+(cuML 26.02 dropped support, same dead-end that hit KAN/Mamba/TabPFN-10k);
+pivoted to (B') sklearn RandomForest meta-stacker locally. Both close
+NULL on the +0.0002 LB-transfer gate but B' produced a notable
+calibration data-point.
+
+**A — Adversarial-robustness recipe XGB** (`scripts/recipe_adv.py`):
+σ × IQR Gaussian noise injected on the 11 raw numeric columns of tr_idx
+rows ONLY, AFTER recipe FE has been computed from clean values (derived
+features stay clean; only raw numerics seen by trees are noisy). σ=0.05
+× IQR. Single-pass noise (K=1), no row duplication.
+- Per-fold argmax: 0.9760 / 0.9763 / 0.9766 / 0.9747 / 0.9761
+- Standalone tuned OOF: **0.97933** (Δ −0.00034 vs recipe 0.97967),
+  bias [1.23, 1.37, 3.40] (sharper than recipe's [1.43, 1.47, 3.40])
+- vs LB-3stack: best gate-pass α=0.025 → Δ −0.00007
+- vs LB-4stack: best gate-pass α=0.05 → Δ −0.00003
+- **NULL** on gate. σ=0.05 noise reduces standalone but doesn't add
+  orthogonal blend signal. Recipe XGB at depth=4 + reg_alpha=5 +
+  reg_lambda=5 already finds robust splits via heavy reg; explicit
+  perturbation is redundant.
+
+**B (cuML on Kaggle GPU)** — BLOCKED. cuML 26.02 LR/RF/KNN all hit
+`cudaErrorNoKernelImageForDevice` on P100 (sm_60 dropped from libraft +
+decisiontree + coalesced reduction kernels). Tried try/except wrappers
+to isolate algorithms — all three failed identically.
+- Kaggle dataset uploaded: `chrisleitescha/irrigation-cuml-meta-input` (97 MB)
+- Kaggle kernel pushed: `chrisleitescha/irrigation-cuml-meta-stacker-smoke`
+- All three cuML kernels ERRORED at fit time on P100. Lever closed at
+  the platform-compat layer.
+
+**B' — sklearn RandomForest meta-stacker** (`scripts/sklearn_rf_meta.py`):
+n_estimators=500, max_depth=14, max_features='sqrt', bootstrap=True,
+class_weight='balanced'. Trained on 16-component curated bank (recipe
++ pseudo s1/s7/s123 + realmlp + xgb_nonrule + xgb_corn + dist_digits
++ dist_routed + dist_digits_ote variants + recipe_catboost + lgbm_te_orig
++ lgbm_dist_digits_ote + hybrid_lgbmxgb_blend) = 65 features incl. 14
+distance/rule meta cols + LB-best 3-stack log-probs.
+- Per-fold argmax: 0.9793 / 0.9798 / 0.9812 / 0.9791 / 0.9795
+- Standalone tuned OOF: **0.98069** — between LB-3stack (0.98061) and
+  LB-4stack (0.98084)
+- Bias: [1.93, 1.97, 2.60] — wildly different from XGB-meta family
+  [1.43, 1.47, 3.40]. RF's bagging-averaged probabilities have a
+  fundamentally different prob-scale than gradient-boosted XGB.
+- All 4 gates pass at α=0.025 iso (Jaccard tight, errs 9398 < anchor
+  9415, asymmetric flip 0.677, G3 ✓)
+- Best gate-pass blend: α=0.025 iso → Δ +0.00001 vs LB-best 4-stack
+  (microscopic, far below +0.0002 LB-transfer threshold)
+- Combined A + B' grid sweep: best (α_A=0, α_B=0.025) → Δ +0.00001
+  (=B' alone at minimum α). A is structurally redundant with the
+  recipe-XGB-meta-iso channel already in LB-best 4-stack.
+
+**LB PROBE** (B' standalone tuned, user-approved, 08:06 UTC):
+`submission_sklearn_rf_meta_tuned.csv` → **LB public = 0.98059**.
+- Δ vs LB-best primary (0.98094) = **−0.00035** (clean regression).
+- Δ vs LB-3stack hedge (0.98005) = **+0.00054** (B' beats hedge).
+- OOF→LB gap = **+0.00010** — TIGHTEST gap of any "different L2
+  architecture" probe yet:
+
+```
+ladder of simpler-than-XGB metas on saturated bank:
+  LR v1 (heavy-overfit)        OOF 0.98167 → LB 0.97991  gap +0.00176
+  LR v2 (C=0.1, no class_w)    OOF 0.98107 → LB 0.98052  gap +0.00055
+  R2 heavy-reg meta (depth=2)  OOF 0.98124 → LB 0.97996  gap +0.00128
+  MLP-meta (dropout + GELU)    OOF 0.98118 → LB 0.98091  gap +0.00027
+  **B' RF meta (this entry)     OOF 0.98069 → LB 0.98059  gap +0.00010**
+  LB-best 4-stack (XGB-meta)   OOF 0.98084 → LB 0.98094  gap −0.00010
+```
+
+Interpretation: **bagging-based meta-stackers (RF) have OOF→LB gap
+calibration approaching the gradient-boosted XGB-meta's negative gap**.
+Bootstrap aggregation + averaging at L2 produces tighter generalization
+than any sklearn-style MLP / LR / R2-style XGB variant tested on this
+problem.
+
+But standalone is still 35 bp below primary — RF reaches an operating
+point BETWEEN LB-3stack and LB-4stack with a structurally different
+bias profile, but the LB-best 4-stack already extracts ~all the signal
+the bank carries. The Pareto-frontier closure holds: per-class trade
+follows the same M↑/H↓ pattern as every prior meta variant.
+
+**22nd independent saturation confirmation at LB 0.98094** (joins 21
+prior LB-validated nulls). LB-best primary unchanged.
+
+**Two portable rules** (LEARNINGS.md candidates):
+  1. **cuML on Kaggle's P100 fleet is structurally DOA** for any
+     algorithm using libraft kernels (LR via QN solver, RF
+     decision-tree quantiles, KNN coalesced reduction). cuML 26.02
+     dropped sm_60 across the board. Same dead-end as KAN / Mamba /
+     TabPFN-10k. Use sklearn locally for any meta-stacker variant
+     in this comp; budget Kaggle GPU for tabular NN architectures
+     that don't depend on libraft (RealMLP / Trompt / TabM).
+  2. **sklearn RandomForestClassifier(bootstrap=True) as a
+     meta-stacker has the tightest OOF→LB calibration of any
+     simpler-than-XGB meta architecture** on a saturated bank
+     (gap +0.00010 vs LR v1 +0.00176, LR v2 +0.00055, MLP +0.00027,
+     R2 heavy-reg +0.00128). For future synthetic-tabular comps
+     where the LB-best meta is XGB-based, RF is the highest-EV
+     "different L2 architecture" probe to test for blend
+     orthogonality. The Pareto-frontier closure still applies — RF
+     won't break a saturated stack — but the calibration profile
+     is portable knowledge.
+
+LB budget: 1/10 used today (this probe), 9 remaining. LB-best
+unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005
+audit F1 swap.

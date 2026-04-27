@@ -1,0 +1,35 @@
+{
+  "adv_sigma": 0.05,
+  "tag": "adv_s050",
+  "smoke": false,
+  "seed": 42,
+  "n_folds": 5,
+  "fold_scores_argmax": [
+    0.9754655048535154,
+    0.9763031746484385,
+    0.9765919774964354,
+    0.974710035262896,
+    0.976056130210697
+  ],
+  "overall_argmax": 0.9758253824286228,
+  "tuned_log_bias_bal_acc": 0.9793253867506718,
+  "log_bias": [
+    1.2324411632360976,
+    1.3689466919465483,
+    3.400768902044088
+  ],
+  "n_features": 443,
+  "iqrs": {
+    "Soil_Moisture": 27.930000000000003,
+    "Temperature_C": 15.0225,
+    "Humidity": 33.730000000000004,
+    "Rainfall_mm": 1099.71,
+    "Wind_Speed_kmh": 10.149999999999999,
+    "Soil_pH": 1.5799999999999992,
+    "Organic_Carbon": 0.61,
+    "Electrical_Conductivity": 1.65,
+    "Sunlight_Hours": 3.49,
+    "Field_Area_hectare": 7.260000000000001,
+    "Previous_Irrigation_mm": 59.55
+  }
+}
