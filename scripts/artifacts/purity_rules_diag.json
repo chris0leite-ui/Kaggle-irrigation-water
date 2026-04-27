@@ -1,0 +1,39 @@
+{
+  "score_diag": [
+    {
+      "score": 0,
+      "target_class": "Low",
+      "train_n": 33767,
+      "train_rule_acc": 1.0,
+      "train_primary_disagree": 0,
+      "test_n": 14432,
+      "test_primary_disagree": 0
+    },
+    {
+      "score": 1,
+      "target_class": "Low",
+      "train_n": 115457,
+      "train_rule_acc": 0.999956693834068,
+      "train_primary_disagree": 0,
+      "test_n": 48963,
+      "test_primary_disagree": 0
+    },
+    {
+      "score": 9,
+      "target_class": "High",
+      "train_n": 3237,
+      "train_rule_acc": 0.9993821439604572,
+      "train_primary_disagree": 0,
+      "test_n": 1364,
+      "test_primary_disagree": 0
+    }
+  ],
+  "primary_train_acc": 0.9850555555555556,
+  "submission_match_rate": 1.0,
+  "n_pure_cells_100": 2,
+  "pure_cells_train_n": 79842,
+  "pure_cells_test_n": 34333,
+  "pure_cells_train_disagree": 0,
+  "pure_cells_test_disagree": 0,
+  "n_near_pure_999": 5
+}
