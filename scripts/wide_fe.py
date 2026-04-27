@@ -269,6 +269,16 @@ def main():
         eval_metric="mlogloss", n_jobs=-1, random_state=SEED,
         early_stopping_rounds=50 if SMOKE else (100 if FAST else 200), verbosity=0,
     )
+    # Subset cols for the per-fold slice: only need selected_numeric + the
+    # cat cols OrderedTE will encode + target. Drops train DataFrame
+    # footprint per fold from ~1537 cols to ~240 cols (~6x mem cut).
+    fold_train_cols = list(dict.fromkeys(
+        selected_numeric + selected_te_targets + [TARGET]))
+    fold_test_cols = list(dict.fromkeys(
+        selected_numeric + selected_te_targets))
+    log(f"  per-fold slice cols: {len(fold_train_cols)} train / "
+        f"{len(fold_test_cols)} test (was 1537)")
+
     for fold, (tr_idx, va_idx) in enumerate(folds, 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
         if fold in cached:
@@ -280,9 +290,8 @@ def main():
             fold_scores.append(balanced_accuracy_score(y[va_idx], vp.argmax(1)))
             log(f"  fold {fold} CACHED  bal={fold_scores[-1]:.5f}")
             continue
-        X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
-        X_va = train.iloc[va_idx].copy().reset_index(drop=True)
-        X_te = test.copy().reset_index(drop=True)
+        X_tr = train.iloc[tr_idx][fold_train_cols].copy().reset_index(drop=True)
+        X_va = train.iloc[va_idx][fold_train_cols].copy().reset_index(drop=True)
         log(f"  fitting OrderedTE on fold {fold}")
         t1 = time.time()
         rng = np.random.default_rng(SEED + fold)
@@ -295,6 +304,9 @@ def main():
         X_tr = X_tr_shuf.iloc[inv].reset_index(drop=True)
         del X_tr_shuf, perm, inv; gc.collect()
         X_va = te.transform(X_va)
+        # Build X_te ONLY now (after OTE fit) to avoid an extra ~1.6 GB copy
+        # alive during the X_tr/X_tr_shuf duplication peak.
+        X_te = test[fold_test_cols].copy().reset_index(drop=True)
         X_te = te.transform(X_te)
         log(f"    OTE done in {time.time()-t1:.1f}s")
         feat_cols_sel = selected_numeric + te.te_col_names()
