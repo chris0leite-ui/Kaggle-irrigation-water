@@ -15095,3 +15095,120 @@ the largest, most class-balanced drop-set we have ever identified.
   **Closure value if NULL**: definitively answers "would the model improve
   with focused capacity?" — the user's reframe — for the LB-best primary.
   Resolves a long-standing open question even at null cost.
+
+### 2026-04-27 — DROP_DETERMINISTIC executed: 24th saturation confirmation, REMOVE-High Pareto violation
+
+- Goal: execute the queued DROP_DETERMINISTIC plan from the prior entry.
+  User reframe: "the algorithm WILL learn those rules, but it would
+  perform better if it had not to learn them and could focus on more
+  difficult values instead." Production answer: NO it would not.
+- Branch: `claude/deterministic-prediction-rules-8ORca`.
+- Changed: `scripts/recipe_full_te.py` (DROP_DETERMINISTIC env var: load
+  drop_mask_train + drop_mask_test + test_cell_majority, filter tr_idx
+  per fold AFTER fold split BEFORE OTE-fit, post-hoc inference override
+  on deterministic OOF + test rows to one-hot cell-majority class);
+  `scripts/blend_gate_dropdet.py` (4-gate filter analyzer with G4 net
+  rare-class flip direction check); `scripts/artifacts/test_cell_majority.npy`.
+- SMOKE pass GREEN (20k×2-fold, ~30 sec): drop 28.49%, override applies,
+  tuned OOF 0.96431 vs vanilla smoke 0.96381 (+0.0005 mild signal).
+- Production 5-fold seed=42 (~1h 50min CPU including one rehydrate-and-
+  resume cycle):
+  - Per-fold pre-override argmax: 0.97254 / 0.97544 / 0.97617 / 0.97438 / 0.97420
+  - Per-fold post-override (apples-to-apples vs recipe): mean Δ = **−0.00006**
+  - Per-fold band-only (boundary rows the model actually had to learn): mean Δ = **−0.00004**
+  - Overall OOF argmax post-override = **0.97583** (recipe 0.97589 → −0.00006)
+  - Tuned log-bias bal_acc = **0.97958** (recipe 0.97967, **−0.00009**)
+  - Tuned bias [0.9324, 1.2689, 3.4008] — Low bias dropped 0.50, others ≈ recipe
+
+- **Honest 5-fold post-override comparison** (every val row counted; deterministic
+  val rows hard-set to cell-majority = 100% correct):
+  ```
+  fold  pre       post-ov   recipe    d-pov      band      rec_band  d-band
+   1    0.97254   0.97434   0.97544   -0.00110   0.96928   0.97050   -0.00122
+   2    0.97544   0.97689   0.97659   +0.00030   0.97234   0.97186   +0.00048
+   3    0.97617   0.97714   0.97721   -0.00007   0.97258   0.97262   -0.00003
+   4    0.97438   0.97577   0.97465   +0.00111   0.97100   0.96972   +0.00128
+   5    0.97420   0.97500   0.97557   -0.00057   0.97012   0.97081   -0.00069
+  mean d post-override = -0.00006   mean d band-only = -0.00004
+  ```
+  Oscillating around zero, slightly negative on aggregate. Folds 1+5
+  hurt; fold 4 helps; folds 2+3 ~tied. Within fold-noise band (~±0.001).
+
+- **4-gate blend analysis** (`scripts/blend_gate_dropdet.py`):
+  ```
+  Anchor               anchor   peak α  peak Δ    G1   G2   G3   G4
+  recipe_full_te       0.97967  0.65    +0.00044  ✓    ✓    ✓    ✗ (REMOVE-H net=-266)
+  lb_best_3stack       0.98061  0.00    +0.00000  ✗    ✓    ✓    ✗
+  lb_best_4stack(prim) 0.98084  0.00    +0.00000  ✗    ✓    ✓    ✗
+  ```
+  - vs recipe baseline: lift exists at α=0.5-0.65 (+0.00044 OOF) BUT G4
+    net-rare-flip direction = REMOVE-High at every positive α (net_H
+    ranges from −25 at α=0.025 to −280 at α=0.50). Same REMOVE-High
+    asymmetric Pareto-violation pattern that closed R2/R5 a045 on
+    2026-04-27 (LB regression −0.00098).
+  - vs LB-best 3-stack and 4-stack (the actual deployment anchors): peak
+    at α=0 (no blend). Every α > 0 strictly negative. G1, G3, G4 all fail.
+- **Standalone OOF/standalone-replace null and blend null vs every
+  anchor of practical interest. No LB probe warranted.**
+
+- **Mechanism diagnosis** (the portable read-out):
+  1. **The primary's recipe XGB is NOT capacity-bound on 504k rows.**
+     At depth=4 + 3000-round budget + reg_alpha=reg_lambda=5, the
+     model has enough budget to learn BOTH the cheap rule signal (via
+     OTE features + LR-formula logits + rule indicators) AND the
+     boundary-flip rows. Removing 28.5% of training rows doesn't
+     "free capacity" — it reduces the gradient signal everywhere.
+  2. **Deterministic rows act as DECISION-BOUNDARY ANCHORS** for the
+     model's High↔Medium calibration. Without them, the model becomes
+     systematically under-confident on High predictions on the
+     boundary rows. Per-class trade: net Removed-High at every α >
+     0, in line with R2/R5's heavy-reg meta closure earlier today.
+  3. **Even when the model was trained without deterministic rows, it
+     scores 98.8-99.1% on them** (per the in-flight diagnostic) via
+     OTE statistics + the rule-aware features. The post-override
+     boost ADDS only ~+0.01 per deterministic row × 28.5% share =
+     ~+0.003 OOF, which the model loses ~equivalently on boundary
+     rows due to weaker calibration anchoring. Net wash.
+
+- **24th independent saturation confirmation at LB 0.98094.** Joins the
+  23 prior structural-saturation entries already documented. The
+  training-data-composition lever is now closed alongside every other
+  major axis (greedy / meta variants / NN families / new feature
+  classes / per-row gating / Pareto-frontier overrides /
+  decision-rule variants / wide programmatic FE / score-based
+  routing / per-cell purity overrides).
+
+- **Two portable rules** (LEARNINGS.md candidates):
+  1. **Dropping deterministic-cell training rows on a heavy-reg recipe
+     XGB does NOT free capacity for boundary rows.** The model is not
+     capacity-bound; deterministic rows act as decision-boundary
+     ANCHORS that calibrate rare-class probabilities. Removing them
+     produces a REMOVE-High asymmetric model that fails the G4
+     direction gate at every α > 0. To use the "free capacity" lever
+     productively would require either (a) a lower-capacity base
+     (depth=2, 500-round budget), or (b) DOWN-WEIGHTING deterministic
+     rows in `sample_weight` rather than dropping them entirely
+     (preserves anchor signal at lower gradient).
+  2. **The post-hoc test override on deterministic rows produced ZERO
+     test prediction changes vs primary** (all 76,324 deterministic
+     test rows were already at cell-majority in the primary's
+     prediction). The override is a no-op on the LB-best primary,
+     confirming the score=0/1/9 + per-cell purity diagnostic finding
+     from earlier today: the primary already nails every deterministic
+     boundary perfectly.
+
+- LB delta: n/a (no probe warranted; gate failed cleanly on the
+  primary anchor). LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv`.
+- Final-selection lock unchanged: PRIMARY 0.98094 + audit-F1 swap
+  HEDGE `submission_3way_recipe025_s1035_s7040.csv` (LB 0.98005).
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `scripts/recipe_full_te.py` (DROP_DETERMINISTIC env var integration)
+  - `scripts/blend_gate_dropdet.py` (4-gate analyzer)
+  - `scripts/purity_rules_diag.py`, `scripts/purity_subcells.py`
+  - `scripts/artifacts/oof_recipe_full_te_dropdet.npy` + test (7.2 MB / 3.1 MB)
+  - `scripts/artifacts/recipe_full_te_dropdet_results.json`
+  - `scripts/artifacts/blend_gate_dropdet_results.json`
+  - `scripts/artifacts/purity_rules_diag.json` + `purity_rules_per_cell.csv`
+  - `scripts/artifacts/test_cell_majority.npy` (per-test-row cell-majority lookup)
+  - `submissions/submission_recipe_full_te_dropdet.csv` (diagnostic, NOT for LB probe)
