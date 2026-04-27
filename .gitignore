@@ -85,3 +85,9 @@ scripts/artifacts/_lf_inner_*.npy
 # Kaggle kernel build outputs (assembled dist/ files via build.py).
 # Regenerated locally before each push; not source of truth.
 kaggle_kernel/kernel_*/dist/
+
+# Kaggle kernel pulled outputs (regenerable via `kaggle kernels output`)
+kaggle_kernel/kernel_*/output/
+# Kaggle dataset npy payloads (uploaded once, regenerable)
+kaggle_kernel/ds_*/test_*.npy
+kaggle_kernel/ds_*/oof_*.npy
