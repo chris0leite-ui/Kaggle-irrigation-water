@@ -1259,3 +1259,6 @@ scripts/artifacts/test_recipe_full_te_btta095k10s005_fold[0-9].npy
 # Experiment 3-meta L3 (XGB+MLP+LR weighted average) — BEST OOF Δ to date
 !scripts/artifacts/oof_three_meta_l3.npy
 !scripts/artifacts/test_three_meta_l3.npy
+# Per-fold checkpoints for C (rehydrate-resilient)
+!scripts/artifacts/oof_distill_no_rule_fold[1-9].npy
+!scripts/artifacts/test_distill_no_rule_fold[1-9].npy
