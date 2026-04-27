@@ -1529,3 +1529,28 @@ Empirical confirmation (2026-04-27):
 - D 3-meta α=0.30: net High +1 / churn 117, ratio 0.009 — passed gates
   1-3, LB regressed −0.00021
 Both candidates at α=0.30 had RESHUFFLE pattern; both LB-regressed.
+
+### 2026-04-27 — G4 rule refinement: direction-aware
+
+Original G4 (logged 2026-04-27): |net_rare_class_flip| / churn ≥ 0.5
+
+REFINED G4 after R2/R5 a045 LB result:
+  G4-PASS requires BOTH:
+    (a) ratio ≥ 0.5 (asymmetric direction, not RESHUFFLE)
+    (b) **net_rare_class > 0** (ADD-rare-class direction, not REMOVE)
+
+Empirical falsification: r2r5_heavy_perfoldiso_a045 had ratio 0.78
+(passes original G4) but net High = -130 (REMOVE-High). LB regressed
+-0.00098 (carryover -3.38x, WORSE than RESHUFFLE -1.0x to -1.6x).
+
+Mechanism: rare class has high per-row leverage in macro-recall (1/N_H).
+Removing N PRIMARY-High predictions where ~80% were correct on test
+costs ~0.8N/N_H = 0.0050 recall_H per 130 removals. The OOF-validated
+"positive direction" was a calibration artifact specific to the OOF
+split; on test the removals were systematically wrong.
+
+Revised 4-gate filter:
+  G1: OOF Δ (LEAK-CORRECTED) ≥ +0.0003 vs PRIMARY
+  G2: per-class recall guardrail (each class ≥ baseline -5e-4)
+  G3: dual-α stability
+  G4: ratio ≥ 0.5 AND net_rare_class > 0
