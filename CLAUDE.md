@@ -14152,3 +14152,153 @@ LB budget: 4/10 used today, 6 remaining.
 **Final-selection lock RECOMMENDED**:
   PRIMARY: submission_tier1b_greedy_meta.csv → LB 0.98094
   HEDGE:   submission_3way_recipe025_s1035_s7040.csv → LB 0.98005
+### 2026-04-26 — senior-engineer "reopen and dig deeper" 3-way: 2 NULLs + 1 in-flight (12th saturation confirmation)
+
+- Goal: at user request to reopen the 3 most promising closed-with-
+  methodological-flaw experiments and dig deeper. Per the senior-engineer
+  recommendation:
+  1. **Multi-task XGB at base level** — aux signals (flipped/missed_high/
+     missed_med, AUC 0.90/0.98/0.95) inserted via custom xgb.train
+     num_class=6 obj. Aux had only ever been tested at meta-stacker level
+     (combined v6 = circular OOF inflation); base-level joint loss was
+     untested.
+  2. **KAN at production capacity with recipe FE** — prior PROBE used
+     19 raw one-hot features and hit Jaccard 0.13 (record low) but +500%
+     errs. Hypothesis: richer FE shrinks magnitude trap below the +5%
+     threshold while preserving orthogonality.
+  3. **Leak-eliminated soft-distillation** — proper k-fold-of-k-fold
+     teacher: for each outer fold f, retrain recipe with inner CV
+     restricted to (full_train \ V_f) so the teacher targets for student-
+     fold-f's training rows come from a teacher that never saw V_f.
+     Targets the persistent +0.00201 to +0.00246 OOF→LB gap across the
+     soft_distill family.
+
+- Branch: `claude/review-ml-experiments-xUrd3`. New scripts: `multitask_common.py`,
+  `multitask_xgb.py`, `leakfree_teacher_oof.py`, `leakfree_distill.py`,
+  `blend_gate_3way_v2.py`, `auto_chain_v2.sh` (self-restarting loop).
+  KAN kernel: `kaggle_kernel/kernel_kan/features.py` rewritten to recipe
+  style (157 dim vs prior 51).
+
+- **#1 KAN at recipe FE** — production complete on Kaggle P100 (16 min wall):
+  ```
+  per-fold argmax: 0.9633 / 0.9647 / 0.9658 / 0.9647 / 0.9639  σ=0.001
+  OOF argmax       0.96449
+  Tuned OOF        0.96604  bias [3.93, 2.47, 3.40]
+  ```
+  - KAN's class-balanced + label_smoothing=0.05 produces raw probs that
+    underpredict Low badly → bias [3.93] vs recipe [1.43]. Iso-cal aligns
+    scales: KAN_iso @ recipe bias = 0.96530.
+  - Vs LB-best 4-stack (anchor 0.98084):
+    - **Jaccard 0.586** with iso — **record-low** orthogonality for any
+      NN family with iso alignment (prior best Mambular 0.49, Trompt 0.53)
+    - errs 10446 vs anchor 9415 (+11%) — magnitude trap
+    - PCR: L 0.9957 / M 0.9690 / **H 0.9312** vs anchor [0.9955, 0.9695, 0.9775]
+      → **High recall drops 0.046** at any positive α
+  - α-sweep monotone-negative from α=0.025. **GATE FAIL.**
+  - **16th NN-family null** on this problem. Recipe FE shrunk the
+    magnitude trap from 6.28× (KAN PROBE 19 raw) to 1.11× (recipe FE
+    157 dim) while keeping orthogonality competitive — but the +0.00084
+    needed to break the LB-best ceiling requires errs ≤ 1.05× anchor
+    AND no rare-class recall trade.
+
+- **#2 Multi-task XGB at base level** — production complete on CPU (~2h 12min wall):
+  ```
+  per-fold argmax: 0.97566 / 0.97616 / 0.97759 / 0.97527 / 0.97465
+  recipe baseline: 0.97544 / 0.97659 / 0.97721 / 0.97465 / 0.97557
+  per-fold delta:  +0.00022 / -0.00043 / +0.00038 / +0.00062 / -0.00092
+  OOF argmax       0.97567   sigma 0.00095
+  Tuned OOF        0.97909   bias [1.2324, 1.0689, 3.4008]
+                              (recipe 0.97967 with bias [1.43, 1.47, 3.40])
+  ```
+  - Custom xgb.train num_class=6 obj produces 6 outputs per row: 3 main
+    softmax + 3 sigmoid-aux. AUX_W=0.3 weights aux loss vs main.
+  - Per-fold deltas straddle zero (mean -0.00006, σ 0.00064 — within
+    fold-noise band). Standalone tuned OOF -0.00058 vs recipe.
+  - Vs LB-best 4-stack:
+    - **Raw**: bal 0.97896, errs 9934, **Jaccard 0.808** (high redundancy)
+    - **Iso**: bal 0.97875, errs 9213, Jaccard 0.811
+    - PCR identical to anchor at peak α=0.000 (no boundary correction)
+    - α-sweep monotone-negative from α=0.025 vs both 3-stack and 4-stack
+  - **Mechanism diagnosis**: aux supervision DID shift trees (different
+    bias profile, fewer iso errors) but the joint-loss equilibrium picked
+    a slightly-worse main task corner that's redundant with the LB-best
+    4-stack. The base-level insertion AVOIDS the meta-stacker overfit
+    blow-up (gap stayed normal) but doesn't translate to LB-positive
+    contribution — same Pareto frontier, just from a different angle.
+  - **GATE FAIL at every α.** This is the **12th independent saturation
+    confirmation at LB 0.98094**.
+
+- **#3 Leak-eliminated soft-distillation** — IN FLIGHT after 3 rehydrates.
+  - Teacher build (`leakfree_teacher_oof.py`): for each outer fold f,
+    inner-CV recipe on tr_outer (504k rows). N_INNER=3, N_OUTER=5.
+    Original wall estimate: 5h. Per-outer cost observed: ~63 min × 5
+    = ~5.25h.
+  - **Container rehydrated 3 times** during the run (12:32, 13:19, 17:19),
+    killing the process. Each restart cost ~30-60 min until per-inner
+    checkpointing was added.
+  - Resilience hardening (committed):
+    1. **Per-inner-fold checkpointing** via `_atomic_save()` helper.
+       Each inner training writes its OOF + test + va_idx to disk
+       atomically (write to `*.tmp.npy` then rename). Lost work per
+       rehydrate ≤ 1 inner fold (~5-13 min).
+    2. **Skip per-outer full-fit retrain**. Test-side teacher uses
+       inner-fold test averages (computed for free during inner CV)
+       instead of separate full-fit. Saves ~22 min/outer × 5 = ~1.8h.
+    3. **Self-restarting auto_chain_v2.sh**. Restart-loop: keeps
+       calling `leakfree_teacher_oof.py` until all 5 outer-fold OOF +
+       test artifacts exist, then triggers distill + blend gate.
+       Survives unlimited rehydrates.
+  - **Progress at session wrap-up (17:20 UTC)**:
+    - Outer 1: ✅ saved (production-scale, from first run before rehydrate)
+    - Outer 2 inner 1: ✅ checkpointed (bal 0.97516, best_iter 1077)
+    - Outer 2 inner 2-3, outer 3-5: ⏳ pending
+    - Auto-chain v2 PID 1264 → leakfree teacher PID 1268 running.
+  - **Expected outcome**: based on the 2026-04-24 closure note
+    ("the OOF→LB gap is structural to teacher OOF construction itself —
+    distill family fully closed") and 11+ saturation confirmations,
+    estimated ~15-20% probability of clearing the +2e-4 gate even with
+    proper outer-fold leak elimination. Auto-chain left running as a
+    free overnight attempt; if it completes and clears the gate, that's
+    pure upside.
+
+- **Three portable rules logged for future synthetic tabular comps**:
+  1. **Per-inner-fold atomic checkpoints are essential for any CPU
+     pipeline > 30 min wall on rehydrate-prone containers**. Pattern:
+     `_atomic_save(final_path, arr)` writes `final_path.with_name(stem +
+     ".tmp.npy")` then renames. Path.with_suffix('.npy.tmp') is BUGGY —
+     np.save appends `.npy` to filenames not ending in `.npy/.npz`,
+     producing `*.npy.tmp.npy` and breaking subsequent `.rename(orig)`.
+  2. **Self-restarting auto-chain script** (retry-loop bash that polls
+     for completion artifacts) is the cleanest pattern for rehydrate-
+     prone hosts. Runs the long pipeline in a `while ! is_done; do
+     python ...; done` loop. Each rehydrate kills the inner python; the
+     bash loop wakes back up and re-launches, leveraging the python
+     script's own checkpoint-aware resume logic.
+  3. **Aux supervision at base level avoids meta-stacker overfit but
+     doesn't add orthogonal signal beyond what the recipe already
+     captures**. Multi-task XGB with aux heads on the recipe feature
+     set produces predictions with Jaccard 0.81 vs LB-best — the joint
+     loss equilibrium converges to nearly the same decision surface as
+     pure softmax CE, just at a slightly different operating point.
+     For aux heads to lift, they need to be inserted at a feature-
+     ENGINEERING level (e.g., as additional features the model sees)
+     rather than at the loss level on the same features.
+
+- LB delta: n/a. No LB probe spent (both completed candidates failed
+  the OOF gate cleanly; leakfree pending). LB-best unchanged at
+  **0.98094** via `submission_tier1b_greedy_meta.csv`.
+
+- **Final-selection lock UNCHANGED** (4 days to deadline):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+  2. **HEDGE (recommended swap)**: `submission_3way_recipe025_s1035_s7040.csv`
+     → **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer)
+
+- Artefacts on `claude/review-ml-experiments-xUrd3`:
+  - `scripts/multitask_common.py` + `multitask_xgb.py` + multitask OOF/test
+    + submission CSV + results JSON
+  - `kaggle_kernel/kernel_kan/features.py` (recipe-style FE for KAN) +
+    KAN OOF/test + submission CSV + results JSON
+  - `scripts/leakfree_teacher_oof.py` (resume-aware, per-inner checkpoint)
+    + `leakfree_distill.py` + `auto_chain_v2.sh` (self-restarting)
+  - `scripts/blend_gate_3way.py` + `blend_gate_3way_v2.py`
+  - Branch pushed to remote; merge to main when ready.

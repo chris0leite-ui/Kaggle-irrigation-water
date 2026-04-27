@@ -23,17 +23,20 @@ import os
 from pathlib import Path
 
 IS_SMOKE = False
-IS_PROBE = True
+IS_PROBE = False  # full 5-fold production with recipe-style FE
 
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
 N_FOLDS = 2 if SMOKE else 5
 MAX_FOLDS = 2 if SMOKE else (1 if PROBE else 5)
-N_EPOCHS = 2 if SMOKE else (12 if PROBE else 20)
+# At 157-dim input the per-epoch cost ~5 sec on P100; 15 epochs leaves
+# margin under the 1h cap with FE overhead.
+N_EPOCHS = 2 if SMOKE else (12 if PROBE else 15)
 
-# KAN architecture (input dim auto-inferred from one-hot + nums).
-HIDDEN = [128, 64] if SMOKE else [192, 96, 48]
+# KAN architecture (input dim auto-inferred). Wider hidden layers since
+# input dim grew from 51 (raw 19) to 157 (recipe FE).
+HIDDEN = [128, 64] if SMOKE else [256, 128, 64]
 GRID_SIZE = 5      # spline grid intervals per edge
 SPLINE_ORDER = 3   # cubic B-splines
 GRID_RANGE = (-1.0, 1.0)
@@ -42,7 +45,7 @@ DROPOUT = 0.1
 BATCH_SIZE = 1024 if SMOKE else 2048
 LR = 1e-3
 WEIGHT_DECAY = 1e-4
-LABEL_SMOOTHING = 0.0
+LABEL_SMOOTHING = 0.05  # mild regularization for richer FE
 
 # Safety nets — match the Trompt/Mamba kernel bounds.
 FOLD1_KILL_SEC = 25 * 60 if not SMOKE else 8 * 60
