@@ -16924,6 +16924,60 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — v1+recipe_mlp: NN-base on recipe FE matrix (no OTE) — NULL (33rd saturation)
+
+- Goal: address the v1+newFE finding "truly novel components must come
+  from a different base pipeline" by training a 4-layer MLP on the
+  V10 recipe feature matrix (without OTE, since OTE requires per-fold
+  supervision and the MLP can use the raw FE matrix instead).
+- Implementation: `scripts/recipe_mlp.py` — Linear(169→1024→512→256→128→3),
+  BN+GELU+dropout 0.15, weighted CE, AdamW lr=1e-3 cosine schedule,
+  25 epochs, batch=2048. CPU-only, 5-fold StratifiedKFold(seed=42)
+  for v1 alignment. Per-fold checkpoint resume. ~110 min total CPU.
+- Standalone recipe-MLP OOF:
+  - argmax 0.96177
+  - @recipe-bias 0.96369
+  - 169 features (recipe non-OTE: nums + threshold flags + LR logits +
+    digits + num_as_cat + FREQ + ORIG mean/std)
+  - 137 bp BELOW recipe XGB (0.97589 mean per-fold) because OTE skipped
+- v1+recipe_mlp meta (`scripts/v1_plus_recipe_mlp_meta.py`):
+  ```
+  variant            meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)            0.97365      0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+recipe_mlp(63)  0.97370      0.98037   0.98053   0.98080
+  ```
+- Test diff vs PRIMARY: 53 rows. PCR delta vs v1: L=+0.00001 M=+0.00006
+  **H=-0.00019**. G4: net_H=-17, ratio 0.20 (REMOVE-High, FAIL).
+- **NULL.** Standalone meta argmax improved by 5 bp but full-iso and
+  primary BOTH dropped by 4-6 bp. Recipe_mlp's predictions are
+  structurally different from v1 (NN vs XGB-on-recipe; no OTE) but
+  too WEAK STANDALONE for the meta-XGB to extract signal — marginal
+  information doesn't exceed reg_alpha+reg_lambda penalty.
+
+- **33rd saturation confirmation at LB 0.98094.**
+
+- **Refined portable rule** (LEARNINGS.md candidate): **A
+  "different base pipeline" component must also be COMPETITIVE
+  STANDALONE for the meta to use it.** v1's pool has weak-standalone
+  components (realmlp 0.97633, p3_embed_propagate ~0.96-0.97) but they
+  were all trained on RICH features (dist set + interactions or
+  contrastive embedding). Recipe_mlp at 0.96369 is BELOW the meta's
+  effective absorption threshold. Standalone OOF must be ≥ ~0.97
+  for the meta-XGB to deem the component's marginal gain higher
+  than the regularization penalty. NN base components benefit
+  structurally from "different model class" but only contribute
+  if they're trained on enough features to be competitive.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/recipe_mlp.py` (4-layer MLP CPU pipeline, ~110 min)
+  - `scripts/v1_plus_recipe_mlp_meta.py` (v1 meta retrain harness)
+  - `scripts/artifacts/oof_recipe_mlp.npy` + test
+  - `scripts/artifacts/recipe_mlp_results.json`
+  - `scripts/artifacts/oof_xgb_metastack_v1_plus_mlp.npy` + test
+  - `scripts/artifacts/v1_plus_mlp_meta_results.json`
+
 ### 2026-04-28 — v1+newFE: adding 4 novel-feature-view components to v1 pool — NULL (32nd saturation)
 
 - Goal: leverage the v1-decomposition finding that v1's leak-shape
