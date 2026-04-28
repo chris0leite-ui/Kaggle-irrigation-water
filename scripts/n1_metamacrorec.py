@@ -51,7 +51,28 @@ TARGET = "Irrigation_Need"
 SMOKE = os.environ.get("SMOKE") == "1"
 LAM_CE = float(os.environ.get("MR_LAMBDA", "0.3"))
 TEMPERATURE = float(os.environ.get("MR_T", "1.0"))
-SUFFIX = f"_metamacrorec_lam{LAM_CE:g}".replace(".", "")
+SUFFIX = os.environ.get("OUT_SUFFIX",
+                        f"_metamacrorec_lam{LAM_CE:g}".replace(".", ""))
+# R1 curated pool: drop circular + branch-NULL + LB-regressor components.
+# Set EXTRA_EXCLUDE_R1=1 to apply.
+EXTRA_EXCLUDE_R1 = os.environ.get("EXTRA_EXCLUDE_R1") == "1"
+EXTRA_EXCLUDE = set()
+if EXTRA_EXCLUDE_R1:
+    EXTRA_EXCLUDE = {
+        # Circular (macrorec input → macrorec-meta)
+        "recipe_full_te_macrorec_T1_lam03",
+        "xgb_metastack_metamacrorec_lam03",
+        "xgb_metastack_metamacrorec_lam03_iso",
+        # Branch-NULL components from this session
+        "recipe_full_te_residte",
+        "recipe_full_te_basemargin_K2",
+        "recipe_full_te_dropdet",
+        "tier1b_greedy_meta_l1override",
+        # LB-regressor metas (-1x to -3x carryover)
+        "xgb_metastack_classw", "xgb_metastack_n5b_both",
+        "lr_metastack", "lr_metastack_v2", "mlp_metastack",
+        "xgb_metastack_bag3",
+    }
 
 
 def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
@@ -73,6 +94,9 @@ def main():
     log(f"  LB-best stack OOF = {bal(lb_oof, y):.5f}")
 
     log("loading pool")
+    if EXTRA_EXCLUDE:
+        EXCLUDE.update(EXTRA_EXCLUDE)
+        log(f"  R1 curated pool: +{len(EXTRA_EXCLUDE)} EXTRA_EXCLUDE entries")
     pool = load_pool(y)
     log(f"  {len(pool)} 3-class components loaded")
 
