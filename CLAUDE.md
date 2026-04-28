@@ -16222,7 +16222,19 @@ portable rules.
   Side-finding: variant A at OOF-OPTIMAL bias [1.09, 1.45, 3.40]
   reaches OOF **0.98094** (matches LB exactly). 185 test rows differ
   from current PRIMARY. Submission emitted as
-  `submission_primary_oof_optimal_bias.csv` (untested).
+  `submission_primary_oof_optimal_bias.csv`.
+
+  **LB probe (user-approved, 14:26 UTC)**: variant A at OOF-optimal
+  bias → **LB public = 0.98093**, Δ vs current PRIMARY 0.98094 =
+  **−0.00001**, OOF→LB gap = **+0.00001** (essentially tied; tightest
+  calibration ever recorded, OOF-optimal bias matches its own LB to
+  1 bp). 185 test rows differ but the cumulative effect on macro-recall
+  is below LB noise floor (~±0.0005). **Implication: there is a
+  "bias-ridge" around recipe's [1.43, 1.47, 3.40] where multiple
+  3-param settings all give LB ~0.98094. Coord-ascent on OOF finds a
+  different local point on the same ridge, not a globally-better one.
+  The OOF-optimal-bias lever is closed: cannot exceed PRIMARY by
+  bias retune alone on the full-OOF-iso surface.**
 
 - **B2 — retrain xgb_metastack with per-fold iso on every input
   component** (`scripts/b2_metastack_perfoldiso_inputs.py`). Pool grew
@@ -16276,8 +16288,9 @@ portable rules.
   G4 RESHUFFLE outcome — fixing the pool likely doesn't change the
   RESHUFFLE direction.
 
-- **Two new portable rules** (LEARNINGS.md candidates):
-  1. **Iso-cal-on-full-OOF inflation has a small generalization
+- **Three new portable rules** (LEARNINGS.md candidates, after the
+  LB confirmation of variant A):
+  1. **iso-cal-on-full-OOF inflation has a small generalization
      advantage on this problem.** Per-fold iso is the leak-free version
      (gap 0), but full-OOF iso transfers slightly better to the LB
      test surface (+0.00005 genuine lift). The leak-honest version is
@@ -16290,11 +16303,14 @@ portable rules.
      component inflations. Useful for diagnosing where the inflation
      lives (B1 found 80% from metastack, 20% from nonrule on this
      stack).
-
-- LB-best primary unchanged: **LB 0.98094**. Final-selection
-  recommendation unchanged: PRIMARY 0.98094 + audit F1 hedge swap
-  (`submission_3way_recipe025_s1035_s7040.csv` LB 0.98005).
-  LB budget: **1/10 used today** (leak-honest retuned probe), 9 remaining.
+  3. **3-param coord-ascent log-bias on a tuned stack finds a
+     "bias-ridge" of LB-equivalent points, not a globally-better
+     optimum.** Variant A at OOF-optimal bias [1.09, 1.45, 3.40] gave
+     LB 0.98093 (Δ −0.00001 vs PRIMARY at recipe bias [1.43, 1.47,
+     3.40]) despite 185 test rows differing. The "OOF Δ +0.00010 from
+     bias retune" was a calibration redistribution along an LB-equal
+     surface, not new signal. Skip bias-retune-only experiments on
+     already-tuned stacks; they're decorative.
 
 - Artifacts (whitelisted via gitignore patterns):
   - `scripts/b1_per_component_iso.py` (4-variant decomposition)
@@ -16306,7 +16322,8 @@ portable rules.
   - `scripts/artifacts/oof_xgb_metastack_perfoldiso_inputs.npy` + test
     (B2 retrained meta — useful as a future-bank component)
   - `submissions/submission_primary_oof_optimal_bias.csv` (variant A
-    at OOF-optimal bias, 185 row diff from PRIMARY, untested)
+    at OOF-optimal bias, 185 row diff from PRIMARY, **LB 0.98093**
+    Δ −0.00001 — bias-ridge confirmation)
   - `submissions/submission_b2_full_a030.csv` (B2 full-iso primary at
     α=0.30, 231 row diff, G4-FAIL — not for LB probe)
   - `submissions/submission_b2_leak_honest_primary.csv` (B2 per-fold-iso
