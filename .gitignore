@@ -1096,3 +1096,4 @@ kaggle_kernel/output_cuml_smoke/
 # chrisleitescha/irrigation-cuml-meta-input
 scripts/artifacts/cuml_meta_input.npz
 kaggle_kernel/ds_cuml_meta/cuml_meta_input.npz
+kaggle_kernel/output_*/va_idx_*.npy

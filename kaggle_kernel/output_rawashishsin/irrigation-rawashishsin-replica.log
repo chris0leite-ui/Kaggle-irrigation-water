@@ -1,0 +1,62 @@
+[{"stream_name":"stdout","time":1.963923414,"data":"[boot] SMOKE=True PROBE=False\n"}
+,{"stream_name":"stdout","time":1.963986261,"data":"[boot] Out: /kaggle/working\n"}
+,{"stream_name":"stdout","time":3.796364478,"data":"[boot] data paths: {'train': '/kaggle/input/competitions/playground-series-s6e4/train.csv', 'test': '/kaggle/input/competitions/playground-series-s6e4/test.csv', 'orig': '/kaggle/input/datasets/miadul/irrigation-water-requirement-prediction-dataset/irrigation_prediction.csv'}\n"}
+,{"stream_name":"stdout","time":6.40227903,"data":"[load] train=(630000, 21) test=(270000, 20) orig=(10000, 20)\n"}
+,{"stream_name":"stdout","time":6.487412436,"data":"[smoke] subsampled train=(20000, 21) test=(5000, 20)\n"}
+,{"stream_name":"stdout","time":6.487446806,"data":"[fe] building features...\n"}
+,{"stream_name":"stdout","time":8.065522295,"data":"[fe] NGRAM=4 BIN_CAT_INT=12 NUM_CAT_AGG=36 ROUND=9 DIGITS=18 DECIMALS=4 BINS=4 PAIRS=8\n"}
+,{"stream_name":"stdout","time":8.126853734,"data":"[shape] X_train=(20000, 133) X_orig=(10000, 133) X_test=(5000, 133)\n"}
+,{"stream_name":"stdout","time":8.126889991,"data":"[xgb] params: {'objective': 'multi:softprob', 'num_class': 3, 'n_estimators': 300, 'learning_rate': 0.05, 'max_depth': 3, 'subsample': 0.9, 'colsample_bytree': 0.8, 'max_bin': 1100, 'eval_metric': 'mlogloss', 'n_jobs': -1, 'random_state': 42, 'enable_categorical': True, 'device': 'cuda', 'tree_method': 'hist'}\n"}
+,{"stream_name":"stdout","time":8.131648943,"data":"[wall] hard kill at t+3300s (55min)\n"}
+,{"stream_name":"stdout","time":8.1316812,"data":"\n"}
+,{"stream_name":"stdout","time":8.131688553,"data":"[fold 1/5]\n"}
+,{"stream_name":"stdout","time":8.225827588,"data":"[fold 0] tr_combined=(26000, 133)\n"}
+,{"stream_name":"stdout","time":11.33395055,"data":"[fold 0] X_tr_final=(26000, 476)\n"}
+,{"stream_name":"stdout","time":12.724399824,"data":"[0]\tvalidation_0-mlogloss:1.02878\n"}
+,{"stream_name":"stdout","time":15.760265867,"data":"[200]\tvalidation_0-mlogloss:0.05480\n"}
+,{"stream_name":"stdout","time":17.228132019,"data":"[299]\tvalidation_0-mlogloss:0.05195\n"}
+,{"stream_name":"stdout","time":17.43924268,"data":"[fold 0] BA=0.971630 wall=9.3s\n"}
+,{"stream_name":"stdout","time":17.492676605,"data":"\n"}
+,{"stream_name":"stdout","time":17.492708261,"data":"[fold 2/5]\n"}
+,{"stream_name":"stdout","time":17.546445174,"data":"[fold 1] tr_combined=(26000, 133)\n"}
+,{"stream_name":"stdout","time":21.620737996,"data":"[fold 1] X_tr_final=(26000, 476)\n"}
+,{"stream_name":"stdout","time":22.620562838,"data":"[0]\tvalidation_0-mlogloss:1.02913\n"}
+,{"stream_name":"stdout","time":25.648092684,"data":"[200]\tvalidation_0-mlogloss:0.08837\n"}
+,{"stream_name":"stdout","time":27.123042839,"data":"[299]\tvalidation_0-mlogloss:0.08687\n"}
+,{"stream_name":"stdout","time":27.335864155,"data":"[fold 1] BA=0.965092 wall=9.8s\n"}
+,{"stream_name":"stdout","time":27.395359415,"data":"\n"}
+,{"stream_name":"stdout","time":27.395392248,"data":"[fold 3/5]\n"}
+,{"stream_name":"stdout","time":27.448013406,"data":"[fold 2] tr_combined=(26000, 133)\n"}
+,{"stream_name":"stdout","time":30.953373731,"data":"[fold 2] X_tr_final=(26000, 476)\n"}
+,{"stream_name":"stdout","time":31.952200751,"data":"[0]\tvalidation_0-mlogloss:1.02860\n"}
+,{"stream_name":"stdout","time":34.977471621,"data":"[200]\tvalidation_0-mlogloss:0.05876\n"}
+,{"stream_name":"stdout","time":36.424516602,"data":"[299]\tvalidation_0-mlogloss:0.05666\n"}
+,{"stream_name":"stdout","time":36.626742743,"data":"[fold 2] BA=0.972223 wall=9.2s\n"}
+,{"stream_name":"stdout","time":36.682647818,"data":"\n"}
+,{"stream_name":"stdout","time":36.682713735,"data":"[fold 4/5]\n"}
+,{"stream_name":"stdout","time":36.737596263,"data":"[fold 3] tr_combined=(26000, 133)\n"}
+,{"stream_name":"stdout","time":41.089344937,"data":"[fold 3] X_tr_final=(26000, 476)\n"}
+,{"stream_name":"stdout","time":42.069509799,"data":"[0]\tvalidation_0-mlogloss:1.02865\n"}
+,{"stream_name":"stdout","time":45.090424692,"data":"[200]\tvalidation_0-mlogloss:0.07086\n"}
+,{"stream_name":"stdout","time":46.559869556,"data":"[299]\tvalidation_0-mlogloss:0.06915\n"}
+,{"stream_name":"stdout","time":46.763477782,"data":"[fold 3] BA=0.953531 wall=10.1s\n"}
+,{"stream_name":"stdout","time":46.822637751,"data":"\n"}
+,{"stream_name":"stdout","time":46.822684496,"data":"[fold 5/5]\n"}
+,{"stream_name":"stdout","time":46.878194894,"data":"[fold 4] tr_combined=(26000, 133)\n"}
+,{"stream_name":"stdout","time":52.555811373,"data":"[fold 4] X_tr_final=(26000, 476)\n"}
+,{"stream_name":"stdout","time":53.622124941,"data":"[0]\tvalidation_0-mlogloss:1.02880\n"}
+,{"stream_name":"stdout","time":56.666225318,"data":"[200]\tvalidation_0-mlogloss:0.06678\n"}
+,{"stream_name":"stdout","time":58.145434379,"data":"[299]\tvalidation_0-mlogloss:0.06343\n"}
+,{"stream_name":"stdout","time":58.352986729,"data":"[fold 4] BA=0.975710 wall=11.5s\n"}
+,{"stream_name":"stdout","time":58.410800243,"data":"[wall] completed 5/5 folds\n"}
+,{"stream_name":"stdout","time":58.511041661,"data":"\n"}
+,{"stream_name":"stdout","time":58.511076733,"data":"[final] argmax OOF = 0.967637\n"}
+,{"stream_name":"stdout","time":58.511080647,"data":"[final] tuned OOF = 0.970503 bias=[0.0, -0.95, 0.0]\n"}
+,{"stream_name":"stdout","time":58.512025965,"data":"[done] saved /kaggle/working/oof_rawashishsin_smoke.npy /kaggle/working/test_rawashishsin_smoke.npy /kaggle/working/rawashishsin_smoke_results.json\n"}
+,{"stream_name":"stderr","time":60.819720594,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":60.819757828,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":61.073638447,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":61.073680396,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":62.356324208,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":63.70185123,"data":"[NbConvertApp] Writing 396315 bytes to __results__.html\n"}
+]
