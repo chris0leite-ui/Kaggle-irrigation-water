@@ -1106,3 +1106,6 @@ scripts/artifacts/_v1pn_fold*.npy
 scripts/artifacts/_v1pn_fold*.json
 
 kaggle_kernel/output_*/va_idx_*.npy
+/kaggle_kernel/output_a2_smoke/oof_*
+/kaggle_kernel/output_a2_smoke/test_*
+/kaggle_kernel/output_a2_smoke/va_idx_*

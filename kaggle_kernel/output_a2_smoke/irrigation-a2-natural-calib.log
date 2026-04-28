@@ -1,0 +1,66 @@
+[{"stream_name":"stdout","time":1.988445595,"data":"[boot] SMOKE=True PROBE=False\n"}
+,{"stream_name":"stdout","time":1.988538886,"data":"[boot] Out: /kaggle/working\n"}
+,{"stream_name":"stdout","time":3.799109143,"data":"[boot] data paths: {'train': '/kaggle/input/competitions/playground-series-s6e4/train.csv', 'test': '/kaggle/input/competitions/playground-series-s6e4/test.csv', 'orig': '/kaggle/input/datasets/miadul/irrigation-water-requirement-prediction-dataset/irrigation_prediction.csv'}\n"}
+,{"stream_name":"stdout","time":6.21234528,"data":"[load] train=(630000, 21) test=(270000, 20) orig=(10000, 20)\n"}
+,{"stream_name":"stdout","time":6.293947447,"data":"[smoke] subsampled train=(20000, 21) test=(5000, 20)\n"}
+,{"stream_name":"stdout","time":6.293990646,"data":"[fe] building features...\n"}
+,{"stream_name":"stdout","time":7.947330086,"data":"[a2-fe] adding ORIG mean/std per cat from 10k anchor...\n"}
+,{"stream_name":"stdout","time":8.085216891,"data":"[a2-fe] +16 ORIG stat cols\n"}
+,{"stream_name":"stdout","time":8.085266247,"data":"[a2-fe] adding LR-formula logits (3 numeric cols)...\n"}
+,{"stream_name":"stdout","time":8.095352001,"data":"[a2-fe] +3 LR-logit cols\n"}
+,{"stream_name":"stdout","time":8.095372172,"data":"[fe] NGRAM=4 BIN_CAT_INT=12 NUM_CAT_AGG=36 ROUND=9 DIGITS=18 DECIMALS=4 BINS=4 PAIRS=8 A2_ORIG=16 A2_LR=3\n"}
+,{"stream_name":"stdout","time":8.164479996,"data":"[shape] X_train=(20000, 160) X_orig=(10000, 160) X_test=(5000, 160)\n"}
+,{"stream_name":"stdout","time":8.16450658,"data":"[xgb] params: {'objective': 'multi:softprob', 'num_class': 3, 'n_estimators': 300, 'learning_rate': 0.05, 'max_depth': 3, 'subsample': 0.9, 'colsample_bytree': 0.8, 'max_bin': 1100, 'eval_metric': 'mlogloss', 'n_jobs': -1, 'random_state': 42, 'enable_categorical': True, 'device': 'cuda', 'tree_method': 'hist'}\n"}
+,{"stream_name":"stdout","time":8.169014232,"data":"[wall] hard kill at t+7200s (120min)\n"}
+,{"stream_name":"stdout","time":8.169034901,"data":"\n"}
+,{"stream_name":"stdout","time":8.169041191,"data":"[fold 1/5]\n"}
+,{"stream_name":"stdout","time":8.278776513,"data":"[fold 0] tr_combined=(26000, 160)\n"}
+,{"stream_name":"stdout","time":11.951692565,"data":"[fold 0] X_tr_final=(26000, 584)\n"}
+,{"stream_name":"stdout","time":13.672120976,"data":"[0]\tvalidation_0-mlogloss:1.02871\n"}
+,{"stream_name":"stdout","time":16.972040463,"data":"[200]\tvalidation_0-mlogloss:0.05421\n"}
+,{"stream_name":"stdout","time":18.574738306,"data":"[299]\tvalidation_0-mlogloss:0.05114\n"}
+,{"stream_name":"stdout","time":18.796709212,"data":"[fold 0] BA=0.966397 wall=10.6s\n"}
+,{"stream_name":"stdout","time":18.853604471,"data":"\n"}
+,{"stream_name":"stdout","time":18.853641392,"data":"[fold 2/5]\n"}
+,{"stream_name":"stdout","time":18.917815818,"data":"[fold 1] tr_combined=(26000, 160)\n"}
+,{"stream_name":"stdout","time":25.100474545,"data":"[fold 1] X_tr_final=(26000, 584)\n"}
+,{"stream_name":"stdout","time":26.288529868,"data":"[0]\tvalidation_0-mlogloss:1.02915\n"}
+,{"stream_name":"stdout","time":29.592439889,"data":"[200]\tvalidation_0-mlogloss:0.08758\n"}
+,{"stream_name":"stdout","time":31.206114334,"data":"[299]\tvalidation_0-mlogloss:0.08608\n"}
+,{"stream_name":"stdout","time":31.433741549,"data":"[fold 1] BA=0.964872 wall=12.6s\n"}
+,{"stream_name":"stdout","time":31.497414522,"data":"\n"}
+,{"stream_name":"stdout","time":31.497473397,"data":"[fold 3/5]\n"}
+,{"stream_name":"stdout","time":31.561353133,"data":"[fold 2] tr_combined=(26000, 160)\n"}
+,{"stream_name":"stdout","time":37.812367349,"data":"[fold 2] X_tr_final=(26000, 584)\n"}
+,{"stream_name":"stdout","time":38.957776443,"data":"[0]\tvalidation_0-mlogloss:1.02852\n"}
+,{"stream_name":"stdout","time":42.259914993,"data":"[200]\tvalidation_0-mlogloss:0.05847\n"}
+,{"stream_name":"stdout","time":43.864849431,"data":"[299]\tvalidation_0-mlogloss:0.05631\n"}
+,{"stream_name":"stdout","time":44.08891087,"data":"[fold 2] BA=0.972223 wall=12.6s\n"}
+,{"stream_name":"stdout","time":44.15104004,"data":"\n"}
+,{"stream_name":"stdout","time":44.151072664,"data":"[fold 4/5]\n"}
+,{"stream_name":"stdout","time":44.21661554,"data":"[fold 3] tr_combined=(26000, 160)\n"}
+,{"stream_name":"stdout","time":50.30320618,"data":"[fold 3] X_tr_final=(26000, 584)\n"}
+,{"stream_name":"stdout","time":51.448198393,"data":"[0]\tvalidation_0-mlogloss:1.02870\n"}
+,{"stream_name":"stdout","time":54.783468207,"data":"[200]\tvalidation_0-mlogloss:0.07042\n"}
+,{"stream_name":"stdout","time":56.391495737,"data":"[299]\tvalidation_0-mlogloss:0.06934\n"}
+,{"stream_name":"stdout","time":56.629256748,"data":"[fold 3] BA=0.953169 wall=12.5s\n"}
+,{"stream_name":"stdout","time":56.686607755,"data":"\n"}
+,{"stream_name":"stdout","time":56.68663922,"data":"[fold 5/5]\n"}
+,{"stream_name":"stdout","time":56.752482135,"data":"[fold 4] tr_combined=(26000, 160)\n"}
+,{"stream_name":"stdout","time":62.637505346,"data":"[fold 4] X_tr_final=(26000, 584)\n"}
+,{"stream_name":"stdout","time":63.765200488,"data":"[0]\tvalidation_0-mlogloss:1.02881\n"}
+,{"stream_name":"stdout","time":67.067909629,"data":"[200]\tvalidation_0-mlogloss:0.06564\n"}
+,{"stream_name":"stdout","time":68.67406243,"data":"[299]\tvalidation_0-mlogloss:0.06211\n"}
+,{"stream_name":"stdout","time":68.911861958,"data":"[fold 4] BA=0.976009 wall=12.2s\n"}
+,{"stream_name":"stdout","time":68.970413276,"data":"[wall] completed 5/5 folds\n"}
+,{"stream_name":"stdout","time":69.084004783,"data":"\n"}
+,{"stream_name":"stdout","time":69.084037955,"data":"[final] argmax OOF = 0.966534\n"}
+,{"stream_name":"stdout","time":69.084044507,"data":"[final] tuned OOF = 0.970598 bias=[0.5, -0.6, 1.0]\n"}
+,{"stream_name":"stdout","time":69.085071263,"data":"[done] saved /kaggle/working/oof_a2_natural_calib_smoke.npy /kaggle/working/test_a2_natural_calib_smoke.npy /kaggle/working/a2_natural_calib_smoke_results.json\n"}
+,{"stream_name":"stderr","time":71.447498105,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":71.447560378,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":71.709494086,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":71.709520125,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":73.02689349,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":74.324878375,"data":"[NbConvertApp] Writing 418506 bytes to __results__.html\n"}
+]
