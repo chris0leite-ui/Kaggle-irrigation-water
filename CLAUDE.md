@@ -17742,3 +17742,154 @@ is not helpful". Ran 3 mechanism-distinct experiments per CLAUDE.md
     `scripts/artifacts/E_gp_analysis.json`
   - `submissions/submission_recipe_full_te_bnd.csv` (diagnostic,
     NOT for LB probe)
+
+### 2026-04-28 — Calibration analysis of rawashishsin v3 (LB 0.98109) vs our 4-stack (LB 0.98094): natural calibration is the structural differentiator
+
+User push after merging rawashishsin into our branch: "what can we learn
+from the solutions we copied? what can we do better in modeling, not
+just blending?" The rawashishsin replica is bit-identical to the public
+kernel — copying — but the COMPARISON between their pipeline and ours
+yields a structural finding worth documenting BEFORE running the next
+experiment.
+
+**Pipeline-level diff**:
+```
+                         rawashishsin v3            our recipe
+TE method                sklearn TargetEncoder      OrderedTE (per-row
+                         (multiclass, cv=5,         exclusive cumulative)
+                         smooth='auto') on EVERY    on cat-tuples only
+                         feature (133 cols)
+Depth                    3                          4
+Regularization           NO L1/L2 reg               reg_alpha=5, reg_lambda=5
+Sample weight            ORIG_ROW_WEIGHT=0.5        class-balanced + (no orig wt)
+                         (no class-balanced)
+n_estimators             2600                       3000
+Tuned log-bias           [-1.36, -1.19,  0.00]      [+1.43, +1.47, +3.40]
+```
+
+**The calibration finding** (the actual takeaway):
+
+rawashishsin's High bias = **0 exactly**. Their raw probabilities are
+already at the macro-recall optimum without any post-hoc shift on the
+rare class. Our recipe needs +3.40 logits of post-hoc bias to put High
+predictions at the same operating point.
+
+Implications:
+
+1. **Our base model is structurally miscalibrated under macro-recall.**
+   Raw High prob is centered around 0.33 ("kind of High") rather than
+   the macro-recall-optimal threshold. Class-balanced sample weight
+   (which scales rare-class loss by ~17×) doesn't translate cleanly to
+   per-class probability calibration at depth=4 + heavy reg.
+
+2. **Bias retune on OOF is overfit-prone.** Per the 2026-04-25
+   senior-engineer audit, iso-cal-on-full-OOF inflates OOF by exactly
+   +0.00010 from row-self-leak. Per-fold-iso fixed the math but only
+   recovered 1 bp. The deeper issue is "tune bias on OOF" itself —
+   bias retune carries a structural leak channel.
+
+3. **Stacking on a less-calibrated base compounds the issue.** Each
+   stacking layer learns to amplify the base's biases. Our 4-stack at
+   LB 0.98094 vs rawashishsin's single XGB at LB 0.98109 is a 1.5 bp
+   gap **AFTER** we apply 4 layers of stacking. If our base were
+   naturally calibrated like theirs, stacking would compound monotonically
+   instead of amplifying tune overfit.
+
+4. **Their TE method IS their regularization.** sklearn
+   TargetEncoder(multiclass, cv=5, smooth='auto') applies internal
+   CV-shuffled smoothing to every feature. That replaces the function
+   our reg_alpha=5 / reg_lambda=5 plays, which is to keep the trees
+   from overfitting to noisy categorical signal. Their depth=3 + no-reg
+   works *because* the FE is already pre-smoothed.
+
+**Calibration mechanism — what makes their bias = 0 on High**:
+
+- NO class-balanced sample weight (the 17× upweight for High that we
+  use). Lets the trees fit the empirical class distribution in the
+  training pool.
+- ORIG_ROW_WEIGHT=0.5 (mild down-weight of the 10k rule-perfect anchor)
+  — doesn't distort the synthetic-side gradient.
+- depth=3 + no reg → trees fit per-class boundaries without aggressive
+  regularization pulling predictions toward the prior.
+- TargetEncoder(cv=5) → in-FE smoothing produces stable per-class
+  probability estimates that the trees can use directly.
+
+These four choices compose: raw probs come out per-class-calibrated.
+NO post-hoc bias retune needed for the rare class (their bias=0 on
+High). What bias they DO apply (-1.36 on Low, -1.19 on Med) is small,
+mostly compensating for the ORIG_ROW_WEIGHT down-shift on Low majority.
+
+**What this means for own-work directions**:
+
+The right experiment is NOT "hybrid their FE + our FE in our XGB"
+(which is just throwing more features at the same training regime).
+The right experiment is **"build a base model with natural calibration,
+using our FE views as additions to their training regime"**.
+
+Concretely, A2 (planned for next session):
+- Keep our recipe FE (OrderedTE + DGP signed-distances + digits +
+  ORIG_stats)
+- ADD sklearn TargetEncoder(multiclass, cv=5) on every feature
+  (their structural FE choice — applies smoothing internally)
+- Use their training regime: depth=3 + no reg + ORIG_ROW_WEIGHT=0.5
+  + **NO class-balanced sample weight**
+- Single XGB, no stacking layer
+
+If A2 produces:
+- Raw High bias near 0 (calibration test): we've reproduced their
+  natural-calibration structural property with our wider FE bank
+- Standalone tuned OOF ≥ 0.98016 (their CV): the FE additions added
+  signal beyond their pipeline
+- LB transfer ≥ 0.98109 (their LB): the natural calibration transferred
+  AND the FE additions helped on test
+
+Then stacking on TOP of A2 is genuinely monotonic — our prior stacking
+stages (greedy, meta-XGB) become more reliable on a calibrated base.
+
+If A2 produces biased calibration despite the training regime change:
+their TargetEncoder(multiclass, cv=5) is doing the dominant calibration
+work, and we should adopt exactly their FE choice.
+
+**Three new portable rules** (LEARNINGS.md candidates):
+
+1. **Natural calibration via training-regime choices (no class-balanced
+   weight + low depth + no reg + smoothed TE) gives raw probabilities
+   already at the macro-recall optimum, eliminating the need for
+   post-hoc bias retune.** A model with bias = [-1.36, -1.19, 0] on the
+   tuned operating point has structurally less OOF→LB risk than one with
+   bias = [+1.43, +1.47, +3.40], because no leak-prone retune is
+   compensating for raw-prob miscalibration. For future imbalanced
+   multi-class problems, prefer natural-calibration training regimes
+   over class-balanced + post-hoc bias.
+
+2. **Stacking N layers on a bias-retuned base costs ~N × leak-channel.**
+   Our 4-stack at LB 0.98094 falls 1.5 bp short of a single-layer
+   naturally-calibrated XGB at LB 0.98109. Each stacking step inherits
+   and amplifies the base's bias-tune overfit. The single best step you
+   can take to lift a stacked pipeline is to make the base naturally
+   calibrated, NOT to add another layer of stacking.
+
+3. **TargetEncoder(multiclass, cv=5, smooth='auto') replaces the
+   regularization function L1/L2 plays.** Internal CV-shuffled smoothing
+   on every feature is a different mechanism than post-tree
+   regularization but achieves the same goal: keep tree splits from
+   overfitting to noisy categorical signals. Models can therefore drop
+   reg_alpha + reg_lambda when using sklearn's TargetEncoder broadly.
+   This is structurally distinct from OrderedTE's per-row exclusive
+   cumulative encoding, which doesn't include a CV-shuffle component.
+
+**LB-best primary**: NEW PRIMARY `submission_rawashishsin_2600_standalone.csv`
+at **LB 0.98109** (since 2026-04-28 main merge). Prior PRIMARY (own-work)
+at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
+(2026-04-28) at 2/10, 8 remaining.
+
+**Next experiments**:
+- **A2 — Natural-calibration hybrid base** (~1h Kaggle GPU): described
+  above. Goal: bias near 0, OOF ≥ 0.98016, LB ≥ 0.98109.
+- **B — Per-row train→test k-NN distance feature** (~30 min FAISS +
+  50 min recipe rerun): geometric feature class not in any audited
+  public kernel. Captures "where in training manifold does this test
+  row sit?" — encodes test-side calibration info that motivates
+  rawashishsin's negative CV-LB gap.
+- If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
+  PRIMARY) as final pair.
