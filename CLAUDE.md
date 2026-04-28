@@ -180,6 +180,54 @@ ordering, v2 broken torch reinstall due to shim placement)
 on 2026-04-23 burned ~30 min and a P100 warmup before any
 training happened. A 2-min smoke run would have caught both.
 
+## ⚠️ DEFEND AGAINST LEAKAGE — STACKING LIFTS ARE OFTEN OOF-INFLATED
+
+**Every "OOF Δ ≥ +0.0005 vs LB-best" candidate must pass leakage checks
+BEFORE LB-probe.** This rule applies to stacking experiments, hybrid
+blends, distillation students, bank-extension metas, and any
+configuration that's selected by maximizing OOF.
+
+Across this competition, **7 leakage / OOF-overfit incidents have cost
+~0.0045 LB total** (each measured separately):
+  - 2026-04-23 stage-2 pseudo-label (-0.00009): labeler+target same folds
+  - 2026-04-23 stacking-inflation ceiling: 3+ blends at OOF 0.98030 → LB ~0.97995
+  - 2026-04-24 soft-distillation (-0.00148): student memorizes teacher OOF noise
+  - 2026-04-25 LR meta v1 (-0.00103) + v4 ET+kNN (-0.00102) + P3 perturbed (-0.00139)
+  - 2026-04-26 DROP_DETERMINISTIC: removed boundary-anchor rows
+  - 2026-04-27 R2 hybrid grid-selected (-0.00046): 24-point grid → OOF inflation
+  - 2026-04-28 stacking feature leak: 80% gain from circular meta-of-metas
+
+**Mandatory pre-LB-probe checks** (cheap, total ~10 min CPU):
+  1. **Minimal-input meta test**: train candidate meta with ONLY 2
+     components (anchor + candidate). If 2-component OOF lands BELOW
+     anchor at recipe-bias, the N-component lift was cross-component
+     memorization, NOT orthogonal signal. Don't deploy.
+  2. **Theory-only hyperparameter check**: any knob (hybrid mix, α,
+     threshold) chosen by maximizing OOF carries 3-50 bp of selection
+     bias. Use LB-validated defaults (e.g., α=0.30 for the LB-best
+     primary architecture) instead.
+  3. **Cross-meta error correlation**: if 2-3 same-objective metas have
+     pairwise Jaccard ≥ 0.85, sparse averaging won't decorrelate the
+     gap. Skip ensemble experiments.
+  4. **Feature importance audit**: if top-N gain features in a
+     meta-stacker are themselves prior meta outputs, the meta is
+     meta-of-metas — drop them via EXTRA_EXCLUDE.
+
+**Full rules in `LEARNINGS.md` § "Leakage & OOF-honesty".** Five
+portable patterns documented:
+  - Stacking feature leak + minimal-input meta detection
+  - Grid-search selection bias on OOF
+  - Stacking-inflation ceiling on saturated banks
+  - Soft-distillation student-memorizes-teacher-OOF
+  - OOF-honesty via GroupKFold (30-second sanity check)
+
+**Red flags that mandate `LEARNINGS.md` re-reading**:
+  - "All folds positive but no LB lift" → stacking feature leak
+  - "Hyperparameter chosen from grid" → selection bias
+  - "Meta-stacker with N ≥ 50 components" → check feature importance
+  - "OOF→LB gap suddenly +0.0005+" → leak amplification
+  - "Distillation from bagged-OOF teacher" → student memorization
+
 ## ⚠️ FIRST THING TO DO IN EVERY NEW SESSION
 
 **If `data/train.csv` does not exist, run `./bootstrap.sh` before anything else.**
