@@ -1,0 +1,315 @@
+{
+  "n_features_total": 545,
+  "n_features_used": 515,
+  "total_gain": 264037.4690424502,
+  "top_50_components": [
+    {
+      "rank": 1,
+      "name": "xgb_metastack_metamacrorec_lam03_iso",
+      "gain": 65670.93030452728,
+      "share_pct": 24.871822375319447
+    },
+    {
+      "rank": 2,
+      "name": "xgb_metastack_metamacrorec_lam0_iso",
+      "gain": 44655.611449718475,
+      "share_pct": 16.91260396172751
+    },
+    {
+      "rank": 3,
+      "name": "xgb_metastack_metamacrorec_lam03",
+      "gain": 38901.20556688309,
+      "share_pct": 14.733214080547336
+    },
+    {
+      "rank": 4,
+      "name": "xgb_metastack_metamacrorec_lam03_curated_iso",
+      "gain": 38207.41672515869,
+      "share_pct": 14.470452570129718
+    },
+    {
+      "rank": 5,
+      "name": "xgb_metastack_v4",
+      "gain": 31027.720648288727,
+      "share_pct": 11.751256653388197
+    },
+    {
+      "rank": 6,
+      "name": "xgb_metastack_metamacrorec_lam03_curated",
+      "gain": 12677.287528514862,
+      "share_pct": 4.801321408847731
+    },
+    {
+      "rank": 7,
+      "name": "xgb_metastack_varB",
+      "gain": 4750.587478637695,
+      "share_pct": 1.7992095954661371
+    },
+    {
+      "rank": 8,
+      "name": "lr_metastack",
+      "gain": 4745.096351623535,
+      "share_pct": 1.79712991827711
+    },
+    {
+      "rank": 9,
+      "name": "meta_l3_xgb_mlp",
+      "gain": 4308.079362869263,
+      "share_pct": 1.6316166711083866
+    },
+    {
+      "rank": 10,
+      "name": "xgb_metastack_j2bag",
+      "gain": 3272.7940216064453,
+      "share_pct": 1.2395187824953235
+    },
+    {
+      "rank": 11,
+      "name": "recipe_5shuffle",
+      "gain": 3215.51065826416,
+      "share_pct": 1.217823617960522
+    },
+    {
+      "rank": 12,
+      "name": "mlp_metastack",
+      "gain": 1295.8068816661835,
+      "share_pct": 0.4907662864537806
+    },
+    {
+      "rank": 13,
+      "name": "three_meta_l3",
+      "gain": 1057.1333312988281,
+      "share_pct": 0.40037246801849524
+    },
+    {
+      "rank": 14,
+      "name": "meta_perturbed_v2_noise05_csb05_k3",
+      "gain": 1000.750373840332,
+      "share_pct": 0.3790183179189004
+    },
+    {
+      "rank": 15,
+      "name": "meta_perturbed_62_v1",
+      "gain": 785.6664209365845,
+      "share_pct": 0.29755868505551775
+    },
+    {
+      "rank": 16,
+      "name": "lr_metastack_v2",
+      "gain": 707.5318298339844,
+      "share_pct": 0.2679664490043389
+    },
+    {
+      "rank": 17,
+      "name": "xgb_metastack_v6lb",
+      "gain": 453.25335788726807,
+      "share_pct": 0.17166251423747628
+    },
+    {
+      "rank": 18,
+      "name": "recipe_full_te_dropdet",
+      "gain": 427.0408420562744,
+      "share_pct": 0.16173493997081817
+    },
+    {
+      "rank": 19,
+      "name": "_lb3_anchor",
+      "gain": 381.3307704925537,
+      "share_pct": 0.1444229759796879
+    },
+    {
+      "rank": 20,
+      "name": "xgb_metastack_bag3",
+      "gain": 257.3237070441246,
+      "share_pct": 0.09745726921914775
+    },
+    {
+      "rank": 21,
+      "name": "xgb_metastack_v5_iso",
+      "gain": 255.9777159690857,
+      "share_pct": 0.09694749646609106
+    },
+    {
+      "rank": 22,
+      "name": "xgb_metastack_v6_combined",
+      "gain": 216.25740146636963,
+      "share_pct": 0.08190405787884643
+    },
+    {
+      "rank": 23,
+      "name": "soft_distill_recipeonly",
+      "gain": 190.117169380188,
+      "share_pct": 0.07200385993308481
+    },
+    {
+      "rank": 24,
+      "name": "xgb_metastack_3wnn",
+      "gain": 188.47449016571045,
+      "share_pct": 0.07138172125692084
+    },
+    {
+      "rank": 25,
+      "name": "meta_perturbed_v1_noise03_csb09_k3",
+      "gain": 169.43832206726074,
+      "share_pct": 0.06417207477474327
+    },
+    {
+      "rank": 26,
+      "name": "xgb_metastack_classw",
+      "gain": 168.37410736083984,
+      "share_pct": 0.06376902034830889
+    },
+    {
+      "rank": 27,
+      "name": "hillclimb_negweights",
+      "gain": 162.32833766937256,
+      "share_pct": 0.06147928104979467
+    },
+    {
+      "rank": 28,
+      "name": "xgb_metastack_v6",
+      "gain": 116.0287675857544,
+      "share_pct": 0.0439440538521069
+    },
+    {
+      "rank": 29,
+      "name": "distill_no_rule",
+      "gain": 100.02684497833252,
+      "share_pct": 0.037883579683249756
+    },
+    {
+      "rank": 30,
+      "name": "ovo_nonrule_blend",
+      "gain": 79.27207279205322,
+      "share_pct": 0.03002303918437742
+    },
+    {
+      "rank": 31,
+      "name": "recipe_full_te_ood_knn10k_ood9",
+      "gain": 55.74277877807617,
+      "share_pct": 0.02111169258674958
+    },
+    {
+      "rank": 32,
+      "name": "xgb_metastack_varC",
+      "gain": 52.01725387573242,
+      "share_pct": 0.01970070916994339
+    },
+    {
+      "rank": 33,
+      "name": "leaf_ote_meta_v2",
+      "gain": 51.29704666137695,
+      "share_pct": 0.019427942120263907
+    },
+    {
+      "rank": 34,
+      "name": "hedge_avg_lb_bests",
+      "gain": 48.655428886413574,
+      "share_pct": 0.018427471321727857
+    },
+    {
+      "rank": 35,
+      "name": "primary_sub_tau095",
+      "gain": 48.38672637939453,
+      "share_pct": 0.018325704512648255
+    },
+    {
+      "rank": 36,
+      "name": "greedy_blend",
+      "gain": 47.650583267211914,
+      "share_pct": 0.01804690199463735
+    },
+    {
+      "rank": 37,
+      "name": "recipe_full_te_a10",
+      "gain": 44.32289505004883,
+      "share_pct": 0.01678659290697976
+    },
+    {
+      "rank": 38,
+      "name": "recipe_lgbm",
+      "gain": 42.904417991638184,
+      "share_pct": 0.01624936723838248
+    },
+    {
+      "rank": 39,
+      "name": "primary_sub_tau099",
+      "gain": 42.327126026153564,
+      "share_pct": 0.0160307270705388
+    },
+    {
+      "rank": 40,
+      "name": "xgb_metastack_n5b_both",
+      "gain": 41.044238328933716,
+      "share_pct": 0.015544853720111556
+    },
+    {
+      "rank": 41,
+      "name": "recipe_pseudolabel_tau097",
+      "gain": 40.921048164367676,
+      "share_pct": 0.015498197400835054
+    },
+    {
+      "rank": 42,
+      "name": "xgb_metastack_narrow",
+      "gain": 40.85427188873291,
+      "share_pct": 0.015472906946462448
+    },
+    {
+      "rank": 43,
+      "name": "angle_c3a_mixup",
+      "gain": 40.5986123085022,
+      "share_pct": 0.015376079938857095
+    },
+    {
+      "rank": 44,
+      "name": "n5b_residual_head",
+      "gain": 40.57152462005615,
+      "share_pct": 0.015365820906855206
+    },
+    {
+      "rank": 45,
+      "name": "recipe_full_te_anchw20",
+      "gain": 40.39287710189819,
+      "share_pct": 0.015298160995250297
+    },
+    {
+      "rank": 46,
+      "name": "bagged_greedy_nonrule",
+      "gain": 40.34445381164551,
+      "share_pct": 0.015279821442751064
+    },
+    {
+      "rank": 47,
+      "name": "recipe_full_te_3way",
+      "gain": 40.32773494720459,
+      "share_pct": 0.015273489438243693
+    },
+    {
+      "rank": 48,
+      "name": "recipe_full_te",
+      "gain": 40.02435874938965,
+      "share_pct": 0.01515859051919438
+    },
+    {
+      "rank": 49,
+      "name": "em_uniform",
+      "gain": 39.9051738679409,
+      "share_pct": 0.015113451137317642
+    },
+    {
+      "rank": 50,
+      "name": "recipe_full_te_seed7",
+      "gain": 39.8945951461792,
+      "share_pct": 0.015109444614379791
+    }
+  ],
+  "top_80pct_components": [
+    "xgb_metastack_metamacrorec_lam03_iso",
+    "xgb_metastack_metamacrorec_lam0_iso",
+    "xgb_metastack_metamacrorec_lam03",
+    "xgb_metastack_metamacrorec_lam03_curated_iso",
+    "xgb_metastack_v4"
+  ],
+  "n_top_80pct": 5
+}
