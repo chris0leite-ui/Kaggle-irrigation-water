@@ -16186,6 +16186,132 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — leak-honest LB result + B1 (per-component iso isolation) + B2 (meta retrained on per-fold-iso bank)
+
+Three follow-up experiments to the leak-honest 4-gate diagnostic
+documented in the entry below. All complete; no LB lift but two new
+portable rules.
+
+- **LB probe — `submission_leak_honest_primary_retuned.csv`** (per-fold
+  iso primary at retuned bias [1.04, 1.45, 3.40], 230 test rows differ
+  from PRIMARY): **LB public = 0.98089**, Δ vs PRIMARY 0.98094 =
+  **−0.00005**, OOF→LB gap = **0** (perfectly calibrated).
+  - The leak-honest version IS more honest (gap 0) but LB-inferior by
+    5 bp. Current PRIMARY's full-OOF iso "+0.00010 OOF inflation"
+    translated to **+0.00005 genuine LB lift** — the inflated OOF
+    surface partially aligns with the test distribution. This means
+    full-OOF iso has a real (small) generalization advantage the
+    per-fold variant doesn't share at the same nominal architecture.
+
+- **B1 — per-component iso isolation** (`scripts/b1_per_component_iso.py`).
+  4 architecture variants tested; iso inflation cleanly decomposes:
+  ```
+  variant          OOF @ recipe  test diff vs PRIMARY  notes
+  A_full_full      0.98084       0                     = current PRIMARY
+  B_perf_full      0.98082       0                     fix nonrule alone (-0.00002)
+  C_full_perf      0.98076       0                     fix metastack alone (-0.00008)
+  D_perf_perf      0.98074       0                     fix both (-0.00010, leak-honest)
+
+  inflation(nonrule)   = +0.00002
+  inflation(metastack) = +0.00008    ← 80% of total
+  inflation(combined)  = +0.00010
+  interaction term     ≈ 0           ← cleanly INDEPENDENT
+  ```
+  Test predictions IDENTICAL across all 4 variants at recipe bias
+  (iso fix is OOF-side only; test never had the row-self-leak).
+  Side-finding: variant A at OOF-OPTIMAL bias [1.09, 1.45, 3.40]
+  reaches OOF **0.98094** (matches LB exactly). 185 test rows differ
+  from current PRIMARY. Submission emitted as
+  `submission_primary_oof_optimal_bias.csv` (untested).
+
+- **B2 — retrain xgb_metastack with per-fold iso on every input
+  component** (`scripts/b2_metastack_perfoldiso_inputs.py`). Pool grew
+  from v1's 63 → **179 components** (many new OOFs added since v1
+  trained 2026-04-25). 5-fold seed=42, same XGB HPs as v1, ~30 min CPU.
+
+  ```
+  Standalone meta @ recipe-bias:
+    v1 raw         0.98041
+    B2 raw         0.98052     +0.00011
+    v1 full-iso    0.98059
+    v1 per-f iso   0.98048
+    B2 full-iso    0.98156     +0.00097 OVER v1 full-iso
+    B2 per-f iso   0.98113     +0.00065 OVER v1 per-f iso
+
+  Iso inflation:
+    v1 (full-iso − per-fold-iso) = +0.00008
+    B2 (full-iso − per-fold-iso) = +0.00011
+
+  Architecture-matched primary OOF (= 4-stack base 0.98061 + meta @ α=0.30):
+    v1_full primary (= LB-VALIDATED PRIMARY)        = 0.98084
+    v1_perfold primary                              = 0.98076
+    B2_full primary                                  = 0.98111  +0.00027 vs PRIMARY
+    B2_perfold primary                               = 0.98100  +0.00016 vs PRIMARY
+  ```
+
+  **B2_full vs PRIMARY 4-gate verdict** (231 test rows differ):
+  ```
+  G1 (Δ ≥ +0.0002):                  +0.00027  PASS
+  G2 (PCR within -5e-4 each class):  L+0.00012 M+0.00092 H-0.00024  PASS
+  G3 (Jaccard 0.93 — low redundancy)
+  G4 (net_H > 0 AND ratio ≥ 0.5):    net_H = -33, ratio 0.19  FAIL
+  ```
+
+  G4 RESHUFFLE-class direction (REMOVE-High at low asymmetry) — same
+  failure pattern as classw / D 3-meta / mlp_metastack / 7 other prior
+  LB-regressors. Per the linear gap-projection rule established in the
+  LR meta-stacker closure, RESHUFFLE candidates project negative LB
+  regardless of OOF Δ magnitude. **No LB probe warranted.**
+
+- **Two confounds that mean B2 isn't a clean test of iso-cal-on-inputs**:
+  1. Pool size grew 63 → 179 components. Most of B2's standalone +0.00097
+     lift over v1 likely comes from bank size, not iso-cal cleanliness.
+  2. The new components include candidates that themselves were trained
+     after v1 was built; some may share fold structure in ways that
+     compound the meta-of-metas leak even with iso applied.
+
+  A cleanly-isolated test would require: (a) restrict B2's pool to v1's
+  exact 63 components, (b) compare v1 (raw inputs) vs B2 (per-fold-iso
+  inputs) on identical pool. ~30 min more CPU. Untaken given B2's
+  G4 RESHUFFLE outcome — fixing the pool likely doesn't change the
+  RESHUFFLE direction.
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **Iso-cal-on-full-OOF inflation has a small generalization
+     advantage on this problem.** Per-fold iso is the leak-free version
+     (gap 0), but full-OOF iso transfers slightly better to the LB
+     test surface (+0.00005 genuine lift). The leak-honest version is
+     a worse forecaster of LB even though its calibration is honest —
+     because the inflated OOF surface picks an operating point that
+     happens to align with the test distribution's per-class margins.
+  2. **Iso inflation is independent + additive across stack
+     components.** Each iso-cal'd component contributes its own row-
+     self-leak inflation; the combined OOF inflation = sum of per-
+     component inflations. Useful for diagnosing where the inflation
+     lives (B1 found 80% from metastack, 20% from nonrule on this
+     stack).
+
+- LB-best primary unchanged: **LB 0.98094**. Final-selection
+  recommendation unchanged: PRIMARY 0.98094 + audit F1 hedge swap
+  (`submission_3way_recipe025_s1035_s7040.csv` LB 0.98005).
+  LB budget: **1/10 used today** (leak-honest retuned probe), 9 remaining.
+
+- Artifacts (whitelisted via gitignore patterns):
+  - `scripts/b1_per_component_iso.py` (4-variant decomposition)
+  - `scripts/b2_metastack_perfoldiso_inputs.py` (full retrain, resumable)
+  - `scripts/b2_correct_comparison.py` (architecture-correct comparison)
+  - `scripts/artifacts/b1_per_component_iso_results.json`
+  - `scripts/artifacts/b2_metastack_perfoldiso_inputs_results.json`
+  - `scripts/artifacts/b2_correct_comparison_results.json`
+  - `scripts/artifacts/oof_xgb_metastack_perfoldiso_inputs.npy` + test
+    (B2 retrained meta — useful as a future-bank component)
+  - `submissions/submission_primary_oof_optimal_bias.csv` (variant A
+    at OOF-optimal bias, 185 row diff from PRIMARY, untested)
+  - `submissions/submission_b2_full_a030.csv` (B2 full-iso primary at
+    α=0.30, 231 row diff, G4-FAIL — not for LB probe)
+  - `submissions/submission_b2_leak_honest_primary.csv` (B2 per-fold-iso
+    primary, 281 row diff, also G4-likely-FAIL)
+
 ### 2026-04-28 — leak-honest 4-gate diagnostic: iso inflation confirmed at exactly +0.00010, candidates still rejected for genuine reasons
 
 - Goal: senior-engineer reframe — "leakage may have stopped us from
