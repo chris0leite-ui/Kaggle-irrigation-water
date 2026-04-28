@@ -16091,3 +16091,85 @@ N1/R2/base-only OOF→LB gap.
   - α = 0.30 (LB-validated architecture)
   - same fold split (StratifiedKFold seed=42) for OOF alignment
   - NO hybrid mix (no grid selection)
+
+### 2026-04-28 — Minimal macrorec meta: 30th saturation, macrorec family DEFINITIVELY closed
+
+- Goal: cleanest possible test of macrorec's marginal contribution. Train
+  meta with ONLY 2 components: LB-3-stack + macrorec_base (no other
+  metas, no other base components). With 20 input dims (vs N1's 545),
+  the meta has minimal surface for cross-fold stacking leak — the OOF
+  measures essentially "what does macrorec_base add beyond LB-3-stack?"
+- 5-fold, lam_ce=0.3, ~4 min wall:
+  ```
+  fold  bal       best_iter
+  1     0.97953   31
+  2     0.98060   211
+  3     0.98153   7
+  4     0.98068   15
+  5     0.98090   2
+
+  OOF argmax = 0.98065
+  iso @ recipe-bias = 0.98051
+  ```
+- **Comparison ladder** (all metas tested in this session):
+  ```
+  variant                   components   OOF iso @ recipe-bias
+  ───────────────────────────────────────────────────────────
+  Minimal meta              2             0.98051  ← BELOW LB-best 4-stack!
+  LB-best 4-stack baseline  -             0.98084
+  Base-only meta            80            0.98173
+  R2 (lam=0.0)              172           0.98189
+  R1 (curated)              162           0.98194
+  N1 (lam=0.3)              170           0.98196
+  ```
+
+- **Definitive finding**: macrorec_base contributes NO marginal signal
+  over LB-3-stack when meta-stacked. The "+0.0012-0.0014 OOF lift" in
+  N1/R1/R2/base-only came from including 78-168 OTHER components in the
+  input bank (tree splits memorizing cross-component patterns) — NOT
+  from macrorec's H direction.
+
+  When stripped to just (LB-3-stack + macrorec_base), the meta lands
+  BELOW LB-best 4-stack. This means LB-3-stack already captures most
+  of macrorec's +0.62pp standalone H lift through its pseudo_s1+pseudo_s7
+  mechanism. Macrorec base only adds redundant H signal that the meta
+  can't usefully exploit at recipe-bias operating point.
+
+- **Macrorec family CLOSED across 5 architectures**:
+  ```
+  N1 (170-component, lam=0.3):       circular meta-of-metas
+  R1 (curated 162, lam=0.3):         no improvement vs N1
+  R2 (172, lam=0.0 pure):             G2 fail at α=0.30
+  R2 hybrid 0.75 (grid-selected):     ALL 4 gates pass OOF, LB -0.00046
+  base-only (80, no derived metas):  G2 fails at every α
+  Minimal (2 components):             OOF BELOW LB-best 4-stack ⭐
+  ```
+
+- **30th independent saturation confirmation at LB 0.98094.**
+
+- **Final recommendation: LOCK final-selection now.**
+  - PRIMARY: `submission_tier1b_greedy_meta.csv` → LB **0.98094**
+  - HEDGE: `submission_3way_recipe025_s1035_s7040.csv` → LB **0.98005**
+
+  With 30 independent saturations (including the FIRST all-4-gate-pass
+  candidate that LB-regressed AND the cleanest possible minimal-input
+  test that lands BELOW LB-best), the own-pipeline ceiling at LB 0.98094
+  is exhaustively confirmed. Two days to deadline (2026-04-30); reserve
+  9 LB submissions today + 30 over remaining days for end-of-comp
+  variance check.
+
+- LB-best primary unchanged: **LB 0.98094**.
+- LB budget today: 1/10 used.
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **Stacking lift can be cross-component memorization, not new signal.**
+     If a meta-stacker with N components has standalone OOF Δ, run the
+     same meta with just 2 components (anchor + candidate). If the 2-component
+     meta lands BELOW the anchor, the N-component lift was from cross-
+     component pattern memorization (stacking leak compounded across N),
+     not orthogonal signal contribution from the candidate. Don't deploy.
+  2. **Minimal-input meta is the cleanest stacking-signal test.** When
+     evaluating "does component X add to anchor Y?", train a meta with
+     ONLY (X, Y) as 2 components. The result tells you the marginal
+     contribution of X without any noise from other components. ~4-10 min
+     CPU. Use BEFORE building expensive ensemble experiments.
