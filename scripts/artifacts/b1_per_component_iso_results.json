@@ -1,0 +1,53 @@
+{
+  "A_full_full": {
+    "bal_recipe_bias": 0.9808424406412425,
+    "bal_optimal_bias": 0.980937174834117,
+    "optimal_bias": [
+      1.08865,
+      1.453275,
+      3.4008
+    ],
+    "diff_vs_primary_recipe": 0,
+    "diff_vs_primary_optimal": 185
+  },
+  "B_perf_full": {
+    "bal_recipe_bias": 0.9808223916198525,
+    "bal_optimal_bias": 0.9809204075150108,
+    "optimal_bias": [
+      1.08865,
+      1.453275,
+      3.4008
+    ],
+    "diff_vs_primary_recipe": 0,
+    "diff_vs_primary_optimal": 185
+  },
+  "C_full_perf": {
+    "bal_recipe_bias": 0.9807585549157597,
+    "bal_optimal_bias": 0.9808697030936123,
+    "optimal_bias": [
+      1.041775,
+      1.453275,
+      3.4008
+    ],
+    "diff_vs_primary_recipe": 0,
+    "diff_vs_primary_optimal": 230
+  },
+  "D_perf_perf": {
+    "bal_recipe_bias": 0.9807412944312522,
+    "bal_optimal_bias": 0.9808851613720392,
+    "optimal_bias": [
+      1.041775,
+      1.453275,
+      3.4008
+    ],
+    "diff_vs_primary_recipe": 0,
+    "diff_vs_primary_optimal": 230
+  },
+  "inflation_decomposition": {
+    "inf_nonrule": 2.0049021389967336e-05,
+    "inf_metastack": 8.388572548279072e-05,
+    "inf_combined": 0.00010114620999024382,
+    "inf_sum_independent": 0.00010393474687275805,
+    "interaction": -2.7885368825142365e-06
+  }
+}
