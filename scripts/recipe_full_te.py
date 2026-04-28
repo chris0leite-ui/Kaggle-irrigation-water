@@ -87,6 +87,12 @@ EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
 # per-class Mahalanobis to centroid) from oof_ood9_train.npy + test_ood9.npy
 # Built by build_expanded_10k_anchor.py.
 EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
+# EXTRA_AV_PSYNTH=1 -> +1 col [av_p_synth] = leak-free P(synth | row) from the
+# AV classifier (orig vs synth-train) built by scripts/dist_shift/av_full_predict.py.
+# Distinct from EXTRA_OOD/EXTRA_KNN10K: those use unsupervised density on orig
+# features; this uses a discriminative classifier trained orig-vs-synth.
+# Diagnostic AUC for predicting (y != rule_pred) on full 630k = 0.5746.
+EXTRA_AV_PSYNTH = os.environ.get("EXTRA_AV_PSYNTH", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -192,6 +198,8 @@ if EXTRA_KNN10K:
     _parts.append("knn10k")
 if EXTRA_OOD9:
     _parts.append("ood9")
+if EXTRA_AV_PSYNTH:
+    _parts.append("avp")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -426,6 +434,19 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         for i, c in enumerate(ood9_cols):
             train[c] = a_tr[:, i]; test[c] = a_te[:, i]
         log(f"  +{len(ood9_cols)} ood9 cols")
+    av_cols: list[str] = []
+    if EXTRA_AV_PSYNTH:
+        log("loading AV-classifier P(synth | row) features")
+        a_tr = np.load("scripts/artifacts/dist_shift/oof_av_p_synth_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/dist_shift/test_av_p_synth.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train),) and a_te.shape == (len(test),)
+        av_cols = ["av_p_synth"]
+        train["av_p_synth"] = a_tr
+        test["av_p_synth"] = a_te
+        log(f"  +1 av_p_synth col (diagnostic AUC vs flip = 0.5746 on full 630k)")
 
     # Senior-FE NN-distance features (FAISS k-NN to 10k original).
     # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
@@ -458,6 +479,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_w8=extra_w8,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
+        av=av_cols,
         three_way=three_way_combos, nndist=nndist_cols,
         te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
         # Subset indices (None when not SMOKE) for downstream mask alignment.
@@ -697,6 +719,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("ood", [])
                      + info.get("knn10k", [])
                      + info.get("ood9", [])
+                     + info.get("av", [])
                      + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
