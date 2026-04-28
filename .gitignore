@@ -59,12 +59,17 @@ scripts/artifacts/*.db
 scripts/artifacts/*.pkl
 scripts/artifacts/*_fold[0-9].npy
 scripts/artifacts/*_fold[0-9][0-9].npy
+scripts/artifacts/*_fold[0-9].json
+scripts/artifacts/*_fold[0-9][0-9].json
 scripts/artifacts/*_smoke.npy
 scripts/artifacts/_smoke_*.npy
+scripts/artifacts/*_smoke*.json
+scripts/artifacts/*_smoke*.npy
 scripts/artifacts/*_tmp.npy
 scripts/artifacts/_tmp_*.npy
 scripts/artifacts/tmp_*.npy
 scripts/artifacts/scratch_*.npy
+submissions/*_smoke*.csv
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
