@@ -97,6 +97,11 @@ EXTRA_FE = os.environ.get("EXTRA_FE", "")
 assert EXTRA_FE in ("", "domain", "decimal", "both", "w8"), (
     f"EXTRA_FE must be ''|domain|decimal|both|w8, got {EXTRA_FE!r}"
 )
+# EXTRA_PHYS: 2026-04-28 Option A — FAO-56 Penman-Monteith ETo + crop-stage
+# Kc lookup + soil-water-balance + 1 cat-triple OTE (Region × Soil_Type ×
+# Crop_Type). 9 new numerics + 1 OTE-able cat (3 OTE features). Suffix
+# "_phys" on outputs. See scripts/recipe_phys_features.py for math.
+EXTRA_PHYS = os.environ.get("EXTRA_PHYS", "") == "1"
 # GBY: rohit8527-style group-by cat x num stats on the SYNTHETIC 630k pool.
 # When set to "1", adds per-cat-group mean/std of each numeric, merged onto
 # train+test. Distinct from add_orig_mean_std which aggregates TARGET on
@@ -194,6 +199,8 @@ if EXTRA_OOD9:
     _parts.append("ood9")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
+if EXTRA_PHYS:
+    _parts.append("phys")
 if GBY:
     _parts.append("gby")
 if INSTAB:
@@ -297,6 +304,21 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         log("W8 FE block: +15 novel-on-recipe cross-products + per-score z-scores")
         for df in (train, test, orig):
             extra_w8 = add_w8_block(df)
+
+    # EXTRA_PHYS — FAO-56 Penman-Monteith ETo + Kc + SWB + 3-way cat combo.
+    # Numerics added BEFORE digit extraction (so they're tree inputs but not
+    # digit-expanded). The 3-way cat combo is built BEFORE pair combos so
+    # it can be added to te_cols downstream.
+    extra_phys_nums: list[str] = []
+    extra_phys_combo: list[str] = []
+    if EXTRA_PHYS:
+        from recipe_phys_features import add_phys_block, add_three_way_cat_combo
+        log("EXTRA_PHYS: +9 FAO-56 / SWB numerics + 1 cat-triple OTE key")
+        for df in (train, test, orig):
+            extra_phys_nums = add_phys_block(df)
+        extra_phys_combo = add_three_way_cat_combo(train, test, orig)
+        log(f"  extra_phys_nums={len(extra_phys_nums)} "
+            f"extra_phys_combo={len(extra_phys_combo)}")
 
     # Pair combos (concat string values; factorized across combined).
     log("adding cat x cat pair combos")
@@ -456,10 +478,12 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
+        extra_phys_nums=extra_phys_nums, extra_phys_combo=extra_phys_combo,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
         three_way=three_way_combos, nndist=nndist_cols,
-        te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
+        te_cols=(cats + combos + digits + num_as_cat + tres
+                 + three_way_combos + extra_phys_combo),
         # Subset indices (None when not SMOKE) for downstream mask alignment.
         train_subset_idx=train_subset_idx, test_subset_idx=test_subset_idx,
     )
@@ -470,6 +494,8 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"dae_embed={len(dae_cols)} "
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
         f"extra_w8={len(extra_w8)} "
+        f"extra_phys_nums={len(extra_phys_nums)} "
+        f"extra_phys_combo={len(extra_phys_combo)} "
         f"gby={len(gby_cols)} "
         f"three_way={len(three_way_combos)} "
         f"nndist={len(nndist_cols)} "
@@ -692,6 +718,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_domain", [])
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
+                     + info.get("extra_phys_nums", [])
                      + info.get("gby", [])
                      + info.get("instab", [])
                      + info.get("ood", [])
