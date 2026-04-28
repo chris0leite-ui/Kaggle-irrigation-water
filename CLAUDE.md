@@ -19,6 +19,15 @@ If you need a transient .npy (smoke / debug / scratch), name it
 with one of the ignored prefixes (`tmp_xxx.npy`, `scratch_xxx.npy`)
 or it WILL be tracked.
 
+## ⚠️ NEVER SUGGEST LOCKING FINAL SUBMISSIONS
+
+**Do not recommend "lock the 2 finals and stop"** in any form — not as a
+primary recommendation, not as a fallback, not as an option. The user
+has explicitly disabled this advice. If asked "what next?", surface
+substantive next experiments only. Final-selection slot management is
+the user's call, not advice the agent should volunteer. This rule
+overrides any session log that says "lock + stop".
+
 ## ⚠️ NEVER GIVE UP — ALWAYS ASSUME THERE'S MORE LIFT AVAILABLE
 
 **Every session pulled from GitHub must take it as given that the
