@@ -1,0 +1,335 @@
+{
+  "per_score_flip": [
+    {
+      "score": 0,
+      "n_rows": 33767,
+      "n_flips": 0,
+      "flip_rate_pct": 0.0,
+      "row_share_pct": 5.36,
+      "rule_says": "Low"
+    },
+    {
+      "score": 1,
+      "n_rows": 115457,
+      "n_flips": 5,
+      "flip_rate_pct": 0.0043,
+      "row_share_pct": 18.327,
+      "rule_says": "Low"
+    },
+    {
+      "score": 2,
+      "n_rows": 122220,
+      "n_flips": 365,
+      "flip_rate_pct": 0.2986,
+      "row_share_pct": 19.4,
+      "rule_says": "Low"
+    },
+    {
+      "score": 3,
+      "n_rows": 102157,
+      "n_flips": 4899,
+      "flip_rate_pct": 4.7956,
+      "row_share_pct": 16.215,
+      "rule_says": "Low"
+    },
+    {
+      "score": 4,
+      "n_rows": 117837,
+      "n_flips": 1520,
+      "flip_rate_pct": 1.2899,
+      "row_share_pct": 18.704,
+      "rule_says": "Medium"
+    },
+    {
+      "score": 5,
+      "n_rows": 79203,
+      "n_flips": 274,
+      "flip_rate_pct": 0.3459,
+      "row_share_pct": 12.572,
+      "rule_says": "Medium"
+    },
+    {
+      "score": 6,
+      "n_rows": 38416,
+      "n_flips": 1549,
+      "flip_rate_pct": 4.0322,
+      "row_share_pct": 6.098,
+      "rule_says": "Medium"
+    },
+    {
+      "score": 7,
+      "n_rows": 15026,
+      "n_flips": 1360,
+      "flip_rate_pct": 9.051,
+      "row_share_pct": 2.385,
+      "rule_says": "High"
+    },
+    {
+      "score": 8,
+      "n_rows": 2680,
+      "n_flips": 330,
+      "flip_rate_pct": 12.3134,
+      "row_share_pct": 0.425,
+      "rule_says": "High"
+    },
+    {
+      "score": 9,
+      "n_rows": 3237,
+      "n_flips": 2,
+      "flip_rate_pct": 0.0618,
+      "row_share_pct": 0.514,
+      "rule_says": "High"
+    }
+  ],
+  "per_score_direction": [
+    {
+      "score": 1,
+      "rule": "Low",
+      "actual_dist": "Low:0 Medium:5 High:0",
+      "n": 5
+    },
+    {
+      "score": 2,
+      "rule": "Low",
+      "actual_dist": "Low:0 Medium:365 High:0",
+      "n": 365
+    },
+    {
+      "score": 3,
+      "rule": "Low",
+      "actual_dist": "Low:0 Medium:4899 High:0",
+      "n": 4899
+    },
+    {
+      "score": 4,
+      "rule": "Medium",
+      "actual_dist": "Low:1507 Medium:0 High:13",
+      "n": 1520
+    },
+    {
+      "score": 5,
+      "rule": "Medium",
+      "actual_dist": "Low:78 Medium:0 High:196",
+      "n": 274
+    },
+    {
+      "score": 6,
+      "rule": "Medium",
+      "actual_dist": "Low:0 Medium:0 High:1549",
+      "n": 1549
+    },
+    {
+      "score": 7,
+      "rule": "High",
+      "actual_dist": "Low:0 Medium:1360 High:0",
+      "n": 1360
+    },
+    {
+      "score": 8,
+      "rule": "High",
+      "actual_dist": "Low:0 Medium:330 High:0",
+      "n": 330
+    },
+    {
+      "score": 9,
+      "rule": "High",
+      "actual_dist": "Low:0 Medium:2 High:0",
+      "n": 2
+    }
+  ],
+  "per_cell_top": [
+    {
+      "cell": 51,
+      "score": 7,
+      "n_rows": 308,
+      "n_flips": 217,
+      "flip_rate_pct": 70.455
+    },
+    {
+      "cell": 31,
+      "score": 7,
+      "n_rows": 714,
+      "n_flips": 319,
+      "flip_rate_pct": 44.678
+    },
+    {
+      "cell": 57,
+      "score": 7,
+      "n_rows": 443,
+      "n_flips": 195,
+      "flip_rate_pct": 44.018
+    },
+    {
+      "cell": 20,
+      "score": 3,
+      "n_rows": 146,
+      "n_flips": 53,
+      "flip_rate_pct": 36.301
+    },
+    {
+      "cell": 53,
+      "score": 7,
+      "n_rows": 654,
+      "n_flips": 236,
+      "flip_rate_pct": 36.086
+    },
+    {
+      "cell": 18,
+      "score": 3,
+      "n_rows": 154,
+      "n_flips": 42,
+      "flip_rate_pct": 27.273
+    },
+    {
+      "cell": 48,
+      "score": 4,
+      "n_rows": 119,
+      "n_flips": 32,
+      "flip_rate_pct": 26.891
+    },
+    {
+      "cell": 26,
+      "score": 4,
+      "n_rows": 204,
+      "n_flips": 54,
+      "flip_rate_pct": 26.471
+    },
+    {
+      "cell": 58,
+      "score": 6,
+      "n_rows": 290,
+      "n_flips": 75,
+      "flip_rate_pct": 25.862
+    },
+    {
+      "cell": 49,
+      "score": 6,
+      "n_rows": 349,
+      "n_flips": 89,
+      "flip_rate_pct": 25.501
+    },
+    {
+      "cell": 62,
+      "score": 7,
+      "n_rows": 728,
+      "n_flips": 170,
+      "flip_rate_pct": 23.352
+    },
+    {
+      "cell": 55,
+      "score": 8,
+      "n_rows": 668,
+      "n_flips": 142,
+      "flip_rate_pct": 21.257
+    },
+    {
+      "cell": 28,
+      "score": 4,
+      "n_rows": 165,
+      "n_flips": 35,
+      "flip_rate_pct": 21.212
+    },
+    {
+      "cell": 24,
+      "score": 3,
+      "n_rows": 100,
+      "n_flips": 21,
+      "flip_rate_pct": 21.0
+    },
+    {
+      "cell": 59,
+      "score": 8,
+      "n_rows": 637,
+      "n_flips": 97,
+      "flip_rate_pct": 15.228
+    },
+    {
+      "cell": 60,
+      "score": 6,
+      "n_rows": 363,
+      "n_flips": 50,
+      "flip_rate_pct": 13.774
+    },
+    {
+      "cell": 50,
+      "score": 5,
+      "n_rows": 113,
+      "n_flips": 15,
+      "flip_rate_pct": 13.274
+    },
+    {
+      "cell": 22,
+      "score": 4,
+      "n_rows": 393,
+      "n_flips": 47,
+      "flip_rate_pct": 11.959
+    },
+    {
+      "cell": 17,
+      "score": 4,
+      "n_rows": 200,
+      "n_flips": 23,
+      "flip_rate_pct": 11.5
+    },
+    {
+      "cell": 34,
+      "score": 3,
+      "n_rows": 6165,
+      "n_flips": 601,
+      "flip_rate_pct": 9.749
+    }
+  ],
+  "non_rule_feature_shift_flip_vs_clean": [
+    {
+      "col": "Previous_Irrigation_mm",
+      "mean_clean": 62.307,
+      "mean_flip": 63.015,
+      "delta": 0.709,
+      "cohen_d": 0.021
+    },
+    {
+      "col": "Soil_pH",
+      "mean_clean": 6.482,
+      "mean_flip": 6.498,
+      "delta": 0.016,
+      "cohen_d": 0.017
+    },
+    {
+      "col": "Organic_Carbon",
+      "mean_clean": 0.923,
+      "mean_flip": 0.927,
+      "delta": 0.004,
+      "cohen_d": 0.011
+    },
+    {
+      "col": "Field_Area_hectare",
+      "mean_clean": 7.517,
+      "mean_flip": 7.556,
+      "delta": 0.039,
+      "cohen_d": 0.009
+    },
+    {
+      "col": "Electrical_Conductivity",
+      "mean_clean": 1.745,
+      "mean_flip": 1.75,
+      "delta": 0.006,
+      "cohen_d": 0.006
+    },
+    {
+      "col": "Humidity",
+      "mean_clean": 61.564,
+      "mean_flip": 61.514,
+      "delta": -0.05,
+      "cohen_d": -0.003
+    },
+    {
+      "col": "Sunlight_Hours",
+      "mean_clean": 7.513,
+      "mean_flip": 7.515,
+      "delta": 0.002,
+      "cohen_d": 0.001
+    }
+  ],
+  "n_flips_total": 10304,
+  "n_train": 630000
+}

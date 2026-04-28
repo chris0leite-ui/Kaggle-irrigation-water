@@ -1,0 +1,276 @@
+{
+  "class_priors": {
+    "orig": {
+      "Low": 0.5864,
+      "Medium": 0.38,
+      "High": 0.0336
+    },
+    "synth": {
+      "Low": 0.5871698412698413,
+      "Medium": 0.3794825396825397,
+      "High": 0.03334761904761905
+    }
+  },
+  "per_class_top_shifts": [
+    {
+      "y": "Medium",
+      "col": "Rainfall_mm",
+      "n_orig": 3800,
+      "n_synth": 239074,
+      "ks": 0.2158,
+      "ks_p": 2.1453657560024653e-153,
+      "cohen_d": 0.417,
+      "mean_orig": 1158.599,
+      "mean_synth": 1444.475
+    },
+    {
+      "y": "High",
+      "col": "Rainfall_mm",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.2384,
+      "ks_p": 4.8861566306646464e-17,
+      "cohen_d": 0.401,
+      "mean_orig": 677.826,
+      "mean_synth": 989.157
+    },
+    {
+      "y": "High",
+      "col": "Temperature_C",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.1293,
+      "ks_p": 2.749285144507312e-05,
+      "cohen_d": 0.265,
+      "mean_orig": 32.882,
+      "mean_synth": 34.568
+    },
+    {
+      "y": "Low",
+      "col": "Rainfall_mm",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.1162,
+      "ks_p": 2.2323389997446306e-68,
+      "cohen_d": 0.246,
+      "mean_orig": 1346.277,
+      "mean_synth": 1500.534
+    },
+    {
+      "y": "High",
+      "col": "Soil_Moisture",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0801,
+      "ks_p": 0.027071459894701277,
+      "cohen_d": -0.219,
+      "mean_orig": 19.706,
+      "mean_synth": 17.67
+    },
+    {
+      "y": "High",
+      "col": "Wind_Speed_kmh",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0886,
+      "ks_p": 0.010337641405153886,
+      "cohen_d": 0.219,
+      "mean_orig": 13.679,
+      "mean_synth": 14.643
+    },
+    {
+      "y": "Low",
+      "col": "Soil_Moisture",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.0482,
+      "ks_p": 4.2446783595975794e-12,
+      "cohen_d": 0.113,
+      "mean_orig": 41.724,
+      "mean_synth": 43.306
+    },
+    {
+      "y": "Low",
+      "col": "Humidity",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.0499,
+      "ks_p": 6.229890386991443e-13,
+      "cohen_d": 0.099,
+      "mean_orig": 59.968,
+      "mean_synth": 61.949
+    },
+    {
+      "y": "High",
+      "col": "Humidity",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0803,
+      "ks_p": 0.026342127624058742,
+      "cohen_d": 0.092,
+      "mean_orig": 59.312,
+      "mean_synth": 61.12
+    },
+    {
+      "y": "High",
+      "col": "Organic_Carbon",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0592,
+      "ks_p": 0.18880164199533778,
+      "cohen_d": -0.091,
+      "mean_orig": 0.958,
+      "mean_synth": 0.924
+    },
+    {
+      "y": "Medium",
+      "col": "Previous_Irrigation_mm",
+      "n_orig": 3800,
+      "n_synth": 239074,
+      "ks": 0.0556,
+      "ks_p": 1.723728978832899e-10,
+      "cohen_d": 0.088,
+      "mean_orig": 60.249,
+      "mean_synth": 63.182
+    },
+    {
+      "y": "Medium",
+      "col": "Soil_Moisture",
+      "n_orig": 3800,
+      "n_synth": 239074,
+      "ks": 0.0538,
+      "ks_p": 7.231183459106006e-10,
+      "cohen_d": -0.085,
+      "mean_orig": 31.158,
+      "mean_synth": 29.744
+    },
+    {
+      "y": "Medium",
+      "col": "Wind_Speed_kmh",
+      "n_orig": 3800,
+      "n_synth": 239074,
+      "ks": 0.0412,
+      "ks_p": 5.833014515795227e-06,
+      "cohen_d": 0.069,
+      "mean_orig": 11.42,
+      "mean_synth": 11.794
+    },
+    {
+      "y": "High",
+      "col": "Electrical_Conductivity",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0592,
+      "ks_p": 0.1893277634755357,
+      "cohen_d": -0.065,
+      "mean_orig": 1.751,
+      "mean_synth": 1.691
+    },
+    {
+      "y": "Low",
+      "col": "Previous_Irrigation_mm",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.0571,
+      "ks_p": 8.154203661927759e-17,
+      "cohen_d": 0.062,
+      "mean_orig": 59.527,
+      "mean_synth": 61.718
+    },
+    {
+      "y": "Low",
+      "col": "Organic_Carbon",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.0395,
+      "ks_p": 3.0273250135856147e-08,
+      "cohen_d": -0.06,
+      "mean_orig": 0.943,
+      "mean_synth": 0.921
+    },
+    {
+      "y": "Low",
+      "col": "Electrical_Conductivity",
+      "n_orig": 5864,
+      "n_synth": 369917,
+      "ks": 0.0381,
+      "ks_p": 9.850321121453321e-08,
+      "cohen_d": -0.056,
+      "mean_orig": 1.787,
+      "mean_synth": 1.732
+    },
+    {
+      "y": "Medium",
+      "col": "Organic_Carbon",
+      "n_orig": 3800,
+      "n_synth": 239074,
+      "ks": 0.0361,
+      "ks_p": 0.00011437938286167801,
+      "cohen_d": -0.055,
+      "mean_orig": 0.946,
+      "mean_synth": 0.926
+    },
+    {
+      "y": "High",
+      "col": "Previous_Irrigation_mm",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0507,
+      "ks_p": 0.35088187404450766,
+      "cohen_d": 0.051,
+      "mean_orig": 61.398,
+      "mean_synth": 63.053
+    },
+    {
+      "y": "High",
+      "col": "Sunlight_Hours",
+      "n_orig": 336,
+      "n_synth": 21009,
+      "ks": 0.0486,
+      "ks_p": 0.40300178516791707,
+      "cohen_d": -0.045,
+      "mean_orig": 7.556,
+      "mean_synth": 7.463
+    }
+  ],
+  "rule_match_orig": 1.0,
+  "rule_match_synth": 0.9836444444444444,
+  "score_distribution": {
+    "orig": {
+      "0": 4.1,
+      "1": 12.93,
+      "2": 18.46,
+      "3": 23.15,
+      "4": 18.9,
+      "5": 12.44,
+      "6": 6.66,
+      "7": 2.55,
+      "8": 0.61,
+      "9": 0.2
+    },
+    "synth": {
+      "0": 5.36,
+      "1": 18.327,
+      "2": 19.4,
+      "3": 16.215,
+      "4": 18.704,
+      "5": 12.572,
+      "6": 6.098,
+      "7": 2.385,
+      "8": 0.425,
+      "9": 0.514
+    },
+    "\u0394pp (synth-orig)": {
+      "0": 1.2600000000000007,
+      "1": 5.397000000000002,
+      "2": 0.9399999999999977,
+      "3": -6.934999999999999,
+      "4": -0.19599999999999795,
+      "5": 0.13199999999999967,
+      "6": -0.5620000000000003,
+      "7": -0.16500000000000004,
+      "8": -0.185,
+      "9": 0.314
+    }
+  }
+}

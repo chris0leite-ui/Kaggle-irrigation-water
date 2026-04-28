@@ -87,6 +87,12 @@ EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
 # per-class Mahalanobis to centroid) from oof_ood9_train.npy + test_ood9.npy
 # Built by build_expanded_10k_anchor.py.
 EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
+# EXTRA_AV_PSYNTH=1 -> +1 col [av_p_synth] = leak-free P(synth | row) from the
+# AV classifier (orig vs synth-train) built by scripts/dist_shift/av_full_predict.py.
+# Distinct from EXTRA_OOD/EXTRA_KNN10K: those use unsupervised density on orig
+# features; this uses a discriminative classifier trained orig-vs-synth.
+# Diagnostic AUC for predicting (y != rule_pred) on full 630k = 0.5746.
+EXTRA_AV_PSYNTH = os.environ.get("EXTRA_AV_PSYNTH", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -139,6 +145,13 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # CLEANLAB_TREATMENT=downweight which DOWN-weights ambiguous rows
 # interpreted as label noise. Suffix "_anchwα{α}" on outputs.
 ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
+# Option B' (drift session 2026-04-28): per-row sample_weight multiplier
+# = (1 + ORIG_WEIGHT_BETA × (1 − P(synth | row))). Loads AV oof from
+# scripts/artifacts/dist_shift/oof_av_p_synth_train.npy. Mechanism: rows
+# that look orig-like (low P(synth)) carry MORE flip mass per the AV
+# diagnostic (Cohen's d +0.335) — give them more gradient. Distinct from
+# ANCHOR_WEIGHT_ALPHA which uses primary's max_prob.
+ORIG_WEIGHT_BETA = float(os.environ.get("ORIG_WEIGHT_BETA", "0"))
 
 # Mech A: boundary-confined test-time augmentation. When set, identify
 # boundary rows via max_prob(LB-best 4-stack) < TTA_BOUNDARY_THRESH (default
@@ -192,6 +205,8 @@ if EXTRA_KNN10K:
     _parts.append("knn10k")
 if EXTRA_OOD9:
     _parts.append("ood9")
+if EXTRA_AV_PSYNTH:
+    _parts.append("avp")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -204,6 +219,8 @@ if DROP_DETERMINISTIC:
     _parts.append("dropdet")
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
+if ORIG_WEIGHT_BETA != 0:
+    _parts.append(f"origw{('m' if ORIG_WEIGHT_BETA < 0 else '') + str(int(abs(ORIG_WEIGHT_BETA)*10)).zfill(2)}")
 if TTA_BOUNDARY:
     _parts.append(f"btta{int(TTA_BOUNDARY_THRESH*100):03d}k{TTA_K}s{int(TTA_SIGMA*100):03d}")
 if THREE_WAY_OTE:
@@ -426,6 +443,19 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         for i, c in enumerate(ood9_cols):
             train[c] = a_tr[:, i]; test[c] = a_te[:, i]
         log(f"  +{len(ood9_cols)} ood9 cols")
+    av_cols: list[str] = []
+    if EXTRA_AV_PSYNTH:
+        log("loading AV-classifier P(synth | row) features")
+        a_tr = np.load("scripts/artifacts/dist_shift/oof_av_p_synth_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/dist_shift/test_av_p_synth.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train),) and a_te.shape == (len(test),)
+        av_cols = ["av_p_synth"]
+        train["av_p_synth"] = a_tr
+        test["av_p_synth"] = a_te
+        log(f"  +1 av_p_synth col (diagnostic AUC vs flip = 0.5746 on full 630k)")
 
     # Senior-FE NN-distance features (FAISS k-NN to 10k original).
     # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
@@ -458,6 +488,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_w8=extra_w8,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
+        av=av_cols,
         three_way=three_way_combos, nndist=nndist_cols,
         te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
         # Subset indices (None when not SMOKE) for downstream mask alignment.
@@ -479,6 +510,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
 
 _anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B / Mech A active
 _anchor_uncertainty_test: np.ndarray | None = None  # populated when Mech A active
+_av_p_synth: np.ndarray | None = None  # populated when ORIG_WEIGHT_BETA != 0
 
 
 def _build_anchor_uncertainty_test(n_test: int = -1) -> np.ndarray:
@@ -697,6 +729,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("ood", [])
                      + info.get("knn10k", [])
                      + info.get("ood9", [])
+                     + info.get("av", [])
                      + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
@@ -861,6 +894,21 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             sw = sw * (1.0 + ANCHOR_WEIGHT_ALPHA * au)
             log(f"  anchor-uncertainty weight α={ANCHOR_WEIGHT_ALPHA:.1f}: "
                 f"u-mean={au.mean():.4f} u-max={au.max():.4f} "
+                f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
+        if ORIG_WEIGHT_BETA != 0:
+            # Option B' (drift session): w *= (1 + β × (1 − P(synth | row)))
+            # AV oof (full-train, leak-free) loaded once at module level.
+            global _av_p_synth
+            if _av_p_synth is None:
+                _av_p_synth = np.load(
+                    "scripts/artifacts/dist_shift/oof_av_p_synth_train.npy"
+                ).astype(np.float32)
+                if SMOKE:
+                    _av_p_synth = _av_p_synth[info["train_subset_idx"]]
+            ow = 1.0 - _av_p_synth[fold_tr_idx]
+            sw = sw * (1.0 + ORIG_WEIGHT_BETA * ow)
+            log(f"  orig-weight β={ORIG_WEIGHT_BETA:.1f}: "
+                f"orig-mean={ow.mean():.4f} orig-max={ow.max():.4f} "
                 f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
 
         log(f"  training XGB on {len(feat_cols)} features, {len(X_tr):,} rows")

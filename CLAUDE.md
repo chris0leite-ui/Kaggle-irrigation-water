@@ -4252,6 +4252,112 @@ architecture or feature view adds orthogonal bits at this base.
 - LB budget unchanged (no probes this session). LB best unchanged:
   `submission_3way_recipe025_s1035_s7040.csv` at **LB 0.98005**.
 
+### 2026-04-28 — distribution-shift research + 3 drift-leverage options (3 NULLs, 31st-33rd saturations)
+
+- Goal: characterize the distribution shift between the 10k original
+  anchor and the 630k synthetic train, then test three structurally
+  distinct ways to use the drift information for LB lift.
+- Branch: `claude/analyze-distribution-shift-A4uIv`. All findings under
+  `audit/2026-04-28-distribution-shift/` (README + 7 task files) and
+  reusable scripts under `scripts/dist_shift/`.
+
+- **Distribution shift (the diagnostic findings)**:
+  - **AV AUC orig ↔ synth-train = 0.69690** (5-fold OOF). Compare J3
+    (2026-04-25) train ↔ test = 0.50247. The synth distribution is
+    strongly distinguishable from the orig anchor; train and test ARE
+    statistically identical.
+  - **Rainfall_mm Cohen's d = +0.315** (mean +210mm), KS p ~ 1e-214.
+    Top AV gain: `norain` (Rainfall<300) = 210.9, `Rainfall_mm` =
+    95.7. Half the joint shift is at the rule's 300mm threshold.
+  - **Class priors are statistically identical** (Δpp ≤ 0.08 each
+    class). The shift is in the joint feature space, NOT label
+    rebalancing.
+  - **Per-class Rainfall_mm shifts up within EVERY class**: d=+0.246
+    Low / +0.417 Medium / +0.401 High.
+  - **Score=3 mass redistributed**: synth has +5.40 pp at score=1 and
+    −6.94 pp at score=3. NN cleared the boundary band toward easy cells.
+  - **Per-cell flip rates**: 0.000% (cell 0, n=33k) to 70.45% (cell
+    51, n=308). Score=8 has highest flip rate (12.31%). Flip
+    direction is deterministic per score (3 → Med, 6 → High, 7,8 →
+    Med).
+  - **Headline diagnostic**: AUC(P(orig | row), flip) on the full
+    630k = 0.5746, Cohen's d +0.335. Per-score: weakest at score=3
+    (0.52, the dominant flip cell — no signal!), strong at scores 5
+    (0.72), 7 (0.63), 6 (0.61).
+
+- **Three drift-leverage options executed, all NULL**:
+
+  **Option A — AV-score as 1-dim recipe FE feature** (~2h35m wall):
+  - Standalone tuned OOF 0.97953 vs recipe 0.97967, Δ = -0.00014
+    (within fold noise).
+  - Bias [0.9324, 1.1689, 3.4008] vs recipe [1.4324, 1.4689, 3.4008].
+  - 4-gate vs LB-best 4-stack: peak α=0, all positive α negative.
+  - Jaccard 0.82-0.87 vs anchors (≥0.80 redundancy zone).
+  - **Mechanism**: AV-score is a 1-dim learned summary of `norain` +
+    `Rainfall_mm` + `dry` + `windy` — which the recipe XGB at depth=4
+    + reg_alpha=5 already splits on natively. Recipe-redundant.
+
+  **Option B' — orig-weight sample multiplier**
+  (`sw *= (1 + (1−P(synth)))`, ~2h25m wall, 1 rehydrate-resume):
+  - Standalone tuned OOF 0.97955 vs recipe 0.97967, Δ = -0.00012
+    (within fold noise; CLOSER to recipe than A).
+  - Bias [1.1324, 1.2689, 3.4008] (closer to recipe than A's).
+  - 4-gate vs LB-best 4-stack: peak α=0.025, Δ = +0.00001, **ADD-High
+    direction at every α** (opposite of A's mostly-REMOVE direction).
+  - **Mechanism**: orig-y synth rows ARE flip-prone (Cohen's d +0.335),
+    so up-weighting them pushes High recall in the right direction.
+    But the magnitude `(AUC − 0.5) × class_weight_amp` ≈ +0.00001 OOF
+    on LB-best 4-stack — far below +2e-4 emit gate.
+
+  **Option C — conformal score=3 specialist + AV-score input** (~10 min):
+  - Domain: score=3 ∩ teacher_argmax=Low (n=101,392, 4.28% Medium).
+  - 5-fold OOF AUC 0.8195 (prior spec_lm_v3 without AV: 0.827 — TIED).
+  - Top-K=100 precision 43%, Wilson 90% lower CI 0.368, break-even 0.393.
+  - **No conformal-feasible operating point.**
+  - **Mechanism**: predicted by per-score AV-AUC at score=3 = 0.52.
+    AV signal lives at scores 5/6/7, not at the dominant flip cell.
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **AV-AUC as a single feature is recipe-redundant when the AV
+     classifier's top gain features overlap heavily with the recipe's
+     top splits.** A 1-dim summary cannot beat depth-4 trees that
+     split on the same underlying features natively.
+  2. **Per-row sample-weight reweighting (here: by 1−P(synth)) produces
+     the right macro-recall direction (ADD-High) on a saturated stack
+     when the weighting signal correlates with rare-class flip
+     incidence.** But the magnitude is bounded by the diagnostic AUC,
+     which on this problem caps at ~+0.00001 OOF onto LB-best 4-stack.
+  3. **Score-conditional AUC predicts which sub-domain specialists can
+     use a global flip detector.** When per-score AUC at the target
+     score is < 0.55, do NOT scaffold conformal/precision-based
+     overrides at that score — they will fail break-even by
+     construction.
+
+- **Strategic implication**: combined with the 2026-04-26 NN-on-orig +
+  soft-distill + W7 + N5b family closures, the entire **"use 10k
+  original as anchor"** mechanism category is now exhaustively closed.
+  Three independent NULLs across structurally distinct delivery
+  mechanisms (direct FE / sample weighting / sub-domain specialist
+  input) confirm the AV-shift signature lever family is exhausted.
+
+- **31st-33rd structural saturation confirmations at LB 0.98094.**
+
+- LB budget unchanged today (no probes). LB best unchanged at
+  `submission_tier1b_greedy_meta.csv` LB 0.98094.
+- Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005
+  (audit-F1 swap). Two days to deadline 2026-04-30.
+
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `audit/2026-04-28-distribution-shift/` — README + 7 modular reports
+  - `scripts/dist_shift/` — 8 reusable scripts (loader, marginal, av,
+    av_full_predict, av_predicts_flip(_full), class_conditional,
+    flip_manifold, optC_score3_specialist, optAB_blend_gate, optAB_emit)
+  - `scripts/artifacts/dist_shift/` — 12 result JSONs/npys
+  - `scripts/artifacts/oof_recipe_full_te_avp.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_full_te_origw10.npy` + test + JSON
+  - `submissions/submission_recipe_full_te_avp.csv` (diagnostic only)
+  - `submissions/submission_recipe_full_te_origw10.csv` (diagnostic only)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
