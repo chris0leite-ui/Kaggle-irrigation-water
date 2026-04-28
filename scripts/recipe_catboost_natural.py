@@ -69,6 +69,10 @@ ART.mkdir(exist_ok=True, parents=True)
 SUB.mkdir(exist_ok=True, parents=True)
 
 SUFFIX = "_catboost_natural" + ("_smoke" if SMOKE else "")
+# Final aggregate is saved under the canonical recipe-family name so
+# downstream blend / meta scripts can find it via the standard pattern.
+FINAL_OOF_NAME = ("recipe_full_te_catboost_natural"
+                  + ("_smoke" if SMOKE else ""))
 
 
 def log(msg: str) -> None:
@@ -314,8 +318,8 @@ def main():
     old_cb_bias_h = 2.80  # documented in CLAUDE.md / existing results JSON
     log(f"  bias_H drift: existing CB {old_cb_bias_h} -> natural CB {bias_h:.3f}")
 
-    np.save(ART / f"oof{SUFFIX}.npy", oof)
-    np.save(ART / f"test{SUFFIX}.npy", test_pred)
+    np.save(ART / f"oof_{FINAL_OOF_NAME}.npy", oof)
+    np.save(ART / f"test_{FINAL_OOF_NAME}.npy", test_pred)
 
     # Build submission CSV
     eps = 1e-9
@@ -325,7 +329,7 @@ def main():
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in test_pred_idx],
     })
-    sub_path = SUB / f"submission_recipe_full_te{SUFFIX}.csv"
+    sub_path = SUB / f"submission_{FINAL_OOF_NAME}.csv"
     sub.to_csv(sub_path, index=False)
     log(f"wrote {sub_path}")
 

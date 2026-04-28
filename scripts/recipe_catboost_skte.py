@@ -78,6 +78,8 @@ ART.mkdir(exist_ok=True, parents=True)
 SUB.mkdir(exist_ok=True, parents=True)
 
 SUFFIX = "_catboost_skte" + ("_smoke" if SMOKE else "")
+FINAL_OOF_NAME = ("recipe_full_te_catboost_skte"
+                  + ("_smoke" if SMOKE else ""))
 
 
 def log(msg: str) -> None:
@@ -324,8 +326,8 @@ def main():
     log(f"  vs natural CB (OrderedTE): bias_H ~2.6 (PARTIAL/FAIL)")
     log(f"  vs rawashishsin v3:        bias_H = 0.00 (target)")
 
-    np.save(ART / f"oof{SUFFIX}.npy", oof)
-    np.save(ART / f"test{SUFFIX}.npy", test_pred)
+    np.save(ART / f"oof_{FINAL_OOF_NAME}.npy", oof)
+    np.save(ART / f"test_{FINAL_OOF_NAME}.npy", test_pred)
 
     eps = 1e-9
     test_log = np.log(np.clip(test_pred, eps, 1.0))
@@ -334,7 +336,7 @@ def main():
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in test_pred_idx],
     })
-    sub_path = SUB / f"submission_recipe_full_te{SUFFIX}.csv"
+    sub_path = SUB / f"submission_{FINAL_OOF_NAME}.csv"
     sub.to_csv(sub_path, index=False)
     log(f"wrote {sub_path}")
 
