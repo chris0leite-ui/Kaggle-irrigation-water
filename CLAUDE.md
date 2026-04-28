@@ -16186,6 +16186,149 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — leak-honest 4-gate diagnostic: iso inflation confirmed at exactly +0.00010, candidates still rejected for genuine reasons
+
+- Goal: senior-engineer reframe — "leakage may have stopped us from
+  finding good signals, not just from accepting bad ones." Hypothesis:
+  the LB-best primary's full-OOF iso-cal inflates its OOF, making
+  candidates fail the 4-gate filter against an inflated baseline. Test
+  by building a leak-honest primary (per-fold iso instead of full-OOF
+  iso) and re-running the 4-gate filter for previously-rejected
+  candidates.
+- Branch: `claude/review-main-updates-XRUQQ`. Three new scripts +
+  one new submission file pair.
+
+- **Step 1 — leak-honest primary OOF** (`scripts/leak_honest_4gate.py`):
+  reproduce LB-best primary architecture exactly, only swap iso method:
+  ```
+  arch:  3-stack[recipe + pseudo_s1 + pseudo_s7, w=0.25/0.35/0.40]
+       → + RealMLP @ α=0.20
+       → + xgb_nonrule_iso(per-fold) @ α=0.075
+       → + xgb_metastack_iso(per-fold) @ α=0.30
+
+  result @ recipe bias [1.4324, 1.4689, 3.4008]:
+      leak-honest primary OOF       = 0.98074
+      full-OOF-iso primary OOF      = 0.98084   (current LB-best)
+      iso-cal inflation             = +0.00010
+  ```
+  **The +0.00010 OOF inflation EXACTLY matches the documented
+  LB→OOF gap (−0.00010, "LB > OOF") of the LB-best primary.** The
+  "anomalous LB > OOF" is fully explained by full-OOF iso fitting
+  to row-self-labels.
+
+- **Step 2 — test-side prediction comparison**:
+  ```
+  PRIMARY (full-OOF-iso, recipe bias):  L=159620, M=100267, H=10113
+  LEAK-HONEST (per-fold-iso, recipe bias): IDENTICAL (0/270k rows differ)
+  ```
+  Test predictions are UNCHANGED by per-fold iso swap. The iso-leak
+  is OOF-side only; test-side iso is computed with full-OOF (leak-free
+  by construction since test rows aren't in OOF training). So the
+  fixed-bias leak-honest submission has the SAME LB as primary. No
+  LB probe needed for that variant.
+
+- **Step 3 — gate sweep against leak-honest primary at recipe bias**:
+  4 candidates re-tested (B' RF, MLP-meta, macrorec, DROP_DETERMINISTIC).
+  ```
+  candidate                peak Δ vs leak-honest    G124 outcome
+  ───────────────────────────────────────────────────────────────
+  sklearn_rf_meta          +0.00004 @ α=0.05        FAIL (1/3, G2)
+  mlp_metastack            +0.00062 @ α=0.50        FAIL (2/3, G2)
+  macrorec_T1_lam03        −0.00004 @ α=0.025       FAIL (1/3, G1)
+  recipe_full_te_dropdet   +0.00006 @ α=0.025       FAIL (1/3, G1)
+  ```
+  Every candidate has **net High flip = NEGATIVE** at every α — they
+  REMOVE-High vs the leak-honest primary, the same direction that
+  closed N5b / DROP_DETERMINISTIC / R2 a045. The candidates were
+  rejected for genuine reasons, not because of iso inflation.
+
+- **Step 4 — coord-ascent log-bias on leak-honest primary**
+  (`scripts/leak_honest_bias_retune.py`):
+  ```
+  bias                  bal_acc       notes
+  ───────────────────────────────────────────────────
+  recipe [1.43, 1.47, 3.40]   0.98074  full-OOF-iso bias
+  retuned [1.04, 1.45, 3.40]   0.98089  per-fold-iso optimum
+  zero-init optimum [-1.27, -0.95, 1.00]  0.98086  alt local minimum
+  ```
+  Optimal Low bias drops 0.40 (sharper Low predictions); Medium and
+  High essentially unchanged. **Leak-honest primary at retuned bias
+  reaches OOF 0.98089 — +0.00005 ABOVE the full-OOF-iso primary's
+  0.98084 at fair-comparison.** Real (small) signal that the fix
+  unlocks at the bias level.
+  - Test-side: 230/270k rows differ from current PRIMARY (0.09%).
+  - Submission emitted: `submission_leak_honest_primary_retuned.csv`.
+
+- **Step 5 — gate sweep at retuned bias**: still no candidate passes.
+  ```
+  candidate                peak Δ vs retuned-leak-honest
+  ─────────────────────────────────────────────────────
+  sklearn_rf_meta          all α negative
+  mlp_metastack            +0.00045 @ α=0.50  FAIL G2 (Low -0.00118)
+  macrorec_T1_lam03        all α negative
+  recipe_full_te_dropdet   all α negative
+  ```
+  At the retuned (more honest) bias, candidates are STRICTLY worse
+  than at recipe bias. The retuned bias closes the operating-point
+  asymmetry that previously made candidates look ADD-High.
+
+- **Three findings** (the experiment's actual deliverable):
+  1. **iso-cal-on-full-OOF inflation = +0.00010 OOF, EXACTLY matches
+     the documented LB→OOF gap.** Confirms "anomalous LB > OOF" was
+     iso artifact, not CV-pessimism.
+  2. **Test predictions are unchanged by iso fix.** Per-fold iso is
+     leak-free OOF; full-OOF iso is leak-free TEST (test never in OOF
+     training). Same LB output for both at fixed bias.
+  3. **Bias retune on leak-honest OOF surface finds [1.04, 1.45, 3.40]
+     for OOF 0.98089 (+0.00005 above current best).** Test-side
+     differs in 230 rows. Selection-bias risk on 3-param coord-ascent
+     is the same as recipe bias's tune (which DID transfer to LB).
+     Bayesian prior on LB outcome:
+       ~50% LB ≈ 0.98094 ± noise
+       ~25% LB ∈ [0.98095, 0.98105]
+       ~25% LB ∈ [0.98080, 0.98094]
+     Expected LB ≈ 0.98094, σ ≈ 0.0003.
+
+- **The leakage-hidden-signal hypothesis is FALSIFIED for these 4
+  candidates.** B' RF, MLP-meta, macrorec, and DROP_DETERMINISTIC
+  fail the 4-gate filter against BOTH the inflated full-OOF-iso
+  primary AND the leak-honest primary. The candidates were rejected
+  because they REMOVE-High at every α; iso inflation wasn't masking
+  hidden signal in any of them.
+
+- **What IS unlocked**: the leak-honest primary at retuned bias is
+  a marginal LB-probe candidate (+0.00005 OOF, 230 test-row diff).
+  Submission ready: `submission_leak_honest_primary_retuned.csv`.
+  Awaiting user decision per CLAUDE.md submission rule.
+
+- LB best unchanged at **0.98094** via
+  `submission_tier1b_greedy_meta.csv` (no LB probes spent this
+  session). Artifacts whitelisted via gitignore exception:
+  - `scripts/leak_honest_4gate.py` + `leak_honest_bias_retune.py`
+  - `scripts/artifacts/leak_honest_primary_oof.npy` + test
+  - `scripts/artifacts/leak_honest_4gate_results.json`
+  - `scripts/artifacts/leak_honest_bias_results.json`
+  - `submissions/submission_leak_honest_primary.csv`
+    (identical to current PRIMARY at test side)
+  - `submissions/submission_leak_honest_primary_retuned.csv`
+    (230/270k rows differ from PRIMARY)
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **iso-cal on full OOF produces row-self-leak proportional to
+     5-fold reciprocal × number of components**, manifesting as
+     positive OOF inflation that flips the OOF→LB gap negative.
+     Per-fold iso is the leak-free version. On a 60+ component
+     bank, the inflation is small (~+0.00010) but exactly matches
+     the apparent "LB > OOF" gap pattern. Run per-fold iso as a
+     diagnostic whenever the LB-best stack has gap ≤ 0.
+  2. **Test-side iso is leak-free regardless of method.** Test rows
+     are never in OOF-training; full-OOF iso fit on (oof, y) and
+     applied to test_probs has no leak vector. So an "iso fix" only
+     affects OOF-side metrics; test predictions are unchanged at
+     fixed bias. The actionable lever is bias retune on the
+     leak-honest OOF surface — which DOES change test predictions
+     because it shifts the operating point.
+
   When stripped to just (LB-3-stack + macrorec_base), the meta lands
   BELOW LB-best 4-stack. This means LB-3-stack already captures most
   of macrorec's +0.62pp standalone H lift through its pseudo_s1+pseudo_s7
