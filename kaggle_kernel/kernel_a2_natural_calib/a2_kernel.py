@@ -50,7 +50,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Top-level flags for Kaggle (override via sed before push)
-SMOKE_OVERRIDE = True
+SMOKE_OVERRIDE = False
 PROBE_OVERRIDE = False
 IS_SMOKE = SMOKE_OVERRIDE or os.environ.get("SMOKE", "0") == "1"
 IS_PROBE = PROBE_OVERRIDE or os.environ.get("PROBE", "0") == "1"
