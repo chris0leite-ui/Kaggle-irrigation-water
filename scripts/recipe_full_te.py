@@ -769,11 +769,18 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         # variance from gbtree, skip_drop=0.5 halves expected wall-time by
         # skipping dropout on 50% of rounds. Cap tree budget vs gbtree
         # since DART's per-tree cost grows linearly with round index.
+        # DART tuned for 4-CPU box feasibility:
+        #   skip_drop=0.7 → 70% of rounds behave like gbtree (faster)
+        #   rate_drop=0.05 → mild dropout when active
+        #   n_estimators=400 → ~2.5-3h/fold × 5 = ~12-15h total
+        # Dropout regularization decorrelates trees enough to produce
+        # error orthogonality; the milder config preserves that without
+        # the O(N^2) blow-up at full skip_drop=0.5 + rate_drop=0.1.
         xgb_params.update(
-            rate_drop=0.1, skip_drop=0.5,
+            rate_drop=0.05, skip_drop=0.7,
             sample_type="uniform", normalize_type="tree",
-            n_estimators=200 if SMOKE else 800,
-            early_stopping_rounds=50 if SMOKE else 150,
+            n_estimators=30 if SMOKE else 400,
+            early_stopping_rounds=10 if SMOKE else 120,
         )
 
     train_scores = train["dgp_score"].values if DROP_SCORE_SET else None
