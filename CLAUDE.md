@@ -4422,9 +4422,19 @@ architecture or feature view adds orthogonal bits at this base.
      Manual EXCLUDE lists should be conservative; trust the meta to
      weight components via reg_alpha=5 + reg_lambda=5 + colsample=0.9.
 
-- LB delta: n/a (no probes — all 4 variants gate-fail). LB best
-  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
-- Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005.
+- LB delta: n/a (no probes — all 4 variants gate-fail). LB-best
+  4-stack architecture (`submission_tier1b_greedy_meta.csv`,
+  LB 0.98094) was the experiment's reference anchor throughout. NOTE:
+  during this session, a parallel branch landed a NEW LB-best at
+  **0.98109** via `submission_rawashishsin_2600_standalone.csv`
+  (rawashishsin public-kernel v3 replica, single XGB on different FE,
+  NOT a meta-stacker). The v8 saturation conclusions are unaffected:
+  they apply to the 4-stack META-STACKER architecture family, which
+  remains saturated at 0.98094. The new 0.98109 LB-best is from a
+  fundamentally different pipeline (recipe-bypassing standalone XGB
+  with sklearn TargetEncoder(cv=5)).
+- Final-selection candidates updated on main:
+  PRIMARY 0.98109 (rawashishsin v3) + HEDGE 0.98094 (Tier-1b 4-stack).
 
 - Artefacts (whitelisted via .gitignore for cross-branch reuse):
   - `scripts/dist_shift/optD_meta_v8.py` (parameterised by env vars)
