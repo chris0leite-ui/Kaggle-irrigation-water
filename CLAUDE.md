@@ -16046,3 +16046,48 @@ contaminated R2 hybrid's 4-gate PASS.
   that LB-regressed, the own-pipeline ceiling at LB 0.98094 is
   exhaustively confirmed. Two days to deadline (2026-04-30); reserve
   9 LB submissions for end-of-comp variance check.
+
+### 2026-04-28 — Leak-free macrorec experiment (queued, ~50 min)
+
+User-flagged structural insight: per-fold OOFs are leak-free at the
+ROW level, but the meta-stacker has a stacking leak at the FEATURE level
+when components share the same fold assignment. This explains the
+N1/R2/base-only OOF→LB gap.
+
+  When N1 trains on folds {1,2,3,4} with val=fold 5:
+    N1 training row j (in some fold ≠ 5) has macrorec_base[j] as a feature.
+    That macrorec_base[j] was computed by a base model trained on folds
+    NOT containing j — which INCLUDES fold 5 (the meta's val).
+    So macrorec_base[j] for N1's training rows encodes tiny info about
+    fold 5's labels.
+    N1's depth-4 trees exploit this micro-leak across all 5 folds.
+
+  Per Stage 1, this leak is AMPLIFIED when 80% of gain comes from
+  meta-stacker components (each has its own tiny leak; meta-of-metas
+  compounds them). All 5 folds share the SAME fold assignment
+  (StratifiedKFold seed=42) → leak is correlated across folds (Stage 2
+  Jaccard 0.93).
+
+**Leak-free experiment design**:
+  For each meta fold f ∈ {1..5}:
+    Retrain macrorec BASE on data excluding fold f's rows entirely
+    (so macrorec_base predictions for fold f have NO information from f
+    AND macrorec_base predictions for non-f rows have no info from f either).
+  Then train ONE macrorec meta with these 5 fold-specific base OOFs:
+    - For training rows in folds ≠ f, use the base trained without f
+    - For val rows in fold f, use the base trained without f
+  This eliminates the cross-stack leak completely.
+
+**Cost**: 5 macrorec base retrains × ~6 min + 1 meta train × ~22 min ≈ 50 min.
+
+**Hypothesis**: meta OOF will drop ~0.001-0.002 (leak signal goes away).
+  If the leak-free OOF still has Δ ≥ +0.0003 vs LB-best 4-stack at
+  recipe bias, the lift is real and gap inflation should collapse.
+
+**Bayesian prior**: 25-30% LB lift if real signal exists post-leak-removal.
+
+**Critical design rules**:
+  - lam_ce = 0.3 (theoretical SMOKE choice, no grid)
+  - α = 0.30 (LB-validated architecture)
+  - same fold split (StratifiedKFold seed=42) for OOF alignment
+  - NO hybrid mix (no grid selection)
