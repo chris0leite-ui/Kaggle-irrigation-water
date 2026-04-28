@@ -1,0 +1,111 @@
+{
+  "overall_auc": 0.6969038550000001,
+  "fold_aucs": [
+    0.6953318749999999,
+    0.690852375,
+    0.692023125,
+    0.7059347499999999,
+    0.70197325
+  ],
+  "fold_best_iters": [
+    304,
+    414,
+    678,
+    756,
+    776
+  ],
+  "n_orig": 10000,
+  "n_synth_sub": 10000,
+  "top_features_by_gain": [
+    {
+      "feat": "norain",
+      "gain": 210.9123191833496
+    },
+    {
+      "feat": "Rainfall_mm",
+      "gain": 95.73016929626465
+    },
+    {
+      "feat": "dry",
+      "gain": 37.54598331451416
+    },
+    {
+      "feat": "Soil_pH",
+      "gain": 34.14024305343628
+    },
+    {
+      "feat": "Previous_Irrigation_mm",
+      "gain": 30.30545425415039
+    },
+    {
+      "feat": "windy",
+      "gain": 29.74648380279541
+    },
+    {
+      "feat": "Humidity",
+      "gain": 27.23884391784668
+    },
+    {
+      "feat": "Electrical_Conductivity",
+      "gain": 27.028346061706543
+    },
+    {
+      "feat": "Soil_Moisture",
+      "gain": 26.65390396118164
+    },
+    {
+      "feat": "Sunlight_Hours_dec",
+      "gain": 25.647698879241943
+    },
+    {
+      "feat": "Organic_Carbon",
+      "gain": 24.657897472381592
+    },
+    {
+      "feat": "Soil_pH_dec",
+      "gain": 24.113389015197754
+    },
+    {
+      "feat": "hot",
+      "gain": 23.967991590499878
+    },
+    {
+      "feat": "Sunlight_Hours",
+      "gain": 23.7797269821167
+    },
+    {
+      "feat": "Crop_Growth_Stage_fact",
+      "gain": 23.29752206802368
+    }
+  ],
+  "all_feature_gain": {
+    "norain": 210.9123191833496,
+    "Rainfall_mm": 95.73016929626465,
+    "dry": 37.54598331451416,
+    "Soil_pH": 34.14024305343628,
+    "Previous_Irrigation_mm": 30.30545425415039,
+    "windy": 29.74648380279541,
+    "Humidity": 27.23884391784668,
+    "Electrical_Conductivity": 27.028346061706543,
+    "Soil_Moisture": 26.65390396118164,
+    "Sunlight_Hours_dec": 25.647698879241943,
+    "Organic_Carbon": 24.657897472381592,
+    "Soil_pH_dec": 24.113389015197754,
+    "hot": 23.967991590499878,
+    "Sunlight_Hours": 23.7797269821167,
+    "Crop_Growth_Stage_fact": 23.29752206802368,
+    "Temperature_C": 23.184363842010498,
+    "Wind_Speed_kmh": 22.925333976745605,
+    "Temperature_C_dec": 22.348458766937256,
+    "Field_Area_hectare": 22.244234561920166,
+    "Mulching_Used_fact": 22.16246795654297,
+    "Soil_Moisture_dec": 22.057997703552246,
+    "Organic_Carbon_dec": 22.032345294952393,
+    "Region_fact": 21.391336679458618,
+    "Water_Source_fact": 20.344337224960327,
+    "Soil_Type_fact": 20.09553861618042,
+    "Crop_Type_fact": 20.072513341903687,
+    "Irrigation_Type_fact": 19.736144065856934,
+    "Season_fact": 18.971396684646606
+  }
+}

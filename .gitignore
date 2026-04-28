@@ -18,6 +18,9 @@ submissions/*
 !submissions/submission_*.csv
 !legacy/submissions/submission_*.csv
 
+# Exception: distribution-shift research summary CSVs
+!scripts/artifacts/dist_shift/*.csv
+
 # Python
 __pycache__/
 *.py[cod]
