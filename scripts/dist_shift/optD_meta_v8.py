@@ -46,6 +46,53 @@ DATA = Path("data")
 CLASS_WEIGHTED = os.environ.get("CLASS_WEIGHTED", "") == "1"
 SUFFIX = os.environ.get("SUFFIX", "v8")
 
+# CLEAN_BANK=1 → restrict pool to a curated INCLUDE list of ~45 LB-validated /
+# structurally-distinct components. Drops all meta-stacker variants (no
+# meta-of-meta), all confirmed LB-regressors, all derived blends, all
+# saturation-experiment OOFs. Bank shrinks from ~187 → ~45.
+CLEAN_BANK = os.environ.get("CLEAN_BANK", "") == "1"
+
+# Curated 45-component include list for v8c (clean-bank variant).
+# Rationale: keep recipe-family + multi-seed + LB-validated diversity legs +
+# tree-family variants + recent diagnostic-orthogonal legs (avp, origw10).
+# Drop: all xgb_metastack*/lr_metastack*/mlp_metastack*/sklearn_rf_meta*
+#       all distill/focal/dropdet/residte/basemargin/macrorec/anchw closed mechanisms
+#       all c0_*/own_*/moe_*/cmaes*/hillclimb*/hedge_*/per_cell_*/joint_* derived
+#       all tau09*/shuffle*/smote*/tta_recipe_* saturation experiments
+INCLUDE_CLEAN = {
+    # Recipe family — LB-validated lineage
+    "recipe_full_te", "recipe_full_te_a01", "recipe_full_te_a10",
+    "recipe_full_te_dart", "recipe_full_te_seed7", "recipe_full_te_seed123",
+    "recipe_pseudolabel", "recipe_pseudolabel_seed7labeler",
+    "recipe_pseudolabel_seed123labeler",
+    # Recipe with new diagnostic legs (today)
+    "recipe_full_te_avp", "recipe_full_te_origw10",
+    # Recipe subset / variant experiments (drop only-redundant ones)
+    "recipe_no_digits", "recipe_no_combos", "recipe_no_ote", "recipe_no_orig",
+    # Recipe with different model families
+    "recipe_lgbm", "recipe_full_te_lgbm",
+    "recipe_catboost", "recipe_full_te_catboost",
+    # Pair / OTE variants
+    "recipe_allpairs",
+    # Multi-seed bagged primary components
+    "lb_best_fs7", "lb_best_fs123",
+    # Tree diversity legs (3-class)
+    "realmlp", "xgb_nonrule", "xgb_corn",
+    "xgb_dist", "xgb_vanilla_dist", "xgb_dist_routed_v3",
+    "xgb_dist_digits", "xgb_dist_digits_ote",
+    "xgb_dist_digits_ote_digits", "xgb_dist_digits_ote_digits_pairs",
+    # LGBM variants
+    "lgbm_te_orig", "lgbm_dist_digits", "lgbm_dist_digits_ote",
+    # CatBoost variants
+    "catboost_optuna", "catboost_recipe_gpu",
+    # Hybrid blends used as anchor sources
+    "hybrid_lgbmxgb_blend", "bagged_greedy_nonrule",
+    # Specialists (3-class only)
+    "xgb_spec_36",
+    # Recent OOD/kNN10k variants
+    "recipe_full_te_ood", "recipe_full_te_knn10k",
+}
+
 
 def log(m):
     print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
@@ -144,7 +191,19 @@ def main():
 
     log("loading pool")
     pool = load_pool(y)
-    log(f"  {len(pool)} components loaded")
+    log(f"  {len(pool)} components loaded (raw)")
+    if CLEAN_BANK:
+        before = len(pool)
+        pool = {k: v for k, v in pool.items() if k in INCLUDE_CLEAN}
+        log(f"  CLEAN_BANK active: filtered {before} → {len(pool)} components")
+        kept = sorted(pool.keys())
+        for n in kept:
+            print(f"    KEEP {n}")
+        missing = sorted(INCLUDE_CLEAN - set(pool.keys()))
+        if missing:
+            log(f"  WARNING: {len(missing)} include-list names had no OOF on disk:")
+            for n in missing:
+                print(f"    MISS {n}")
 
     log("building 12 diagnostic features (train+test)")
     diag_tr, diag_names = build_diagnostic_features(pool, lb_oof, len(train))
