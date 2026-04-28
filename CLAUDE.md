@@ -16221,3 +16221,124 @@ N1/R2/base-only OOF→LB gap.
      ONLY (X, Y) as 2 components. The result tells you the marginal
      contribution of X without any noise from other components. ~4-10 min
      CPU. Use BEFORE building expensive ensemble experiments.
+
+### 2026-04-28 — MLP-meta with macro-recall surrogate loss (curated 60-component bank): 31st saturation NULL
+
+- Goal: combine the two structurally distinct mechanisms identified in
+  the post-30-saturation brainstorm (#2 from the 5-option list):
+  - **MLP architecture** (smooth optimization, no discrete tree splits)
+    — the only meta architecture with positive OOF→LB transfer outside
+    of XGB (mlp_metastack v1: LB 0.98091, gap +0.00027 = 5x tighter
+    than LR-meta).
+  - **Macro-recall surrogate loss** (boundary-row gradient peaked at
+    p_true=0.5) — first training-time mechanism on this comp to produce
+    clean ADD-High direction at the blend level (recipe_macrorecall.py
+    27th-saturation closure: "G4 PASSES cleanly at every α").
+  Hypothesis: MLP iterates 30 epochs over the WHOLE dataset and the
+  boundary-row gradient stays informative throughout — escaping the
+  XGB-meta-macrorec satiation pattern (best_iter=3 across all folds).
+- Branch: `claude/explore-ml-signals-dOwPU`. Wall: ~7.5 min CPU.
+- Mechanism: PyTorch MLP `[197 → 128 → 64 → 32 → 3]` with GELU+Dropout
+  0.2, AdamW + cosine schedule, 30 epochs at lr=1e-3. Loss:
+  `L = 0.3·CE_balanced + 0.7·(-R_macro_surrogate)` where
+  `R_macro = (1/K)·sum_k (1/N_k)·sum_{i:y_i=k} p_ik`. lam_ce=0.3
+  reused from `recipe_macrorecall.py`'s SMOKE-tested sweet spot
+  (no grid selection — defends against R2 hybrid's 24-point
+  selection-bias trap).
+- **Critical design choice**: CURATED bank exactly matching LB-best
+  XGB-meta's 62 components (loaded from
+  `tier1b_xgb_metastack_results.json`'s `components` list). Defends
+  against the bank-extension trap documented in CLAUDE.md (cross-poll
+  v3 → LB −0.00034, N5b → LB regress, P3 perturbed → LB −0.00139).
+  Available pool was 174 components on disk; restricted to the exact
+  62 (60 loadable; `c0_greedy` and `xgb_spec_36` no longer on disk).
+- Per-fold argmax (5-fold seed=42):
+  ```
+  fold 1  0.97973
+  fold 2  0.98104
+  fold 3  0.98173
+  fold 4  0.98077
+  fold 5  0.98122
+  mean    0.98090
+  ```
+  Loss converged 0.057 → -0.664 (negative because surrogate is -R).
+- **Standalone (iso-cal'd)**: tuned bal_acc @ recipe-bias = **0.98091**
+  (errs 9891 vs LB-best 4-stack 9415, +5.1% magnitude). The +0.00007
+  above LB-best 4-stack 0.98084 is the FIRST simpler-than-XGB meta to
+  cross the LB-best 4-stack standalone OOF. The macrorec H-direction
+  signal IS preserved at the meta level (PCR_H 0.97768 vs anchor
+  0.97749 = +0.00019).
+- **4-gate analysis vs LB-best 4-stack** (anchor 0.98084, fixed
+  recipe bias):
+  ```
+  α       OOF      Δ        errs    PCR L     PCR M     PCR H
+  0.00   0.98084  +0.00000  9415   0.99553  0.96951   0.97749
+  0.10   0.98092  +0.00007  9407   0.99551  0.96957   0.97768
+  0.20   0.98088  +0.00004  9428   0.99544  0.96958   0.97763
+  0.30   0.98085  +0.00001  9443   0.99534  0.96968   0.97753
+  0.40   0.98089  +0.00005  9472   0.99525  0.96969   0.97772
+  0.50   0.98092  +0.00007  9509   0.99512  0.96972   0.97791
+  ```
+  Gates @ α=0.30:
+  - G1 (Δ ≥ +3e-4):     +0.00001  **FAIL**
+  - G2 (PCR ≥ -5e-4):   PASS (Low -1.9e-4 / Med +1.8e-4 / High +5e-5)
+  - G3 (α=0.4/α=0.3):   ratio 4.32  **FAIL** (super-linear scaling
+                         signature of OOF noise; need [1.0, 2.0])
+  - G4 (net_H>0 & ≥0.5): net_H=50 churn=110 ratio 0.45  **FAIL**
+                         (RESHUFFLE-pattern, just below 0.5 floor)
+  - **OVERALL: FAIL — do not LB-probe**
+- Linear-projection rule: at α=0.30 OOF Δ +0.00001, projected LB Δ
+  ≈ -0.00010 to +0.00005 (within ±0.0005 noise band, indistinguishable
+  from anchor LB 0.98094).
+- **Mechanism diagnosis** (the portable read-out):
+  1. The MLP smooth-optimization hypothesis was CORRECT — unlike
+     XGB-meta-macrorec's best_iter=3 satiation, MLP trains 30 epochs
+     of gradient flow with monotonically decreasing loss.
+  2. The macrorec H-direction signal IS preserved at meta level —
+     PCR_H lifts +0.00019 standalone vs anchor (small but real).
+  3. BUT at meta-stacker level on a saturated bank, this contribution
+     is RESHUFFLE-pattern (G4 0.45 < 0.5). Same failure mode as
+     macrorec base output stack: the macrorec H-direction is real
+     signal but cannot transfer to LB through bank-extension or
+     meta-substitution mechanisms.
+  4. G3 ratio 4.32 is the smoking gun: the α=0.40 lift (+0.00005)
+     is ~4x the α=0.30 lift (+0.00001) — when scaling should be
+     linear (~1.0-2.0). Super-linear means the signal at α=0.30 is
+     mostly fold-noise; α=0.40's slightly larger lift is a different
+     fold-noise pattern, not real signal accumulation.
+- **31st independent saturation confirmation at LB 0.98094.**
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **MLP-meta architecture preserves the macrorec base H-direction
+     signal at meta-stacker level (PCR_H +0.00019)** — but on a
+     saturated bank, this signal is RESHUFFLE-pattern at the
+     blend-decision level. The G4 floor (0.5) catches this; without
+     G4, the +0.00007 standalone OOF lift would have looked like a
+     deployable candidate.
+  2. **G3 ratio ≫ 2.0 is a noise signature.** When OOF Δ scales
+     super-linearly with α (here 4.32x at α=0.40 vs α=0.30 instead of
+     the expected 1.0-2.0), the small-α lift is fold-noise being
+     fitted, not new signal. Always add G3 as a complement to G1 —
+     a +0.0001 OOF lift WITHOUT G3 PASS is unreliable.
+  3. **The "MLP-meta + macro-recall loss" combination DOES escape the
+     XGB-meta-macrorec satiation trap** (best_iter=3 → 30 full-data
+     epochs). But escaping satiation only matters if there's
+     orthogonal signal to capture — on a saturated bank, the additional
+     gradient flow just refines the model toward the same operating
+     point as the existing XGB-meta. To use this mechanism
+     productively, the bank must NOT already be at the Pareto frontier.
+- LB delta: n/a. No probe warranted (4-gate FAIL). LB-best primary
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget unchanged.
+- **Final-selection lock unchanged** (2 days to deadline 2026-04-30):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+  2. **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` →
+     **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer)
+- Artefacts (whitelisted via `.gitignore` for cross-branch reuse):
+  - `scripts/mlp_meta_macrorec.py` (~250 lines, single-file PyTorch impl)
+  - `scripts/mlp_meta_minimal_sanity.py` (~140 lines, optional 2-component
+    sanity check; not run since 60-component result is decisive)
+  - `scripts/artifacts/oof_mlp_meta_macrorec_lam03_curated.npy` + test +
+    `_iso.npy` variants
+  - `scripts/artifacts/mlp_meta_macrorec_lam03_curated_results.json`
+  - `scripts/artifacts/blend_gate_4gate_mlp_meta_macrorec_lam03_curated_iso_results.json`
+
