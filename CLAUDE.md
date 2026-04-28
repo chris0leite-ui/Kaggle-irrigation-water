@@ -4476,6 +4476,131 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_rawashishsin{,_2600}_{standalone,blend_a030}.csv`
     (diagnostic — NOT for LB probe; all project regression vs LB-best 0.98094)
 
+### 2026-04-28 — v8 clean-pool meta-stacker bank-add: 34th saturation, BEST carryover ratio of any bank-extension (-0.49x)
+
+- Goal: salvage path for the rawashishsin replica (4-gate NULL on direct blend
+  but Jaccard 0.7536 + errs<anchor suggested meta-stacker bank-add as last
+  lever). Add both rawashishsin (v2: n_est=1500) AND rawashishsin_2600 (v3:
+  n_est=2600 faithful) to the xgb_metastack input bank, retrain v8.
+- Critical bug discovery during the run: `tier1b_xgb_metastack.EXCLUDE` only
+  blocks `xgb_metastack` (v1's name), but the artifact bank now contains 40+
+  prior meta-stacker outputs (v2-v7, varB/C, LR meta, MLP meta, RF meta,
+  macrorec metas, three-meta L3) plus 18 greedy/blend/distill/per-cell derived
+  outputs — all auto-loaded as INPUT features via `glob("oof_*.npy")` →
+  circular meta-of-metas leakage. This explains the 2026-04-25 v6_full LB
+  regression (commit 96b25dd: LB 0.98012, -0.00082): same trap.
+- v8 fix: explicit META_EXCLUDE_EXTRA (86 components) on top of v1's EXCLUDE.
+  Final pool: **131 base-only components** incl. both rawashishsin variants.
+  No prior meta-stacker outputs in input bank.
+- Sub-bug: META_OUT_SUFFIX="_v8" set in Python AFTER `import tier1b_xgb_metastack`
+  → suffix not applied → first run overwrote v1's `oof_xgb_metastack.npy`.
+  Restored v1 from git, re-ran with env set BEFORE python invocation.
+
+- 5-fold OOF (deterministic across re-runs):
+  ```
+  fold 1: 0.97522   fold 2: 0.97413   fold 3: 0.97647
+  fold 4: 0.97309   fold 5: 0.97530   mean argmax: 0.97484
+  standalone @recipe-bias OOF: 0.98105
+  iso-cal'd @recipe-bias:      0.98115
+  errs vs LB-best 4-stack:     8815 (-600 from 9415)
+  Jaccard(iso, LB-best 4-stack): 0.7911
+  ```
+
+- 4-gate filter vs LB-best 4-stack at fixed recipe bias:
+  ```
+                            ISO α=0.30                RAW α=0.30
+  G1 (Δ ≥ +3e-4):           +0.00041 PASS             +0.00028 FAIL
+  G2 (PCR ≥ -5e-4 each):    L+9e-5 M+0.00141          L+9e-5 M+0.00153
+                            H-0.00029 PASS            H-0.00076 FAIL
+  G3 (α=0.4/α=0.3 ratio):   1.095 PASS  ← LINEAR     0.957 FAIL
+                            (real signal, NOT
+                            OOF-overfit)
+  G4 (net_H>0 + ratio≥0.5): net=-100 churn=136        net=-111 churn=129
+                            ratio=0.74 FAIL on dir    FAIL
+  ```
+  **First candidate in 33 saturation confirmations to clean-pass G1+G2+G3
+  simultaneously.** G3 PASS distinguishes from v6 (0.905 sublinear) and prior
+  LR/v3/v4/v5 nulls.
+
+- Surprise diagnostic: clean-pool v8 (no meta inputs) ~= v6 (with meta inputs
+  in bank). Standalone @recipe-bias 0.98105 vs 0.98102. Removing 58 prior
+  meta/blend outputs DIDN'T drop OOF — so v6's lift was NOT primarily
+  circular leakage, despite the fix being structurally correct. **rawashishsin
+  in the bank IS contributing real OOF signal** (heavy-reg XGB at depth=4
+  with reg_alpha=5+reg_lambda=5 doesn't over-rely on highly-correlated
+  meta-of-meta features).
+
+- LB probe (user-approved, submitted 19:16:55 UTC):
+  `submission_v8_iso_a030.csv` (LB-3-stack × 0.7 + xgb_metastack_v8_iso ×
+  0.30, fixed recipe bias). 176/270000 test rows differ from LB-best primary.
+  → **LB public = 0.98074**
+
+- **Carryover analysis — BEST of any bank-extension to date:**
+  ```
+  variant                          OOF Δ      LB Δ       carryover
+  ─────────────────────────────────────────────────────────────────
+  LR meta v2 (C=0.1, none)         +0.00046   -0.00042   -0.91x
+  v6_full a350                     +0.00037   -0.00082   -2.22x
+  P3 perturbed v1                  +0.00071   -0.00139   -1.96x
+  N5b angle1_geo_mean_a030         +0.00017   -0.00039   -2.29x
+  combined v6 a030                 +0.00038   -0.00035   -0.92x
+  **v8 iso a030 (this entry)        +0.00041   -0.00020   -0.49x ← BEST**
+  ```
+  Carryover -0.49x means about HALF the OOF lift transferred negatively
+  (consistent with G4 RESHUFFLE-direction prediction: small REMOVE-High,
+  small LB regression).
+
+- **The 4-gate framework worked correctly.** G3 PASS forecast "real signal,
+  not amplified bank-extension overfit at -2x to -3x" → confirmed (-0.49x
+  vs prior -2x to -3x). G4 FAIL forecast "REMOVE-High direction → small
+  regression" → confirmed (-0.00020). Combined: real signal + wrong
+  direction = small regression, not large regression.
+
+- **34th independent saturation confirmation at LB 0.98094.** The structural
+  ceiling holds. Bank-extension via the cleanest possible meta + the most-
+  orthogonal bank component ever added (rawashishsin Jaccard 0.7536) still
+  produces RESHUFFLE-direction null at carryover -0.49x. The G4 direction
+  gate is the binding constraint; even when G1+G2+G3 all pass, REMOVE-High
+  predicts negative LB regardless.
+
+- LB best unchanged: **LB 0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget today (2026-04-28): 1/10 used (this probe). 9 remaining.
+- **Final-selection lock recommendation unchanged**:
+  PRIMARY = LB 0.98094 + HEDGE = `submission_3way_recipe025_s1035_s7040.csv`
+  LB 0.98005 (audit F1 swap).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **`META_EXCLUDE` lists must be maintained as the artifact bank grows.**
+     Auto-glob component discovery silently re-introduces prior meta outputs
+     as input features → circular meta-of-meta leakage. Build an automated
+     check: any *_meta*, *metastack*, *_l3*, *greedy*, *_blend*, *distill*,
+     *hybrid* artifact name pattern should require explicit allowlist before
+     entering a meta-stacker pool.
+  2. **`META_OUT_SUFFIX` (and similar env-driven module constants) must be
+     set BEFORE the module is imported.** `os.environ["X"] = "y"` after
+     `import M` does NOT propagate to module-level constants captured at
+     import time. Pattern: invoke as `META_OUT_SUFFIX=_v8 python script.py`
+     OR set env via subprocess before python. Setting it inside the script
+     after import is silent failure.
+  3. **G3 PASS + G4 FAIL = small regression, not large.** Documented carryover
+     for prior G4-FAIL bank-extensions: -0.92x to -2.90x. v8 with G3 PASS
+     hit -0.49x — the BEST. The 4-gate framework's G3 IS distinguishing
+     "real signal but wrong direction" (small regression at carryover ~-0.5x)
+     from "OOF-overfit + wrong direction" (large regression at -2x to -3x).
+     For future bank-extensions: G3 PASS (linear scaling) is the leading
+     indicator of small-magnitude LB outcome, but G4 PASS is required for
+     the LB to be NET POSITIVE.
+
+- Artefacts (whitelisted via inverted .gitignore for cross-branch reuse):
+  - `scripts/tier1b_v8_clean.py` (clean-pool wrapper, 86-component EXCLUDE)
+  - `scripts/build_v8_iso_a030_submission.py` (proper iso α=0.30 candidate builder)
+  - `scripts/artifacts/oof_xgb_metastack_v8.npy` + test (7.2 MB / 3.1 MB)
+  - `scripts/artifacts/blend_gate_4gate_xgb_metastack_v8{_iso,}_results.json`
+  - `scripts/artifacts/tier1b_xgb_metastack_v8_results.json`
+  - `submissions/submission_v8_iso_a030.csv` (LB-tested 0.98074)
+  - `submissions/submission_tier1b_metastack_meta_v8_a500.csv` (auto-emit
+    at α=0.50 vs LB-3stack — different blend arch from probed candidate)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
