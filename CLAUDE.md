@@ -4865,8 +4865,37 @@ architecture or feature view adds orthogonal bits at this base.
 - Artefacts:
   - `scripts/blend_primary_v3.py` (blend diagnostic)
   - `submissions/submission_blend_primary_v3_a{030,040,050}.csv`
-    (untested candidates; LB-projection 0.98116-0.98122 but with high
-    uncertainty due to NEG-OOF-gap calibration)
+
+- **Follow-up: blend primary × v3 LB result (37th saturation)**:
+  Submitted `submission_blend_primary_v3_a040.csv` (322 rows differ from
+  primary). **LB = 0.98049** (Δ vs new LB-best 0.98109 = -0.00060,
+  Δ vs prior primary 0.98094 = -0.00045). **Significant regression.**
+
+  Mechanism: bias-signature mismatch. Primary uses recipe bias
+  [+1.43, +1.47, +3.40]; v3 uses own tuned bias [-1.36, -1.19, 0].
+  Mixing them at α=0.40 introduces calibration ambiguity that flips
+  boundary rows wrong direction.
+
+  α=0.30 and α=0.50 candidates remain on disk but won't be probed —
+  same mechanism failure expected. Blend lever between rawashishsin
+  v3 and our recipe-family primary is closed.
+
+  **Two LB-validated candidates above 0.98094 cannot blend**
+  productively. They are structurally orthogonal (different model
+  families, different bias signatures) but bias-mismatch defeats
+  log-blend. Final-selection lock recommended at this point:
+  PRIMARY = rawashishsin_2600_standalone (LB 0.98109)
+  + PRIMARY-prior = tier1b_greedy_meta (LB 0.98094)
+
+  **Portable rule** (LEARNINGS.md candidate): "When two LB-validated
+  candidates have bias signatures that differ by >1 unit on any class,
+  log-blending them at fixed-bias-each fails because the per-row
+  argmax decision changes go against the test labels. Two orthogonal
+  pipelines can both be LB-positive standalone yet not blend
+  productively — reserve them as PARALLEL final-selection candidates
+  for private-LB variance protection rather than trying to compound."
+
+  **LB budget today: 3/10 used.** 7 remaining.
 
 ## Hypothesis board
 
