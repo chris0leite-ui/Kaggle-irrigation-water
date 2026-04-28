@@ -1637,3 +1637,103 @@ across all four families:
 - DROP_DETERMINISTIC (TD filter + post-hoc override, 2026-04-27 NULL)
 - L1 surgical post-blend override (this entry, NULL with LB regression)
 - L2 99.9-99.99% override (falsified by macro-recall break-even math)
+
+## Leakage & OOF-honesty (added 2026-04-28)
+
+### Stacking feature leak — the silent OOF inflator
+
+When meta-stacker uses OOF predictions from base models trained on the
+SAME fold split, the base's predictions on the meta's TRAINING rows
+contain micro-leaks from the meta's val fold:
+
+  Standard 5-fold OOF: row j ∈ fold_3 → base_pred[j] from model
+  trained on {1,2,4,5}.
+  Meta with val=fold_5: training row j ∈ fold_3 → uses base_pred[j].
+  But base_pred[j] was trained on a set INCLUDING fold_5!
+  → micro-info from fold_5 (meta's val) embedded in base_pred[j].
+
+**Per-row OOF is leak-free at row level. Per-feature stacking is NOT.**
+The leak per-feature is small but COMPOUNDS when meta uses many
+stacked components. Bounded approximation: stacking N components with
+correlated leaks inflates meta OOF by up to ~N × per-component leak.
+
+**Detection**: minimal-input meta test. Train meta with only 2
+components (anchor + candidate). If 2-component meta lands BELOW
+anchor at OOF, the N-component lift was cross-component memorization,
+not orthogonal signal. Cost: ~5-10 min CPU. Use BEFORE building
+expensive ensemble experiments.
+
+**Mitigation**:
+  1. Full nested CV (5 outer folds × 5 inner = 25 base trainings)
+     eliminates the leak completely. ~5x cost.
+  2. Minimal-component meta (anchor + 1-3 candidates max) bounds the
+     amplification.
+  3. EXTRA_EXCLUDE all prior meta outputs from the input bank — Stage 1
+     showed top-N gain features are often themselves prior metas
+     ("meta-of-metas circularity").
+
+**Quantified on this comp**: macrorec meta with 170 components → OOF
+0.98212. Same meta with 80 components → 0.98173. Same meta with
+2 components (anchor + macrorec_base) → 0.98051. The 0.0016 spread
+across pool sizes IS the stacking feature leak. Real macrorec
+contribution beyond LB-3-stack: ZERO at recipe-bias operating point.
+
+### Grid-search selection bias on OOF
+
+When a configuration knob (hybrid mix, α, threshold) is selected from
+N grid points by maximizing OOF, the OOF metric carries ~3-50 bp
+inflation depending on grid size and OOF noise.
+
+**Quantified**: 2026-04-27 R2 hybrid 0.75 was selected from a
+6×4=24-point grid (hybrid_ratio × α). Resulting OOF Δ +0.00056 vs
+LB-best 4-stack. LB regression -0.00046. Selection-bias inflation
+estimated 30-50 bp.
+
+**Rule**: theory-only hyperparameter selection. If a grid sweep is
+unavoidable, validate the chosen point on a HELD-OUT fold not used
+in selection. Or use the LB-validated configuration as the default
+(e.g., α=0.30 for the LB-validated 4-stack architecture, not a
+fresh-from-OOF α).
+
+**Detection**: dual-α stability (G3 in 4-gate framework). If
+α_chosen is selection-biased, the LB-OOF gap is systematically wider
+than at adjacent α values. Test by computing gap at α±0.05.
+
+### Stacking-inflation ceiling on saturated banks
+
+At OOF 0.9803+ on a saturated 60-component meta-stacker bank, every
+per-component lift below +0.0002 likely fails LB transfer. Three
+separate 3+ component blends in the comp all reached OOF 0.98030 and
+LB 0.97995-0.97997 — the structural ceiling is not in the search,
+it's in the bank.
+
+**Rule**: when greedy forward-selection stops adding components above
++0.0002 lift per step, treat further additions as cosmetic OOF noise.
+Stop and validate the current candidate.
+
+### Soft-distillation has student-memorizes-teacher-OOF problem
+
+When student capacity matches or exceeds teacher capacity AND student
+trains on teacher's OOF probabilities, the student MEMORIZES the
+teacher's per-row noise (which is real OOF noise, not mistakes). Per-
+row leak analysis is "clean" but the LB regression is real.
+
+**Quantified**: 2026-04-24 soft-distillation OOF 0.98096 → LB 0.97850
+(gap +0.00246). Capacity-reduced (depth=3 vs 4, rounds=1500 vs 3000)
+→ LB 0.97865 (gap +0.00201). 2× capacity reduction narrowed gap by
+0.0005 but didn't eliminate it.
+
+**Rule**: avoid soft-distillation from bagged-OOF teacher to
+equal-capacity student. If used, require 4×+ capacity reduction OR
+truly nested CV teacher (held-out per student fold).
+
+### OOF-honesty diagnostic via GroupKFold
+
+If StratifiedKFold OOF lift at α=0.30 is X, check that GroupKFold by
+each plausible leakage axis (Region, Crop_Type, Site_id, etc.) gives
+similar OOF. If GroupKFold drops OOF by ≥0.002, there's a leakage
+vector to investigate.
+
+**Confirmed honest in this comp**: Region split Δ −0.00029, Crop
+split Δ −0.00056 — both within −0.002 floor. Train/test feature
+distributions are statistically indistinguishable (AV AUC 0.502).
