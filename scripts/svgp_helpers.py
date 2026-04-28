@@ -39,9 +39,9 @@ from gpytorch.mlls import VariationalELBO
 from sklearn.cluster import MiniBatchKMeans
 
 NUM_CLASSES = 3
-DEFAULT_M = 300
-DEFAULT_BATCH = 4096
-DEFAULT_EPOCHS = 20
+DEFAULT_M = 150
+DEFAULT_BATCH = 8192
+DEFAULT_EPOCHS = 10
 DEFAULT_LR = 5e-3
 
 
@@ -154,20 +154,34 @@ def fit_svgp(X_tr: np.ndarray, y_tr: np.ndarray, *,
 @torch.no_grad()
 def predict_proba(model: SVGPModel, likelihood: SoftmaxLikelihood,
                   X: np.ndarray, batch_size: int = 8192,
-                  n_samples: int = 32) -> np.ndarray:
-    """Return (N, NUM_CLASSES) calibrated class probabilities.
+                  n_samples: int = 0) -> np.ndarray:
+    """Return (N, NUM_CLASSES) class probabilities.
 
-    SoftmaxLikelihood requires Monte-Carlo over the predictive latent;
-    n_samples=32 is enough at 3 classes for tight per-row probabilities.
+    Default (n_samples=0) uses deterministic softmax-of-mean — fast path
+    that skips MC integration over predictive uncertainty. Slight
+    overconfidence bias but downstream we use a fixed-bias decision rule
+    + iso-cal that smooths it back. n_samples > 0 enables MC sampling
+    (gpytorch SoftmaxLikelihood standard) at 4-10x cost on CPU.
     """
     model.eval(); likelihood.eval()
     X_t = torch.from_numpy(X).float()
     out_list = []
-    with gpytorch.settings.num_likelihood_samples(n_samples), \
-         gpytorch.settings.fast_pred_var():
-        for i in range(0, X.shape[0], batch_size):
-            xb = X_t[i:i + batch_size]
-            f = model(xb)
-            samples = likelihood(f).probs.mean(0)  # (B, NUM_CLASSES)
-            out_list.append(samples.cpu().numpy())
+    with gpytorch.settings.fast_pred_var():
+        if n_samples > 0:
+            from contextlib import nullcontext
+            cm = gpytorch.settings.num_likelihood_samples(n_samples)
+        else:
+            from contextlib import nullcontext
+            cm = nullcontext()
+        with cm:
+            for i in range(0, X.shape[0], batch_size):
+                xb = X_t[i:i + batch_size]
+                f = model(xb)
+                if n_samples > 0:
+                    probs = likelihood(f).probs.mean(0)
+                else:
+                    # Fast path: softmax of latent mean (no MC).
+                    mean = f.mean
+                    probs = torch.softmax(mean, dim=-1)
+                out_list.append(probs.cpu().numpy())
     return np.vstack(out_list).astype(np.float32)

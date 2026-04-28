@@ -75,6 +75,9 @@ TARGET = "Irrigation_Need"
 SMOKE = os.environ.get("SMOKE", "") == "1"
 RUN_FOLD = int(os.environ.get("RUN_FOLD", "0"))  # 0 = run all, else 1..N_FOLDS
 SUFFIX = os.environ.get("META_OUT_SUFFIX", "_svgp")
+# Optional per-fold PCA reduction: PCA_DIM=50 cuts D=201 -> 50, ~4x faster
+# kernel eval. Fit on tr_idx only (no leakage).
+PCA_DIM = int(os.environ.get("PCA_DIM", "0")) or None
 
 # LB-validated 62-component pool that produced LB 0.98094 (v1 meta).
 # Hardcoded so this experiment is "v1 architecture with SVGP meta" exactly.
@@ -199,6 +202,14 @@ def main():
         X_tr = (X_tr_full[tr_idx] - mu) / sd
         X_va = (X_tr_full[va_idx] - mu) / sd
         X_te = (X_te_full - mu) / sd
+        if PCA_DIM:
+            from sklearn.decomposition import PCA
+            pca = PCA(n_components=PCA_DIM, random_state=SEED)
+            X_tr = pca.fit_transform(X_tr).astype(np.float32)
+            X_va = pca.transform(X_va).astype(np.float32)
+            X_te = pca.transform(X_te).astype(np.float32)
+            log(f"  PCA: D {X_tr_full.shape[1]} -> {PCA_DIM}, "
+                f"explained_variance_ratio_sum={pca.explained_variance_ratio_.sum():.4f}")
 
         model, lik = fit_svgp(X_tr, y[tr_idx], M=M, epochs=epochs,
                               batch_size=batch, lr=DEFAULT_LR, seed=SEED + fold,
