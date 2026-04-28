@@ -57,10 +57,17 @@ META_OUT_SUFFIX = os.environ.get("META_OUT_SUFFIX", "")
 # transfer through uniform-weight meta-stacker. Audit kernels 5+6 use
 # class-weighted LR meta; this is the XGB analog.
 CLASS_WEIGHTED = os.environ.get("CLASS_WEIGHTED", "") == "1"
-# XGB_SEED — override XGB's internal seed only (NOT StratifiedKFold seed,
-# which must stay SEED=42 for OOF alignment with all other components).
-# Use for variance-reduction seed-bagging the meta itself.
+# XGB_SEED — override XGB's internal seed only.
 XGB_SEED = int(os.environ.get("XGB_SEED", str(SEED)))
+# FOLD_SEED — override the meta CV split seed (default 42 = aligned with
+# every saved OOF for standard stacking). Use FOLD_SEED=7 / 123 for
+# cross-fold-disjoint stacking experiments: meta sees a DIFFERENT fold
+# partition than the bases (which were all trained at seed=42), reducing
+# the cross-stack leak documented in CLAUDE.md.
+FOLD_SEED = int(os.environ.get("FOLD_SEED", str(SEED)))
+# CURATED=1 → use exact 62-component bank from LB-best XGB-meta. Defends
+# against bank-extension trap (cross-poll v3, N5b, etc.).
+CURATED = os.environ.get("CURATED", "") == "1"
 
 EXCLUDE = {
     "soft_distill",              # LB regressor
@@ -181,6 +188,14 @@ def main():
 
     log("loading pool")
     pool = load_pool(y)
+    if CURATED:
+        # Use the EXACT 62-component bank from LB-best XGB-meta.
+        meta_results = json.loads((ART / "tier1b_xgb_metastack_results.json").read_text())
+        target_components = set(meta_results["components"])
+        before = len(pool)
+        pool = {n: v for n, v in pool.items() if n in target_components}
+        missing = target_components - set(pool.keys())
+        log(f"  CURATED: filtered pool {before} → {len(pool)} (missing={len(missing)})")
     log(f"  {len(pool)} 3-class components loaded")
     for name in sorted(pool.keys()):
         print(f"    {name}")
@@ -222,12 +237,13 @@ def main():
     )
     max_rounds = int(os.environ.get("META_ROUNDS", "3000"))
     es_rounds = int(os.environ.get("META_ES", "200"))
+    log(f"  FOLD_SEED={FOLD_SEED}  XGB_SEED={XGB_SEED}  CURATED={CURATED}")
     log(f"  HPs: depth={xgb_params['max_depth']} lr={xgb_params['learning_rate']} "
         f"alpha={xgb_params['reg_alpha']} lambda={xgb_params['reg_lambda']} "
         f"subsample={xgb_params['subsample']} colsample={xgb_params['colsample_bytree']} "
         f"rounds={max_rounds} es={es_rounds}")
 
-    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=FOLD_SEED)
     oof_meta = np.zeros((len(train), 3), dtype=np.float32)
     test_meta_folds = []
     best_iters = []

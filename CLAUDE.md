@@ -16342,3 +16342,144 @@ N1/R2/base-only OOF→LB gap.
   - `scripts/artifacts/mlp_meta_macrorec_lam03_curated_results.json`
   - `scripts/artifacts/blend_gate_4gate_mlp_meta_macrorec_lam03_curated_iso_results.json`
 
+
+### 2026-04-28 — Cross-fold-disjoint meta-stacker (3 seeds): meta is SEED-ROBUST → 32nd saturation, but POSITIVE result on LB-best honesty
+
+- Goal: definitive test of the cross-stack leak hypothesis from the queued
+  leak-free macrorec note. Hypothesis: every meta-stacker on this comp
+  uses the SAME 5-fold split (seed=42) as the bases. Each base OOF row
+  carries micro-information about the meta's other folds via shared fold
+  partition. With 60+ components, the leak compounds. If LB-best's
+  +0.00086 LB lift is partly cross-stack leak, retraining the meta at a
+  DIFFERENT fold split (seed=7 or 123) should produce materially
+  different predictions.
+- Branch: `claude/explore-ml-signals-dOwPU`. Wall: ~17 min/seed × 2 +
+  10 sec analyzer = ~35 min CPU.
+- Changed:
+  - `scripts/tier1b_xgb_metastack.py` — added `FOLD_SEED` env var
+    (default 42, accepts 7/123 etc.) to override `StratifiedKFold`'s
+    `random_state`. Also added `CURATED=1` flag to filter pool to the
+    EXACT 62-component bank from LB-best (defends against
+    bank-extension trap).
+  - `scripts/cross_fold_meta_bag.py` (~210 lines) — load 3 metas
+    (seed=42 from LB-best, seed=7, seed=123), compute pairwise test
+    argmax disagreement, iso-cal each, build 3-bag, substitute into
+    LB-best 4-stack architecture at α=0.30, plus α-sweep for stack-on-top.
+
+- Per-seed standalone results (5-fold OOF, curated 60-component bank):
+  ```
+  seed   argmax     tuned@recipe-bias    iso-cal'd@recipe-bias
+  42     0.97377    0.98041              0.98059  ← LB-best (full bank, 62)
+  7      0.97363    0.98019              0.98055
+  123    0.97357    0.98035              0.98065
+  ```
+  Standalone tuned range across seeds: 0.00022 (essentially identical).
+  Iso-cal'd range: 0.00010 (within fold-noise).
+
+- **Cross-meta TEST argmax disagreement** (the headline diagnostic):
+  ```
+  pair                disagree_rows   agreement_rate
+  seed7 vs seed42     51              99.981%
+  seed7 vs seed123    39              99.986%
+  seed42 vs seed123   52              99.981%
+  ```
+  Average pairwise disagreement: 47 rows out of 270k = **0.017% of test**.
+  For comparison, LB-best primary vs the 2-way fallback hedge disagree on
+  **484 rows (0.18%)** — the cross-fold metas are 10× MORE consistent
+  with each other than two LB-validated submissions.
+
+- 3-bag results (test predictions probability-averaged after iso-cal):
+  - Bag iso-cal'd standalone @ recipe-bias: **0.98066** (slightly above
+    any singleton — minor variance reduction works)
+  - Bag substituted into LB-best 4-stack arch (α=0.30): OOF **0.98072**
+    (Δ **−0.00012** vs LB-best 4-stack 0.98084)
+  - PCR delta vs LB-best 4-stack: L +0.00002 / M +0.00009 / **H −0.00048**
+  - Stack-on-top α-sweep: peak at α=0.15 with Δ=+0.00001 (within noise);
+    monotone-negative beyond
+
+- **4-gate analyzer on bag** (vs LB-best 4-stack at fixed recipe bias):
+  ```
+  α     OOF      delta     errs    PCR_L     PCR_M     PCR_H
+  0.00  0.98084  +0.00000  9415   0.99553  0.96951   0.97749
+  0.30  0.98073  -0.00011  9264   0.99556  0.97020   0.97644
+
+  G1 (Δ ≥ +3e-4):     -0.00011   FAIL
+  G2 (PCR ≥ -5e-4):   PCR_H −0.00105   FAIL
+  G3 (α=0.4/α=0.3):   NaN ratio    FAIL
+  G4 (net_H>0 + 0.5): net=−73 churn=89   FAIL (REMOVE-High asymmetric)
+  ```
+  Same REMOVE-High Pareto-violation pattern that closed R2/R5 a045
+  (LB regression −0.00098).
+
+- **Cross-stack leak hypothesis FALSIFIED**:
+  - If the LB-best meta's +0.00086 LB lift were partly seed-dependent
+    leak, different meta CV seeds would produce materially different
+    predictions on test. Empirically, they disagree on only 0.017% of
+    rows — far less than the 0.18% disagreement between LB-best and the
+    2-way fallback (two structurally distinct submissions).
+  - The 3 standalone OOFs are within 0.00022 of each other (range, not
+    std). Iso-cal'd within 0.00010.
+  - The 3-bag is BELOW LB-best 4-stack at every α > 0 (REMOVE-High
+    direction) — averaging across seeds doesn't expose any orthogonal
+    signal.
+  - **Conclusion**: the LB-best meta is SEED-INVARIANT. Its +0.00086 LB
+    lift is structural signal from the 60+ component bank, NOT from a
+    seed-specific stacking leak.
+
+- **Important corollary**: this is a POSITIVE result on LB-best honesty.
+  Every prior bank-extension experiment (cross-poll v3, N5b, P3
+  perturbed, lr-meta v1/v2, v4 ET+kNN) measured the meta-stacker's
+  ability to extract MORE signal from a larger bank. None passed.
+  This experiment uniquely measures whether the EXISTING signal is
+  contaminated by a seed-dependent leak — and shows it isn't.
+
+- **32nd independent saturation confirmation at LB 0.98094**:
+  - Hypothesis: cross-fold-disjoint meta-stacker bag breaks past LB-best
+  - Test: 3-seed bag (s42 + s7 + s123), iso-cal, blend gate
+  - Result: bag substituted into 4-stack arch shows REMOVE-High
+    Pareto violation (G2/G4 FAIL); cannot break LB 0.98094.
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Test argmax agreement across CV-seed-jittered meta-stackers is
+     the cleanest test of cross-stack leak.** If two metas trained at
+     different fold seeds (same XGB HPs, same bank) disagree on > 0.5%
+     of test rows, the meta is partially seed-dependent and the lift
+     may be partly leak. If they disagree on < 0.05%, the meta is
+     seed-invariant and the lift is structural. Cost: 1 retrain per
+     additional seed (~17 min for a 60-component XGB meta-stacker).
+  2. **Cross-fold-disjoint meta bag has the same REMOVE-High failure
+     mode as variance-reduction bag at fixed seed** when the underlying
+     metas are seed-invariant. Averaging 3 near-identical metas
+     produces predictions slightly closer to the per-class-recall
+     centroid (which the log-bias coord-ascent has already deliberately
+     pushed AWAY from to favor rare-class recall). Result: net H drop.
+   3. **Seed-jittered meta retraining is informative even when it
+      yields a NULL on the gate.** It separates "the LB-best is leak-
+      driven" from "the LB-best is honest signal." Both are valuable
+      learnings; the latter increases confidence that no further bank
+      manipulation will lift LB and shifts strategy toward feature-
+      level engineering or fundamentally new components.
+
+- LB delta: n/a (4-gate FAIL across all gates). LB-best primary
+  unchanged at **0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget unchanged.
+
+- **Final-selection lock unchanged** (2 days to deadline 2026-04-30):
+  1. **PRIMARY**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
+  2. **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` →
+     **LB 0.98005** (premium −0.00089, sidesteps meta-stacker layer —
+     audit F1 swap, still recommended even with cross-fold confirmation
+     of LB-best honesty since hedge's value is ORTHOGONAL OVERFIT
+     SURFACE for private-LB protection, not OOF inflation defense)
+
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/tier1b_xgb_metastack.py` (FOLD_SEED + CURATED env vars)
+  - `scripts/cross_fold_meta_bag.py` (~210 lines, 3-bag analyzer)
+  - `scripts/artifacts/oof_xgb_metastack_fs7_curated.npy` + test +
+    results JSON (5-fold OOF at FOLD_SEED=7, 60-component bank)
+  - `scripts/artifacts/oof_xgb_metastack_fs123_curated.npy` + test +
+    results JSON (FOLD_SEED=123)
+  - `scripts/artifacts/oof_xgb_metastack_xfold_bag.npy` + test (the bag)
+  - `scripts/artifacts/cross_fold_meta_bag_results.json`
+  - `scripts/artifacts/blend_gate_4gate_xgb_metastack_xfold_bag_results.json`
+

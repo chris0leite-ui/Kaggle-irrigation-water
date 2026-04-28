@@ -1,0 +1,148 @@
+{
+  "components": [
+    "bagged_greedy_nonrule",
+    "c0_greedy",
+    "catboost_optuna",
+    "catboost_recipe_gpu",
+    "em_uniform",
+    "extratrees_dist_digits",
+    "extratrees_dist_digits_v2",
+    "greedy_blend",
+    "greedy_full_bank_6way",
+    "hybrid_lgbmxgb_blend",
+    "lb_best_fs123",
+    "lb_best_fs7",
+    "lgbm_competitor",
+    "lgbm_dist_digits",
+    "lgbm_dist_digits_ote",
+    "lgbm_te_orig",
+    "ovo_boundary_blend",
+    "ovo_nonrule_blend",
+    "p3_embed_propagate",
+    "realmlp",
+    "recipe_171pair",
+    "recipe_allpairs",
+    "recipe_catboost",
+    "recipe_focal_g2h3",
+    "recipe_full_te",
+    "recipe_full_te_a01",
+    "recipe_full_te_a10",
+    "recipe_full_te_catboost",
+    "recipe_full_te_cldrop",
+    "recipe_full_te_dae",
+    "recipe_full_te_fexboth",
+    "recipe_full_te_gby",
+    "recipe_full_te_lgbm",
+    "recipe_full_te_seed123",
+    "recipe_full_te_seed7",
+    "recipe_lgbm",
+    "recipe_no_combos",
+    "recipe_no_digits",
+    "recipe_no_orig",
+    "recipe_no_ote",
+    "recipe_pseudolabel",
+    "recipe_pseudolabel_seed123labeler",
+    "recipe_pseudolabel_seed7labeler",
+    "recipe_pseudolabel_tau092",
+    "tabpfn",
+    "tta_recipe_baseline",
+    "tta_recipe_s001",
+    "tta_recipe_s005",
+    "tta_recipe_s010",
+    "tta_recipe_s020",
+    "tta_recipe_s030",
+    "xgb_corn",
+    "xgb_dist_digits",
+    "xgb_dist_digits_ote",
+    "xgb_dist_digits_ote_digits",
+    "xgb_dist_digits_ote_digits_light",
+    "xgb_dist_digits_ote_digits_pairs",
+    "xgb_dist_digits_ote_light",
+    "xgb_dist_routed_v3",
+    "xgb_nonrule",
+    "xgb_vanilla_dist"
+  ],
+  "n_components": 61,
+  "feature_dim": 200,
+  "best_iters": [
+    346,
+    326,
+    433,
+    289,
+    451
+  ],
+  "meta_standalone_argmax": 0.9735709111610787,
+  "meta_standalone_tuned": 0.980348433973962,
+  "lb_best_oof": 0.9806090685483349,
+  "blend_sweep": [
+    {
+      "alpha": 0.0,
+      "oof": 0.9806090685483349,
+      "delta": 0.0
+    },
+    {
+      "alpha": 0.025,
+      "oof": 0.9805829131899678,
+      "delta": -2.6155358367030423e-05
+    },
+    {
+      "alpha": 0.05,
+      "oof": 0.9806006307420655,
+      "delta": -8.437806269356862e-06
+    },
+    {
+      "alpha": 0.075,
+      "oof": 0.9805916145426329,
+      "delta": -1.7454005701966757e-05
+    },
+    {
+      "alpha": 0.1,
+      "oof": 0.9806270496468281,
+      "delta": 1.7981098493269343e-05
+    },
+    {
+      "alpha": 0.125,
+      "oof": 0.9806507522103302,
+      "delta": 4.168366199530649e-05
+    },
+    {
+      "alpha": 0.15,
+      "oof": 0.9806295594347545,
+      "delta": 2.0490886419644028e-05
+    },
+    {
+      "alpha": 0.2,
+      "oof": 0.980621085530674,
+      "delta": 1.2016982339102533e-05
+    },
+    {
+      "alpha": 0.25,
+      "oof": 0.9806143286049123,
+      "delta": 5.26005657741635e-06
+    },
+    {
+      "alpha": 0.3,
+      "oof": 0.9806029087405658,
+      "delta": -6.159807769079428e-06
+    },
+    {
+      "alpha": 0.4,
+      "oof": 0.9805343086675656,
+      "delta": -7.475988076921514e-05
+    },
+    {
+      "alpha": 0.5,
+      "oof": 0.98048239068591,
+      "delta": -0.0001266778624248177
+    }
+  ],
+  "best": {
+    "alpha": 0.125,
+    "oof": 0.9806507522103302,
+    "delta": 4.168366199530649e-05
+  },
+  "err_lb": 9572,
+  "err_meta": 8984,
+  "jaccard_vs_lb": 0.8720742534301856,
+  "elapsed_sec": 893.6752238273621
+}
