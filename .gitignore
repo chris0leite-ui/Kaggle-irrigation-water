@@ -82,6 +82,11 @@ kaggle_pulls/
 # Regenerable + auto-cleaned when each outer fold consolidates.
 scripts/artifacts/_lf_inner_*.npy
 
+# B2 meta-stacker per-fold checkpoints (resumable from rehydrate kills).
+# Auto-cleaned after final oof_xgb_metastack_perfoldiso_inputs.npy lands.
+scripts/artifacts/_b2_meta_fold*.npy
+scripts/artifacts/_b2_meta_fold*.json
+
 # Kaggle kernel build outputs (assembled dist/ files via build.py).
 # Regenerated locally before each push; not source of truth.
 kaggle_kernel/kernel_*/dist/
