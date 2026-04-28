@@ -16186,6 +16186,97 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — v1 inflation decomposed: GroupKFold + clean-pool diagnostics show v1's OOF lift is structurally fold-alignment + bank-extension
+
+- Goal: after 31 saturation confirmations + B2 family closure, isolate
+  WHY v1 PRIMARY's OOF 0.98084 → LB 0.98094 has the anomalous negative
+  gap. Two diagnostic experiments to decompose v1's OOF lift over the
+  4-stack base 0.98061 (= +0.00023 OOF):
+  1. **GroupKFold meta** (`scripts/v1_groupkfold_meta.py`): retrain v1's
+     meta-stacker with GroupKFold(groups=dgp_score) instead of
+     StratifiedKFold(y). Breaks SKF fold-alignment with base components
+     while keeping the same 62-component pool. Tests: how much of v1's
+     OOF lift is fold-alignment leak?
+  2. **Clean-pool meta** (`scripts/v1_clean_pool_meta.py`): retrain v1's
+     meta-stacker with same StratifiedKFold(seed=42), same XGB HPs, but
+     drop 26 suspected-overfit components (recipe variants, TTA, no_X
+     feature-removal, multi-seed pseudo derivatives, tau092, OTE-
+     strength variants). Tests: how much of v1's OOF lift is
+     bank-extension overfit?
+
+- **Results table** (4-stack base 0.98061, primary architecture
+  +meta_iso @ α=0.30):
+  ```
+  variant                meta argmax  @recipe   full-iso  primary OOF  Δ vs PRIMARY
+  v1 (SKF, 62 components)  0.97365   0.98041   0.98059   0.98084 ← LB-best (LB 0.98094)
+  clean pool (SKF, 35)     0.97358   0.98003   0.98044   0.98066   -0.00018
+  GroupKFold (62)          0.97102   0.97835   0.97980   0.98047   -0.00037
+  ```
+
+- **Decomposition of v1's +0.00023 OOF lift over 4-stack base**:
+  - ~37 bp from SKF-fold-alignment leak (GroupKFold removes this →
+    primary drops to 0.98047, BELOW the 4-stack base of 0.98061!)
+  - ~18 bp from bank-extension overfit on 26 derivative components
+    (clean pool removes this → 0.98066)
+  - True leak-free OOF capability is closer to **~0.98030–0.98050**
+  - **LB 0.98094 represents ~+0.00045 of GENUINE generalization over
+    the leak-honest estimate**
+
+- **Critical interpretation**: v1's standalone OOF lift is largely
+  inflation, but the resulting predictions DO transfer to LB (gap
+  −0.00010, "anomalous LB > OOF"). The two inflation mechanisms
+  (fold leak + bank extension) happen to NET OUT POSITIVELY on the
+  test distribution. Removing either one drops both OOF AND
+  predicted LB.
+
+- **Implications for further attempts**:
+  1. Replacing v1's structure with anything more "honest" (per-fold
+     iso, GroupKFold, smaller pool) loses LB
+  2. v1 is structurally entangled with its inflation mechanisms in a
+     way that makes them load-bearing for LB transfer
+  3. Adding NEW components to v1 only helps if they survive the same
+     fold-alignment leak structure (which is what makes v1's bank
+     work on this problem)
+
+- **Neither diagnostic candidate is LB-probe-worthy** (both predicted
+  to regress; OOF 18-37 bp below PRIMARY).
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **OOF lift decomposition via GroupKFold + clean-pool diagnostics
+     reveals what fraction of a meta-stacker's lift is structural vs
+     leak.** GroupKFold breaks SKF-alignment leak; clean-pool removes
+     bank-extension overfit. The DIFFERENCE in primary OOF tells you
+     how much each mechanism contributes. On this problem, ~37 bp from
+     fold alignment + ~18 bp from bank extension = ~55 bp of v1's
+     standalone OOF lift is inflation; only the residual is leak-free
+     signal.
+  2. **A meta-stacker can have negative OOF→LB gap WITHOUT being
+     leak-free if its inflation structure happens to align with the
+     test distribution.** v1's two inflation sources (fold leak + bank
+     overfit) net to LB-positive transfer despite being individually
+     leak-shaped. This is structural luck, not robust generalization.
+     Attempts to "clean up" the structure WILL drop LB even when they
+     improve calibration honesty.
+  3. **GroupKFold on synthetic-tabular problems with target-correlated
+     groups (here dgp_score is highly y-correlated) produces folds
+     with wildly imbalanced y distributions.** Per-fold val_argmax can
+     drop to 0.50–0.93 range (from typical SKF 0.974 range). The
+     resulting OOF is harder to interpret without the SKF baseline
+     because each fold's metric reflects a different y prior. Don't
+     compare GroupKFold OOF directly to SKF OOF; compare primary-level
+     OOFs after the meta is integrated.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today,
+  7 remaining.
+
+- Artifacts:
+  - `scripts/v1_groupkfold_meta.py` (#1, GroupKFold(dgp_score))
+  - `scripts/v1_clean_pool_meta.py` (#2, drop 26 suspected-overfit)
+  - `scripts/artifacts/oof_xgb_metastack_v1_groupkfold.npy` + test
+  - `scripts/artifacts/oof_xgb_metastack_v1_cleanpool.npy` + test
+  - `scripts/artifacts/v1_groupkfold_meta_results.json`
+  - `scripts/artifacts/v1_cleanpool_meta_results.json`
+
 ### 2026-04-28 — C1 V3 mask-blend τ=0.85 α=0.40: LB 0.98021 (Δ −0.00073, gap +0.00099 — widest yet)
 
 - Goal: defeat the log-blend class-coupling failure (B3 #3 finding —
