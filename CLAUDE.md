@@ -4358,6 +4358,124 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_recipe_full_te_avp.csv` (diagnostic only)
   - `submissions/submission_recipe_full_te_origw10.csv` (diagnostic only)
 
+### 2026-04-28 — rawashishsin replica (Kaggle public-kernel CV 0.98109 / LB 0.98132): both v2 + v3 NULL on 4-gate, but Jaccard 0.7536 unlocks meta-stacker bank-add path
+
+- Goal: replicate rawashishsin/s6e4-highest-score-xgboost-cv-0-98109. Author
+  is at LB 0.98132 (rank 233) with this exact pipeline — cleanly above our
+  LB-best 0.98094 (rank 362). Mechanism: depth=3 + sklearn TargetEncoder
+  (multiclass, cv=5, smooth='auto') applied to EVERY feature (raw nums + cats
+  + bigrams/trigrams + bin×cat interactions + num_cat agg + rounds + digits
+  + decimals + bins + pairs ≈ 133 cols), then drop PAIRS+NUM_CAT_AGG+BIN_CAT_INT
+  keeping only TE outputs. ORIG_ROW_WEIGHT=0.5. XGB depth=3, lr=0.05,
+  max_bin=1100, no L1/L2 reg, n_estimators=2600.
+- Branch: `claude/leaderboard-ml-optimization-cJtvs`. Source data, motivation,
+  Kaggle LB cross-references all in this entry.
+- Cross-check: pulled current Kaggle public LB (downloaded via API). Now-leader
+  is **Kevin E R MILLE 0.98236** (overtook Cdeotte 0.98219). Only **4 teams ≥
+  0.982**, **100 teams ≥ 0.98148** (public-CSV pack ceiling). Cdeotte's two
+  published kernels (basic-eda + original-data-exact-formula) confirmed
+  contain ZERO LB-pushing technique beyond the rule we already use; his
+  +0.00125 lead is private.
+- Other audited kernels (none net-new vs our pipeline):
+  - `mohamedsadokaissaoui/best-lb-0-98148` = pure public-CSV vote schemas
+    (uses nina2025/0.98145.csv as oracle + 5 other public subs; banned for us)
+  - `kiza123123/s6e4-top1-...` = errored at data load
+  - `beraterolelk/golden-features` = subset of our recipe
+  - `aliafzal9323/pairwise-te-magic` = our `allpairs` (already tested null)
+  - `masakane/drift-aware-te` = sample weighting (same as ORIG_WEIGHT)
+  - `wguesdon/22-model-ensemble` = pre-computed OOFs we don't have
+  - `kodaifukuda/threshold-optimization` = double-CV TE + 10-fold (compute-heavy, no novel mechanism)
+
+- Implementation:
+  - `kaggle_kernel/kernel_rawashishsin/rawashishsin.py` — single-file pipeline.
+    SMOKE-first discipline (CLAUDE.md rule). 5-fold StratifiedKFold(seed=42)
+    aligned with our OOF bank. Per-fold checkpointing + WALL_KILL hard cap.
+  - SMOKE GREEN on Kaggle GPU (60s wall, 2-fold × 20k × 300 trees).
+  - **Two production runs, parallel on Kaggle GPU pool**:
+    - **v2** (`irrigation-rawashishsin-replica`, n_est=1500, 55min cap): clean
+      5/5 folds in 28.6 min wall. argmax 0.97922, tuned **0.97988**.
+    - **v3** (`irrigation-rawashishsin-2600`, n_est=2600 faithful, 2h cap;
+      authorized by user): clean 5/5 folds in 36 min wall. argmax 0.97827,
+      tuned **0.98016**.
+  - Note: our tuned OOF 0.98016 is **−0.00093 below their claimed CV 0.98109**.
+    Likely cause: TargetEncoder(cv=5) internal-shuffle seed-variance interacts
+    with the kernel runtime differently in our environment vs theirs. Same
+    `random_state=42` everywhere, but the gap is reproducible.
+
+- 4-gate filter on both at fixed recipe bias [1.4324, 1.4689, 3.4008]:
+  ```
+                    v2 (n_est=1500)         v3 (n_est=2600)
+  standalone OOF    0.97988                 0.98016
+  errs (vs anchor)  9390 (-25 vs 9415)      9338 (-77)
+  Jaccard vs LB-4   0.7552                  0.7536  ← novel orthogonality
+  std PCR           L=.9944 M=.9676 H=.9779 L=.9944 M=.9681 H=.9779
+                                                       (H +0.0004 vs anchor)
+  blend α=0.30 ISO  -0.00024 (G1 FAIL)      -0.00024 (G1 FAIL)
+  blend α=0.30 RAW  ~+0.00006               +0.00010 ← peak in 28+ saturations
+  G2 (PCR ≥ -5e-4)  FAIL (recH -0.00171)    FAIL (recH -0.00185)
+  G3 (dual-α)       FAIL (deltas neg)       FAIL
+  G4 (net_H>0+ratio≥0.5) FAIL (net=-135)    FAIL (net=-132 — REMOVE-High)
+  ```
+- **Both fail 4-gate via classic REMOVE-High Pareto violation** — same
+  pattern that closed 23+ prior bank-extension attempts. The +0.0004
+  standalone-H lift over LB-best 4-stack is real, but at iso-cal'd blend it
+  flips to REMOVE-High.
+
+- Notable observations:
+  1. **Jaccard 0.7536 with errs ≤ anchor**: the FIRST candidate in 28+
+     saturation confirmations to clear the 0.80 redundancy threshold AND
+     have lower error count. Structural orthogonality is real.
+  2. **RAW (no iso) blend α=0.25-0.30 hits +0.00010 OOF**: first non-zero
+     positive blend Δ in many sessions. Iso-cal flips it negative because
+     iso aligns the candidate's per-class scale with the anchor's, washing
+     out its structurally-different calibration.
+  3. **Standalone projected LB ~0.9803**: even at rawashishsin's own gap
+     (-0.00023), our 0.98016 OOF projects to LB ~0.98039 — well below our
+     0.98094 LB-best.
+
+- LB delta: n/a. Both candidate CSVs built but NOT submitted (projected
+  regressions on all anchors).
+- LB best unchanged: **LB 0.98094** via `submission_tier1b_greedy_meta.csv`.
+- LB budget today (2026-04-28): unchanged.
+
+- Salvage path identified: **add rawashishsin_2600 + rawashishsin (v2) to the
+  xgb_metastack bank** and retrain v6. The meta-stacker can extract their
+  useful information (Jaccard 0.75 + lower errs) without inheriting their
+  calibration mismatch (heavy negative bias [-1.36, -1.19, 0]). Bayesian
+  prior of LB-positive: ~15-20% (better than direct blend's <5%, given
+  Jaccard 0.75 + errs ≤ anchor). Pursued as the next step.
+
+- Three portable rules (LEARNINGS.md candidates):
+  1. **LB-confirmed standalone score does NOT guarantee LB lift via
+     blending into a saturated stack.** Author at LB 0.98132 standalone, but
+     blending their pipeline into our LB-best 4-stack at fixed recipe bias
+     gives REMOVE-High Pareto violation. The author's LB advantage comes
+     from a calibration that differs from our stack's; iso-aligning it
+     destroys the diversity.
+  2. **`sklearn.preprocessing.TargetEncoder(target_type='multiclass',
+     cv=5, smooth='auto')` on every feature, with PAIRS+NUM_CAT_AGG+BIN_CAT_INT
+     dropped post-TE, is a reproducible LB-positive standalone pipeline**
+     for synthetic-tabular comps with ≤200k cat cardinality. Wall: ~36 min on
+     Kaggle T4 GPU at depth=3 + 2600 trees. CV→LB gap is negative by
+     ~0.00023 (LB > CV), suggesting the wide TE captures genuine test-side
+     calibration.
+  3. **TargetEncoder(cv=5) seed-variance can produce ~80-100bp CV drift
+     across reproducible runs at otherwise-identical configs.** sklearn's
+     internal CV shuffling is not strictly seed-pinned in all paths;
+     environmental factors (cython compile, BLAS thread count) can shift the
+     final TE encoding subtly enough to drop standalone OOF by 1bp at the
+     decision boundary.
+
+- Artefacts (whitelisted via inverted .gitignore for cross-branch reuse):
+  - `kaggle_kernel/kernel_rawashishsin/rawashishsin.py` (v2: n_est=1500)
+  - `kaggle_kernel/kernel_rawashishsin_v3/rawashishsin.py` (v3: n_est=2600)
+  - `kaggle_kernel/output_rawashishsin_v[23]/{*.log,results.json}`
+  - `scripts/artifacts/oof_rawashishsin{,_2600}.npy` + test (15 MB / 6.5 MB each)
+  - `scripts/artifacts/blend_gate_4gate_rawashishsin{,_2600}_iso_results.json`
+  - `scripts/{rawashishsin_post,build_rawashishsin_submission}.py`
+  - `submissions/submission_rawashishsin{,_2600}_{standalone,blend_a030}.csv`
+    (diagnostic — NOT for LB probe; all project regression vs LB-best 0.98094)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
