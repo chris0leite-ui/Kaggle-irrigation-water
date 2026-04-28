@@ -1109,3 +1109,6 @@ kaggle_kernel/output_*/va_idx_*.npy
 /kaggle_kernel/output_a2_smoke/oof_*
 /kaggle_kernel/output_a2_smoke/test_*
 /kaggle_kernel/output_a2_smoke/va_idx_*
+/kaggle_kernel/output_a2_prod/oof_*
+/kaggle_kernel/output_a2_prod/test_*
+/kaggle_kernel/output_a2_prod/va_idx_*
