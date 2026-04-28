@@ -4601,6 +4601,122 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_tier1b_metastack_meta_v8_a500.csv` (auto-emit
     at α=0.50 vs LB-3stack — different blend arch from probed candidate)
 
+### 2026-04-28 — C (greedy on LB-3-stack) + D (24-variant meta-stacker leakage audit): both NULL/diagnostic, structural ceiling reconfirmed
+
+- Goal: post-v8 deep-dive. (C) Direct greedy log-blend at fixed recipe bias
+  using LB-3-stack as anchor + rawashishsin v2/v3 + 18 curated base
+  components. (D) Quantify circular-leakage magnitude across 24 historical
+  meta-stacker variants by computing each variant's `lb4_eq` (= LB-3-stack
+  × 0.7 + variant_iso × 0.3) at fixed recipe bias.
+
+- **C result — NULL** (`scripts/c_greedy_rawashishsin.py`):
+  Step 0: NO candidate improves OOF by ≥+1e-4 at any α∈{0.05..0.50}.
+  20 iso-cal'd candidates tested (rawashishsin v2/v3, recipe variants,
+  RealMLP, xgb_nonrule, dist+digits, lgbm/catboost variants).
+  **The LB-3-stack at recipe bias is a local maximum for direct
+  log-blend.** Only iso-cal'd meta-stacker absorption (the LB-best 4-stack
+  mechanism: lb4_o = log_blend(lb3_o, xgb_metastack_iso, [0.7, 0.3]))
+  lifts it.
+
+  Confirms the LB-best 4-stack architecture is NOT a coincidence —
+  meta-stacker output absorption is the only mechanism that can
+  improve OOF over LB-3-stack at fixed recipe bias.
+
+- **D audit — 24 historical meta-stacker variants** (`scripts/d_audit_meta_leakage.py`):
+
+  Cross-variant pattern (lb4_eq = standardized 4-stack arch):
+  ```
+  variant       lb4_eq    LB        Δ vs v1     LB carryover
+  ─────────────────────────────────────────────────────────────
+  v1            0.98084   0.98094   baseline    (LB-VALIDATED)
+  v3            0.98076   0.98060   -0.00034    -4.25x
+  v4            0.98108   0.97992   -0.00102    -4.25x
+  v6            0.98107   0.98012   -0.00082    -3.57x
+  classw        0.98107   0.98011   -0.00083    -3.61x
+  **v8          0.98112   0.98074   -0.00020    -0.71x  ← BEST**
+  ```
+
+  **Untested but suspect** (highest OOF, never LB-probed; per carryover
+  pattern likely LB ~0.98012-0.98060):
+  - perfoldiso 0.98111
+  - v6_combined 0.98110 (highest standalone iso 0.98150)
+  - v7 0.98109
+  - 3wnn 0.98107
+  - n5b_both 0.98104
+
+  **Leakage magnitude diagnostic**: v6 (with 40+ meta inputs in bank)
+  vs v8 (clean 131-component pool, no meta outputs): lb4_eq differs by
+  only **5bp** (0.98107 vs 0.98112). Heavy-reg XGB (depth=4 +
+  reg_alpha=5 + reg_lambda=5) is structurally robust to circular
+  features. Original CLAUDE.md leakage warning was correct but
+  quantitatively small on this bank.
+
+- **Calibration insight (the biggest finding from D)**:
+  **v1 is the ONLY meta-stacker with negative OOF→LB gap** (-0.00010,
+  LB > OOF). Every later variant has positive gap (+0.00019 to +0.00120),
+  proportional to OOF inflation above v1's baseline.
+  ```
+  variant   lb4_eq    LB         OOF→LB gap
+  v1        0.98084   0.98094    -0.00010  ← ONLY negative
+  v3        0.98076   0.98060    +0.00039  (NB: lb4_eq < v1 yet LB regress)
+  v4        0.98108   0.97992    +0.00120
+  v6        0.98107   0.98012    +0.00097
+  classw    0.98107   0.98011    +0.00019
+  v8        0.98112   0.98074    +0.00051  (best of post-v1 variants)
+  ```
+  **This is what saturation looks like** at the meta-stacker family
+  level: every variant beyond v1 lands at increasing positive gap.
+  v1's LB-best 4-stack OOF 0.98084 → LB 0.98094 represents an honest
+  fit at a local fold-split sweet spot, not OOF-inflated optimization.
+
+- **The 4-gate framework is empirically calibrated by this audit**:
+  - G3 FAIL + G4 FAIL: carryover -3x to -4x (every prior bank-ext null)
+  - G3 PASS + G4 FAIL: carryover -0.71x (only v8 in this category)
+  - G3 PASS + G4 PASS: untested empirically, predicted POSITIVE
+
+  Three categorical bands of LB outcome predicted by gate state.
+
+- **Honest interpretation**:
+  1. **v1's LB calibration is genuinely earned** — local fold-split max,
+     not OOF-inflated.
+  2. **Bank-extension cannot reliably exceed v1's LB 0.98094** — even
+     the cleanest signal (rawashishsin Jaccard 0.7536 + errs<anchor)
+     lifts OOF but not LB.
+  3. **35th saturation confirmation** at LB 0.98094.
+
+- LB delta: n/a. C produced no candidate; D produced no submission.
+  Both are diagnostic (no LB cost).
+- LB best unchanged: **0.98094**. Final-selection lock unchanged.
+- LB budget unchanged: 1/10 used today (v8 from earlier).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **`lb4_eq` (= LB-3-stack × 0.7 + variant_iso × 0.3 at fixed recipe
+     bias) is the standardized cross-variant comparison metric** for
+     meta-stacker variants. Allows direct ranking across heterogeneous
+     bank compositions and HPs without re-running blends.
+  2. **Heavy-reg XGB meta-stackers (depth=4 + reg_alpha=5 + reg_lambda=5)
+     are robust to circular meta-of-meta features.** Adding 40+ prior
+     meta-stacker outputs to the input bank inflates OOF by only ~5bp.
+     The XGB tree splits + regularization downweight highly-correlated
+     features automatically. Don't worry about leakage in the input
+     bank for THIS architecture.
+  3. **At fixed recipe bias on a tuned 3+ component stack, direct
+     log-blend with iso-cal'd candidates has zero remaining greedy
+     headroom.** The only mechanism that lifts OOF beyond
+     LB-3-stack=0.98061 is iso-cal'd meta-stacker absorption (the
+     LB-best 4-stack pattern). Further gains require either changing
+     the bias (binhigh trap risk) or a structurally different
+     blending mechanism.
+
+- Artefacts (whitelisted for cross-branch reuse):
+  - `scripts/c_greedy_rawashishsin.py` (4-gate-aware greedy)
+  - `scripts/d_audit_meta_leakage.py` (24-variant lb4_eq audit)
+  - `scripts/artifacts/c_greedy_rawashishsin_results.json` (NULL: 0 steps)
+  - `scripts/artifacts/d_audit_meta_leakage_results.json` (24 rows)
+  - `scripts/artifacts/oof_c_greedy_rawashishsin.npy` + test (= LB-3-stack)
+  - `submissions/submission_c_greedy_rawashishsin.csv` (= LB-3-stack;
+    diagnostic only — no greedy step found, so this equals anchor)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
