@@ -16186,6 +16186,74 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — C1 V3 mask-blend τ=0.85 α=0.40: LB 0.98021 (Δ −0.00073, gap +0.00099 — widest yet)
+
+- Goal: defeat the log-blend class-coupling failure (B3 #3 finding —
+  even α_H=0 in log-blend doesn't preserve High argmax) by switching
+  to surgical mask-blend that preserves PRIMARY's predictions on
+  H-confident rows exactly.
+- Mechanism: where PRIMARY's argmax IS High AND max_prob ≥ 0.85
+  (3.27% of test = 8,833 rows), keep PRIMARY's prediction. On the
+  remaining 96.73%, log-blend(PRIMARY, B2_iso) at α=0.40.
+- OOF metrics (architecture-matched, recipe bias):
+  - Δ vs PRIMARY = +0.00036 (G1 PASS)
+  - PCR delta = [Low +0.00016, Medium +0.00046, High +0.00048]
+    (ALL POSITIVE — strict Pareto improvement)
+  - Test side: 214/270k rows differ from PRIMARY (0.08%)
+  - Test class distribution: L+14, M−30, **H+16** (ADD-High direction!)
+- **All standard 4-gate diagnostics pointed to "this should LB-lift"**:
+  - G1: +0.00036 PASS
+  - G2: PCR all positive PASS (better than recipe -5e-4 floor)
+  - G3: Jaccard OK, asymmetric direction
+  - G4: net_H -98 on OOF FAIL by direction-counting, BUT test-side
+    H count went UP +16 (genuine ADD-High direction)
+- **LB submission (user-approved)**: `submission_c1_v3_tau085_a040.csv`
+  → **LB 0.98021**. Δ vs PRIMARY 0.98094 = **−0.00073** (clear regression).
+  OOF→LB gap = **+0.00099** (widest gap of any blend candidate this session).
+
+- **Critical insight**: every diagnostic pointed POSITIVE, yet LB
+  regressed 73 bp. The mask-blend mechanism preserves H argmax on
+  3.27% of H-confident PRIMARY rows but inherits B2's structural OOF
+  gap inflation on the remaining 96.73% (where the L↔M boundary
+  refinement happens). **B2's "+0.00027 OOF lift over PRIMARY" is
+  fundamentally calibration-driven (iso-cal on full OOF + bigger
+  bank), NOT new information**. No blend mechanism — log, prob-arith,
+  conditional, mask — extracts LB-positive signal from B2 because
+  the underlying gap inflation is ~+0.001.
+
+- **31st saturation confirmation at LB 0.98094**, with the most
+  diagnostically-deceiving null yet (passed every gate criterion
+  including all-positive PCR + ADD-High direction).
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **OOF gates are necessary but not sufficient.** Even a candidate
+     passing all 4 gates including all-positive per-class recall AND
+     test-side ADD-High direction can LB-regress when the underlying
+     meta has structural OOF→LB gap inflation. The only LB transfer
+     signature that's ever worked on this problem is: starts from
+     measurably leak-honest OOF surface (negative or near-zero gap),
+     proven at the standalone level BEFORE blending. B2 has +0.001
+     standalone gap inflation that no blend mechanism removes.
+  2. **Mask-blend mechanism preserves the chosen sub-domain but
+     inherits gap inflation from the unconstrained complement.**
+     Surgical preservation of H-confident rows (3.27% of test) cannot
+     rescue a candidate when 96.73% of the prediction surface is
+     blended with a gap-inflated source. Mask-blend works only when
+     the unmasked region's underlying source is itself LB-validated.
+
+- LB-best primary unchanged at **0.98094**. LB budget: **3/10 used today**
+  (leak-honest retuned + variant-A + c1 V3 a040), 7 remaining.
+
+- Artifacts:
+  - `scripts/c1_prob_arithmetic_blend.py` (V1+V2+V3 sweep)
+  - `scripts/artifacts/c1_prob_arithmetic_results.json`
+  - `submissions/submission_c1_v3_tau085_a040.csv` (LB 0.98021,
+    diagnostic for portable rules above)
+  - `submissions/submission_c1_v3_tau085_a020.csv` (untested,
+    conservative variant — NOT LB-probed because a040 result already
+    rules out the mechanism family)
+  - `submissions/submission_c1_v3_tau085_a030.csv` (untested mid)
+
 ### 2026-04-28 — b3 follow-ups (3 mechanisms) + B2-clean (clean iso-cal-only test): all NULL, B2 lift fully decomposed
 
 Per user push to keep exploring after B2's G4 RESHUFFLE failure. Three
