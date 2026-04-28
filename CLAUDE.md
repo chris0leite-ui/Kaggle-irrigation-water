@@ -15965,3 +15965,84 @@ contaminated R2 hybrid's 4-gate PASS.
   are diagnostics that gate Stage 3. If Stage 2 shows correlated
   errors, skip Stage 3 (ensemble won't help). If Stage 1 shows < 30
   high-gain components, Stage 3 should focus on smaller pool.
+
+### 2026-04-28 — Base-only macrorec meta: 29th saturation, macrorec family fully closed
+
+- Goal: after Stages 1+2 revealed N1's 80% gain comes from circular meta
+  inputs, train clean macrorec meta on base-only pool (drop ALL derived
+  metas + LB-regressors + ensemble outputs).
+- Pool: 80 base components × 3 cls + 14 dist features = 254-dim (vs
+  N1's 545). EXTRA_EXCLUDE size: 67 entries.
+- 5-fold OOF (~12 min wall):
+  ```
+  fold  bal_acc   best_iter
+  1     0.98072   3       (satiated instantly)
+  2     0.98154   49
+  3     0.98241   275
+  4     0.98193   1       (essentially no training)
+  5     0.98227   170
+  OOF argmax = 0.98177  (vs N1 0.98212 — LOWER, confirms N1 lift partly circular)
+  iso @ recipe-bias = 0.98173
+  ```
+  Best_iters extreme variance [3, 49, 275, 1, 170] — confirms macrorec
+  gradient satiates instantly without metas in the pool. The +0.62pp H
+  lift at base level required derived metas in N1's input bank.
+
+- **4-gate analysis (REPLACE-v1 architecture, base_only_iso × α onto LB-3-stack):**
+  ```
+   α     OOF Δ    PCR_L    PCR_M     PCR_H     net_H churn  G4    G2
+   0.10  +0.00016 +0       -0.00050  +0.00100   +107  193   0.55✓ FAIL
+   0.20  +0.00036 +0       -0.00065  +0.00181   +177  307   0.58✓ FAIL
+   0.30  +0.00047 +0       -0.00090  +0.00238   +234  368   0.64✓ FAIL
+   0.50  +0.00060 +0       -0.00134  +0.00328   +272  418   0.65✓ FAIL
+  ```
+  **G4 PASSES cleanly at every α (0.55-0.65 ratios — clean ADD-High
+  direction)**. G1 PASSES from α≥0.20. **But G2 FAILS at every α**:
+  Medium recall drops -0.00050 to -0.00134, exceeding the -5e-4 floor.
+
+- **Macrorec family fully closed (29th saturation):**
+  ```
+  variant                      result
+  ─────────────────────────────────────────────────────────────────
+  N1 (170c, lam=0.3)           G4 RESHUFFLE + circular meta-of-metas
+  R1 (curated 162c, lam=0.3)   No improvement vs N1
+  R2 (172c, lam=0.0)           G2+G4 fail
+  R2 hybrid 0.75 (grid select) ALL 4 gates pass OOF, LB -0.00046 ❌
+  Base-only (clean, ~80c)      G4 PASS but G2 fails at every α
+  ```
+  The macrorec gradient peaks at p_true=0.5 — boundary rows. The trade
+  is structurally **+H recall at cost of −M recall**. Per-class equal
+  weighting in macro-recall makes M-loss exceed H-gain at every
+  operating point. No tunable knob (lam_ce, pool, α, hybrid mix)
+  escapes this trade.
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **Cross-meta error correlation predicts ensemble viability:**
+     when 3 same-objective metas have pairwise Jaccard ≥ 0.85, sparse
+     averaging won't reduce gap inflation (correlation = systematic
+     bias, not stochastic noise). Run a 30-second pairwise-Jaccard
+     check before scaffolding ensemble experiments.
+  2. **Feature importance reveals stacker circularity:** if the top-N
+     components by gain are themselves META outputs (not base
+     components), the meta-stacker is meta-of-metas and inherits
+     the weighted average of input metas' gap inflations. Drop all
+     derived metas from the input bank for clean deployment.
+  3. **Custom XGB objectives have intrinsic per-class trades that
+     don't tune away:** macro-recall surrogate gradient peaks at
+     boundary rows (p_true=0.5) — directly attacks the metric — but
+     the H-gain comes at proportionate M-loss. Per-class equal
+     weighting in macro-recall makes the trade a wash. Skip
+     custom-obj XGB for macro-recall on imbalanced 3-class
+     problems unless you have a way to ASYMMETRICALLY weight the
+     gradient (e.g., lower weight on rare-class push when M-loss
+     accelerates faster than H-gain).
+
+- LB-best primary unchanged: **LB 0.98094**. Final-selection lock
+  unchanged: PRIMARY 0.98094 + HEDGE 0.98005. LB budget today: 1/10
+  used (the R2 hybrid 0.98048 probe).
+
+- **Strategic recommendation: lock final-selection now.** With 29
+  structural saturations including the FIRST all-4-gate-pass candidate
+  that LB-regressed, the own-pipeline ceiling at LB 0.98094 is
+  exhaustively confirmed. Two days to deadline (2026-04-30); reserve
+  9 LB submissions for end-of-comp variance check.
