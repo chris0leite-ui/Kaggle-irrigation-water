@@ -16186,6 +16186,107 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — b3 follow-ups (3 mechanisms) + B2-clean (clean iso-cal-only test): all NULL, B2 lift fully decomposed
+
+Per user push to keep exploring after B2's G4 RESHUFFLE failure. Three
+follow-up mechanisms to extract B2's +0.00027 OOF lift without REMOVE-High,
+plus a clean isolation test for iso-cal effect alone.
+
+- **#1 — Ensemble v1 + B2 metas at meta level** (`scripts/b3_followup.py`).
+  meta_ens = (1-r)·v1_iso + r·B2_iso, then α=0.30 into 4-stack. B2_share ∈
+  {0.30, 0.40, 0.50, 0.60, 0.70}. ALL 5 ratios fail G4: net_H ranges
+  −124 to −218 across the sweep. Averaging doesn't dilute B2's
+  REMOVE-High direction enough; the bank-extension signal dominates
+  even at small B2_share.
+
+- **#2 — α-sweep on B2 only** to find G4-PASS region. NOTABLE:
+  ```
+   α        Δ vs PRIM   PCR_M       PCR_H     net_H   G4r
+  0.025    -0.00019    -0.00053    -0.00005   +104   0.34   ← ADD-High!
+  0.050    -0.00009    -0.00035    +0.00005    +59   0.21   ← ADD-High
+  0.075    -0.00004    -0.00020    +0.00005    +30   0.11   ← ADD-High
+  0.100    +0.00003    +0.00000    +0.00005    -20   0.07   ← transition
+  0.150    +0.00016    +0.00036    +0.00005    -99   0.29   ← REMOVE-High
+  0.300    +0.00027    +0.00092    -0.00024   -234   0.43   ← (B2's documented α)
+  0.500    +0.00045    +0.00125    -0.00010   -304   0.36
+  ```
+  B2 IS in ADD-High direction at small α (≤0.075), but G1 fails
+  because Medium recall craters by 0.0002–0.0005pp at every small α.
+  The transition from ADD-High to REMOVE-High happens at α ≈ 0.10.
+  No α threads the needle of G1 + G4 simultaneously.
+
+- **#3 — Per-class α blending** with α_H=0 (pin H to PRIMARY). All
+  configurations FAIL because **log-blend re-normalization couples
+  classes**: zeroing α_H on log-prob doesn't preserve H argmax after
+  softmax. Multiple rows flip H→M anyway. Even with α_L=α_M=0 and
+  α_H>0 (try to ADD H predictions), the net_H stays negative because
+  pushing P_H up on rows where B2 is wrong removes more correct H
+  predictions than it adds.
+
+- **B2-clean — clean iso-cal-only test** (`scripts/b2_clean_pool.py`):
+  retrain meta on v1's EXACT 62-component pool with per-fold-iso
+  applied to each input. Same XGB HPs, same fold split, same arch.
+  Wall ~18 min CPU.
+  ```
+  Variant                                  meta argmax  meta @recipe  meta full-iso  primary @α=0.30
+  v1 (raw inputs, 62)                       0.97365      0.98041       0.98059        0.98084 ← LB-best
+  B2-clean (per-fold iso, 62)               0.97403      0.98046       0.98090        0.98082
+  B2 (per-fold iso, 179)                    0.97395      0.98052       0.98156        0.98111
+  ```
+
+- **Decomposition of B2's +0.00027 primary lift over v1**:
+  - **iso-cal-of-inputs alone: −0.00002 at primary level** (despite
+    +0.00031 at standalone meta-iso level — saturated by α=0.30
+    architecture)
+  - **bank size 62→179: +0.00029 at primary level** (the actual signal,
+    but in G4-FAIL direction)
+  - Iso-cal at the meta-INPUT level has ~+0.00031 standalone effect but
+    is structurally absorbed by the 4-stack + α=0.30 architecture before
+    reaching the primary-level OOF. The α=0.30 weight + base 0.98061 cap
+    the meta's contribution at ~+0.00023 regardless of meta strength.
+
+- **Six new portable rules** (LEARNINGS.md candidates):
+  1. **B2's +0.00097 standalone meta-iso lift over v1 is 70% bank-size,
+     30% iso-cal-of-inputs.** Bigger banks dominate iso-cal-cleanliness
+     for meta-stacker performance on this problem.
+  2. **Iso-cal of inputs is BLEND-BOUNDED at the primary level.** Even
+     when iso-cal lifts standalone meta-iso by +0.00031, the resulting
+     primary at α=0.30 differs by ~0 from un-iso-cal'd inputs. The
+     architecture's blend weight saturates before the iso lift transfers.
+  3. **Log-blend re-normalization couples classes.** Per-class α blending
+     with α_H=0 does NOT preserve High argmax — softmax normalization
+     after log-mixing redistributes mass across all classes. To preserve
+     a class exactly, use prob-space arithmetic blend, not log-blend.
+  4. **B2 is in ADD-High direction at α<0.10 but G1-NULL.** At small α,
+     net_H is positive (+30 to +104) but Δ OOF is negative because
+     Medium recall drops faster than High improves. The "correct
+     direction" of a candidate doesn't equal "lifts macro-recall" when
+     class trade-offs are non-uniform.
+  5. **Ensemble of two metas at meta level (v1 + B2)** doesn't dilute
+     B2's failure mode. Bank-extension signal dominates even at small
+     B2_share. Use this only when both metas have similar G4 direction.
+  6. **The 4-stack + α=0.30 architecture has a ceiling around OOF
+     0.98090 regardless of meta strength.** Six different metas tested
+     (v1, B2, B2-clean, mlp, lr_v1/v2, classw) all land at primary-level
+     OOF in [0.98074, 0.98111] when blended at α=0.30. Pushing past
+     requires changing the base architecture (different blend weights,
+     non-α=0.30, or replacing the 4-stack base) — not better metas.
+
+- LB-best primary unchanged: **LB 0.98094**. LB budget today: **2/10
+  used** (leak-honest retuned + variant-A OOF-optimal-bias), 8 remaining.
+  Final-selection recommendation unchanged: PRIMARY 0.98094 + audit F1
+  hedge swap (`submission_3way_recipe025_s1035_s7040.csv` LB 0.98005).
+
+- Artifacts (whitelisted):
+  - `scripts/b3_followup.py` (3-mechanism diagnostic)
+  - `scripts/b2_clean_pool.py` (62-component clean retrain, resumable)
+  - `scripts/artifacts/b3_followup_results.json`
+  - `scripts/artifacts/b2_clean_pool_results.json`
+  - `scripts/artifacts/oof_xgb_metastack_b2clean.npy` + test
+    (B2-clean retrained meta — useful future bank component, ties v1
+    at primary-level)
+  - No submissions emitted (all 4-gate FAIL).
+
 ### 2026-04-28 — leak-honest LB result + B1 (per-component iso isolation) + B2 (meta retrained on per-fold-iso bank)
 
 Three follow-up experiments to the leak-honest 4-gate diagnostic
