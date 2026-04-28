@@ -1100,3 +1100,8 @@ scripts/artifacts/_v1gk_fold*.npy
 scripts/artifacts/_v1gk_fold*.json
 scripts/artifacts/_v1cl_fold*.npy
 scripts/artifacts/_v1cl_fold*.json
+
+
+scripts/artifacts/_v1pn_fold*.npy
+scripts/artifacts/_v1pn_fold*.json
+
