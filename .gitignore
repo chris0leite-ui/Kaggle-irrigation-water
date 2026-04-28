@@ -1106,3 +1106,7 @@ scripts/artifacts/_v1pn_fold*.npy
 scripts/artifacts/_v1pn_fold*.json
 
 kaggle_kernel/output_*/va_idx_*.npy
+scripts/artifacts/_recipe_mlp_fold*.npy
+scripts/artifacts/_recipe_mlp_fold*.json
+scripts/artifacts/_v1mlp_fold*.npy
+scripts/artifacts/_v1mlp_fold*.json
