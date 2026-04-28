@@ -4896,6 +4896,100 @@ architecture or feature view adds orthogonal bits at this base.
   for private-LB variance protection rather than trying to compound."
 
   **LB budget today: 3/10 used.** 7 remaining.
+### 2026-04-28 — v8-diag diagnostic-feature meta-stacker family fully closed (4 variants, 35th-38th saturations)
+
+> **NAMING NOTE**: distinct from the **v8 clean-pool meta-stacker**
+> entry above (2026-04-28, 34th saturation). My v8 experiments
+> (per-row diagnostic features) ran in parallel on a different branch
+> and used the same `_v8` artifact suffix. The
+> `oof_xgb_metastack_v8.npy`/`test_xgb_metastack_v8.npy` on main are
+> the clean-pool v8 from the parallel branch; my v8 family's
+> standalone v8 was overwritten during merge. My v8b/v8c/v8b_iso
+> artifacts have unique suffixes and are preserved. Read this entry's
+> "v8" as **"v8-diag"** to disambiguate.
+
+- Goal: novel mechanism for breaking LB 0.98094 — per-row cross-
+  component diagnostic features added to the Tier-1b XGB-meta input.
+  12 features computed across the bank's components: argmax agreement
+  count, argmax mode pct, per-class mean/std/range, lb top1-top2
+  margin. Hypothesis: depth-4 XGB-meta cannot reconstruct these
+  aggregates from raw 210-dim per-component log-probs.
+- Branch: `claude/analyze-distribution-shift-A4uIv`. New scripts under
+  `scripts/dist_shift/`: `optD_meta_v8.py` (parameterised by
+  `CLASS_WEIGHTED`, `CLEAN_BANK`, `SUFFIX` env vars), `optD_iso_v8b.py`.
+
+- **Four variants tested, all NULL**:
+  ```
+  variant   bank    class-weight  iso   standalone @ recipe-bias    G4 outcome
+  v8        186     no            no    0.98115 (+0.00031 vs PRIM)   REMOVE-High
+  v8b       187     yes           no    0.98128 (+0.00044 vs PRIM)   3/4 pass at α=0.50, G4 RESHUFFLE
+  v8c       39      yes           no    0.97990 (-0.00094 vs PRIM)   strictly negative every α
+  v8b_iso   187     yes           yes   0.98127 (~v8b)               REMOVE-High (iso destroyed direction)
+  ```
+
+- **Key findings**:
+  1. **v8 (no class-weight)**: REMOVE-High Pareto violation at every α.
+     Trades High recall (-0.0014 vs LB-4) for Medium recall (+0.0022).
+     Best blend Δ +0.00036 vs LB-4 at α=0.35 but G3+G4 fail.
+  2. **v8b (class-weight=balanced)**: First v8 variant with ADD-High
+     direction. Standalone PCR vs LB-4: Low -0.0017, Medium -0.0001,
+     **High +0.0031** (correct direction!). Blend at α=0.50 vs LB-4:
+     Δ +0.00060, net_H +85, G1+G2+G3 PASS. **G4 fails**: ratio
+     85/925 = 0.09 (RESHUFFLE — high churn relative to net change).
+     Per CLAUDE.md historical track record, RESHUFFLE candidates
+     LB-regress -0.00021 to -0.00073.
+  3. **v8c (clean 39-comp bank)**: NULL. Curating the bank to
+     LB-validated/structurally-distinct components REMOVED 0.00138
+     standalone OOF. Critical insight: the 187-component "noisy"
+     bank's saturation-experiment OOFs were carrying cross-component
+     correlations the meta-XGB exploits.
+  4. **v8b_iso (iso-cal post-process)**: per-class isotonic on v8b
+     output destroyed the ADD-High direction. Iso-cal recalibrates
+     toward empirical class distribution; v8b's class-weighted
+     training had pushed rare-High up; iso undoes that.
+
+- **Strategic implication**: per-row diagnostic-feature mechanism is
+  structurally exhausted across model class (XGB-meta), bank
+  composition (186, 187, 39), training-time class weighting (yes/no),
+  and post-hoc per-class calibration (yes/no). The 12 symmetric
+  diagnostic features encode the bank's own directional bias rather
+  than producing orthogonal signal.
+
+- **Two new portable rules** (added to LEARNINGS.md):
+  1. **Per-row diagnostic features inherit the bank's per-class bias.**
+     When the bank's components agree heavily on rare-class predictions,
+     diagnostic features encode that consensus rather than orthogonal
+     signal. To break the Pareto frontier, the new signal source must
+     be at the COMPONENT level (a model with orthogonal errors in BOTH
+     Jaccard AND magnitude AND rare-class direction), not at the
+     meta-stacker level.
+  2. **Aggressively curating a saturated meta-stacker bank REMOVES
+     signal.** Filtering 187 → 39 LB-validated components cost
+     -0.00138 standalone OOF. The "noisy" saturation-experiment OOFs
+     carry cross-component correlations the depth-4 XGB-meta exploits.
+     Manual EXCLUDE lists should be conservative; trust the meta to
+     weight components via reg_alpha=5 + reg_lambda=5 + colsample=0.9.
+
+- LB delta: n/a (no probes — all 4 variants gate-fail). LB-best
+  4-stack architecture (`submission_tier1b_greedy_meta.csv`,
+  LB 0.98094) was the experiment's reference anchor throughout. NOTE:
+  during this session, a parallel branch landed a NEW LB-best at
+  **0.98109** via `submission_rawashishsin_2600_standalone.csv`
+  (rawashishsin public-kernel v3 replica, single XGB on different FE,
+  NOT a meta-stacker). The v8 saturation conclusions are unaffected:
+  they apply to the 4-stack META-STACKER architecture family, which
+  remains saturated at 0.98094. The new 0.98109 LB-best is from a
+  fundamentally different pipeline (recipe-bypassing standalone XGB
+  with sklearn TargetEncoder(cv=5)).
+- Final-selection candidates updated on main:
+  PRIMARY 0.98109 (rawashishsin v3) + HEDGE 0.98094 (Tier-1b 4-stack).
+
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `scripts/dist_shift/optD_meta_v8.py` (parameterised by env vars)
+  - `scripts/dist_shift/optD_iso_v8b.py` (iso-cal post-processor)
+  - `scripts/artifacts/oof_xgb_metastack_v8{,b,c,b_iso}.npy` + test
+  - `scripts/artifacts/xgb_metastack_v8{,b,c,b_iso}_results.json`
+  - `scripts/artifacts/blend_gate_xgb_metastack_v8{,b,c,b_iso}_results.json`
 
 ## Hypothesis board
 
