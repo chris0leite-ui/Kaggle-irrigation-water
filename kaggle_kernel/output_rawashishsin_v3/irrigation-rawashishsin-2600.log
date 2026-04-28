@@ -1,0 +1,116 @@
+[{"stream_name":"stdout","time":2.513871973,"data":"[boot] SMOKE=False PROBE=False\n"}
+,{"stream_name":"stdout","time":2.513942651,"data":"[boot] Out: /kaggle/working\n"}
+,{"stream_name":"stdout","time":4.470313698,"data":"[boot] data paths: {'train': '/kaggle/input/competitions/playground-series-s6e4/train.csv', 'test': '/kaggle/input/competitions/playground-series-s6e4/test.csv', 'orig': '/kaggle/input/datasets/miadul/irrigation-water-requirement-prediction-dataset/irrigation_prediction.csv'}\n"}
+,{"stream_name":"stdout","time":7.236672169,"data":"[load] train=(630000, 21) test=(270000, 20) orig=(10000, 20)\n"}
+,{"stream_name":"stdout","time":7.284024961,"data":"[fe] building features...\n"}
+,{"stream_name":"stdout","time":34.066445137,"data":"[fe] NGRAM=4 BIN_CAT_INT=12 NUM_CAT_AGG=36 ROUND=9 DIGITS=18 DECIMALS=4 BINS=4 PAIRS=9\n"}
+,{"stream_name":"stdout","time":35.1656368,"data":"[shape] X_train=(630000, 134) X_orig=(10000, 134) X_test=(270000, 134)\n"}
+,{"stream_name":"stdout","time":35.165678178,"data":"[xgb] params: {'objective': 'multi:softprob', 'num_class': 3, 'n_estimators': 2600, 'learning_rate': 0.05, 'max_depth': 3, 'subsample': 0.9, 'colsample_bytree': 0.8, 'max_bin': 1100, 'eval_metric': 'mlogloss', 'n_jobs': -1, 'random_state': 42, 'enable_categorical': True, 'device': 'cuda', 'tree_method': 'hist'}\n"}
+,{"stream_name":"stdout","time":35.275790074,"data":"[wall] hard kill at t+7200s (120min)\n"}
+,{"stream_name":"stdout","time":35.275872266,"data":"\n"}
+,{"stream_name":"stdout","time":35.275881482,"data":"[fold 1/5]\n"}
+,{"stream_name":"stdout","time":37.687685029,"data":"[fold 0] tr_combined=(514000, 134)\n"}
+,{"stream_name":"stdout","time":146.231945237,"data":"[fold 0] X_tr_final=(514000, 479)\n"}
+,{"stream_name":"stdout","time":168.025997571,"data":"[0]\tvalidation_0-mlogloss:1.02976\n"}
+,{"stream_name":"stdout","time":184.753484451,"data":"[200]\tvalidation_0-mlogloss:0.06291\n"}
+,{"stream_name":"stdout","time":199.958125861,"data":"[400]\tvalidation_0-mlogloss:0.05692\n"}
+,{"stream_name":"stdout","time":214.59393389,"data":"[600]\tvalidation_0-mlogloss:0.05452\n"}
+,{"stream_name":"stdout","time":229.015001711,"data":"[800]\tvalidation_0-mlogloss:0.05306\n"}
+,{"stream_name":"stdout","time":243.356787789,"data":"[1000]\tvalidation_0-mlogloss:0.05200\n"}
+,{"stream_name":"stdout","time":257.46701187,"data":"[1200]\tvalidation_0-mlogloss:0.05119\n"}
+,{"stream_name":"stdout","time":271.562430625,"data":"[1400]\tvalidation_0-mlogloss:0.05057\n"}
+,{"stream_name":"stdout","time":285.604022768,"data":"[1600]\tvalidation_0-mlogloss:0.04999\n"}
+,{"stream_name":"stdout","time":299.69183027,"data":"[1800]\tvalidation_0-mlogloss:0.04957\n"}
+,{"stream_name":"stdout","time":313.667846117,"data":"[2000]\tvalidation_0-mlogloss:0.04921\n"}
+,{"stream_name":"stdout","time":327.622912642,"data":"[2200]\tvalidation_0-mlogloss:0.04890\n"}
+,{"stream_name":"stdout","time":341.617100748,"data":"[2400]\tvalidation_0-mlogloss:0.04864\n"}
+,{"stream_name":"stdout","time":355.549964525,"data":"[2599]\tvalidation_0-mlogloss:0.04842\n"}
+,{"stream_name":"stdout","time":364.051086914,"data":"[fold 0] BA=0.977157 wall=328.8s\n"}
+,{"stream_name":"stdout","time":364.271066435,"data":"\n"}
+,{"stream_name":"stdout","time":364.271105816,"data":"[fold 2/5]\n"}
+,{"stream_name":"stdout","time":365.54931591,"data":"[fold 1] tr_combined=(514000, 134)\n"}
+,{"stream_name":"stdout","time":616.531985545,"data":"[fold 1] X_tr_final=(514000, 479)\n"}
+,{"stream_name":"stdout","time":640.23546271,"data":"[0]\tvalidation_0-mlogloss:1.02981\n"}
+,{"stream_name":"stdout","time":656.98943958,"data":"[200]\tvalidation_0-mlogloss:0.06416\n"}
+,{"stream_name":"stdout","time":672.276819927,"data":"[400]\tvalidation_0-mlogloss:0.05769\n"}
+,{"stream_name":"stdout","time":687.043585324,"data":"[600]\tvalidation_0-mlogloss:0.05508\n"}
+,{"stream_name":"stdout","time":701.328898248,"data":"[800]\tvalidation_0-mlogloss:0.05350\n"}
+,{"stream_name":"stdout","time":715.620604848,"data":"[1000]\tvalidation_0-mlogloss:0.05239\n"}
+,{"stream_name":"stdout","time":729.638606757,"data":"[1200]\tvalidation_0-mlogloss:0.05153\n"}
+,{"stream_name":"stdout","time":743.647512581,"data":"[1400]\tvalidation_0-mlogloss:0.05090\n"}
+,{"stream_name":"stdout","time":757.52140176,"data":"[1600]\tvalidation_0-mlogloss:0.05036\n"}
+,{"stream_name":"stdout","time":771.50187798,"data":"[1800]\tvalidation_0-mlogloss:0.04994\n"}
+,{"stream_name":"stdout","time":785.425799775,"data":"[2000]\tvalidation_0-mlogloss:0.04961\n"}
+,{"stream_name":"stdout","time":799.228618043,"data":"[2200]\tvalidation_0-mlogloss:0.04935\n"}
+,{"stream_name":"stdout","time":812.972647842,"data":"[2400]\tvalidation_0-mlogloss:0.04913\n"}
+,{"stream_name":"stdout","time":826.822058447,"data":"[2599]\tvalidation_0-mlogloss:0.04890\n"}
+,{"stream_name":"stdout","time":835.905657159,"data":"[fold 1] BA=0.977609 wall=471.6s\n"}
+,{"stream_name":"stdout","time":836.12317517,"data":"\n"}
+,{"stream_name":"stdout","time":836.123210379,"data":"[fold 3/5]\n"}
+,{"stream_name":"stdout","time":837.383918808,"data":"[fold 2] tr_combined=(514000, 134)\n"}
+,{"stream_name":"stdout","time":1067.191934828,"data":"[fold 2] X_tr_final=(514000, 479)\n"}
+,{"stream_name":"stdout","time":1088.384476188,"data":"[0]\tvalidation_0-mlogloss:1.02988\n"}
+,{"stream_name":"stdout","time":1105.175689626,"data":"[200]\tvalidation_0-mlogloss:0.06481\n"}
+,{"stream_name":"stdout","time":1120.329746751,"data":"[400]\tvalidation_0-mlogloss:0.05829\n"}
+,{"stream_name":"stdout","time":1134.997182332,"data":"[600]\tvalidation_0-mlogloss:0.05547\n"}
+,{"stream_name":"stdout","time":1149.423489039,"data":"[800]\tvalidation_0-mlogloss:0.05378\n"}
+,{"stream_name":"stdout","time":1163.601486511,"data":"[1000]\tvalidation_0-mlogloss:0.05261\n"}
+,{"stream_name":"stdout","time":1177.662894285,"data":"[1200]\tvalidation_0-mlogloss:0.05171\n"}
+,{"stream_name":"stdout","time":1191.689872121,"data":"[1400]\tvalidation_0-mlogloss:0.05102\n"}
+,{"stream_name":"stdout","time":1205.648030174,"data":"[1600]\tvalidation_0-mlogloss:0.05042\n"}
+,{"stream_name":"stdout","time":1219.637942955,"data":"[1800]\tvalidation_0-mlogloss:0.04991\n"}
+,{"stream_name":"stdout","time":1233.464306851,"data":"[2000]\tvalidation_0-mlogloss:0.04952\n"}
+,{"stream_name":"stdout","time":1247.225504203,"data":"[2200]\tvalidation_0-mlogloss:0.04919\n"}
+,{"stream_name":"stdout","time":1261.194630759,"data":"[2400]\tvalidation_0-mlogloss:0.04891\n"}
+,{"stream_name":"stdout","time":1274.857396313,"data":"[2599]\tvalidation_0-mlogloss:0.04871\n"}
+,{"stream_name":"stdout","time":1283.556202336,"data":"[fold 2] BA=0.979566 wall=447.4s\n"}
+,{"stream_name":"stdout","time":1283.771257174,"data":"\n"}
+,{"stream_name":"stdout","time":1283.771294396,"data":"[fold 4/5]\n"}
+,{"stream_name":"stdout","time":1284.999071849,"data":"[fold 3] tr_combined=(514000, 134)\n"}
+,{"stream_name":"stdout","time":1510.023322275,"data":"[fold 3] X_tr_final=(514000, 479)\n"}
+,{"stream_name":"stdout","time":1530.316924881,"data":"[0]\tvalidation_0-mlogloss:1.02984\n"}
+,{"stream_name":"stdout","time":1546.88611128,"data":"[200]\tvalidation_0-mlogloss:0.06344\n"}
+,{"stream_name":"stdout","time":1561.871002272,"data":"[400]\tvalidation_0-mlogloss:0.05723\n"}
+,{"stream_name":"stdout","time":1576.446519514,"data":"[600]\tvalidation_0-mlogloss:0.05456\n"}
+,{"stream_name":"stdout","time":1590.759080216,"data":"[800]\tvalidation_0-mlogloss:0.05309\n"}
+,{"stream_name":"stdout","time":1604.795757291,"data":"[1000]\tvalidation_0-mlogloss:0.05200\n"}
+,{"stream_name":"stdout","time":1618.676739519,"data":"[1200]\tvalidation_0-mlogloss:0.05112\n"}
+,{"stream_name":"stdout","time":1632.482971343,"data":"[1400]\tvalidation_0-mlogloss:0.05045\n"}
+,{"stream_name":"stdout","time":1646.231630589,"data":"[1600]\tvalidation_0-mlogloss:0.04988\n"}
+,{"stream_name":"stdout","time":1659.89960151,"data":"[1800]\tvalidation_0-mlogloss:0.04940\n"}
+,{"stream_name":"stdout","time":1673.635319555,"data":"[2000]\tvalidation_0-mlogloss:0.04898\n"}
+,{"stream_name":"stdout","time":1687.29288452,"data":"[2200]\tvalidation_0-mlogloss:0.04865\n"}
+,{"stream_name":"stdout","time":1700.994875174,"data":"[2400]\tvalidation_0-mlogloss:0.04838\n"}
+,{"stream_name":"stdout","time":1714.741985978,"data":"[2599]\tvalidation_0-mlogloss:0.04815\n"}
+,{"stream_name":"stdout","time":1723.446883252,"data":"[fold 3] BA=0.978463 wall=439.7s\n"}
+,{"stream_name":"stdout","time":1723.671364845,"data":"\n"}
+,{"stream_name":"stdout","time":1723.671398293,"data":"[fold 5/5]\n"}
+,{"stream_name":"stdout","time":1724.89115207,"data":"[fold 4] tr_combined=(514000, 134)\n"}
+,{"stream_name":"stdout","time":1944.785951148,"data":"[fold 4] X_tr_final=(514000, 479)\n"}
+,{"stream_name":"stdout","time":1965.080431547,"data":"[0]\tvalidation_0-mlogloss:1.02985\n"}
+,{"stream_name":"stdout","time":1981.666550813,"data":"[200]\tvalidation_0-mlogloss:0.06317\n"}
+,{"stream_name":"stdout","time":1996.847829058,"data":"[400]\tvalidation_0-mlogloss:0.05668\n"}
+,{"stream_name":"stdout","time":2011.487774567,"data":"[600]\tvalidation_0-mlogloss:0.05400\n"}
+,{"stream_name":"stdout","time":2025.825229756,"data":"[800]\tvalidation_0-mlogloss:0.05230\n"}
+,{"stream_name":"stdout","time":2039.672009821,"data":"[1000]\tvalidation_0-mlogloss:0.05118\n"}
+,{"stream_name":"stdout","time":2053.668746723,"data":"[1200]\tvalidation_0-mlogloss:0.05034\n"}
+,{"stream_name":"stdout","time":2067.404205683,"data":"[1400]\tvalidation_0-mlogloss:0.04965\n"}
+,{"stream_name":"stdout","time":2081.086302045,"data":"[1600]\tvalidation_0-mlogloss:0.04914\n"}
+,{"stream_name":"stdout","time":2094.815876541,"data":"[1800]\tvalidation_0-mlogloss:0.04871\n"}
+,{"stream_name":"stdout","time":2108.571040907,"data":"[2000]\tvalidation_0-mlogloss:0.04834\n"}
+,{"stream_name":"stdout","time":2122.340977288,"data":"[2200]\tvalidation_0-mlogloss:0.04808\n"}
+,{"stream_name":"stdout","time":2136.077159578,"data":"[2400]\tvalidation_0-mlogloss:0.04782\n"}
+,{"stream_name":"stdout","time":2149.735890919,"data":"[2599]\tvalidation_0-mlogloss:0.04763\n"}
+,{"stream_name":"stdout","time":2158.591508905,"data":"[fold 4] BA=0.978535 wall=434.9s\n"}
+,{"stream_name":"stdout","time":2158.78977,"data":"[wall] completed 5/5 folds\n"}
+,{"stream_name":"stdout","time":2162.18583826,"data":"\n"}
+,{"stream_name":"stdout","time":2162.185880804,"data":"[final] argmax OOF = 0.978266\n"}
+,{"stream_name":"stdout","time":2162.185887499,"data":"[final] tuned OOF = 0.980162 bias=[-1.357, -1.193, 0.0]\n"}
+,{"stream_name":"stdout","time":2162.200780633,"data":"[done] saved /kaggle/working/oof_rawashishsin.npy /kaggle/working/test_rawashishsin.npy /kaggle/working/rawashishsin_results.json\n"}
+,{"stream_name":"stderr","time":2165.345311824,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":2165.345382887,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":2165.628268479,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":2165.628293583,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":2166.960294778,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":2168.313850751,"data":"[NbConvertApp] Writing 396940 bytes to __results__.html\n"}
+]

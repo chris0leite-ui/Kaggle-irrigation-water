@@ -62,9 +62,7 @@ def tune_bias(probs, y_true):
     return bias, float(best)
 
 own_bias, own_oof = tune_bias(cand_o, y)
-own_pred = np.argmax(np.log(np.clip(cand_t, 1e-15, 1.0)) + own_bias, axis=1)
-own_pcr = np.array([(own_pred[y == c] == c).mean() if (y == c).any() else 0
-                    for c in range(3)])  # naive on test pred won't compute true PCR; OOF instead
+own_pred = np.argmax(np.log(np.clip(cand_t, 1e-15, 1.0)) + own_bias, axis=1)  # test predictions
 own_oof_pred = np.argmax(np.log(np.clip(cand_o, 1e-15, 1.0)) + own_bias, axis=1)
 own_oof_pcr = np.array([(own_oof_pred[y == c] == c).mean() for c in range(3)])
 own_errs = (own_oof_pred != y).sum()
