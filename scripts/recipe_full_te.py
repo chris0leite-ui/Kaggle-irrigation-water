@@ -93,6 +93,11 @@ EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
 # features; this uses a discriminative classifier trained orig-vs-synth.
 # Diagnostic AUC for predicting (y != rule_pred) on full 630k = 0.5746.
 EXTRA_AV_PSYNTH = os.environ.get("EXTRA_AV_PSYNTH", "") == "1"
+# EXTRA_BOUNDARY=1 -> +1 col [boundary_pdev] = per-cell 7-feature LR's
+# P(primary deviates from cell-majority | row's non-rule features). Built by
+# scripts/B_boundary_atlas.py from oof_boundary_atlas.npy + test_boundary_atlas.npy.
+# Mechanism-novel attack on within-cell flip signal.
+EXTRA_BOUNDARY = os.environ.get("EXTRA_BOUNDARY", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -207,6 +212,8 @@ if EXTRA_OOD9:
     _parts.append("ood9")
 if EXTRA_AV_PSYNTH:
     _parts.append("avp")
+if EXTRA_BOUNDARY:
+    _parts.append("bnd")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if GBY:
@@ -457,6 +464,23 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         test["av_p_synth"] = a_te
         log(f"  +1 av_p_synth col (diagnostic AUC vs flip = 0.5746 on full 630k)")
 
+    boundary_cols: list[str] = []
+    if EXTRA_BOUNDARY:
+        log("loading B boundary-atlas P(deviate) feature")
+        a_tr = np.load("scripts/artifacts/oof_boundary_atlas.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_boundary_atlas.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        # Stored as (n, 1) for single-feature; flatten if needed.
+        if a_tr.ndim == 2 and a_tr.shape[1] == 1:
+            a_tr = a_tr[:, 0]; a_te = a_te[:, 0]
+        assert a_tr.shape == (len(train),) and a_te.shape == (len(test),), (a_tr.shape, a_te.shape)
+        boundary_cols = ["boundary_pdev"]
+        train["boundary_pdev"] = a_tr
+        test["boundary_pdev"] = a_te
+        log(f"  +1 boundary_pdev col (B atlas P(deviate from cell-majority))")
+
     # Senior-FE NN-distance features (FAISS k-NN to 10k original).
     # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
     # adds 5 cols (dist_min, dist_mean, frac_low/med/high) from a different
@@ -488,7 +512,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_w8=extra_w8,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
-        av=av_cols,
+        av=av_cols, boundary=boundary_cols,
         three_way=three_way_combos, nndist=nndist_cols,
         te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
         # Subset indices (None when not SMOKE) for downstream mask alignment.
@@ -730,6 +754,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("knn10k", [])
                      + info.get("ood9", [])
                      + info.get("av", [])
+                     + info.get("boundary", [])
                      + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
