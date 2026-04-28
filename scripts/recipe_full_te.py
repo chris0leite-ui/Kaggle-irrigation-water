@@ -145,6 +145,13 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # CLEANLAB_TREATMENT=downweight which DOWN-weights ambiguous rows
 # interpreted as label noise. Suffix "_anchwα{α}" on outputs.
 ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
+# Option B' (drift session 2026-04-28): per-row sample_weight multiplier
+# = (1 + ORIG_WEIGHT_BETA × (1 − P(synth | row))). Loads AV oof from
+# scripts/artifacts/dist_shift/oof_av_p_synth_train.npy. Mechanism: rows
+# that look orig-like (low P(synth)) carry MORE flip mass per the AV
+# diagnostic (Cohen's d +0.335) — give them more gradient. Distinct from
+# ANCHOR_WEIGHT_ALPHA which uses primary's max_prob.
+ORIG_WEIGHT_BETA = float(os.environ.get("ORIG_WEIGHT_BETA", "0"))
 
 # Mech A: boundary-confined test-time augmentation. When set, identify
 # boundary rows via max_prob(LB-best 4-stack) < TTA_BOUNDARY_THRESH (default
@@ -212,6 +219,8 @@ if DROP_DETERMINISTIC:
     _parts.append("dropdet")
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
+if ORIG_WEIGHT_BETA != 0:
+    _parts.append(f"origw{('m' if ORIG_WEIGHT_BETA < 0 else '') + str(int(abs(ORIG_WEIGHT_BETA)*10)).zfill(2)}")
 if TTA_BOUNDARY:
     _parts.append(f"btta{int(TTA_BOUNDARY_THRESH*100):03d}k{TTA_K}s{int(TTA_SIGMA*100):03d}")
 if THREE_WAY_OTE:
@@ -501,6 +510,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
 
 _anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B / Mech A active
 _anchor_uncertainty_test: np.ndarray | None = None  # populated when Mech A active
+_av_p_synth: np.ndarray | None = None  # populated when ORIG_WEIGHT_BETA != 0
 
 
 def _build_anchor_uncertainty_test(n_test: int = -1) -> np.ndarray:
@@ -884,6 +894,21 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             sw = sw * (1.0 + ANCHOR_WEIGHT_ALPHA * au)
             log(f"  anchor-uncertainty weight α={ANCHOR_WEIGHT_ALPHA:.1f}: "
                 f"u-mean={au.mean():.4f} u-max={au.max():.4f} "
+                f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
+        if ORIG_WEIGHT_BETA != 0:
+            # Option B' (drift session): w *= (1 + β × (1 − P(synth | row)))
+            # AV oof (full-train, leak-free) loaded once at module level.
+            global _av_p_synth
+            if _av_p_synth is None:
+                _av_p_synth = np.load(
+                    "scripts/artifacts/dist_shift/oof_av_p_synth_train.npy"
+                ).astype(np.float32)
+                if SMOKE:
+                    _av_p_synth = _av_p_synth[info["train_subset_idx"]]
+            ow = 1.0 - _av_p_synth[fold_tr_idx]
+            sw = sw * (1.0 + ORIG_WEIGHT_BETA * ow)
+            log(f"  orig-weight β={ORIG_WEIGHT_BETA:.1f}: "
+                f"orig-mean={ow.mean():.4f} orig-max={ow.max():.4f} "
                 f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
 
         log(f"  training XGB on {len(feat_cols)} features, {len(X_tr):,} rows")
