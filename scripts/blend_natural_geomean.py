@@ -20,6 +20,7 @@ meaningful lift over rawashishsin's CV 0.98016).
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -62,16 +63,28 @@ def per_class_recall(y, pred, n_class=3):
 
 
 def main():
-    log("loading rawashishsin v3 + recipe_full_te_catboost_natural")
+    # CB variant selectable: prefer sklearn-TE (Pick 2b) if present, else
+    # fall back to natural OrderedTE (Phase 1).
+    variant = os.environ.get("CB_VARIANT")  # "skte" or "natural" or None=auto
+    candidates = (
+        ["catboost_skte", "catboost_natural"] if variant is None
+        else ([variant] if variant in {"catboost_skte", "catboost_natural"}
+              else [f"catboost_{variant}"])
+    )
+    cb_name = None
+    for n in candidates:
+        if (ART / f"oof_recipe_full_te_{n}.npy").exists():
+            cb_name = n
+            break
+    if cb_name is None:
+        log(f"ERROR: no CB variant found ({candidates}). Run Phase 1 or Pick 2b first.")
+        return
+    log(f"selected CB variant: recipe_full_te_{cb_name}")
+    log("loading rawashishsin v3 + selected CB variant")
     raw_oof = np.load(ART / "oof_rawashishsin_2600.npy").astype(np.float32)
     raw_test = np.load(ART / "test_rawashishsin_2600.npy").astype(np.float32)
-    cb_oof_p = ART / "oof_recipe_full_te_catboost_natural.npy"
-    cb_test_p = ART / "test_recipe_full_te_catboost_natural.npy"
-    if not (cb_oof_p.exists() and cb_test_p.exists()):
-        log(f"ERROR: Phase 1 outputs missing. Run scripts/recipe_catboost_natural.py first.")
-        return
-    cb_oof = np.load(cb_oof_p).astype(np.float32)
-    cb_test = np.load(cb_test_p).astype(np.float32)
+    cb_oof = np.load(ART / f"oof_recipe_full_te_{cb_name}.npy").astype(np.float32)
+    cb_test = np.load(ART / f"test_recipe_full_te_{cb_name}.npy").astype(np.float32)
 
     train = pd.read_csv("data/train.csv")
     test = pd.read_csv("data/test.csv")
@@ -166,12 +179,13 @@ def main():
         jacc_primary = None
         disagree_primary = None
 
-    # Save blend OOF/test for downstream Phase 3
-    np.save(ART / "oof_blend_natural_geomean.npy", blend_oof_unnorm.astype(np.float32))
-    np.save(ART / "test_blend_natural_geomean.npy", blend_test_unnorm.astype(np.float32))
+    # Save blend OOF/test for downstream Phase 3 (suffix tracks CB variant)
+    blend_suffix = f"natural_geomean_{cb_name.replace('catboost_', '')}"
+    np.save(ART / f"oof_blend_{blend_suffix}.npy", blend_oof_unnorm.astype(np.float32))
+    np.save(ART / f"test_blend_{blend_suffix}.npy", blend_test_unnorm.astype(np.float32))
 
     # Submission emit (gated on no-retune ≥ 0.98000)
-    sub_emit_path = SUB / "submission_blend_natural_geomean.csv"
+    sub_emit_path = SUB / f"submission_blend_{blend_suffix}.csv"
     if bal_no_retune >= 0.98000:
         sub = pd.DataFrame({
             "id": test_ids,
@@ -185,13 +199,14 @@ def main():
             "id": test_ids,
             TARGET: [IDX2CLS[i] for i in retuned_test_pred],
         })
-        sub_ret_path = SUB / "submission_blend_natural_geomean_retuned.csv"
+        sub_ret_path = SUB / f"submission_blend_{blend_suffix}_retuned.csv"
         sub_ret.to_csv(sub_ret_path, index=False)
         log(f"  wrote {sub_ret_path}  (retuned variant — leak risk, not deploy default)")
     else:
         log(f"  blend OOF {bal_no_retune:.5f} < 0.98000 gate — no submission emitted.")
 
     summary = dict(
+        cb_variant=cb_name,
         rawashishsin_oof_argmax=float(raw_argmax),
         rawashishsin_oof_tuned=float(raw_tuned),
         rawashishsin_bias=raw_bias.tolist(),
@@ -212,7 +227,7 @@ def main():
         test_disagree_vs_primary=disagree_primary,
         emitted_submission=bool(bal_no_retune >= 0.98000),
     )
-    out_p = ART / "blend_natural_geomean_results.json"
+    out_p = ART / f"blend_{blend_suffix}_results.json"
     out_p.write_text(json.dumps(summary, indent=2))
     log(f"wrote {out_p}")
 
