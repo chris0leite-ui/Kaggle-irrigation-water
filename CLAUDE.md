@@ -17893,3 +17893,59 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
   rawashishsin's negative CV-LB gap.
 - If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
   PRIMARY) as final pair.
+
+### 2026-04-28 — A3 well-calibrated Random Forest scaffold + SMOKE: bagging-on-recipe does NOT produce natural calibration (early signal)
+
+- Goal: companion to A2 (sklearn TargetEncoder + depth-3 XGB). A2 tests
+  "is sklearn TE the natural-calibration source?". A3 tests "is BAGGING
+  the natural-calibration source?". RF naturally averages bootstrap
+  predictions → smoother per-class probabilities → potentially calibrated
+  raw output without post-hoc bias retune. Different mechanism from A2's
+  in-FE smoothing; both attack the same diagnostic question (where does
+  rawashishsin's bias_H = 0 come from?).
+- Branch: `claude/calibrated-random-forest-PaYxH`.
+- Scaffold: `scripts/a3_rf_recipe.py` (~150 lines). Reuses
+  `recipe_full_te.load_and_engineer()` for the full V10 FE (443 cols),
+  per-fold OrderedTE fit on tr_idx, then `RandomForestClassifier`
+  (`class_weight=None`, `bootstrap=True`, `max_features='sqrt'`,
+  `n_estimators=200` production, `max_depth=22`, `min_samples_leaf=50`,
+  `n_jobs=4` for memory headroom). Per-fold checkpointing for rehydrate
+  resilience. SMOKE-first per CLAUDE.md rule.
+- **SMOKE GREEN (20k train × 2-fold × 50 trees, 9.5s wall)**:
+  ```
+  Per-fold bal_acc:    0.89282 / 0.88211
+  OOF argmax:          0.88746
+  Tuned bal_acc:       0.94933
+  Tuned bias:          [+1.031, +1.371, +3.404]
+  |bias_H|:            3.404   ← IDENTICAL to recipe XGB's miscalibration
+  ```
+  Pipeline structurally correct end-to-end. Critical early signal: even
+  at SMOKE scale, RF without class-balanced weights produces raw probs
+  that need the SAME +3.40 logit shift on High that recipe XGB needs.
+  Compare to rawashishsin v3's bias_H = 0.00 exactly.
+- **Hypothesis weakening at SMOKE level (not yet falsified)**: bagging
+  on imbalanced data with `class_weight=None` does NOT produce naturally-
+  calibrated High probabilities. Mechanism: each tree's leaf probability
+  matches the empirical class distribution at that leaf; with 3.3% High
+  prior, leaves are dominated by Low/Medium. Averaging 50 trees
+  preserves the imbalanced anchoring rather than smoothing it out.
+  Caveat: SMOKE has only 50 trees on 10k rows. Production at 200 trees
+  on 504k rows produces deeper trees with more leaves; the calibration
+  could shift. But the +3.40 bias signature is structural to RF on
+  imbalanced data, not something deeper trees fix.
+- **Implication for A2 (the parallel experiment)**: if bagging isn't the
+  natural-calibration source on this problem, then sklearn
+  `TargetEncoder(multiclass, cv=5)` is even more likely the source
+  (it's the only structurally-distinct FE choice in rawashishsin's
+  pipeline that we don't have). A2's expected outcome shifts up:
+  if A3 confirms bagging-isn't-it, A2 has higher prior probability
+  of producing bias_H near 0.
+- **Production decision pending**: ~60-90 min CPU at N_EST=200 on 16-core,
+  per-fold checkpoint-resilient. Bayesian prior of LB lift: still ~10-15%
+  given the SMOKE signal — but the diagnostic value (does bagging
+  produce natural calibration?) is HIGH regardless of LB outcome,
+  closes a plausible mechanism with one experiment.
+- Artefacts (whitelisted via `.gitignore` for cross-branch reuse):
+  - `scripts/a3_rf_recipe.py` (the orchestrator)
+  - `scripts/artifacts/oof_a3_rf_recipe.npy` + test (SMOKE 20k×10k)
+  - `scripts/artifacts/a3_rf_recipe_results.json` (SMOKE summary)
