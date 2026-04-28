@@ -4717,6 +4717,71 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_c_greedy_rawashishsin.csv` (= LB-3-stack;
     diagnostic only — no greedy step found, so this equals anchor)
 
+### 2026-04-28 — D1 architecture substitution: replace xgb_metastack_iso with rawashishsin_iso — NULL (worse than v8 bank-add)
+
+- Goal: third structurally-distinct deployment mechanism for rawashishsin.
+  D1 = direct architecture substitution: replace `xgb_metastack_iso α=0.30`
+  with `rawashishsin_{2600,}_iso α=0.30` in the LB-best 4-stack.
+  Different from:
+    - v8 bank-add (rawashishsin INTO the meta-stacker input bank)
+    - direct blend (rawashishsin onto LB-best 4-stack at fixed bias)
+- Script: `scripts/d1_rawashishsin_subst.py`
+- Both v3 (rawashishsin_2600) and v2 (rawashishsin) tested. α-sweep
+  ∈ {0.05..0.50} at fixed recipe bias [1.4324, 1.4689, 3.4008].
+
+- Results — both variants ALL 4 gates FAIL at α=0.30:
+  ```
+                       v3 substitution   v2 substitution   v8 bank-add (ref)
+  OOF Δ vs LB-4 @α=0.3   -0.00042 FAIL    -0.00042 FAIL    +0.00041 PASS
+  G2 (PCR floor)         FAIL recH-0.0017 FAIL recH-0.0015 PASS recH-0.0003
+  G3 (dual-α ratio)      FAIL deltas neg  FAIL             PASS 1.095
+  G4 (net_H>0+ratio≥0.5) FAIL -135 r=0.22 FAIL -90 r=0.14  FAIL -100 r=0.74
+  Projected LB           ~0.9805          ~0.9805          0.98074 (actual)
+  ```
+
+- α-sweep notable detail: at SMALL α (0.05-0.10), net_H is POSITIVE
+  for both variants (+82 to +93 at α=0.05) BUT OOF Δ is also negative
+  (-0.00031 to -0.00036). The "wrong direction with small magnitude
+  improving" pattern documented across many bank-extension attempts.
+
+- **Why substitution is WORSE than bank-add (the big mechanism insight)**:
+  `xgb_metastack_iso` in the LB-best 4-stack is itself a meta-stacker
+  trained over 60+ component bank — it carries broad-bank signal.
+  Replacing it with rawashishsin alone (1 component) loses the meta's
+  diversity benefit. Bank-add at v8 KEPT xgb_metastack_iso AND added
+  rawashishsin to the input bank, so the meta could absorb both.
+
+- **The rawashishsin lever now tested via THREE structurally distinct
+  mechanisms — all NULL:**
+  1. Direct blend with LB-best 4-stack: G4 FAIL, RAW α=0.30 +0.00010 OOF (sub-threshold)
+  2. Bank-extension v8 meta retrain: 3/4 PASS, LB 0.98074 (Δ -0.00020), best carryover -0.71x
+  3. Architecture substitution (this entry): all 4 gates FAIL
+
+  **Structural ceiling at LB 0.98094 holds across all three deployment
+  mechanisms** with the most-orthogonal candidate (Jaccard 0.7536) ever
+  discovered. **36th saturation confirmation.**
+
+- LB delta: n/a (no submission warranted; all candidates project worse
+  LB than v8's 0.98074, which is itself a regression from primary 0.98094).
+  LB best unchanged. Final-selection lock unchanged.
+  LB budget unchanged (1/10 used today).
+
+- New portable rule (LEARNINGS.md candidate):
+  **Direct architecture substitution of a meta-stacker leg with a single
+  component is structurally weaker than bank-add for the same component.**
+  The meta's value comes from ABSORBING dozens of weak signals across the
+  bank; substituting it with one strong signal loses the absorption
+  benefit. For "this novel candidate is great, where do I deploy it?",
+  the answer is: ADD to bank, retrain meta. Don't substitute the meta
+  itself unless the candidate has comparable bank-absorption properties
+  (none of our 24 audited variants do).
+
+- Artefacts:
+  - `scripts/d1_rawashishsin_subst.py`
+  - `scripts/artifacts/d1_rawashishsin_subst_results.json`
+  - `submissions/submission_subst_rawashishsin_2600_a030.csv` (diagnostic only)
+  - `submissions/submission_subst_rawashishsin_a030.csv` (diagnostic only)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
