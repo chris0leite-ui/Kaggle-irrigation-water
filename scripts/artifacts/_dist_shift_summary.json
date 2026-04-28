@@ -1,0 +1,66 @@
+{
+  "train_n": 630000,
+  "orig_n": 10000,
+  "shared_cols": [
+    "Crop_Growth_Stage",
+    "Crop_Type",
+    "Electrical_Conductivity",
+    "Field_Area_hectare",
+    "Humidity",
+    "Irrigation_Need",
+    "Irrigation_Type",
+    "Mulching_Used",
+    "Organic_Carbon",
+    "Previous_Irrigation_mm",
+    "Rainfall_mm",
+    "Region",
+    "Season",
+    "Soil_Moisture",
+    "Soil_Type",
+    "Soil_pH",
+    "Sunlight_Hours",
+    "Temperature_C",
+    "Water_Source",
+    "Wind_Speed_kmh"
+  ],
+  "train_only": [
+    "id"
+  ],
+  "orig_only": [],
+  "train_class_dist": {
+    "Low": 369917,
+    "Medium": 239074,
+    "High": 21009
+  },
+  "orig_class_dist": {
+    "Low": 5864,
+    "Medium": 3800,
+    "High": 336
+  },
+  "train_score_dist": {
+    "0": 33767,
+    "1": 115457,
+    "2": 122220,
+    "3": 102157,
+    "4": 117837,
+    "5": 79203,
+    "6": 38416,
+    "7": 15026,
+    "8": 2680,
+    "9": 3237
+  },
+  "orig_score_dist": {
+    "0": 410,
+    "1": 1293,
+    "2": 1846,
+    "3": 2315,
+    "4": 1890,
+    "5": 1244,
+    "6": 666,
+    "7": 255,
+    "8": 61,
+    "9": 20
+  },
+  "train_rule_acc": 0.9836444444444444,
+  "orig_rule_acc": 1.0
+}

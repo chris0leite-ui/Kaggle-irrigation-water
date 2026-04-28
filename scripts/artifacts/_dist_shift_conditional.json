@@ -1,0 +1,1128 @@
+{
+  "per_class": {
+    "Low": {
+      "Soil_Moisture": {
+        "cohen_d": -0.11768676624605645,
+        "ks_stat": 0.04821258878982851,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 41.72444747612551,
+        "train_mean": 43.3059015671083
+      },
+      "Temperature_C": {
+        "cohen_d": 0.023333329875122103,
+        "ks_stat": 0.015362974422037712,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 25.54290245566166,
+        "train_mean": 25.347707701998015
+      },
+      "Humidity": {
+        "cohen_d": -0.09944532268593839,
+        "ks_stat": 0.04990399315674077,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 59.96838847203274,
+        "train_mean": 61.949193900253306
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.2631530098954395,
+        "ks_stat": 0.11621883969244515,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 1346.2770958390179,
+        "train_mean": 1500.5343129377673
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.012174859010568188,
+        "ks_stat": 0.015023483236962676,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 9.147859822646659,
+        "train_mean": 9.21642352203332
+      },
+      "Soil_pH": {
+        "cohen_d": 0.001635717470531486,
+        "ks_stat": 0.036249081829170776,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 6.489305934515689,
+        "train_mean": 6.4878049129939965
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.006862652022099835,
+        "ks_stat": 0.012585308165493525,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 7.5248533424283774,
+        "train_mean": 7.511124928024396
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.06061015583420598,
+        "ks_stat": 0.039459157684799184,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 0.9428666439290585,
+        "train_mean": 0.9206797200453073
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.057191746104738296,
+        "ks_stat": 0.03814398027954813,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 1.7867633015006825,
+        "train_mean": 1.7317548801487903
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.022939448323011376,
+        "ks_stat": 0.0202571855828092,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 7.543536834924966,
+        "train_mean": 7.447240624248143
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.06167743845364206,
+        "ks_stat": 0.05712756289885779,
+        "n_orig": 5864,
+        "n_train": 369917,
+        "orig_mean": 59.526591064120055,
+        "train_mean": 61.71833035518778
+      }
+    },
+    "Medium": {
+      "Soil_Moisture": {
+        "cohen_d": 0.08501593785675475,
+        "ks_stat": 0.05384440096283777,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 31.157589473684208,
+        "train_mean": 29.743961283953926
+      },
+      "Temperature_C": {
+        "cohen_d": -0.021259834958321573,
+        "ks_stat": 0.01673841351917904,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 28.70585789473684,
+        "train_mean": 28.886682993550117
+      },
+      "Humidity": {
+        "cohen_d": -0.035206321074163306,
+        "ks_stat": 0.040276137800099754,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 60.32102894736842,
+        "train_mean": 61.00488677145989
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.4605933706663275,
+        "ks_stat": 0.21579033886446963,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 1158.5989105263156,
+        "train_mean": 1444.4750277319993
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.06930312732434778,
+        "ks_stat": 0.04122162131698487,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 11.420102631578947,
+        "train_mean": 11.793668320269038
+      },
+      "Soil_pH": {
+        "cohen_d": 0.016146395262852546,
+        "ks_stat": 0.03237041779180461,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 6.480828947368422,
+        "train_mean": 6.465867346511959
+      },
+      "Sunlight_Hours": {
+        "cohen_d": -0.007914850332430562,
+        "ks_stat": 0.01904683553165437,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 7.505497368421053,
+        "train_mean": 7.521290437270468
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.05558217011401975,
+        "ks_stat": 0.03608557887604058,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 0.9463999999999999,
+        "train_mean": 0.9261155123518242
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.03648502645648713,
+        "ks_stat": 0.034018579580953334,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 1.8036263157894736,
+        "train_mean": 1.7692078184997113
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.011786054360903362,
+        "ks_stat": 0.012267833390498362,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 7.6755157894736845,
+        "train_mean": 7.625724963818734
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.09071407585649195,
+        "ks_stat": 0.05559197702715257,
+        "n_orig": 3800,
+        "n_train": 239074,
+        "orig_mean": 60.24932368421052,
+        "train_mean": 63.18171513422622
+      }
+    },
+    "High": {
+      "Soil_Moisture": {
+        "cohen_d": 0.2698421905520725,
+        "ks_stat": 0.0800843006058628,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 19.705565476190475,
+        "train_mean": 17.66987529154172
+      },
+      "Temperature_C": {
+        "cohen_d": -0.3092071212353501,
+        "ks_stat": 0.12933742681707838,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 32.8821130952381,
+        "train_mean": 34.56813413299063
+      },
+      "Humidity": {
+        "cohen_d": -0.09386943780798421,
+        "ks_stat": 0.08033929336406848,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 59.312053571428564,
+        "train_mean": 61.11957589604455
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.3893748322967372,
+        "ks_stat": 0.2384012294050849,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 677.8257440476191,
+        "train_mean": 989.1566780903422
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.23357732827168282,
+        "ks_stat": 0.08863080788505606,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 13.678601190476192,
+        "train_mean": 14.642638869056116
+      },
+      "Soil_pH": {
+        "cohen_d": -0.0369708794967882,
+        "ks_stat": 0.060466432753309804,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 6.542053571428572,
+        "train_mean": 6.57828216478652
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.04561882820622333,
+        "ks_stat": 0.04856634571578167,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 7.555803571428571,
+        "train_mean": 7.46313817887572
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.09158995735109768,
+        "ks_stat": 0.05919444387779382,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 0.958392857142857,
+        "train_mean": 0.9241429863391879
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.06714356568512633,
+        "ks_stat": 0.05915916987957548,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 1.7508035714285715,
+        "train_mean": 1.6908800990051882
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.03176840548541814,
+        "ks_stat": 0.03612482405499684,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 7.6725595238095226,
+        "train_mean": 7.53039126088819
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.05137111487656605,
+        "ks_stat": 0.050695535246798984,
+        "n_orig": 336,
+        "n_train": 21009,
+        "orig_mean": 61.39839285714286,
+        "train_mean": 63.05329953829311
+      }
+    }
+  },
+  "per_score": {
+    "0": {
+      "Soil_Moisture": {
+        "cohen_d": 0.04593017727213173,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Temperature_C": {
+        "cohen_d": -0.0066000547637306605,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Humidity": {
+        "cohen_d": -0.15344496161205742,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.2312714434502661,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.0023040424358914723,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Soil_pH": {
+        "cohen_d": -0.004111392943500675,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.01724407937465503,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.035639897743172146,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.10183326008482597,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Field_Area_hectare": {
+        "cohen_d": -0.04113018480447065,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.06051353499144639,
+        "n_orig": 410,
+        "n_train": 33767
+      }
+    },
+    "1": {
+      "Soil_Moisture": {
+        "cohen_d": -0.03911862481223199,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Temperature_C": {
+        "cohen_d": 0.014501651605415125,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Humidity": {
+        "cohen_d": -0.10967129746374661,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.17384212767422516,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.029945344098103614,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Soil_pH": {
+        "cohen_d": -0.013503213614647645,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.02226152983307562,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.07985742139631777,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.018267167603094183,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Field_Area_hectare": {
+        "cohen_d": -0.004261963582540241,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.058178645558086946,
+        "n_orig": 1293,
+        "n_train": 115457
+      }
+    },
+    "2": {
+      "Soil_Moisture": {
+        "cohen_d": -0.04188488461519106,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Temperature_C": {
+        "cohen_d": -0.043189446609510816,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Humidity": {
+        "cohen_d": -0.07916922672276888,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.2634135448818255,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.03230616156187864,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Soil_pH": {
+        "cohen_d": 0.017079818797487753,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Sunlight_Hours": {
+        "cohen_d": -0.010373654231416734,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.03127442934687638,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.06414993673902689,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.031807982829651915,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.05686123684187417,
+        "n_orig": 1846,
+        "n_train": 122220
+      }
+    },
+    "3": {
+      "Soil_Moisture": {
+        "cohen_d": -0.12623600171429894,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Temperature_C": {
+        "cohen_d": 0.024229694998051204,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Humidity": {
+        "cohen_d": -0.06717287549321467,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.3207664815312563,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.06053912420275971,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Soil_pH": {
+        "cohen_d": 0.0018618915332230953,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.0059006091073882,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.07653461472706971,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.06057177956890756,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.03905503108304252,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.06808095796432931,
+        "n_orig": 2315,
+        "n_train": 102157
+      }
+    },
+    "4": {
+      "Soil_Moisture": {
+        "cohen_d": 0.016091887211763453,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Temperature_C": {
+        "cohen_d": -0.021129415254514047,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Humidity": {
+        "cohen_d": -0.04872572779514467,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.38972835900516384,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.12129635517627617,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Soil_pH": {
+        "cohen_d": 0.011175210746223678,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Sunlight_Hours": {
+        "cohen_d": -0.007766333652726263,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.0500402974613311,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.009675995551506061,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Field_Area_hectare": {
+        "cohen_d": -0.0078785481110476,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.0814217558965013,
+        "n_orig": 1890,
+        "n_train": 117837
+      }
+    },
+    "5": {
+      "Soil_Moisture": {
+        "cohen_d": 0.14834064936913735,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Temperature_C": {
+        "cohen_d": -0.06107986135560628,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Humidity": {
+        "cohen_d": -0.02258434008306942,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.5066906926856016,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.05569156806215669,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Soil_pH": {
+        "cohen_d": 0.03667061290562499,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.011478998727933043,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.05096131376084441,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.08369236457266843,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.06364608822203259,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.07892862986669864,
+        "n_orig": 1244,
+        "n_train": 79203
+      }
+    },
+    "6": {
+      "Soil_Moisture": {
+        "cohen_d": 0.5186450294549547,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Temperature_C": {
+        "cohen_d": 0.010781773454233421,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Humidity": {
+        "cohen_d": -0.015361982801867227,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.6146515174362038,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.013610999022148164,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Soil_pH": {
+        "cohen_d": -0.015771092415530666,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Sunlight_Hours": {
+        "cohen_d": -0.04441611601011714,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.07655835089411951,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.030327658760521365,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Field_Area_hectare": {
+        "cohen_d": -0.0298854480106943,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.1304401935771561,
+        "n_orig": 666,
+        "n_train": 38416
+      }
+    },
+    "7": {
+      "Soil_Moisture": {
+        "cohen_d": 0.315463575988022,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Temperature_C": {
+        "cohen_d": -0.2692142909463268,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Humidity": {
+        "cohen_d": -0.08942619609054228,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.49884801992601535,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.27371201484061386,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Soil_pH": {
+        "cohen_d": -0.09626849770220497,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.008315723309825296,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.10803195509581363,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.0475804568677959,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.014028276753802013,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.049821704467292866,
+        "n_orig": 255,
+        "n_train": 15026
+      }
+    },
+    "8": {
+      "Soil_Moisture": {
+        "cohen_d": -0.18636553366519776,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Temperature_C": {
+        "cohen_d": -0.38017854067113677,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Humidity": {
+        "cohen_d": -0.13963552166675153,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Rainfall_mm": {
+        "cohen_d": -0.19916489633752024,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": -0.062489938391075105,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Soil_pH": {
+        "cohen_d": 0.17577019400405147,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.16294094980584045,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Organic_Carbon": {
+        "cohen_d": 0.07570285690466688,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.04114076170956262,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.03179267479646514,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.027595430138452257,
+        "n_orig": 61,
+        "n_train": 2680
+      }
+    },
+    "9": {
+      "Soil_Moisture": {
+        "cohen_d": 0.12209405314120486,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Temperature_C": {
+        "cohen_d": 0.22999074848403334,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Humidity": {
+        "cohen_d": 0.10831118902346136,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Rainfall_mm": {
+        "cohen_d": 0.3679171629216065,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Wind_Speed_kmh": {
+        "cohen_d": 0.060420350978889405,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Soil_pH": {
+        "cohen_d": 0.2466269473478704,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Sunlight_Hours": {
+        "cohen_d": 0.028761334024698028,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Organic_Carbon": {
+        "cohen_d": -0.16140266340369097,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Electrical_Conductivity": {
+        "cohen_d": 0.21015791159126246,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Field_Area_hectare": {
+        "cohen_d": 0.2682433825441511,
+        "n_orig": 20,
+        "n_train": 3237
+      },
+      "Previous_Irrigation_mm": {
+        "cohen_d": -0.005341368688221999,
+        "n_orig": 20,
+        "n_train": 3237
+      }
+    }
+  },
+  "rule_within_score": {
+    "Soil_Moisture": [
+      {
+        "score": 0,
+        "mean_diff": -0.5210571578399197,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      {
+        "score": 1,
+        "mean_diff": 0.44516470185620705,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      {
+        "score": 2,
+        "mean_diff": 0.5813743004329623,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      {
+        "score": 3,
+        "mean_diff": 1.9146740407678493,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      {
+        "score": 4,
+        "mean_diff": -0.26689158106617583,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      {
+        "score": 5,
+        "mean_diff": -2.340946113456763,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      {
+        "score": 6,
+        "mean_diff": -4.55221798381055,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      {
+        "score": 7,
+        "mean_diff": -2.6601306937256517,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      {
+        "score": 8,
+        "mean_diff": 0.9572760582334254,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      {
+        "score": 9,
+        "mean_diff": -0.6389388322520837,
+        "n_orig": 20,
+        "n_train": 3237
+      }
+    ],
+    "Rainfall_mm": [
+      {
+        "score": 0,
+        "mean_diff": 135.69258959714602,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      {
+        "score": 1,
+        "mean_diff": 101.29633307689278,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      {
+        "score": 2,
+        "mean_diff": 154.0206224392789,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      {
+        "score": 3,
+        "mean_diff": 189.34959746993854,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      {
+        "score": 4,
+        "mean_diff": 232.24906081685845,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      {
+        "score": 5,
+        "mean_diff": 308.34940527288086,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      {
+        "score": 6,
+        "mean_diff": 416.36892725503526,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      {
+        "score": 7,
+        "mean_diff": 376.6554168330449,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      {
+        "score": 8,
+        "mean_diff": 16.828920968925843,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      {
+        "score": 9,
+        "mean_diff": -35.25213855421687,
+        "n_orig": 20,
+        "n_train": 3237
+      }
+    ],
+    "Temperature_C": [
+      {
+        "score": 0,
+        "mean_diff": 0.03427948487735577,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      {
+        "score": 1,
+        "mean_diff": -0.1189752328989222,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      {
+        "score": 2,
+        "mean_diff": 0.3712847910442605,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      {
+        "score": 3,
+        "mean_diff": -0.20597796636697652,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      {
+        "score": 4,
+        "mean_diff": 0.1812298429186079,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      {
+        "score": 5,
+        "mean_diff": 0.5064908327265094,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      {
+        "score": 6,
+        "mean_diff": -0.09140314408535133,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      {
+        "score": 7,
+        "mean_diff": 1.3712162134652957,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      {
+        "score": 8,
+        "mean_diff": 2.881716601419132,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      {
+        "score": 9,
+        "mean_diff": -0.8375469570589971,
+        "n_orig": 20,
+        "n_train": 3237
+      }
+    ],
+    "Wind_Speed_kmh": [
+      {
+        "score": 0,
+        "mean_diff": 0.00622189942987994,
+        "n_orig": 410,
+        "n_train": 33767
+      },
+      {
+        "score": 1,
+        "mean_diff": 0.16705475040137863,
+        "n_orig": 1293,
+        "n_train": 115457
+      },
+      {
+        "score": 2,
+        "mean_diff": 0.18498737583665736,
+        "n_orig": 1846,
+        "n_train": 122220
+      },
+      {
+        "score": 3,
+        "mean_diff": 0.34657836285574994,
+        "n_orig": 2315,
+        "n_train": 102157
+      },
+      {
+        "score": 4,
+        "mean_diff": 0.6579186200308182,
+        "n_orig": 1890,
+        "n_train": 117837
+      },
+      {
+        "score": 5,
+        "mean_diff": 0.2990717907986298,
+        "n_orig": 1244,
+        "n_train": 79203
+      },
+      {
+        "score": 6,
+        "mean_diff": 0.07118217446934416,
+        "n_orig": 666,
+        "n_train": 38416
+      },
+      {
+        "score": 7,
+        "mean_diff": 1.0425696818325356,
+        "n_orig": 255,
+        "n_train": 15026
+      },
+      {
+        "score": 8,
+        "mean_diff": 0.33852110349890197,
+        "n_orig": 61,
+        "n_train": 2680
+      },
+      {
+        "score": 9,
+        "mean_diff": -0.182815261044178,
+        "n_orig": 20,
+        "n_train": 3237
+      }
+    ]
+  },
+  "cat_per_class": {
+    "Low": {
+      "Soil_Type": 0.00012087500665340471,
+      "Crop_Type": 0.00011851245457847152,
+      "Region": 5.534954387566705e-05,
+      "Season": 2.3996354912929644e-05,
+      "Crop_Growth_Stage": 0.0006762573076268871,
+      "Mulching_Used": 0.00010406941757765261,
+      "Irrigation_Type": 6.101982786126917e-05,
+      "Water_Source": 2.173482688522493e-05
+    },
+    "Medium": {
+      "Soil_Type": 0.00024247937303338747,
+      "Crop_Type": 3.151843006919046e-05,
+      "Region": 0.00014942160389277287,
+      "Season": 0.00011281294543900844,
+      "Crop_Growth_Stage": 0.0021446880518963297,
+      "Mulching_Used": 0.00020206026127431078,
+      "Irrigation_Type": 0.00022368741107980082,
+      "Water_Source": 0.00013582401328064394
+    },
+    "High": {
+      "Soil_Type": 0.0006529388394337166,
+      "Crop_Type": 0.0007182402872098928,
+      "Region": 0.0004315350051475992,
+      "Season": 0.00040874642022238026,
+      "Crop_Growth_Stage": 0.002078211220445432,
+      "Mulching_Used": 0.00427832784716097,
+      "Irrigation_Type": 0.00038805212875665275,
+      "Water_Source": 0.00037660168706275896
+    }
+  }
+}

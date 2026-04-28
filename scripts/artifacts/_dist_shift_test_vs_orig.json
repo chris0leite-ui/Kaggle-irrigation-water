@@ -1,0 +1,5 @@
+{
+  "test_vs_orig_av_auc": 0.689453506,
+  "n_test": 50000,
+  "n_orig": 10000
+}

@@ -1,0 +1,128 @@
+{
+  "global_auc": 0.69347539,
+  "top_importances": {
+    "Previous_Irrigation_mm": 2389.3333333333335,
+    "Rainfall_mm": 2193.3333333333335,
+    "Soil_pH": 2176.3333333333335,
+    "Electrical_Conductivity": 2137.3333333333335,
+    "Humidity": 2005.0,
+    "Sunlight_Hours": 1932.0,
+    "Soil_Moisture": 1816.0,
+    "Wind_Speed_kmh": 1802.0,
+    "Temperature_C": 1756.6666666666667,
+    "Field_Area_hectare": 1747.3333333333333,
+    "Organic_Carbon": 1680.0,
+    "Crop_Type": 732.0,
+    "Region": 502.0,
+    "Crop_Growth_Stage": 415.3333333333333,
+    "Season": 324.6666666666667,
+    "Water_Source": 308.3333333333333,
+    "Irrigation_Type": 304.3333333333333,
+    "Mulching_Used": 292.0,
+    "Soil_Type": 286.0
+  },
+  "score_auc": {
+    "0": {
+      "auc": 0.6820576664969685,
+      "n_orig": 410,
+      "n_train": 2635
+    },
+    "1": {
+      "auc": 0.6620430393100631,
+      "n_orig": 1293,
+      "n_train": 9007
+    },
+    "2": {
+      "auc": 0.6679895858668495,
+      "n_orig": 1846,
+      "n_train": 9800
+    },
+    "3": {
+      "auc": 0.6874330073425559,
+      "n_orig": 2315,
+      "n_train": 8068
+    },
+    "4": {
+      "auc": 0.694234504198805,
+      "n_orig": 1890,
+      "n_train": 9524
+    },
+    "5": {
+      "auc": 0.7218832270893931,
+      "n_orig": 1244,
+      "n_train": 6290
+    },
+    "6": {
+      "auc": 0.7368711396767509,
+      "n_orig": 666,
+      "n_train": 2994
+    },
+    "7": {
+      "auc": 0.7176437989992339,
+      "n_orig": 255,
+      "n_train": 1203
+    },
+    "8": {
+      "auc": 0.6432580121104712,
+      "n_orig": 61,
+      "n_train": 222
+    },
+    "9": {
+      "auc": 0.6089494163424125,
+      "n_orig": 20,
+      "n_train": 257
+    }
+  },
+  "cell_auc": {
+    "score=0,class=Low": {
+      "auc": 0.6820576664969685,
+      "n_orig": 410,
+      "n_train": 2635
+    },
+    "score=1,class=Low": {
+      "auc": 0.6620430393100631,
+      "n_orig": 1293,
+      "n_train": 9007
+    },
+    "score=2,class=Low": {
+      "auc": 0.6680327995976487,
+      "n_orig": 1846,
+      "n_train": 9780
+    },
+    "score=3,class=Low": {
+      "auc": 0.6884121074913201,
+      "n_orig": 2315,
+      "n_train": 7697
+    },
+    "score=4,class=Medium": {
+      "auc": 0.6951058763213459,
+      "n_orig": 1890,
+      "n_train": 9412
+    },
+    "score=5,class=Medium": {
+      "auc": 0.722760892359907,
+      "n_orig": 1244,
+      "n_train": 6268
+    },
+    "score=6,class=Medium": {
+      "auc": 0.7418806725720134,
+      "n_orig": 666,
+      "n_train": 2864
+    },
+    "score=7,class=High": {
+      "auc": 0.7321154326940249,
+      "n_orig": 255,
+      "n_train": 1098
+    },
+    "score=8,class=High": {
+      "auc": 0.6148815085364816,
+      "n_orig": 61,
+      "n_train": 193
+    },
+    "score=9,class=High": {
+      "auc": 0.609765625,
+      "n_orig": 20,
+      "n_train": 256
+    }
+  }
+}
