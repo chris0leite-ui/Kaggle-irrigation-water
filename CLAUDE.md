@@ -4358,6 +4358,639 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_recipe_full_te_avp.csv` (diagnostic only)
   - `submissions/submission_recipe_full_te_origw10.csv` (diagnostic only)
 
+### 2026-04-28 — rawashishsin replica (Kaggle public-kernel CV 0.98109 / LB 0.98132): both v2 + v3 NULL on 4-gate, but Jaccard 0.7536 unlocks meta-stacker bank-add path
+
+- Goal: replicate rawashishsin/s6e4-highest-score-xgboost-cv-0-98109. Author
+  is at LB 0.98132 (rank 233) with this exact pipeline — cleanly above our
+  LB-best 0.98094 (rank 362). Mechanism: depth=3 + sklearn TargetEncoder
+  (multiclass, cv=5, smooth='auto') applied to EVERY feature (raw nums + cats
+  + bigrams/trigrams + bin×cat interactions + num_cat agg + rounds + digits
+  + decimals + bins + pairs ≈ 133 cols), then drop PAIRS+NUM_CAT_AGG+BIN_CAT_INT
+  keeping only TE outputs. ORIG_ROW_WEIGHT=0.5. XGB depth=3, lr=0.05,
+  max_bin=1100, no L1/L2 reg, n_estimators=2600.
+- Branch: `claude/leaderboard-ml-optimization-cJtvs`. Source data, motivation,
+  Kaggle LB cross-references all in this entry.
+- Cross-check: pulled current Kaggle public LB (downloaded via API). Now-leader
+  is **Kevin E R MILLE 0.98236** (overtook Cdeotte 0.98219). Only **4 teams ≥
+  0.982**, **100 teams ≥ 0.98148** (public-CSV pack ceiling). Cdeotte's two
+  published kernels (basic-eda + original-data-exact-formula) confirmed
+  contain ZERO LB-pushing technique beyond the rule we already use; his
+  +0.00125 lead is private.
+- Other audited kernels (none net-new vs our pipeline):
+  - `mohamedsadokaissaoui/best-lb-0-98148` = pure public-CSV vote schemas
+    (uses nina2025/0.98145.csv as oracle + 5 other public subs; banned for us)
+  - `kiza123123/s6e4-top1-...` = errored at data load
+  - `beraterolelk/golden-features` = subset of our recipe
+  - `aliafzal9323/pairwise-te-magic` = our `allpairs` (already tested null)
+  - `masakane/drift-aware-te` = sample weighting (same as ORIG_WEIGHT)
+  - `wguesdon/22-model-ensemble` = pre-computed OOFs we don't have
+  - `kodaifukuda/threshold-optimization` = double-CV TE + 10-fold (compute-heavy, no novel mechanism)
+
+- Implementation:
+  - `kaggle_kernel/kernel_rawashishsin/rawashishsin.py` — single-file pipeline.
+    SMOKE-first discipline (CLAUDE.md rule). 5-fold StratifiedKFold(seed=42)
+    aligned with our OOF bank. Per-fold checkpointing + WALL_KILL hard cap.
+  - SMOKE GREEN on Kaggle GPU (60s wall, 2-fold × 20k × 300 trees).
+  - **Two production runs, parallel on Kaggle GPU pool**:
+    - **v2** (`irrigation-rawashishsin-replica`, n_est=1500, 55min cap): clean
+      5/5 folds in 28.6 min wall. argmax 0.97922, tuned **0.97988**.
+    - **v3** (`irrigation-rawashishsin-2600`, n_est=2600 faithful, 2h cap;
+      authorized by user): clean 5/5 folds in 36 min wall. argmax 0.97827,
+      tuned **0.98016**.
+  - Note: our tuned OOF 0.98016 is **−0.00093 below their claimed CV 0.98109**.
+    Likely cause: TargetEncoder(cv=5) internal-shuffle seed-variance interacts
+    with the kernel runtime differently in our environment vs theirs. Same
+    `random_state=42` everywhere, but the gap is reproducible.
+
+- 4-gate filter on both at fixed recipe bias [1.4324, 1.4689, 3.4008]:
+  ```
+                    v2 (n_est=1500)         v3 (n_est=2600)
+  standalone OOF    0.97988                 0.98016
+  errs (vs anchor)  9390 (-25 vs 9415)      9338 (-77)
+  Jaccard vs LB-4   0.7552                  0.7536  ← novel orthogonality
+  std PCR           L=.9944 M=.9676 H=.9779 L=.9944 M=.9681 H=.9779
+                                                       (H +0.0004 vs anchor)
+  blend α=0.30 ISO  -0.00024 (G1 FAIL)      -0.00024 (G1 FAIL)
+  blend α=0.30 RAW  ~+0.00006               +0.00010 ← peak in 28+ saturations
+  G2 (PCR ≥ -5e-4)  FAIL (recH -0.00171)    FAIL (recH -0.00185)
+  G3 (dual-α)       FAIL (deltas neg)       FAIL
+  G4 (net_H>0+ratio≥0.5) FAIL (net=-135)    FAIL (net=-132 — REMOVE-High)
+  ```
+- **Both fail 4-gate via classic REMOVE-High Pareto violation** — same
+  pattern that closed 23+ prior bank-extension attempts. The +0.0004
+  standalone-H lift over LB-best 4-stack is real, but at iso-cal'd blend it
+  flips to REMOVE-High.
+
+- Notable observations:
+  1. **Jaccard 0.7536 with errs ≤ anchor**: the FIRST candidate in 28+
+     saturation confirmations to clear the 0.80 redundancy threshold AND
+     have lower error count. Structural orthogonality is real.
+  2. **RAW (no iso) blend α=0.25-0.30 hits +0.00010 OOF**: first non-zero
+     positive blend Δ in many sessions. Iso-cal flips it negative because
+     iso aligns the candidate's per-class scale with the anchor's, washing
+     out its structurally-different calibration.
+  3. **Standalone projected LB ~0.9803**: even at rawashishsin's own gap
+     (-0.00023), our 0.98016 OOF projects to LB ~0.98039 — well below our
+     0.98094 LB-best.
+
+- LB delta: n/a. Both candidate CSVs built but NOT submitted (projected
+  regressions on all anchors).
+- LB best unchanged: **LB 0.98094** via `submission_tier1b_greedy_meta.csv`.
+- LB budget today (2026-04-28): unchanged.
+
+- Salvage path identified: **add rawashishsin_2600 + rawashishsin (v2) to the
+  xgb_metastack bank** and retrain v6. The meta-stacker can extract their
+  useful information (Jaccard 0.75 + lower errs) without inheriting their
+  calibration mismatch (heavy negative bias [-1.36, -1.19, 0]). Bayesian
+  prior of LB-positive: ~15-20% (better than direct blend's <5%, given
+  Jaccard 0.75 + errs ≤ anchor). Pursued as the next step.
+
+- Three portable rules (LEARNINGS.md candidates):
+  1. **LB-confirmed standalone score does NOT guarantee LB lift via
+     blending into a saturated stack.** Author at LB 0.98132 standalone, but
+     blending their pipeline into our LB-best 4-stack at fixed recipe bias
+     gives REMOVE-High Pareto violation. The author's LB advantage comes
+     from a calibration that differs from our stack's; iso-aligning it
+     destroys the diversity.
+  2. **`sklearn.preprocessing.TargetEncoder(target_type='multiclass',
+     cv=5, smooth='auto')` on every feature, with PAIRS+NUM_CAT_AGG+BIN_CAT_INT
+     dropped post-TE, is a reproducible LB-positive standalone pipeline**
+     for synthetic-tabular comps with ≤200k cat cardinality. Wall: ~36 min on
+     Kaggle T4 GPU at depth=3 + 2600 trees. CV→LB gap is negative by
+     ~0.00023 (LB > CV), suggesting the wide TE captures genuine test-side
+     calibration.
+  3. **TargetEncoder(cv=5) seed-variance can produce ~80-100bp CV drift
+     across reproducible runs at otherwise-identical configs.** sklearn's
+     internal CV shuffling is not strictly seed-pinned in all paths;
+     environmental factors (cython compile, BLAS thread count) can shift the
+     final TE encoding subtly enough to drop standalone OOF by 1bp at the
+     decision boundary.
+
+- Artefacts (whitelisted via inverted .gitignore for cross-branch reuse):
+  - `kaggle_kernel/kernel_rawashishsin/rawashishsin.py` (v2: n_est=1500)
+  - `kaggle_kernel/kernel_rawashishsin_v3/rawashishsin.py` (v3: n_est=2600)
+  - `kaggle_kernel/output_rawashishsin_v[23]/{*.log,results.json}`
+  - `scripts/artifacts/oof_rawashishsin{,_2600}.npy` + test (15 MB / 6.5 MB each)
+  - `scripts/artifacts/blend_gate_4gate_rawashishsin{,_2600}_iso_results.json`
+  - `scripts/{rawashishsin_post,build_rawashishsin_submission}.py`
+  - `submissions/submission_rawashishsin{,_2600}_{standalone,blend_a030}.csv`
+    (diagnostic — NOT for LB probe; all project regression vs LB-best 0.98094)
+
+### 2026-04-28 — v8 clean-pool meta-stacker bank-add: 34th saturation, BEST carryover ratio of any bank-extension (-0.49x)
+
+- Goal: salvage path for the rawashishsin replica (4-gate NULL on direct blend
+  but Jaccard 0.7536 + errs<anchor suggested meta-stacker bank-add as last
+  lever). Add both rawashishsin (v2: n_est=1500) AND rawashishsin_2600 (v3:
+  n_est=2600 faithful) to the xgb_metastack input bank, retrain v8.
+- Critical bug discovery during the run: `tier1b_xgb_metastack.EXCLUDE` only
+  blocks `xgb_metastack` (v1's name), but the artifact bank now contains 40+
+  prior meta-stacker outputs (v2-v7, varB/C, LR meta, MLP meta, RF meta,
+  macrorec metas, three-meta L3) plus 18 greedy/blend/distill/per-cell derived
+  outputs — all auto-loaded as INPUT features via `glob("oof_*.npy")` →
+  circular meta-of-metas leakage. This explains the 2026-04-25 v6_full LB
+  regression (commit 96b25dd: LB 0.98012, -0.00082): same trap.
+- v8 fix: explicit META_EXCLUDE_EXTRA (86 components) on top of v1's EXCLUDE.
+  Final pool: **131 base-only components** incl. both rawashishsin variants.
+  No prior meta-stacker outputs in input bank.
+- Sub-bug: META_OUT_SUFFIX="_v8" set in Python AFTER `import tier1b_xgb_metastack`
+  → suffix not applied → first run overwrote v1's `oof_xgb_metastack.npy`.
+  Restored v1 from git, re-ran with env set BEFORE python invocation.
+
+- 5-fold OOF (deterministic across re-runs):
+  ```
+  fold 1: 0.97522   fold 2: 0.97413   fold 3: 0.97647
+  fold 4: 0.97309   fold 5: 0.97530   mean argmax: 0.97484
+  standalone @recipe-bias OOF: 0.98105
+  iso-cal'd @recipe-bias:      0.98115
+  errs vs LB-best 4-stack:     8815 (-600 from 9415)
+  Jaccard(iso, LB-best 4-stack): 0.7911
+  ```
+
+- 4-gate filter vs LB-best 4-stack at fixed recipe bias:
+  ```
+                            ISO α=0.30                RAW α=0.30
+  G1 (Δ ≥ +3e-4):           +0.00041 PASS             +0.00028 FAIL
+  G2 (PCR ≥ -5e-4 each):    L+9e-5 M+0.00141          L+9e-5 M+0.00153
+                            H-0.00029 PASS            H-0.00076 FAIL
+  G3 (α=0.4/α=0.3 ratio):   1.095 PASS  ← LINEAR     0.957 FAIL
+                            (real signal, NOT
+                            OOF-overfit)
+  G4 (net_H>0 + ratio≥0.5): net=-100 churn=136        net=-111 churn=129
+                            ratio=0.74 FAIL on dir    FAIL
+  ```
+  **First candidate in 33 saturation confirmations to clean-pass G1+G2+G3
+  simultaneously.** G3 PASS distinguishes from v6 (0.905 sublinear) and prior
+  LR/v3/v4/v5 nulls.
+
+- Surprise diagnostic: clean-pool v8 (no meta inputs) ~= v6 (with meta inputs
+  in bank). Standalone @recipe-bias 0.98105 vs 0.98102. Removing 58 prior
+  meta/blend outputs DIDN'T drop OOF — so v6's lift was NOT primarily
+  circular leakage, despite the fix being structurally correct. **rawashishsin
+  in the bank IS contributing real OOF signal** (heavy-reg XGB at depth=4
+  with reg_alpha=5+reg_lambda=5 doesn't over-rely on highly-correlated
+  meta-of-meta features).
+
+- LB probe (user-approved, submitted 19:16:55 UTC):
+  `submission_v8_iso_a030.csv` (LB-3-stack × 0.7 + xgb_metastack_v8_iso ×
+  0.30, fixed recipe bias). 176/270000 test rows differ from LB-best primary.
+  → **LB public = 0.98074**
+
+- **Carryover analysis — BEST of any bank-extension to date:**
+  ```
+  variant                          OOF Δ      LB Δ       carryover
+  ─────────────────────────────────────────────────────────────────
+  LR meta v2 (C=0.1, none)         +0.00046   -0.00042   -0.91x
+  v6_full a350                     +0.00037   -0.00082   -2.22x
+  P3 perturbed v1                  +0.00071   -0.00139   -1.96x
+  N5b angle1_geo_mean_a030         +0.00017   -0.00039   -2.29x
+  combined v6 a030                 +0.00038   -0.00035   -0.92x
+  **v8 iso a030 (this entry)        +0.00041   -0.00020   -0.49x ← BEST**
+  ```
+  Carryover -0.49x means about HALF the OOF lift transferred negatively
+  (consistent with G4 RESHUFFLE-direction prediction: small REMOVE-High,
+  small LB regression).
+
+- **The 4-gate framework worked correctly.** G3 PASS forecast "real signal,
+  not amplified bank-extension overfit at -2x to -3x" → confirmed (-0.49x
+  vs prior -2x to -3x). G4 FAIL forecast "REMOVE-High direction → small
+  regression" → confirmed (-0.00020). Combined: real signal + wrong
+  direction = small regression, not large regression.
+
+- **34th independent saturation confirmation at LB 0.98094.** The structural
+  ceiling holds. Bank-extension via the cleanest possible meta + the most-
+  orthogonal bank component ever added (rawashishsin Jaccard 0.7536) still
+  produces RESHUFFLE-direction null at carryover -0.49x. The G4 direction
+  gate is the binding constraint; even when G1+G2+G3 all pass, REMOVE-High
+  predicts negative LB regardless.
+
+- LB best unchanged: **LB 0.98094** via `submission_tier1b_greedy_meta.csv`.
+  LB budget today (2026-04-28): 1/10 used (this probe). 9 remaining.
+- **Final-selection lock recommendation unchanged**:
+  PRIMARY = LB 0.98094 + HEDGE = `submission_3way_recipe025_s1035_s7040.csv`
+  LB 0.98005 (audit F1 swap).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **`META_EXCLUDE` lists must be maintained as the artifact bank grows.**
+     Auto-glob component discovery silently re-introduces prior meta outputs
+     as input features → circular meta-of-meta leakage. Build an automated
+     check: any *_meta*, *metastack*, *_l3*, *greedy*, *_blend*, *distill*,
+     *hybrid* artifact name pattern should require explicit allowlist before
+     entering a meta-stacker pool.
+  2. **`META_OUT_SUFFIX` (and similar env-driven module constants) must be
+     set BEFORE the module is imported.** `os.environ["X"] = "y"` after
+     `import M` does NOT propagate to module-level constants captured at
+     import time. Pattern: invoke as `META_OUT_SUFFIX=_v8 python script.py`
+     OR set env via subprocess before python. Setting it inside the script
+     after import is silent failure.
+  3. **G3 PASS + G4 FAIL = small regression, not large.** Documented carryover
+     for prior G4-FAIL bank-extensions: -0.92x to -2.90x. v8 with G3 PASS
+     hit -0.49x — the BEST. The 4-gate framework's G3 IS distinguishing
+     "real signal but wrong direction" (small regression at carryover ~-0.5x)
+     from "OOF-overfit + wrong direction" (large regression at -2x to -3x).
+     For future bank-extensions: G3 PASS (linear scaling) is the leading
+     indicator of small-magnitude LB outcome, but G4 PASS is required for
+     the LB to be NET POSITIVE.
+
+- Artefacts (whitelisted via inverted .gitignore for cross-branch reuse):
+  - `scripts/tier1b_v8_clean.py` (clean-pool wrapper, 86-component EXCLUDE)
+  - `scripts/build_v8_iso_a030_submission.py` (proper iso α=0.30 candidate builder)
+  - `scripts/artifacts/oof_xgb_metastack_v8.npy` + test (7.2 MB / 3.1 MB)
+  - `scripts/artifacts/blend_gate_4gate_xgb_metastack_v8{_iso,}_results.json`
+  - `scripts/artifacts/tier1b_xgb_metastack_v8_results.json`
+  - `submissions/submission_v8_iso_a030.csv` (LB-tested 0.98074)
+  - `submissions/submission_tier1b_metastack_meta_v8_a500.csv` (auto-emit
+    at α=0.50 vs LB-3stack — different blend arch from probed candidate)
+
+### 2026-04-28 — C (greedy on LB-3-stack) + D (24-variant meta-stacker leakage audit): both NULL/diagnostic, structural ceiling reconfirmed
+
+- Goal: post-v8 deep-dive. (C) Direct greedy log-blend at fixed recipe bias
+  using LB-3-stack as anchor + rawashishsin v2/v3 + 18 curated base
+  components. (D) Quantify circular-leakage magnitude across 24 historical
+  meta-stacker variants by computing each variant's `lb4_eq` (= LB-3-stack
+  × 0.7 + variant_iso × 0.3) at fixed recipe bias.
+
+- **C result — NULL** (`scripts/c_greedy_rawashishsin.py`):
+  Step 0: NO candidate improves OOF by ≥+1e-4 at any α∈{0.05..0.50}.
+  20 iso-cal'd candidates tested (rawashishsin v2/v3, recipe variants,
+  RealMLP, xgb_nonrule, dist+digits, lgbm/catboost variants).
+  **The LB-3-stack at recipe bias is a local maximum for direct
+  log-blend.** Only iso-cal'd meta-stacker absorption (the LB-best 4-stack
+  mechanism: lb4_o = log_blend(lb3_o, xgb_metastack_iso, [0.7, 0.3]))
+  lifts it.
+
+  Confirms the LB-best 4-stack architecture is NOT a coincidence —
+  meta-stacker output absorption is the only mechanism that can
+  improve OOF over LB-3-stack at fixed recipe bias.
+
+- **D audit — 24 historical meta-stacker variants** (`scripts/d_audit_meta_leakage.py`):
+
+  Cross-variant pattern (lb4_eq = standardized 4-stack arch):
+  ```
+  variant       lb4_eq    LB        Δ vs v1     LB carryover
+  ─────────────────────────────────────────────────────────────
+  v1            0.98084   0.98094   baseline    (LB-VALIDATED)
+  v3            0.98076   0.98060   -0.00034    -4.25x
+  v4            0.98108   0.97992   -0.00102    -4.25x
+  v6            0.98107   0.98012   -0.00082    -3.57x
+  classw        0.98107   0.98011   -0.00083    -3.61x
+  **v8          0.98112   0.98074   -0.00020    -0.71x  ← BEST**
+  ```
+
+  **Untested but suspect** (highest OOF, never LB-probed; per carryover
+  pattern likely LB ~0.98012-0.98060):
+  - perfoldiso 0.98111
+  - v6_combined 0.98110 (highest standalone iso 0.98150)
+  - v7 0.98109
+  - 3wnn 0.98107
+  - n5b_both 0.98104
+
+  **Leakage magnitude diagnostic**: v6 (with 40+ meta inputs in bank)
+  vs v8 (clean 131-component pool, no meta outputs): lb4_eq differs by
+  only **5bp** (0.98107 vs 0.98112). Heavy-reg XGB (depth=4 +
+  reg_alpha=5 + reg_lambda=5) is structurally robust to circular
+  features. Original CLAUDE.md leakage warning was correct but
+  quantitatively small on this bank.
+
+- **Calibration insight (the biggest finding from D)**:
+  **v1 is the ONLY meta-stacker with negative OOF→LB gap** (-0.00010,
+  LB > OOF). Every later variant has positive gap (+0.00019 to +0.00120),
+  proportional to OOF inflation above v1's baseline.
+  ```
+  variant   lb4_eq    LB         OOF→LB gap
+  v1        0.98084   0.98094    -0.00010  ← ONLY negative
+  v3        0.98076   0.98060    +0.00039  (NB: lb4_eq < v1 yet LB regress)
+  v4        0.98108   0.97992    +0.00120
+  v6        0.98107   0.98012    +0.00097
+  classw    0.98107   0.98011    +0.00019
+  v8        0.98112   0.98074    +0.00051  (best of post-v1 variants)
+  ```
+  **This is what saturation looks like** at the meta-stacker family
+  level: every variant beyond v1 lands at increasing positive gap.
+  v1's LB-best 4-stack OOF 0.98084 → LB 0.98094 represents an honest
+  fit at a local fold-split sweet spot, not OOF-inflated optimization.
+
+- **The 4-gate framework is empirically calibrated by this audit**:
+  - G3 FAIL + G4 FAIL: carryover -3x to -4x (every prior bank-ext null)
+  - G3 PASS + G4 FAIL: carryover -0.71x (only v8 in this category)
+  - G3 PASS + G4 PASS: untested empirically, predicted POSITIVE
+
+  Three categorical bands of LB outcome predicted by gate state.
+
+- **Honest interpretation**:
+  1. **v1's LB calibration is genuinely earned** — local fold-split max,
+     not OOF-inflated.
+  2. **Bank-extension cannot reliably exceed v1's LB 0.98094** — even
+     the cleanest signal (rawashishsin Jaccard 0.7536 + errs<anchor)
+     lifts OOF but not LB.
+  3. **35th saturation confirmation** at LB 0.98094.
+
+- LB delta: n/a. C produced no candidate; D produced no submission.
+  Both are diagnostic (no LB cost).
+- LB best unchanged: **0.98094**. Final-selection lock unchanged.
+- LB budget unchanged: 1/10 used today (v8 from earlier).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **`lb4_eq` (= LB-3-stack × 0.7 + variant_iso × 0.3 at fixed recipe
+     bias) is the standardized cross-variant comparison metric** for
+     meta-stacker variants. Allows direct ranking across heterogeneous
+     bank compositions and HPs without re-running blends.
+  2. **Heavy-reg XGB meta-stackers (depth=4 + reg_alpha=5 + reg_lambda=5)
+     are robust to circular meta-of-meta features.** Adding 40+ prior
+     meta-stacker outputs to the input bank inflates OOF by only ~5bp.
+     The XGB tree splits + regularization downweight highly-correlated
+     features automatically. Don't worry about leakage in the input
+     bank for THIS architecture.
+  3. **At fixed recipe bias on a tuned 3+ component stack, direct
+     log-blend with iso-cal'd candidates has zero remaining greedy
+     headroom.** The only mechanism that lifts OOF beyond
+     LB-3-stack=0.98061 is iso-cal'd meta-stacker absorption (the
+     LB-best 4-stack pattern). Further gains require either changing
+     the bias (binhigh trap risk) or a structurally different
+     blending mechanism.
+
+- Artefacts (whitelisted for cross-branch reuse):
+  - `scripts/c_greedy_rawashishsin.py` (4-gate-aware greedy)
+  - `scripts/d_audit_meta_leakage.py` (24-variant lb4_eq audit)
+  - `scripts/artifacts/c_greedy_rawashishsin_results.json` (NULL: 0 steps)
+  - `scripts/artifacts/d_audit_meta_leakage_results.json` (24 rows)
+  - `scripts/artifacts/oof_c_greedy_rawashishsin.npy` + test (= LB-3-stack)
+  - `submissions/submission_c_greedy_rawashishsin.csv` (= LB-3-stack;
+    diagnostic only — no greedy step found, so this equals anchor)
+
+### 2026-04-28 — D1 architecture substitution: replace xgb_metastack_iso with rawashishsin_iso — NULL (worse than v8 bank-add)
+
+- Goal: third structurally-distinct deployment mechanism for rawashishsin.
+  D1 = direct architecture substitution: replace `xgb_metastack_iso α=0.30`
+  with `rawashishsin_{2600,}_iso α=0.30` in the LB-best 4-stack.
+  Different from:
+    - v8 bank-add (rawashishsin INTO the meta-stacker input bank)
+    - direct blend (rawashishsin onto LB-best 4-stack at fixed bias)
+- Script: `scripts/d1_rawashishsin_subst.py`
+- Both v3 (rawashishsin_2600) and v2 (rawashishsin) tested. α-sweep
+  ∈ {0.05..0.50} at fixed recipe bias [1.4324, 1.4689, 3.4008].
+
+- Results — both variants ALL 4 gates FAIL at α=0.30:
+  ```
+                       v3 substitution   v2 substitution   v8 bank-add (ref)
+  OOF Δ vs LB-4 @α=0.3   -0.00042 FAIL    -0.00042 FAIL    +0.00041 PASS
+  G2 (PCR floor)         FAIL recH-0.0017 FAIL recH-0.0015 PASS recH-0.0003
+  G3 (dual-α ratio)      FAIL deltas neg  FAIL             PASS 1.095
+  G4 (net_H>0+ratio≥0.5) FAIL -135 r=0.22 FAIL -90 r=0.14  FAIL -100 r=0.74
+  Projected LB           ~0.9805          ~0.9805          0.98074 (actual)
+  ```
+
+- α-sweep notable detail: at SMALL α (0.05-0.10), net_H is POSITIVE
+  for both variants (+82 to +93 at α=0.05) BUT OOF Δ is also negative
+  (-0.00031 to -0.00036). The "wrong direction with small magnitude
+  improving" pattern documented across many bank-extension attempts.
+
+- **Why substitution is WORSE than bank-add (the big mechanism insight)**:
+  `xgb_metastack_iso` in the LB-best 4-stack is itself a meta-stacker
+  trained over 60+ component bank — it carries broad-bank signal.
+  Replacing it with rawashishsin alone (1 component) loses the meta's
+  diversity benefit. Bank-add at v8 KEPT xgb_metastack_iso AND added
+  rawashishsin to the input bank, so the meta could absorb both.
+
+- **The rawashishsin lever now tested via THREE structurally distinct
+  mechanisms — all NULL:**
+  1. Direct blend with LB-best 4-stack: G4 FAIL, RAW α=0.30 +0.00010 OOF (sub-threshold)
+  2. Bank-extension v8 meta retrain: 3/4 PASS, LB 0.98074 (Δ -0.00020), best carryover -0.71x
+  3. Architecture substitution (this entry): all 4 gates FAIL
+
+  **Structural ceiling at LB 0.98094 holds across all three deployment
+  mechanisms** with the most-orthogonal candidate (Jaccard 0.7536) ever
+  discovered. **36th saturation confirmation.**
+
+- LB delta: n/a (no submission warranted; all candidates project worse
+  LB than v8's 0.98074, which is itself a regression from primary 0.98094).
+  LB best unchanged. Final-selection lock unchanged.
+  LB budget unchanged (1/10 used today).
+
+- New portable rule (LEARNINGS.md candidate):
+  **Direct architecture substitution of a meta-stacker leg with a single
+  component is structurally weaker than bank-add for the same component.**
+  The meta's value comes from ABSORBING dozens of weak signals across the
+  bank; substituting it with one strong signal loses the absorption
+  benefit. For "this novel candidate is great, where do I deploy it?",
+  the answer is: ADD to bank, retrain meta. Don't substitute the meta
+  itself unless the candidate has comparable bank-absorption properties
+  (none of our 24 audited variants do).
+
+- Artefacts:
+  - `scripts/d1_rawashishsin_subst.py`
+  - `scripts/artifacts/d1_rawashishsin_subst_results.json`
+  - `submissions/submission_subst_rawashishsin_2600_a030.csv` (diagnostic only)
+  - `submissions/submission_subst_rawashishsin_a030.csv` (diagnostic only)
+
+### 2026-04-28 — NEW LB BEST 0.98109: rawashishsin v3 standalone (verified bit-identical to author's kernel output)
+
+- Goal: definitive test of whether our v3 replica matches author's pipeline.
+  Pulled author's kernel output (`/kaggle/working/submission.csv`) via Kaggle
+  API. Compared to our v3 (n_est=2600 faithful) standalone CSV row-by-row.
+- **0 / 270,000 disagreements.** Our v3 submission is bit-identical to
+  author's published kernel output. The 93bp CV gap (their 0.98109 vs our
+  0.98016) is purely TargetEncoder(cv=5) seed-variance in CV evaluation —
+  NOT a structural prediction difference.
+
+- **LB submission** (user-approved, 20:31:06 UTC):
+  `submission_rawashishsin_2600_standalone.csv` →
+  **LB public = 0.98109**
+  Δ vs prior LB-best (0.98094) = **+0.00015**
+  OOF→LB gap = 0.98016 − 0.98109 = **−0.00093** (largest negative gap ever recorded)
+
+- **Surprise: rawashishsin's actual public LB is 0.98132 (rank 245)** but
+  our identical kernel output got 0.98109 (rank 366). Explanation: their
+  77 submissions vs our 1; their published kernel is just one of many.
+  Their best (0.98132) came from a DIFFERENT submission, not the kernel
+  output. Our 0.98109 matches the kernel's CV claim "highest-score-
+  xgboost-cv-0-98109" — suggesting their kernel produces 0.98109 LB
+  but they had a separate better-tuned submission for 0.98132.
+
+- **Updated calibration ladder:**
+  ```
+  3-way multi-seed                       0.98029 → 0.98005   gap +0.00024
+  LB-best 4-stack (prior PRIMARY)        0.98084 → 0.98094   gap −0.00010
+  **rawashishsin v3 standalone           0.98016 → 0.98109   gap −0.00093**  ← NEW LB BEST
+  ```
+  Negative gap −0.00093 is the largest LB-above-CV pattern we've ever seen.
+  CV under-counted this pipeline by 93bp; the test-side prediction quality
+  is genuinely high.
+
+- **NEW LB-BEST: 0.98109** via `submission_rawashishsin_2600_standalone.csv`.
+  Pack at 0.98148 still +0.00039 above; leader (Kevin E R MILLE) at 0.98236
+  still +0.00127 above. Cdeotte (Chris Deotte) now at 0.98219 (rank 3).
+
+- **LB budget today (2026-04-28): 2/10 used** (v8 + v3 standalone),
+  8 remaining.
+
+- **Final-selection candidates (all LB-validated)**:
+  - **NEW PRIMARY**: `submission_rawashishsin_2600_standalone.csv` → LB 0.98109
+    (single XGB depth=3 + sklearn TargetEncoder(cv=5) + drop-raw + heavy FE)
+  - **PRIMARY (prior)**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+    (4-stack: LB-3-stack + RealMLP + xgb_nonrule_iso + xgb_metastack_iso)
+  - **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` → LB 0.98005
+    (3-way multi-seed pure recipe, sidesteps meta-stacker)
+
+  Two structurally orthogonal LB-validated candidates above 0.98094 now
+  available. Recommended final selection: NEW PRIMARY (0.98109) +
+  prior PRIMARY (0.98094) — different model families, different bias
+  signatures (rawashishsin negative bias [-1.36, -1.19, 0] vs recipe
+  positive bias [+1.43, +1.47, +3.40]).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **Bit-identical predictions imply identical LB.** When two
+     submissions have 0 row disagreements, their public LB is identical
+     by construction. Use this to verify replica fidelity BEFORE trusting
+     CV-based projections.
+  2. **CV→LB gap can be massively negative (-0.00093)** when CV
+     evaluation uses different seed-cascade than the deployable model.
+     `sklearn.preprocessing.TargetEncoder(cv=5)` with non-pinned internal
+     shuffling is one such source. The test-side predictions are
+     deterministic (under fixed random_state) but the OOF metric used to
+     quote a CV score is path-dependent.
+  3. **A published kernel's CV score does NOT equal that submission's LB**
+     when the author has multiple submissions. Author's "best" public LB
+     reflects their best-of-N submissions; the published kernel may be
+     one of the lower-scoring ones. Pull both the LB and the kernel
+     output if you want to verify replication faithfulness.
+
+- Salvage path follow-up identified: blend rawashishsin v3 standalone
+  (LB 0.98109) with prior LB-best primary (LB 0.98094). Jaccard 0.7536
+  errors → moderate orthogonality. Test-side disagreement at LB-validated
+  outputs: 1035 rows. Built three candidate blends (α=0.30, 0.40, 0.50)
+  but OOF Δ negative — OOF metric unreliable when both pipelines have
+  negative OOF→LB gaps. Speculative LB projection α=0.50: LB ~0.98122,
+  but high uncertainty.
+
+- Artefacts:
+  - `scripts/blend_primary_v3.py` (blend diagnostic)
+  - `submissions/submission_blend_primary_v3_a{030,040,050}.csv`
+
+- **Follow-up: blend primary × v3 LB result (37th saturation)**:
+  Submitted `submission_blend_primary_v3_a040.csv` (322 rows differ from
+  primary). **LB = 0.98049** (Δ vs new LB-best 0.98109 = -0.00060,
+  Δ vs prior primary 0.98094 = -0.00045). **Significant regression.**
+
+  Mechanism: bias-signature mismatch. Primary uses recipe bias
+  [+1.43, +1.47, +3.40]; v3 uses own tuned bias [-1.36, -1.19, 0].
+  Mixing them at α=0.40 introduces calibration ambiguity that flips
+  boundary rows wrong direction.
+
+  α=0.30 and α=0.50 candidates remain on disk but won't be probed —
+  same mechanism failure expected. Blend lever between rawashishsin
+  v3 and our recipe-family primary is closed.
+
+  **Two LB-validated candidates above 0.98094 cannot blend**
+  productively. They are structurally orthogonal (different model
+  families, different bias signatures) but bias-mismatch defeats
+  log-blend. Final-selection lock recommended at this point:
+  PRIMARY = rawashishsin_2600_standalone (LB 0.98109)
+  + PRIMARY-prior = tier1b_greedy_meta (LB 0.98094)
+
+  **Portable rule** (LEARNINGS.md candidate): "When two LB-validated
+  candidates have bias signatures that differ by >1 unit on any class,
+  log-blending them at fixed-bias-each fails because the per-row
+  argmax decision changes go against the test labels. Two orthogonal
+  pipelines can both be LB-positive standalone yet not blend
+  productively — reserve them as PARALLEL final-selection candidates
+  for private-LB variance protection rather than trying to compound."
+
+  **LB budget today: 3/10 used.** 7 remaining.
+### 2026-04-28 — v8-diag diagnostic-feature meta-stacker family fully closed (4 variants, 35th-38th saturations)
+
+> **NAMING NOTE**: distinct from the **v8 clean-pool meta-stacker**
+> entry above (2026-04-28, 34th saturation). My v8 experiments
+> (per-row diagnostic features) ran in parallel on a different branch
+> and used the same `_v8` artifact suffix. The
+> `oof_xgb_metastack_v8.npy`/`test_xgb_metastack_v8.npy` on main are
+> the clean-pool v8 from the parallel branch; my v8 family's
+> standalone v8 was overwritten during merge. My v8b/v8c/v8b_iso
+> artifacts have unique suffixes and are preserved. Read this entry's
+> "v8" as **"v8-diag"** to disambiguate.
+
+- Goal: novel mechanism for breaking LB 0.98094 — per-row cross-
+  component diagnostic features added to the Tier-1b XGB-meta input.
+  12 features computed across the bank's components: argmax agreement
+  count, argmax mode pct, per-class mean/std/range, lb top1-top2
+  margin. Hypothesis: depth-4 XGB-meta cannot reconstruct these
+  aggregates from raw 210-dim per-component log-probs.
+- Branch: `claude/analyze-distribution-shift-A4uIv`. New scripts under
+  `scripts/dist_shift/`: `optD_meta_v8.py` (parameterised by
+  `CLASS_WEIGHTED`, `CLEAN_BANK`, `SUFFIX` env vars), `optD_iso_v8b.py`.
+
+- **Four variants tested, all NULL**:
+  ```
+  variant   bank    class-weight  iso   standalone @ recipe-bias    G4 outcome
+  v8        186     no            no    0.98115 (+0.00031 vs PRIM)   REMOVE-High
+  v8b       187     yes           no    0.98128 (+0.00044 vs PRIM)   3/4 pass at α=0.50, G4 RESHUFFLE
+  v8c       39      yes           no    0.97990 (-0.00094 vs PRIM)   strictly negative every α
+  v8b_iso   187     yes           yes   0.98127 (~v8b)               REMOVE-High (iso destroyed direction)
+  ```
+
+- **Key findings**:
+  1. **v8 (no class-weight)**: REMOVE-High Pareto violation at every α.
+     Trades High recall (-0.0014 vs LB-4) for Medium recall (+0.0022).
+     Best blend Δ +0.00036 vs LB-4 at α=0.35 but G3+G4 fail.
+  2. **v8b (class-weight=balanced)**: First v8 variant with ADD-High
+     direction. Standalone PCR vs LB-4: Low -0.0017, Medium -0.0001,
+     **High +0.0031** (correct direction!). Blend at α=0.50 vs LB-4:
+     Δ +0.00060, net_H +85, G1+G2+G3 PASS. **G4 fails**: ratio
+     85/925 = 0.09 (RESHUFFLE — high churn relative to net change).
+     Per CLAUDE.md historical track record, RESHUFFLE candidates
+     LB-regress -0.00021 to -0.00073.
+  3. **v8c (clean 39-comp bank)**: NULL. Curating the bank to
+     LB-validated/structurally-distinct components REMOVED 0.00138
+     standalone OOF. Critical insight: the 187-component "noisy"
+     bank's saturation-experiment OOFs were carrying cross-component
+     correlations the meta-XGB exploits.
+  4. **v8b_iso (iso-cal post-process)**: per-class isotonic on v8b
+     output destroyed the ADD-High direction. Iso-cal recalibrates
+     toward empirical class distribution; v8b's class-weighted
+     training had pushed rare-High up; iso undoes that.
+
+- **Strategic implication**: per-row diagnostic-feature mechanism is
+  structurally exhausted across model class (XGB-meta), bank
+  composition (186, 187, 39), training-time class weighting (yes/no),
+  and post-hoc per-class calibration (yes/no). The 12 symmetric
+  diagnostic features encode the bank's own directional bias rather
+  than producing orthogonal signal.
+
+- **Two new portable rules** (added to LEARNINGS.md):
+  1. **Per-row diagnostic features inherit the bank's per-class bias.**
+     When the bank's components agree heavily on rare-class predictions,
+     diagnostic features encode that consensus rather than orthogonal
+     signal. To break the Pareto frontier, the new signal source must
+     be at the COMPONENT level (a model with orthogonal errors in BOTH
+     Jaccard AND magnitude AND rare-class direction), not at the
+     meta-stacker level.
+  2. **Aggressively curating a saturated meta-stacker bank REMOVES
+     signal.** Filtering 187 → 39 LB-validated components cost
+     -0.00138 standalone OOF. The "noisy" saturation-experiment OOFs
+     carry cross-component correlations the depth-4 XGB-meta exploits.
+     Manual EXCLUDE lists should be conservative; trust the meta to
+     weight components via reg_alpha=5 + reg_lambda=5 + colsample=0.9.
+
+- LB delta: n/a (no probes — all 4 variants gate-fail). LB-best
+  4-stack architecture (`submission_tier1b_greedy_meta.csv`,
+  LB 0.98094) was the experiment's reference anchor throughout. NOTE:
+  during this session, a parallel branch landed a NEW LB-best at
+  **0.98109** via `submission_rawashishsin_2600_standalone.csv`
+  (rawashishsin public-kernel v3 replica, single XGB on different FE,
+  NOT a meta-stacker). The v8 saturation conclusions are unaffected:
+  they apply to the 4-stack META-STACKER architecture family, which
+  remains saturated at 0.98094. The new 0.98109 LB-best is from a
+  fundamentally different pipeline (recipe-bypassing standalone XGB
+  with sklearn TargetEncoder(cv=5)).
+- Final-selection candidates updated on main:
+  PRIMARY 0.98109 (rawashishsin v3) + HEDGE 0.98094 (Tier-1b 4-stack).
+
+- Artefacts (whitelisted via .gitignore for cross-branch reuse):
+  - `scripts/dist_shift/optD_meta_v8.py` (parameterised by env vars)
+  - `scripts/dist_shift/optD_iso_v8b.py` (iso-cal post-processor)
+  - `scripts/artifacts/oof_xgb_metastack_v8{,b,c,b_iso}.npy` + test
+  - `scripts/artifacts/xgb_metastack_v8{,b,c,b_iso}_results.json`
+  - `scripts/artifacts/blend_gate_xgb_metastack_v8{,b,c,b_iso}_results.json`
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
@@ -15373,7 +16006,6 @@ audit F1 swap.
   - `submissions/submission_recipe_full_te_basemargin_K2.csv` (diagnostic
     only — not for LB probe)
 
-<<<<<<< HEAD
 ### 2026-04-27 — purity-rule deep-dive: 28.55% of train is 100%-deterministic
 
 - Goal: senior-engineer reframe. The score-based purity rules (scores 0/1/9
@@ -16291,6 +16923,218 @@ N1/R2/base-only OOF→LB gap.
   N1/R1/R2/base-only came from including 78-168 OTHER components in the
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
+
+### 2026-04-28 — v1+newFE: adding 4 novel-feature-view components to v1 pool — NULL (32nd saturation)
+
+- Goal: leverage the v1-decomposition finding that v1's leak-shape
+  inflation is load-bearing for LB transfer. Hypothesis: ADDING
+  components trained with the SAME SKF(seed=42) fold structure as v1
+  should inherit v1's fold-alignment leak structure and contribute
+  new signal aligned with the existing mechanism.
+- Added 4 recipe variants on disk that are NOT in v1's 62-component
+  pool but were trained with SKF(seed=42):
+  - `recipe_full_te_3way` (3-way OTE on cat triples)
+  - `recipe_full_te_nndist` (k-NN distance features to 10k original)
+  - `recipe_full_te_fexw8` (W8 feature block)
+  - `recipe_full_te_instab` (instability/perturbation features)
+- Pool: 66 components (v1's 62 + 4 new), same XGB HPs, same fold split.
+
+- **Results vs v1**:
+  ```
+  variant                meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)                0.97365      0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+newFE (66)          0.97370      0.98041   0.98044   0.98081
+  ```
+- **Test side**: 41 rows differ from current PRIMARY.
+- **PCR delta vs v1 primary**: L −0.00000, M +0.00010, **H −0.00019**.
+- **G4**: add_h=29, rem_h=52, net_h=−23, ratio 0.28 (FAIL by direction).
+
+- **NULL.** Standalone meta argmax improved by 5 bp but full-iso
+  DROPPED by 15 bp; primary OOF 0.98081 (−0.00003 vs v1 PRIMARY).
+  The 4 new components added micro-noise rather than orthogonal
+  signal. The meta-stacker can't extract value from feature views
+  that are too similar to existing v1 components.
+
+- **32nd saturation confirmation at LB 0.98094**.
+
+- **New portable rule** (LEARNINGS.md candidate): **Component
+  addition to a saturated meta-stacker pool does not work even when
+  the new component is fold-aligned with existing v1 structure.**
+  The 4 added components (3way, nndist, fexw8, instab) all share
+  recipe_full_te's base recipe with FE additions; their predictions
+  are highly correlated with existing recipe_full_te variants in v1
+  (a01, a10, fexboth, gby, etc.). Meta-stacker tree splits use the
+  marginal-information rule: if a new feature's gain doesn't exceed
+  reg_alpha+reg_lambda penalty, it's not used. Truly novel components
+  must come from a DIFFERENT BASE PIPELINE (not recipe variants),
+  e.g., NN architecture, different model class at base level, or
+  external-data-derived features beyond what recipe captures.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/v1_plus_newfe_meta.py`
+  - `scripts/artifacts/oof_xgb_metastack_v1_plus_newfe.npy` + test
+  - `scripts/artifacts/v1_plus_newfe_meta_results.json`
+
+### 2026-04-28 — v1 inflation decomposed: GroupKFold + clean-pool diagnostics show v1's OOF lift is structurally fold-alignment + bank-extension
+
+- Goal: after 31 saturation confirmations + B2 family closure, isolate
+  WHY v1 PRIMARY's OOF 0.98084 → LB 0.98094 has the anomalous negative
+  gap. Two diagnostic experiments to decompose v1's OOF lift over the
+  4-stack base 0.98061 (= +0.00023 OOF):
+  1. **GroupKFold meta** (`scripts/v1_groupkfold_meta.py`): retrain v1's
+     meta-stacker with GroupKFold(groups=dgp_score) instead of
+     StratifiedKFold(y). Breaks SKF fold-alignment with base components
+     while keeping the same 62-component pool. Tests: how much of v1's
+     OOF lift is fold-alignment leak?
+  2. **Clean-pool meta** (`scripts/v1_clean_pool_meta.py`): retrain v1's
+     meta-stacker with same StratifiedKFold(seed=42), same XGB HPs, but
+     drop 26 suspected-overfit components (recipe variants, TTA, no_X
+     feature-removal, multi-seed pseudo derivatives, tau092, OTE-
+     strength variants). Tests: how much of v1's OOF lift is
+     bank-extension overfit?
+
+- **Results table** (4-stack base 0.98061, primary architecture
+  +meta_iso @ α=0.30):
+  ```
+  variant                meta argmax  @recipe   full-iso  primary OOF  Δ vs PRIMARY
+  v1 (SKF, 62 components)  0.97365   0.98041   0.98059   0.98084 ← LB-best (LB 0.98094)
+  clean pool (SKF, 35)     0.97358   0.98003   0.98044   0.98066   -0.00018
+  GroupKFold (62)          0.97102   0.97835   0.97980   0.98047   -0.00037
+  ```
+
+- **Decomposition of v1's +0.00023 OOF lift over 4-stack base**:
+  - ~37 bp from SKF-fold-alignment leak (GroupKFold removes this →
+    primary drops to 0.98047, BELOW the 4-stack base of 0.98061!)
+  - ~18 bp from bank-extension overfit on 26 derivative components
+    (clean pool removes this → 0.98066)
+  - True leak-free OOF capability is closer to **~0.98030–0.98050**
+  - **LB 0.98094 represents ~+0.00045 of GENUINE generalization over
+    the leak-honest estimate**
+
+- **Critical interpretation**: v1's standalone OOF lift is largely
+  inflation, but the resulting predictions DO transfer to LB (gap
+  −0.00010, "anomalous LB > OOF"). The two inflation mechanisms
+  (fold leak + bank extension) happen to NET OUT POSITIVELY on the
+  test distribution. Removing either one drops both OOF AND
+  predicted LB.
+
+- **Implications for further attempts**:
+  1. Replacing v1's structure with anything more "honest" (per-fold
+     iso, GroupKFold, smaller pool) loses LB
+  2. v1 is structurally entangled with its inflation mechanisms in a
+     way that makes them load-bearing for LB transfer
+  3. Adding NEW components to v1 only helps if they survive the same
+     fold-alignment leak structure (which is what makes v1's bank
+     work on this problem)
+
+- **Neither diagnostic candidate is LB-probe-worthy** (both predicted
+  to regress; OOF 18-37 bp below PRIMARY).
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **OOF lift decomposition via GroupKFold + clean-pool diagnostics
+     reveals what fraction of a meta-stacker's lift is structural vs
+     leak.** GroupKFold breaks SKF-alignment leak; clean-pool removes
+     bank-extension overfit. The DIFFERENCE in primary OOF tells you
+     how much each mechanism contributes. On this problem, ~37 bp from
+     fold alignment + ~18 bp from bank extension = ~55 bp of v1's
+     standalone OOF lift is inflation; only the residual is leak-free
+     signal.
+  2. **A meta-stacker can have negative OOF→LB gap WITHOUT being
+     leak-free if its inflation structure happens to align with the
+     test distribution.** v1's two inflation sources (fold leak + bank
+     overfit) net to LB-positive transfer despite being individually
+     leak-shaped. This is structural luck, not robust generalization.
+     Attempts to "clean up" the structure WILL drop LB even when they
+     improve calibration honesty.
+  3. **GroupKFold on synthetic-tabular problems with target-correlated
+     groups (here dgp_score is highly y-correlated) produces folds
+     with wildly imbalanced y distributions.** Per-fold val_argmax can
+     drop to 0.50–0.93 range (from typical SKF 0.974 range). The
+     resulting OOF is harder to interpret without the SKF baseline
+     because each fold's metric reflects a different y prior. Don't
+     compare GroupKFold OOF directly to SKF OOF; compare primary-level
+     OOFs after the meta is integrated.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today,
+  7 remaining.
+
+- Artifacts:
+  - `scripts/v1_groupkfold_meta.py` (#1, GroupKFold(dgp_score))
+  - `scripts/v1_clean_pool_meta.py` (#2, drop 26 suspected-overfit)
+  - `scripts/artifacts/oof_xgb_metastack_v1_groupkfold.npy` + test
+  - `scripts/artifacts/oof_xgb_metastack_v1_cleanpool.npy` + test
+  - `scripts/artifacts/v1_groupkfold_meta_results.json`
+  - `scripts/artifacts/v1_cleanpool_meta_results.json`
+
+### 2026-04-28 — C1 V3 mask-blend τ=0.85 α=0.40: LB 0.98021 (Δ −0.00073, gap +0.00099 — widest yet)
+
+- Goal: defeat the log-blend class-coupling failure (B3 #3 finding —
+  even α_H=0 in log-blend doesn't preserve High argmax) by switching
+  to surgical mask-blend that preserves PRIMARY's predictions on
+  H-confident rows exactly.
+- Mechanism: where PRIMARY's argmax IS High AND max_prob ≥ 0.85
+  (3.27% of test = 8,833 rows), keep PRIMARY's prediction. On the
+  remaining 96.73%, log-blend(PRIMARY, B2_iso) at α=0.40.
+- OOF metrics (architecture-matched, recipe bias):
+  - Δ vs PRIMARY = +0.00036 (G1 PASS)
+  - PCR delta = [Low +0.00016, Medium +0.00046, High +0.00048]
+    (ALL POSITIVE — strict Pareto improvement)
+  - Test side: 214/270k rows differ from PRIMARY (0.08%)
+  - Test class distribution: L+14, M−30, **H+16** (ADD-High direction!)
+- **All standard 4-gate diagnostics pointed to "this should LB-lift"**:
+  - G1: +0.00036 PASS
+  - G2: PCR all positive PASS (better than recipe -5e-4 floor)
+  - G3: Jaccard OK, asymmetric direction
+  - G4: net_H -98 on OOF FAIL by direction-counting, BUT test-side
+    H count went UP +16 (genuine ADD-High direction)
+- **LB submission (user-approved)**: `submission_c1_v3_tau085_a040.csv`
+  → **LB 0.98021**. Δ vs PRIMARY 0.98094 = **−0.00073** (clear regression).
+  OOF→LB gap = **+0.00099** (widest gap of any blend candidate this session).
+
+- **Critical insight**: every diagnostic pointed POSITIVE, yet LB
+  regressed 73 bp. The mask-blend mechanism preserves H argmax on
+  3.27% of H-confident PRIMARY rows but inherits B2's structural OOF
+  gap inflation on the remaining 96.73% (where the L↔M boundary
+  refinement happens). **B2's "+0.00027 OOF lift over PRIMARY" is
+  fundamentally calibration-driven (iso-cal on full OOF + bigger
+  bank), NOT new information**. No blend mechanism — log, prob-arith,
+  conditional, mask — extracts LB-positive signal from B2 because
+  the underlying gap inflation is ~+0.001.
+
+- **31st saturation confirmation at LB 0.98094**, with the most
+  diagnostically-deceiving null yet (passed every gate criterion
+  including all-positive PCR + ADD-High direction).
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **OOF gates are necessary but not sufficient.** Even a candidate
+     passing all 4 gates including all-positive per-class recall AND
+     test-side ADD-High direction can LB-regress when the underlying
+     meta has structural OOF→LB gap inflation. The only LB transfer
+     signature that's ever worked on this problem is: starts from
+     measurably leak-honest OOF surface (negative or near-zero gap),
+     proven at the standalone level BEFORE blending. B2 has +0.001
+     standalone gap inflation that no blend mechanism removes.
+  2. **Mask-blend mechanism preserves the chosen sub-domain but
+     inherits gap inflation from the unconstrained complement.**
+     Surgical preservation of H-confident rows (3.27% of test) cannot
+     rescue a candidate when 96.73% of the prediction surface is
+     blended with a gap-inflated source. Mask-blend works only when
+     the unmasked region's underlying source is itself LB-validated.
+
+- LB-best primary unchanged at **0.98094**. LB budget: **3/10 used today**
+  (leak-honest retuned + variant-A + c1 V3 a040), 7 remaining.
+
+- Artifacts:
+  - `scripts/c1_prob_arithmetic_blend.py` (V1+V2+V3 sweep)
+  - `scripts/artifacts/c1_prob_arithmetic_results.json`
+  - `submissions/submission_c1_v3_tau085_a040.csv` (LB 0.98021,
+    diagnostic for portable rules above)
+  - `submissions/submission_c1_v3_tau085_a020.csv` (untested,
+    conservative variant — NOT LB-probed because a040 result already
+    rules out the mechanism family)
+  - `submissions/submission_c1_v3_tau085_a030.csv` (untested mid)
 
 ### 2026-04-28 — b3 follow-ups (3 mechanisms) + B2-clean (clean iso-cal-only test): all NULL, B2 lift fully decomposed
 

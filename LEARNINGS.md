@@ -1737,3 +1737,55 @@ vector to investigate.
 **Confirmed honest in this comp**: Region split Δ −0.00029, Crop
 split Δ −0.00056 — both within −0.002 floor. Train/test feature
 distributions are statistically indistinguishable (AV AUC 0.502).
+
+### 2026-04-28 — Per-row diagnostic features for meta-stackers
+
+**Setting**: A meta-stacker XGB on a wide bank (~63 components × 3
+classes = 210-dim input) extracts cross-component disagreement signal
+through tree splits. **Hypothesis**: explicit per-row diagnostic
+features (argmax agreement count, per-class prob std/range across the
+bank, top-1−top-2 margin) carry orthogonal signal that the depth-4
+XGB cannot fully reconstruct from raw component log-probs.
+
+**Empirical finding (4 v8 variants on this competition)**:
+
+| variant | bank | class-weight | iso | standalone OOF | direction | gate |
+|---------|------|--------------|-----|----------------|-----------|------|
+| v8 | 186 | no | no | +0.00031 vs PRIMARY | REMOVE-High | G4 fail |
+| v8b | 187 | yes | no | +0.00044 vs PRIMARY | ADD-High @ α≥0.4 | 3/4 pass at α=0.50, G4 RESHUFFLE |
+| v8c | 39 (clean) | yes | no | −0.00094 vs PRIMARY | mixed | strictly negative every α |
+| v8b+iso | 187 | yes | yes | tied with v8b | REMOVE-High | G4 fail |
+
+**Result**: Diagnostic features DO add real OOF signal (+0.0003 to
++0.0004 standalone over PRIMARY), but cannot pass the G4 RESHUFFLE
+gate or transfer cleanly to LB across any of 4 structural variants.
+
+**Two derived rules**:
+
+1. **Per-row diagnostic features inherit the bank's per-class bias.**
+   When the bank's components agree heavily on rare-class predictions
+   (e.g., bank-wide mean P(High) is concentrated near LB-best's High
+   recall), the diagnostic features encode that consensus. Adding them
+   to a meta-stacker amplifies the bank's existing direction rather
+   than producing orthogonal signal. The 12 symmetric features
+   (mean/std/range per class) exhibit this regardless of class-weight
+   in the meta or post-hoc iso-cal.
+
+2. **Aggressively curating a saturated meta-stacker bank REMOVES
+   signal.** v8c showed −0.00138 standalone OOF loss when filtering
+   187 → 39 LB-validated/structurally-distinct components. The
+   "noisy" saturation-experiment OOFs carry cross-component
+   correlations that a depth-4 XGB-meta exploits. Manual EXCLUDE
+   lists should be conservative; trust the meta-XGB to weight
+   components via reg_alpha=5 + reg_lambda=5 + colsample=0.9.
+
+**Generalization**: for future synthetic-tabular comps with
+saturated meta-stacker banks, skip per-row diagnostic features as
+the first-line "novel feature" lever. They land in the same RESHUFFLE
+class as LR-meta variants (3/4 gates pass, G4 fails). To break the
+Pareto frontier, the new signal source must be at the COMPONENT
+level (a model whose errors are orthogonal in BOTH Jaccard AND
+magnitude AND rare-class direction), not at the meta-stacker level.
+
+**Saturation count contribution**: 35th-38th confirmations at LB
+0.98094 (4 v8 variants).
