@@ -15906,3 +15906,62 @@ Curated bank target: ~40-50 LB-validated components. Same script
   - OR a different mechanism entirely
   Pending decision: is R3 worth ~50 min CPU + 1 LB slot when 28
   saturations now exist?
+
+### Next steps: sparse-ensemble + feature-importance to break the gap (2026-04-28)
+
+After R2 hybrid LB-regression (28th saturation), the macrorec meta family's
+OOF→LB gap is identified as having TWO components:
+  1. Selection bias (~30-50 bp) — from grid search on hybrid_ratio × α
+  2. Macrorec base's intrinsic gap (~40-50 bp) — systematic, not stochastic
+
+Three follow-up stages designed to break (1) via averaging + isolate (2)
+via feature importance. Critical principle: **all hyperparameter choices
+must come from THEORY/SMOKE, NOT post-hoc OOF grid search** — that's what
+contaminated R2 hybrid's 4-gate PASS.
+
+  **Stage 1: Feature importance diagnostic** (~5 min, no retraining)
+  Load N1 booster (170-component meta), compute gain importance per
+  feature. Map back to component names. Rank by aggregated importance
+  across 3-class outputs. Output: top-N components with gain scores.
+  Identifies which components the meta-stacker's tree splits actually
+  USE — informationally distinct from blend coefficients (greedy
+  selection).
+
+  **Stage 2: Cross-meta error correlation** (~5 min)
+  Compare N1 / R2 / R1 OOF predictions row-by-row. Compute Jaccard of
+  error sets pairwise. If Jaccard < 0.85, errors are decorrelated →
+  sparse ensemble has variance gain. If ≥ 0.85, errors are correlated
+  → ensemble inherits same systematic bias.
+
+  **Stage 3: Sparse-ensemble macrorec meta** (~50 min CPU)
+  Based on Stage 1 + Stage 2 findings:
+    - Single curated meta: train 1 macrorec meta on top-30 importance
+      components (smallest viable pool). lam_ce=0 (theoretical from
+      SMOKE), α=0.30 (LB-validated architecture).
+    - 5-meta sparse ensemble: lam_ce ∈ {0, 0.1, 0.2, 0.3, 0.5} on
+      top-30 pool, geometric-mean blend. No selection bias because
+      ensemble averages all 5 (no picking).
+
+  **Critical design rule**: NO grid search on outputs. Pool size from
+  importance ranking (not hand-curated). α=0.30 from LB-validated
+  architecture (not selected). lam_ce values chosen by theoretical
+  spread (not optimized). Hybrid ratios NOT introduced.
+
+  **Bayesian prior of LB lift**:
+    - Stage 1 alone: 5% (insight only)
+    - Stage 1 + single curated meta: 20%
+    - Stage 1+2+3 sparse ensemble (decorrelated errors): 30-35%
+    - Sparse ensemble (correlated errors): ~10%
+
+  **Why this is the highest-EV path**: 30-35% prior beats R3's 15-20%.
+  The macrorec signal IS real (+0.62pp H standalone, all-4-gate PASS
+  on hybrid OOF). The gap is partly selection-bias and partly
+  systematic. Importance-based pool curation + symmetric ensembling
+  attacks both components simultaneously. Compared to R2 hybrid's
+  grid-selected approach, this is a CLEAN deployment with no
+  selection-bias contamination.
+
+  **Execution order**: Stage 1 + Stage 2 first (10 min total) — these
+  are diagnostics that gate Stage 3. If Stage 2 shows correlated
+  errors, skip Stage 3 (ensemble won't help). If Stage 1 shows < 30
+  high-gain components, Stage 3 should focus on smaller pool.
