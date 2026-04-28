@@ -14,8 +14,8 @@ that the depth-4 XGB-meta with reg_alpha=5 cannot fully reconstruct from
 210 raw component log-prob features. ~10-min FE + ~5-min meta retrain.
 
 Run:  python3 -m scripts.dist_shift.optD_meta_v8
-Output: oof_xgb_metastack_v8.npy + test + results JSON.
-Then:   CAND=xgb_metastack_v8 python3 -m scripts.dist_shift.optAB_blend_gate
+Output: oof_xgb_metastack_{SUFFIX}.npy + test + results JSON.
+Then:   CAND=xgb_metastack_{SUFFIX} python3 -m scripts.dist_shift.optAB_blend_gate
 """
 from __future__ import annotations
 
@@ -42,6 +42,9 @@ TARGET = "Irrigation_Need"
 CLS2IDX = {"Low": 0, "Medium": 1, "High": 2}
 ART = Path("scripts/artifacts")
 DATA = Path("data")
+
+CLASS_WEIGHTED = os.environ.get("CLASS_WEIGHTED", "") == "1"
+SUFFIX = os.environ.get("SUFFIX", "v8")
 
 
 def log(m):
@@ -190,7 +193,12 @@ def main():
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(X_tr, y)):
         t1 = time.time()
-        dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx])
+        if CLASS_WEIGHTED:
+            from sklearn.utils.class_weight import compute_sample_weight
+            sw_tr = compute_sample_weight("balanced", y[tr_idx])
+            dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx], weight=sw_tr)
+        else:
+            dtr = xgb.DMatrix(X_tr[tr_idx], label=y[tr_idx])
         dva = xgb.DMatrix(X_tr[va_idx], label=y[va_idx])
         dte = xgb.DMatrix(X_te)
         booster = xgb.train(
@@ -225,8 +233,8 @@ def main():
     log(f"  total wall = {time.time()-t0:.1f}s")
 
     # Save
-    np.save(ART / "oof_xgb_metastack_v8.npy", oof_meta)
-    np.save(ART / "test_xgb_metastack_v8.npy", test_meta)
+    np.save(ART / f"oof_xgb_metastack_{SUFFIX}.npy", oof_meta)
+    np.save(ART / f"test_xgb_metastack_{SUFFIX}.npy", test_meta)
     out = {
         "n_components": len(component_names),
         "n_diagnostic_features": 12,
@@ -238,9 +246,9 @@ def main():
         "own_bias": list(map(float, own_bias)),
         "wall_seconds": float(time.time() - t0),
     }
-    (ART / "xgb_metastack_v8_results.json").write_text(json.dumps(out, indent=2))
-    log(f"\nWrote oof_xgb_metastack_v8.npy + test + xgb_metastack_v8_results.json")
-    log(f"\nNext: CAND=xgb_metastack_v8 python3 -m scripts.dist_shift.optAB_blend_gate")
+    (ART / f"xgb_metastack_{SUFFIX}_results.json").write_text(json.dumps(out, indent=2))
+    log(f"\nWrote oof_xgb_metastack_{SUFFIX}.npy + test + xgb_metastack_{SUFFIX}_results.json")
+    log(f"\nNext: CAND=xgb_metastack_{SUFFIX} python3 -m scripts.dist_shift.optAB_blend_gate")
 
 
 if __name__ == "__main__":
