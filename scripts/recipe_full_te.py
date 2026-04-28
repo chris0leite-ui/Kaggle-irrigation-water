@@ -783,6 +783,12 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             n_estimators=30 if SMOKE else 100,
             early_stopping_rounds=10 if SMOKE else 25,
             max_depth=4,
+            # Drop max_bin from 1024 → 256 for DART specifically.
+            # 1024 bins × 443 features × 504k rows = ~230B histogram lookups
+            # per tree. 256 bins is 4x cheaper. Recipe gbtree benefits from
+            # max_bin=1024 because best-split picks marginal AUC; DART with
+            # heavy regularization (depth=4) doesn't see that benefit.
+            max_bin=256,
         )
 
     train_scores = train["dgp_score"].values if DROP_SCORE_SET else None
