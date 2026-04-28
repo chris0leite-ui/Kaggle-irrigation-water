@@ -17567,3 +17567,329 @@ portable rules.
      ONLY (X, Y) as 2 components. The result tells you the marginal
      contribution of X without any noise from other components. ~4-10 min
      CPU. Use BEFORE building expensive ensemble experiments.
+
+### 2026-04-28 — F (data-scaling diagnostic) + B (decision-boundary atlas) + E (LB-observation CSV): F informative, B 31st saturation, E scaffolded
+
+User push after the LR/N5b/leak-honest sequence: "did better than us, giving up
+is not helpful". Ran 3 mechanism-distinct experiments per CLAUDE.md
+"NEVER GIVE UP" rule.
+
+- **F — Data-scaling diagnostic** (`scripts/F_data_scaling.py`, ~85 min CPU,
+  one-fold val on fixed 126k held-out):
+  ```
+  N         tuned    Δ vs prev   slope (ppm/row)
+  50,400    0.97595      —              —
+  100,801   0.97726   +0.00131         26.0
+  201,600   0.97793   +0.00067          6.7
+  403,199   0.97846   +0.00053          2.6
+  504,000   0.97880   +0.00034          3.3
+  ```
+  **Soft data-limited at right tail.** Slope 400k→504k (3.3 ppm/row) is
+  comparable to 200k→400k (2.6 ppm/row) — asymptote not fully reached but
+  approaching. Predicted full 5-fold (630k) ≈ 0.97900 + averaging benefit
+  ~0.001 + last 126k slope ~0.0002 = 0.98010, matches documented 5-fold
+  full OOF 0.97967 within fold noise.
+  - **Verdict**: TabDDPM (D) bounded above by ~+0.0001-0.0005 standalone OOF
+    if augmentation matches real distribution. Not dead, but feature-space
+    additions and architectural levers retain higher EV ceilings.
+  - **Portable rule** (LEARNINGS.md candidate): "30-min CPU 5-fraction
+    data-scaling sweep on the LB-best base model is the cheapest possible
+    diagnostic for 'data-limited vs model-limited' on a saturated stack.
+    Slope at right tail ≤ 5 ppm/row → invest in features/architecture, not
+    data augmentation. Slope ≥ 20 ppm/row → invest in synthetic-anchor data
+    or external sources."
+
+- **B — Decision-boundary atlas (per-cell P(deviate) feature)**
+  (`scripts/B_boundary_atlas.py` + `EXTRA_BOUNDARY=1` env var on
+  `recipe_full_te.py`):
+  - V1 (per-axis 1D LR per cell): **dud** — only 3 / 448 boundaries
+    landed within axis range. Confirms 2026-04-26 score=6 deep-dive's
+    "feature-indistinguishable in 1D" finding.
+  - V2 (per-cell 7-feature LR predicting `P(deviate from cell-majority)`):
+    45/64 cells fitted, in-sample AUC range 0.535-0.880 mean 0.656. Top
+    5 cells by deviation rate match prior known-flip cells (cell 51 =
+    70% flip cell from 2026-04-21 EDA).
+  - Output: `oof_boundary_atlas.npy` + `test_boundary_atlas.npy` —
+    1 numeric col per row (P(deviate)), 38% non-zero, mean 0.172.
+  - **Standalone production**: per-fold argmax 0.97530/0.97607/0.97677/
+    0.97436/0.97572 (4/4 first folds negative vs vanilla recipe). Overall
+    5-fold tuned **0.97967** — IDENTICAL to vanilla recipe. The bias
+    retune absorbed per-fold variance; boundary feature added zero
+    standalone signal.
+  - **Blend gate vs LB-best 4-stack** (0.98084) at fixed recipe bias:
+    monotone-negative across α ∈ {0.10, ..., 0.50} (Δ -0.00017 to -0.00055).
+    G1 FAIL (Δ -0.00039), G2 FAIL (PCR_H drops -0.00099), G3 FAIL (nan),
+    G4 FAIL (net_H +5 / churn 95 = ratio 0.05 — pure RESHUFFLE).
+  - **Diagnosis** — the 1-d P(deviate) feature can't distinguish
+    RIGHT-deviations (host NN flip captured by LB-best primary) from
+    WRONG-deviations (primary mistake on a clean row). Recipe XGB at
+    depth=4 sees the same P_deviate signal for both error directions
+    and can't update either way confidently. Same magnitude trap as
+    prior tree-FE nulls (P3 instability, A4 transplant, residual TE)
+    but mechanism distinct.
+  - **Container rehydrate at 20:26** killed PID 21663 mid-fold-5
+    (~iter 500/1500). Recipe's resume logic re-loaded the 4 saved fold
+    checkpoints and finished fold 5 in 23 min. Total wall ~3h 45min
+    (fold 1 31min + fold 2 36min + fold 3 33min + fold 4 35min + fold
+    5 23min after restart + ~10min FE/checkpoint loading).
+  - **31st independent saturation confirmation at LB 0.98094.** Joins
+    the 30 prior structural-saturation entries (LR meta, N5b, soft_distill,
+    SMOTE-NC, multi-seed pseudo, AV-classifier, QP, leaf-OTE, Mamba,
+    Trompt, RealMLP n_ens={2,4}, focal variants, distill_tiny, N3 K=2
+    OTE concat, score=6 deep-dive, A/B/C+B2-clean, classw, D 3-meta,
+    R2 hybrid, base-only macrorec, minimal macrorec, b3 follow-ups,
+    leak-honest 4-gate, B1 per-component iso, B2 perfoldiso bank,
+    cross-poll metastack v3, J2 bootstrap-bag, mlp_metastack, three-meta
+    L3, sklearn RF meta).
+  - **Two portable rules** (LEARNINGS.md candidates):
+    1. **Per-cell LR P(deviate from primary cell-majority) is
+       structurally bidirectional and therefore non-actionable as a
+       blend feature.** A high P_deviate value is consistent with EITHER
+       "primary's argmax is correctly flipping vs cell-majority on a
+       NN-flip row" OR "primary made a mistake on a clean row". Tree
+       splits can't disambiguate without ground-truth labels per cell,
+       which by construction are not available at the per-row inference
+       level. Skip this lever family. To fix: train a per-cell LR
+       predicting `(y == cell_majority)` (the OPPOSITE direction) — but
+       that's just per-cell LR which already nulled in 2026-04-21.
+    2. **Recipe's resume-from-fold-checkpoint logic is rehydrate-resilient.**
+       Per-fold OOF/test/JSON checkpoints survive process death; on
+       relaunch the script auto-detects cached folds and skips them.
+       Validated on container rehydrate during fold 5 — saved 31 min ×
+       4 folds = ~2 hours of redundant compute.
+
+- **E — Historical LB observations CSV + GP-on-LB analysis scaffold**
+  (`scripts/E_lb_observations.py`, `scripts/E_gp_analysis.py`):
+  - Compiled 26 LB-probed submissions documented in CLAUDE.md as
+    structured rows: (label, OOF_tuned, LB_public, components,
+    notes). Components encoded as effective-log-prob-mass weights
+    in the final stack (chained through 3-stack → 4-stack → meta-blend
+    stages). Stored in `scripts/artifacts/E_lb_observations.csv`.
+  - **Univariate corr(component_weight, LB)** top 5:
+    ```
+    realmlp                            +0.587
+    recipe_pseudolabel_seed7labeler    +0.498
+    xgb_metastack_iso                  +0.494
+    xgb_nonrule_iso                    +0.469
+    recipe_pseudolabel                 +0.347
+    ```
+    PRIMARY's 5 canonical components dominate the positive-correlator
+    list. Recipe alone has a slightly NEGATIVE corr (-0.102) — stacks
+    with HIGHER recipe weight tend to be the simpler / lower-LB ones.
+  - **Calibration tightness ladder** (smallest gap = best forecaster):
+    ```
+    PRIMARY                                  gap -0.00010  LB > OOF (anomalous)
+    leak_honest_primary_retuned              gap  0.00000  perfect
+    primary_oof_optimal_bias                 gap +0.00001
+    recipe_full_te_catboost                  gap +0.00001
+    sklearn_rf_meta_tuned                    gap +0.00010
+    recipe x pseudolabel 50/50               gap +0.00014
+    3way multi-seed                          gap +0.00024
+    mlp_metastack                            gap +0.00027
+    ```
+  - **Component regression risk** (always-null bag):
+    `xgb_metastack_n5b_iso`, `xgb_metastack_v4`, `xgb_metastack_v3_iso`,
+    `xgb_metastack_v6`, `p3_perturbed_v1_iso`, `soft_distill`,
+    `soft_distill_small`, `lr_metastack_v1_iso`, `macrorec_hybrid075_iso`.
+    Skip in any future blend.
+  - **Concrete unprobed levers from the data**:
+    1. `realmlp` weight sweep at α ∈ {0.18, 0.22, 0.25} (currently
+       α=0.20 in stack1) — corr +0.587 suggests +Δ may lift
+    2. `xgb_metastack_iso` weight sweep at α ∈ {0.25, 0.275, 0.325}
+       (currently α=0.30) — corr +0.494 suggests slightly different
+       operating point may lift
+    3. 3-component subset (recipe + RealMLP + meta_iso, NO pseudo) —
+       never tested
+  - **Bayesian-optimization caveat**: 26 obs in 26-dim space is severely
+    under-determined for a vanilla GP. Treat correlations as informative
+    directional guidance, not calibrated forecaster.
+
+- **LB-best primary unchanged**: `submission_tier1b_greedy_meta.csv` at
+  **LB 0.98094**. LB budget unchanged (no probes spent today).
+- **Final-selection lock unchanged**:
+  1. PRIMARY: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+  2. HEDGE (audit-F1 swap): `submission_3way_recipe025_s1035_s7040.csv`
+     → LB 0.98005
+- 2 days to deadline (2026-04-30). 7 LB submissions remaining today.
+
+- **Next bets** (post-31st-saturation, ranked by EV/cost):
+  1. **`realmlp` α sweep** (~10 min CPU per α via E's scaffold):
+     reuse `tier1b_helpers.build_lbbest_stack` with α_realmlp ∈
+     {0.15, 0.18, 0.22, 0.25} substituted into stack1's 0.80/0.20
+     blend. Compute new 4-stack OOF + 4-gate. Tightest feasibility
+     test of E's strongest correlator. Expected: ±0.00010-0.00050
+     LB if signal is real.
+  2. **`xgb_metastack_iso` α sweep** (~10 min CPU per α):
+     same protocol with α_meta_iso ∈ {0.25, 0.27, 0.32, 0.35}
+     substituted into the 0.70/0.30 final blend. Should produce
+     a clean unimodal curve if α=0.30 is locally optimal, else
+     identifies a better operating point.
+  3. **TabDDPM augmentation** (~3h Kaggle GPU): F's slope at right
+     tail justifies +0.0001-0.0005 OOF expected. Conditional
+     generation of synthetic-but-rule-anchored High rows. Different
+     failure mode from SMOTE.
+
+- Artefacts (whitelisted via `.gitignore` for cross-branch reuse):
+  - `scripts/F_data_scaling.py` + `scripts/artifacts/F_data_scaling_results.json`
+  - `scripts/B_boundary_atlas.py` + `scripts/artifacts/oof_boundary_atlas.npy`
+    + `test_boundary_atlas.npy` + `B_boundary_atlas_results.json`
+  - `scripts/recipe_full_te.py` (EXTRA_BOUNDARY env var integration)
+  - `scripts/artifacts/oof_recipe_full_te_bnd.npy` + test +
+    `recipe_full_te_bnd_results.json` (5-fold standalone null)
+  - `scripts/artifacts/blend_gate_4gate_bnd_results.json` (4-gate FAIL)
+  - `scripts/E_lb_observations.py` + `scripts/E_gp_analysis.py` +
+    `scripts/artifacts/E_lb_observations.csv` (whitelist) +
+    `scripts/artifacts/E_gp_analysis.json`
+  - `submissions/submission_recipe_full_te_bnd.csv` (diagnostic,
+    NOT for LB probe)
+
+### 2026-04-28 — Calibration analysis of rawashishsin v3 (LB 0.98109) vs our 4-stack (LB 0.98094): natural calibration is the structural differentiator
+
+User push after merging rawashishsin into our branch: "what can we learn
+from the solutions we copied? what can we do better in modeling, not
+just blending?" The rawashishsin replica is bit-identical to the public
+kernel — copying — but the COMPARISON between their pipeline and ours
+yields a structural finding worth documenting BEFORE running the next
+experiment.
+
+**Pipeline-level diff**:
+```
+                         rawashishsin v3            our recipe
+TE method                sklearn TargetEncoder      OrderedTE (per-row
+                         (multiclass, cv=5,         exclusive cumulative)
+                         smooth='auto') on EVERY    on cat-tuples only
+                         feature (133 cols)
+Depth                    3                          4
+Regularization           NO L1/L2 reg               reg_alpha=5, reg_lambda=5
+Sample weight            ORIG_ROW_WEIGHT=0.5        class-balanced + (no orig wt)
+                         (no class-balanced)
+n_estimators             2600                       3000
+Tuned log-bias           [-1.36, -1.19,  0.00]      [+1.43, +1.47, +3.40]
+```
+
+**The calibration finding** (the actual takeaway):
+
+rawashishsin's High bias = **0 exactly**. Their raw probabilities are
+already at the macro-recall optimum without any post-hoc shift on the
+rare class. Our recipe needs +3.40 logits of post-hoc bias to put High
+predictions at the same operating point.
+
+Implications:
+
+1. **Our base model is structurally miscalibrated under macro-recall.**
+   Raw High prob is centered around 0.33 ("kind of High") rather than
+   the macro-recall-optimal threshold. Class-balanced sample weight
+   (which scales rare-class loss by ~17×) doesn't translate cleanly to
+   per-class probability calibration at depth=4 + heavy reg.
+
+2. **Bias retune on OOF is overfit-prone.** Per the 2026-04-25
+   senior-engineer audit, iso-cal-on-full-OOF inflates OOF by exactly
+   +0.00010 from row-self-leak. Per-fold-iso fixed the math but only
+   recovered 1 bp. The deeper issue is "tune bias on OOF" itself —
+   bias retune carries a structural leak channel.
+
+3. **Stacking on a less-calibrated base compounds the issue.** Each
+   stacking layer learns to amplify the base's biases. Our 4-stack at
+   LB 0.98094 vs rawashishsin's single XGB at LB 0.98109 is a 1.5 bp
+   gap **AFTER** we apply 4 layers of stacking. If our base were
+   naturally calibrated like theirs, stacking would compound monotonically
+   instead of amplifying tune overfit.
+
+4. **Their TE method IS their regularization.** sklearn
+   TargetEncoder(multiclass, cv=5, smooth='auto') applies internal
+   CV-shuffled smoothing to every feature. That replaces the function
+   our reg_alpha=5 / reg_lambda=5 plays, which is to keep the trees
+   from overfitting to noisy categorical signal. Their depth=3 + no-reg
+   works *because* the FE is already pre-smoothed.
+
+**Calibration mechanism — what makes their bias = 0 on High**:
+
+- NO class-balanced sample weight (the 17× upweight for High that we
+  use). Lets the trees fit the empirical class distribution in the
+  training pool.
+- ORIG_ROW_WEIGHT=0.5 (mild down-weight of the 10k rule-perfect anchor)
+  — doesn't distort the synthetic-side gradient.
+- depth=3 + no reg → trees fit per-class boundaries without aggressive
+  regularization pulling predictions toward the prior.
+- TargetEncoder(cv=5) → in-FE smoothing produces stable per-class
+  probability estimates that the trees can use directly.
+
+These four choices compose: raw probs come out per-class-calibrated.
+NO post-hoc bias retune needed for the rare class (their bias=0 on
+High). What bias they DO apply (-1.36 on Low, -1.19 on Med) is small,
+mostly compensating for the ORIG_ROW_WEIGHT down-shift on Low majority.
+
+**What this means for own-work directions**:
+
+The right experiment is NOT "hybrid their FE + our FE in our XGB"
+(which is just throwing more features at the same training regime).
+The right experiment is **"build a base model with natural calibration,
+using our FE views as additions to their training regime"**.
+
+Concretely, A2 (planned for next session):
+- Keep our recipe FE (OrderedTE + DGP signed-distances + digits +
+  ORIG_stats)
+- ADD sklearn TargetEncoder(multiclass, cv=5) on every feature
+  (their structural FE choice — applies smoothing internally)
+- Use their training regime: depth=3 + no reg + ORIG_ROW_WEIGHT=0.5
+  + **NO class-balanced sample weight**
+- Single XGB, no stacking layer
+
+If A2 produces:
+- Raw High bias near 0 (calibration test): we've reproduced their
+  natural-calibration structural property with our wider FE bank
+- Standalone tuned OOF ≥ 0.98016 (their CV): the FE additions added
+  signal beyond their pipeline
+- LB transfer ≥ 0.98109 (their LB): the natural calibration transferred
+  AND the FE additions helped on test
+
+Then stacking on TOP of A2 is genuinely monotonic — our prior stacking
+stages (greedy, meta-XGB) become more reliable on a calibrated base.
+
+If A2 produces biased calibration despite the training regime change:
+their TargetEncoder(multiclass, cv=5) is doing the dominant calibration
+work, and we should adopt exactly their FE choice.
+
+**Three new portable rules** (LEARNINGS.md candidates):
+
+1. **Natural calibration via training-regime choices (no class-balanced
+   weight + low depth + no reg + smoothed TE) gives raw probabilities
+   already at the macro-recall optimum, eliminating the need for
+   post-hoc bias retune.** A model with bias = [-1.36, -1.19, 0] on the
+   tuned operating point has structurally less OOF→LB risk than one with
+   bias = [+1.43, +1.47, +3.40], because no leak-prone retune is
+   compensating for raw-prob miscalibration. For future imbalanced
+   multi-class problems, prefer natural-calibration training regimes
+   over class-balanced + post-hoc bias.
+
+2. **Stacking N layers on a bias-retuned base costs ~N × leak-channel.**
+   Our 4-stack at LB 0.98094 falls 1.5 bp short of a single-layer
+   naturally-calibrated XGB at LB 0.98109. Each stacking step inherits
+   and amplifies the base's bias-tune overfit. The single best step you
+   can take to lift a stacked pipeline is to make the base naturally
+   calibrated, NOT to add another layer of stacking.
+
+3. **TargetEncoder(multiclass, cv=5, smooth='auto') replaces the
+   regularization function L1/L2 plays.** Internal CV-shuffled smoothing
+   on every feature is a different mechanism than post-tree
+   regularization but achieves the same goal: keep tree splits from
+   overfitting to noisy categorical signals. Models can therefore drop
+   reg_alpha + reg_lambda when using sklearn's TargetEncoder broadly.
+   This is structurally distinct from OrderedTE's per-row exclusive
+   cumulative encoding, which doesn't include a CV-shuffle component.
+
+**LB-best primary**: NEW PRIMARY `submission_rawashishsin_2600_standalone.csv`
+at **LB 0.98109** (since 2026-04-28 main merge). Prior PRIMARY (own-work)
+at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
+(2026-04-28) at 2/10, 8 remaining.
+
+**Next experiments**:
+- **A2 — Natural-calibration hybrid base** (~1h Kaggle GPU): described
+  above. Goal: bias near 0, OOF ≥ 0.98016, LB ≥ 0.98109.
+- **B — Per-row train→test k-NN distance feature** (~30 min FAISS +
+  50 min recipe rerun): geometric feature class not in any audited
+  public kernel. Captures "where in training manifold does this test
+  row sit?" — encodes test-side calibration info that motivates
+  rawashishsin's negative CV-LB gap.
+- If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
+  PRIMARY) as final pair.
