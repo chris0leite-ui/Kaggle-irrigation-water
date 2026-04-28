@@ -16186,6 +16186,59 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-28 — v1+newFE: adding 4 novel-feature-view components to v1 pool — NULL (32nd saturation)
+
+- Goal: leverage the v1-decomposition finding that v1's leak-shape
+  inflation is load-bearing for LB transfer. Hypothesis: ADDING
+  components trained with the SAME SKF(seed=42) fold structure as v1
+  should inherit v1's fold-alignment leak structure and contribute
+  new signal aligned with the existing mechanism.
+- Added 4 recipe variants on disk that are NOT in v1's 62-component
+  pool but were trained with SKF(seed=42):
+  - `recipe_full_te_3way` (3-way OTE on cat triples)
+  - `recipe_full_te_nndist` (k-NN distance features to 10k original)
+  - `recipe_full_te_fexw8` (W8 feature block)
+  - `recipe_full_te_instab` (instability/perturbation features)
+- Pool: 66 components (v1's 62 + 4 new), same XGB HPs, same fold split.
+
+- **Results vs v1**:
+  ```
+  variant                meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)                0.97365      0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+newFE (66)          0.97370      0.98041   0.98044   0.98081
+  ```
+- **Test side**: 41 rows differ from current PRIMARY.
+- **PCR delta vs v1 primary**: L −0.00000, M +0.00010, **H −0.00019**.
+- **G4**: add_h=29, rem_h=52, net_h=−23, ratio 0.28 (FAIL by direction).
+
+- **NULL.** Standalone meta argmax improved by 5 bp but full-iso
+  DROPPED by 15 bp; primary OOF 0.98081 (−0.00003 vs v1 PRIMARY).
+  The 4 new components added micro-noise rather than orthogonal
+  signal. The meta-stacker can't extract value from feature views
+  that are too similar to existing v1 components.
+
+- **32nd saturation confirmation at LB 0.98094**.
+
+- **New portable rule** (LEARNINGS.md candidate): **Component
+  addition to a saturated meta-stacker pool does not work even when
+  the new component is fold-aligned with existing v1 structure.**
+  The 4 added components (3way, nndist, fexw8, instab) all share
+  recipe_full_te's base recipe with FE additions; their predictions
+  are highly correlated with existing recipe_full_te variants in v1
+  (a01, a10, fexboth, gby, etc.). Meta-stacker tree splits use the
+  marginal-information rule: if a new feature's gain doesn't exceed
+  reg_alpha+reg_lambda penalty, it's not used. Truly novel components
+  must come from a DIFFERENT BASE PIPELINE (not recipe variants),
+  e.g., NN architecture, different model class at base level, or
+  external-data-derived features beyond what recipe captures.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/v1_plus_newfe_meta.py`
+  - `scripts/artifacts/oof_xgb_metastack_v1_plus_newfe.npy` + test
+  - `scripts/artifacts/v1_plus_newfe_meta_results.json`
+
 ### 2026-04-28 — v1 inflation decomposed: GroupKFold + clean-pool diagnostics show v1's OOF lift is structurally fold-alignment + bank-extension
 
 - Goal: after 31 saturation confirmations + B2 family closure, isolate
