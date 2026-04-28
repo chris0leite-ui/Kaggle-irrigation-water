@@ -1,6 +1,6 @@
 # Next steps
 
-## 📌 Current status (2026-04-26 evening)
+## 📌 Current status (2026-04-28)
 
 - **LB best**: `submission_tier1b_greedy_meta.csv` → **LB 0.98094**
   (OOF 0.98084, gap −0.00010). Composition:
@@ -8,12 +8,16 @@
   with bias `[1.4324, 1.4689, 3.4008]`.
 - **Pack**: 0.98114 (+0.00020 above us, public-CSV blend — banned).
 - **Leader**: 0.98219 (+0.00125 above us).
-- **Saturation**: 13+ independent attacks at OOF 0.98030–0.98090 / LB
+- **Saturation**: **32+ independent attacks** at OOF 0.98030–0.98090 / LB
   0.97950–0.98010 — re-arranging existing components cannot break LB
   0.98094. Pareto frontier closed on rare-class High recall.
 - **15 NN-family nulls**: magnitude trap is structural at this feature
   set.
-- **Deadline**: 2026-04-30 (4 days).
+- **2026-04-28 cross-fold-disjoint diagnostic** confirmed LB-best meta
+  is SEED-INVARIANT (3 seeds disagree on 0.017% of test rows). The
+  +0.00086 LB lift is structural signal, NOT cross-stack leak. POSITIVE
+  result on LB-best honesty.
+- **Deadline**: 2026-04-30 (2 days).
 
 ### Final-selection lock (CONFIRM ON KAGGLE UI)
 
@@ -42,10 +46,16 @@ the swap on Kaggle's final-selection UI before deadline 2026-04-30.**
 
 ### Skip on principled grounds
 
-- More meta-stacker variants — 13+ saturation confirmations.
+- More meta-stacker variants — 32+ saturation confirmations including
+  the 2026-04-28 cross-fold-disjoint diagnostic which proves the
+  LB-best meta is seed-invariant (no leak to recover).
 - Public-CSV blending — banned by top-of-file rule.
 - More NN-from-scratch attempts — 15 nulls form a structural pattern.
+  MLP-meta-macrorec (2026-04-28) added a 16th — same magnitude/Pareto
+  failure mode at meta-stacker level.
 - HP / model-seed bagging — LB-regressed in past runs.
+- Cross-fold-disjoint meta bag — confirmed REMOVE-High failure mode
+  when underlying metas are seed-invariant (2026-04-28).
 
 ---
 

@@ -1737,3 +1737,93 @@ vector to investigate.
 **Confirmed honest in this comp**: Region split Δ −0.00029, Crop
 split Δ −0.00056 — both within −0.002 floor. Train/test feature
 distributions are statistically indistinguishable (AV AUC 0.502).
+
+### Cross-fold-disjoint stacking diagnostic (added 2026-04-28)
+
+Cleanest test of cross-stack leak in CV stacking pipelines: retrain the
+meta-stacker at a DIFFERENT fold split (e.g. seed=7 or 123) than the
+bases (which were all generated at seed=42). Compare test-side argmax
+agreement across seeds.
+
+**Decision rule**:
+  - Disagreement < 0.05% (~135 rows of 270k): meta is **seed-invariant**;
+    the lift is structural signal from the bank, not seed-dependent leak.
+    Cross-fold-disjoint variance reduction won't help (bag = mean of
+    near-identical metas → REMOVE-rare-class direction).
+  - Disagreement 0.05-0.5%: partial leak; the lift is mostly structural
+    but has some seed dependence. Bagging may help variance.
+  - Disagreement > 0.5%: meta is significantly leak-driven; the LB-best
+    lift may be partly inflated. Investigate the bank composition or use
+    leak-eliminated nested CV.
+
+**Quantified** (2026-04-28 LB-best XGB meta-stacker on 60-component bank):
+pairwise disagreement across (s42, s7, s123) = 39-52 rows = 0.014-0.019%.
+Meta IS seed-invariant. LB-best lift +0.00086 confirmed structural.
+
+**Cost**: 1 retrain per additional seed. ~17 min per seed for a 60-
+component XGB heavy-reg meta-stacker on 504k rows.
+
+### Cross-fold meta-bag REMOVE-High failure
+
+When underlying metas are seed-invariant (per the diagnostic above),
+averaging 3+ seed-jittered metas produces predictions slightly closer
+to the per-class-recall centroid. The log-bias coord-ascent has
+deliberately pushed AWAY from that centroid to favor rare-class recall.
+Net effect: bag substituted into 4-stack arch shows REMOVE-High asymmetric
+Pareto violation (G2 PCR_H drop + G4 net_H < 0).
+
+**Quantified** (2026-04-28 3-bag s42+s7+s123 substituted at α=0.30):
+PCR_H drop -0.00105, net_H -73, churn 89, ratio 0.82 (negative direction).
+G1/G2/G3/G4 all FAIL. OOF -0.00012 vs LB-best 4-stack.
+
+**Rule**: don't expect cross-fold-disjoint bagging to lift past the
+existing meta-stacker when the meta is already seed-robust. The
+mechanism is variance reduction, but variance was already minimal.
+
+### Seed-jittered meta retraining is informative even on null
+
+Whether the bag passes the gate or not, the test argmax agreement
+diagnostic SEPARATES "LB-best is leak-driven" from "LB-best is honest
+signal." Both outcomes are valuable:
+  - Gate-pass: LB-best lift was inflated; bagging recovers some honest
+    signal. New deployment candidate.
+  - Gate-fail + high agreement: LB-best is honest. No further bank
+    manipulation will lift LB. Pivot to feature-level engineering
+    or fundamentally new components.
+  - Gate-fail + low agreement: LB-best is partly leak-driven but
+    bagging didn't recover the signal. Investigate nested CV or
+    component pruning.
+
+### MLP meta + macro-recall surrogate gradient
+
+The MLP meta-stacker with macro-recall surrogate loss
+(`L = λ·CE + (1-λ)·(-R_macro)`) preserves the macrorec base's
+H-direction signal at meta level (PCR_H +0.00019 vs anchor) but
+RESHUFFLE-pattern at the blend-decision level. G4 catches what
+standalone OOF can't: the meta has slightly better standalone bal_acc
+than the LB-best 4-stack (+0.00007) but the +50/110 churn ratio fails
+the 0.5 floor.
+
+**Quantified**: 2026-04-28 MLP-meta-macrorec on curated 60-component
+bank, lam_ce=0.3, 30 epochs. Standalone iso 0.98091 vs LB-best 4-stack
+0.98084. Blend at α=0.30 onto LB-best 3-stack: Δ +0.00001 (G1 FAIL),
+G3 ratio 4.32 (FAIL — super-linear scaling = noise signature), G4
+ratio 0.45 (FAIL). All 4 gates fail.
+
+**Rule**: macro-recall surrogate loss escapes the XGB-meta-macrorec
+satiation trap (best_iter=3) but escaping satiation only matters when
+there's orthogonal signal to capture. On a saturated bank, more
+gradient flow refines toward the same operating point.
+
+### G3 ratio super-linearity is a noise signature
+
+When OOF Δ scales super-linearly with α (G3 ratio ≫ 2.0, i.e. Δ at
+α=0.40 is 3-5× Δ at α=0.30 instead of the expected 1.0-2.0), the
+small-α lift is fold-noise being fitted, not new signal. Always add
+G3 as a complement to G1: a +0.0001 OOF lift WITHOUT G3 PASS is
+unreliable.
+
+**Quantified**: 2026-04-28 MLP-meta-macrorec G3 ratio 4.32 at α=0.30
+peak. Predicted LB null. (Same pattern flagged retrospectively on
+multiple prior null candidates.)
+
