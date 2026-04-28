@@ -4782,6 +4782,92 @@ architecture or feature view adds orthogonal bits at this base.
   - `submissions/submission_subst_rawashishsin_2600_a030.csv` (diagnostic only)
   - `submissions/submission_subst_rawashishsin_a030.csv` (diagnostic only)
 
+### 2026-04-28 — NEW LB BEST 0.98109: rawashishsin v3 standalone (verified bit-identical to author's kernel output)
+
+- Goal: definitive test of whether our v3 replica matches author's pipeline.
+  Pulled author's kernel output (`/kaggle/working/submission.csv`) via Kaggle
+  API. Compared to our v3 (n_est=2600 faithful) standalone CSV row-by-row.
+- **0 / 270,000 disagreements.** Our v3 submission is bit-identical to
+  author's published kernel output. The 93bp CV gap (their 0.98109 vs our
+  0.98016) is purely TargetEncoder(cv=5) seed-variance in CV evaluation —
+  NOT a structural prediction difference.
+
+- **LB submission** (user-approved, 20:31:06 UTC):
+  `submission_rawashishsin_2600_standalone.csv` →
+  **LB public = 0.98109**
+  Δ vs prior LB-best (0.98094) = **+0.00015**
+  OOF→LB gap = 0.98016 − 0.98109 = **−0.00093** (largest negative gap ever recorded)
+
+- **Surprise: rawashishsin's actual public LB is 0.98132 (rank 245)** but
+  our identical kernel output got 0.98109 (rank 366). Explanation: their
+  77 submissions vs our 1; their published kernel is just one of many.
+  Their best (0.98132) came from a DIFFERENT submission, not the kernel
+  output. Our 0.98109 matches the kernel's CV claim "highest-score-
+  xgboost-cv-0-98109" — suggesting their kernel produces 0.98109 LB
+  but they had a separate better-tuned submission for 0.98132.
+
+- **Updated calibration ladder:**
+  ```
+  3-way multi-seed                       0.98029 → 0.98005   gap +0.00024
+  LB-best 4-stack (prior PRIMARY)        0.98084 → 0.98094   gap −0.00010
+  **rawashishsin v3 standalone           0.98016 → 0.98109   gap −0.00093**  ← NEW LB BEST
+  ```
+  Negative gap −0.00093 is the largest LB-above-CV pattern we've ever seen.
+  CV under-counted this pipeline by 93bp; the test-side prediction quality
+  is genuinely high.
+
+- **NEW LB-BEST: 0.98109** via `submission_rawashishsin_2600_standalone.csv`.
+  Pack at 0.98148 still +0.00039 above; leader (Kevin E R MILLE) at 0.98236
+  still +0.00127 above. Cdeotte (Chris Deotte) now at 0.98219 (rank 3).
+
+- **LB budget today (2026-04-28): 2/10 used** (v8 + v3 standalone),
+  8 remaining.
+
+- **Final-selection candidates (all LB-validated)**:
+  - **NEW PRIMARY**: `submission_rawashishsin_2600_standalone.csv` → LB 0.98109
+    (single XGB depth=3 + sklearn TargetEncoder(cv=5) + drop-raw + heavy FE)
+  - **PRIMARY (prior)**: `submission_tier1b_greedy_meta.csv` → LB 0.98094
+    (4-stack: LB-3-stack + RealMLP + xgb_nonrule_iso + xgb_metastack_iso)
+  - **HEDGE**: `submission_3way_recipe025_s1035_s7040.csv` → LB 0.98005
+    (3-way multi-seed pure recipe, sidesteps meta-stacker)
+
+  Two structurally orthogonal LB-validated candidates above 0.98094 now
+  available. Recommended final selection: NEW PRIMARY (0.98109) +
+  prior PRIMARY (0.98094) — different model families, different bias
+  signatures (rawashishsin negative bias [-1.36, -1.19, 0] vs recipe
+  positive bias [+1.43, +1.47, +3.40]).
+
+- Three new portable rules (LEARNINGS.md candidates):
+  1. **Bit-identical predictions imply identical LB.** When two
+     submissions have 0 row disagreements, their public LB is identical
+     by construction. Use this to verify replica fidelity BEFORE trusting
+     CV-based projections.
+  2. **CV→LB gap can be massively negative (-0.00093)** when CV
+     evaluation uses different seed-cascade than the deployable model.
+     `sklearn.preprocessing.TargetEncoder(cv=5)` with non-pinned internal
+     shuffling is one such source. The test-side predictions are
+     deterministic (under fixed random_state) but the OOF metric used to
+     quote a CV score is path-dependent.
+  3. **A published kernel's CV score does NOT equal that submission's LB**
+     when the author has multiple submissions. Author's "best" public LB
+     reflects their best-of-N submissions; the published kernel may be
+     one of the lower-scoring ones. Pull both the LB and the kernel
+     output if you want to verify replication faithfulness.
+
+- Salvage path follow-up identified: blend rawashishsin v3 standalone
+  (LB 0.98109) with prior LB-best primary (LB 0.98094). Jaccard 0.7536
+  errors → moderate orthogonality. Test-side disagreement at LB-validated
+  outputs: 1035 rows. Built three candidate blends (α=0.30, 0.40, 0.50)
+  but OOF Δ negative — OOF metric unreliable when both pipelines have
+  negative OOF→LB gaps. Speculative LB projection α=0.50: LB ~0.98122,
+  but high uncertainty.
+
+- Artefacts:
+  - `scripts/blend_primary_v3.py` (blend diagnostic)
+  - `submissions/submission_blend_primary_v3_a{030,040,050}.csv`
+    (untested candidates; LB-projection 0.98116-0.98122 but with high
+    uncertainty due to NEG-OOF-gap calibration)
+
 ## Hypothesis board
 
 - **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
