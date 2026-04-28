@@ -86,6 +86,9 @@ scripts/artifacts/_lf_inner_*.npy
 # Auto-cleaned after final oof_xgb_metastack_perfoldiso_inputs.npy lands.
 scripts/artifacts/_b2_meta_fold*.npy
 scripts/artifacts/_b2_meta_fold*.json
+# B2-clean (v1 pool restricted, per-fold-iso inputs) per-fold checkpoints.
+scripts/artifacts/_b2c_fold*.npy
+scripts/artifacts/_b2c_fold*.json
 
 # Kaggle kernel build outputs (assembled dist/ files via build.py).
 # Regenerated locally before each push; not source of truth.
