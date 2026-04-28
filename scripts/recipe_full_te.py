@@ -769,18 +769,19 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
         # variance from gbtree, skip_drop=0.5 halves expected wall-time by
         # skipping dropout on 50% of rounds. Cap tree budget vs gbtree
         # since DART's per-tree cost grows linearly with round index.
-        # DART tuned for 4-CPU box feasibility:
-        #   skip_drop=0.7 → 70% of rounds behave like gbtree (faster)
-        #   rate_drop=0.05 → mild dropout when active
-        #   n_estimators=400 → ~2.5-3h/fold × 5 = ~12-15h total
-        # Dropout regularization decorrelates trees enough to produce
-        # error orthogonality; the milder config preserves that without
-        # the O(N^2) blow-up at full skip_drop=0.5 + rate_drop=0.1.
+        # DART tuned for 4-CPU box + container-rehydrate window:
+        #   skip_drop=0.85 → 85% rounds gbtree-like (only 15% incur DART
+        #     dropout overhead). At rate_drop=0.05 the per-active-round
+        #     dropout is mild → most trees stay in the ensemble.
+        #   n_estimators=200, early_stop=60 → fold wall ≤ 15-20 min on
+        #     4 CPU. Full 5-fold ≤ 1.5h fits inside any rehydrate window.
+        #   Per-fold checkpoint at line 951-952 means rehydrate-kill
+        #     mid-fold-N preserves folds 1..(N-1); restart resumes.
         xgb_params.update(
-            rate_drop=0.05, skip_drop=0.7,
+            rate_drop=0.05, skip_drop=0.85,
             sample_type="uniform", normalize_type="tree",
-            n_estimators=30 if SMOKE else 400,
-            early_stopping_rounds=10 if SMOKE else 120,
+            n_estimators=30 if SMOKE else 200,
+            early_stopping_rounds=10 if SMOKE else 60,
         )
 
     train_scores = train["dgp_score"].values if DROP_SCORE_SET else None
