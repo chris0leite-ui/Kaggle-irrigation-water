@@ -15858,3 +15858,51 @@ EXCLUDE for R1 re-run:
 Curated bank target: ~40-50 LB-validated components. Same script
 (`scripts/n1_metamacrorec.py`) but extend the imported EXCLUDE set.
 
+
+### 2026-04-28 — R2 hybrid 0.75 LB-probed: 0.98048 (−0.00046, 28th saturation)
+
+- Submitted `submission_R2_hybrid075_a015.csv` at 04:04 UTC. **LB public = 0.98048**.
+  Δ vs LB-best primary 0.98094 = **−0.00046** (REGRESSION).
+- OOF→LB gap = 0.98140 − 0.98048 = **+0.00092** (vs LB-best primary's −0.00010).
+- ALL 4 GATES PASSED on OOF: G1 (+0.00056) ✓, G2 (PCR all within −5e-4) ✓,
+  G3 (ratio 1.36) ✓, G4 (ratio 0.62, net_H +154 clean ADD-direction) ✓.
+- First time in 27 saturations ALL FOUR gates passed cleanly. Still LB-regressed.
+
+- **Root cause: hybrid grid-search selection bias.** The `hybrid_ratio` was
+  selected from a 6 × 4 = 24-point sweep (ratios in {0.0, 0.25, 0.4, 0.5, 0.6,
+  0.75, 0.85} × α in {0.05, 0.10, 0.15, 0.20}) by maximizing OOF Δ. This
+  introduces ~30-50 bp of selection bias on the OOF metric. The "true"
+  unbiased OOF Δ was probably +0.00010 to +0.00020; LB regression of
+  −0.00046 reflects the inflated OOF metric eating into actual signal.
+
+- **Portable rule** (LEARNINGS.md candidate): "**The 4-gate framework
+  validates DEPLOYABLE candidates, not POST-HOC SELECTED candidates.**
+  When a configuration knob (hybrid mix ratio, α weight, threshold) is
+  selected from a grid by OOF performance, even AFTER all 4 gates pass
+  on the selected point, the OOF metric carries selection-bias inflation
+  proportional to grid size and OOF noise. For a 24-point sweep on a
+  saturated meta, expect ~30-50 bp inflation. To deploy without this
+  contamination: pick the configuration knob from THEORY (e.g., 'use
+  α=0.30 because that's the documented LB-validated value for the
+  primary architecture'), THEN run gates."
+
+- 28th saturation confirmation at LB 0.98094. The ALL-4-GATE-PASS finding
+  is real (the OOF lift IS structurally there) but the post-hoc selection
+  pattern is the failure mode: 24-point grid search on OOF → selection
+  bias contaminates the gate. Earlier 27 saturation confirmations all had
+  G4 fail or G2 fail at fixed-config evaluations; today's experiment
+  reached G4 PASS only via grid-selected hybrid ratio, which is exactly
+  the OOF-overfit pattern the gate framework was designed to defend
+  against.
+
+- LB-best primary unchanged: **0.98094** via `submission_tier1b_greedy_meta.csv`.
+- Final-selection lock unchanged: PRIMARY 0.98094 + HEDGE 0.98005.
+- LB budget today (2026-04-28 UTC): 1/10 used (this probe), 9 remaining.
+
+- **Strategic implication:** to break LB 0.98094 on the macro-recall
+  surrogate path, would need EITHER:
+  - R3 KL-regularized meta loss (theoretical motivation — no grid
+    selection on hybrid mix, just one new hyperparameter `lambda_kl`)
+  - OR a different mechanism entirely
+  Pending decision: is R3 worth ~50 min CPU + 1 LB slot when 28
+  saturations now exist?
