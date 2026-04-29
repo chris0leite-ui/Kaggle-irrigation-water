@@ -1,0 +1,28 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "fold_scores_argmax": [
+    0.9736918978251033,
+    0.9766652220635099,
+    0.9789023508581502,
+    0.9768450467566506,
+    0.9755158127293003
+  ],
+  "overall_argmax_bal_acc": 0.9763241596801486,
+  "tuned_log_bias_bal_acc": 0.978623122280808,
+  "log_bias": [
+    1.5324411632360975,
+    1.568946691946548,
+    3.1007689020440883
+  ],
+  "bias_drift": [
+    1.0000000000000004,
+    0.6000000000000001,
+    -0.2999999999999998
+  ],
+  "drift_max": 1.0000000000000004,
+  "cal_verdict": "FAIL \u2014 drift > 0.7 on at least one class",
+  "ORIG_ROW_WEIGHT": 0.5,
+  "encoder": "sklearn TargetEncoder(multiclass, cv=5, smooth=auto)",
+  "model": "LightGBM num_leaves=8, lr=0.05, max_bin=1100, no reg (rawashishsin parity)"
+}

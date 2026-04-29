@@ -18154,3 +18154,96 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
     (diagnostic standalone, NOT for LB probe; LGBM SMOKE OOF 0.96462
     is below LB-best 0.98129 standalone, will only contribute as
     blend-bank component)
+
+### 2026-04-29 — LGBM-skte production: SMOKE→PROD natural-cal regression (drift 0.20 → 1.00), tuned OOF 0.97862
+
+- Production complete: 5 folds × ~13 min wall = 65 min total. All folds
+  checkpointed. Aggregate succeeded.
+- **Per-fold argmax** (production, 504k train + 10k orig per fold):
+  ```
+  fold 1: 0.97369   fold 2: 0.97667   fold 3: 0.97890
+  fold 4: 0.97685   fold 5: 0.97552
+  mean:   0.97632 ± 0.00171   (recipe XGB mean 0.97589 + 4 bp)
+  tuned:  0.97862   bias=[+1.5324, +1.5689, +3.1008]
+  ```
+- **The headline finding — natural-cal property partially regressed
+  SMOKE → PROD:**
+  ```
+  scale            max drift   verdict      bias profile [L, M, H]
+  -----            ---------   -------      -----------------------
+  SMOKE (20k×2-fold)  0.200    PASS         [+0.731, +0.971, +3.404]
+  PROD  (504k×5-fold) 1.000    FAIL         [+1.532, +1.569, +3.101]
+  ```
+  The bias drift on Low jumped from +0.20 (SMOKE) to +1.00 (PROD).
+  Medium drift grew +0.00 → +0.60. High drift went POSITIVE 0.00 →
+  NEGATIVE -0.30 (the model over-predicts High raw at production
+  scale).
+- **Mechanism diagnosis**: at production scale (25× more rows + 8.7×
+  more trees + same regime), the model has enough capacity to fit
+  imbalanced empirical class rates per leaf, pushing raw probs away
+  from the macro-recall-optimal operating point. Class-balanced sample
+  weights still apply but their effect on PER-CLASS PROB CALIBRATION
+  doesn't survive deep enough leaf splits across 2600 trees. SMOKE
+  was UNDER-FIT (300 trees on 10k synth) and the natural-cal property
+  was actually a regularization artefact, not a structural property.
+- **Comparison to other natural-cal candidates** at production scale
+  where available:
+  ```
+  variant                       drift_max   tuned OOF
+  rawashishsin v3 (LB 0.98109)  0.000       0.98016    (reference)
+  recipe XGB (LB-best primary)  ~0.000      0.97967    (already +3.40 H)
+  LGBM-skte (this experiment)   1.000       0.97862    PARTIAL nat-cal
+  CB natural (Phase 1)          0.900       0.97907    PARTIAL nat-cal
+  A3 RF (no skte)               ~3.404      ~0.95+     FAIL  (= recipe-bias)
+  ```
+  rawashishsin's 0.000 drift remains the only clean natural-cal at
+  production scale. LGBM-skte at 1.000 is between Phase 1 CB natural
+  (0.900) and full miscalibration (3.40+). The mechanism transfers
+  PARTIALLY but doesn't match rawashishsin's reference at production.
+- **Hypothesis for why rawashishsin v3 succeeds where our skte clones
+  fail**: rawashishsin applies sklearn TargetEncoder to **EVERY
+  feature** including raw nums (133 cols total in their pipeline),
+  whereas our V10 recipe FE applies sklearn TE only to the 117
+  cat-tuples + has 92 raw + derived numerics that bypass the smoothing.
+  The smoothed numerics may carry the natural-cal signal that's
+  missing in our recipe-FE approach.
+- **Implication for v3 RF rebuild after main's v2 lands**:
+  - LGBM-skte standalone is competitive (tuned 0.97862, mean fold 0.97632)
+    but BELOW recipe (0.97967) — adds value as a model-class-diversity
+    component to the natural-cal bank, not as a replacement for any
+    existing component.
+  - Bias drift profile is structurally different from XGB-family
+    components (Low +1.0, M +0.6, H -0.3 vs recipe's [+0.9, +0.5, ~0]).
+    The **negative drift on High** is the most distinctive signal —
+    LGBM raw probs OVER-PREDICT High where recipe + rawashishsin DON'T.
+    This could provide ADD-High asymmetry the bank otherwise lacks.
+  - Worth including as 11th component in v3 retraining if main's v2
+    produces an LB lift; otherwise diagnostic-only.
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **Natural calibration measured at SMOKE scale does NOT transfer
+     to production scale.** SMOKE drift 0.20 (PASS) → PROD drift 1.00
+     (FAIL) at the same regime + same FE + same model. SMOKE
+     under-fits; production has enough capacity to fit imbalanced
+     empirical class rates. To test natural-cal viability, you NEED
+     a full-scale production run — SMOKE confirms pipeline correctness
+     only, not calibration property.
+  2. **Class-balanced sample weights affect AGGREGATE class-recall
+     trade-off but NOT per-leaf probability calibration at production
+     depth.** With 2600 trees and num_leaves=8, each leaf has enough
+     splits to fit per-leaf empirical class rates that ignore the
+     instance reweighting at the tree-construction level. The weights
+     change which class gets predicted on argmax tie-breaks but not
+     the underlying P_class | leaf distribution.
+  3. **sklearn TargetEncoder(multiclass, cv=5) on cat-tuples ONLY is
+     INSUFFICIENT for production-scale natural calibration.**
+     rawashishsin's working pipeline applies sklearn TE to every feature
+     (including raw numerics), producing 133 smoothed input cols total.
+     Our V10 recipe applies it to 117 cat-tuples but keeps 92 raw +
+     derived numerics ungrouped. The ungrouped numerics may be where
+     natural calibration breaks down at scale. Future synthetic-tabular
+     comps wanting natural calibration should apply sklearn TE
+     UNIFORMLY across all features.
+- **Final result for this branch**: LGBM-skte standalone diagnostic
+  complete. NOT for LB probe (tuned OOF 0.97862 << LB-best 0.98129).
+  Submission CSV saved as diagnostic. OOF/test artefacts ready as the
+  11th candidate for v3 RF rebuild after main's v2 lands.
