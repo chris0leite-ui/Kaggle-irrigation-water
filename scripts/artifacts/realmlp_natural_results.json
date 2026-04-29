@@ -1,0 +1,33 @@
+{
+  "overall_argmax_bal_acc": 0.9685823102944474,
+  "tuned_log_bias_bal_acc": 0.9754921225703531,
+  "log_bias": [
+    1.1324411632360976,
+    1.2689466919465482,
+    3.400768902044088
+  ],
+  "drift_from_neg_log_prior": [
+    0.6000000000000004,
+    0.30000000000000027,
+    0.0
+  ],
+  "max_abs_drift": 0.6000000000000004,
+  "natural_cal_pass": false,
+  "fold_ba": [
+    0.9710732484395003,
+    0.9672686700951342,
+    0.9674635854229763,
+    0.9670718689181781,
+    0.9700347926028222
+  ],
+  "n_folds": 5,
+  "folds_completed": 5,
+  "seed": 42,
+  "smoke": false,
+  "natcal_knobs": {
+    "ORIG_ROW_WEIGHT": 0.5,
+    "TE_CV": 5,
+    "n_ens": 1,
+    "n_epochs": 40
+  }
+}

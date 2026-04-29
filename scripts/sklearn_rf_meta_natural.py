@@ -46,6 +46,7 @@ IDX2CLS = {v: k for k, v in CLS_MAP.items()}
 SEED = 42
 
 SMOKE = os.environ.get("SMOKE") == "1"
+META_SUFFIX = os.environ.get("META_SUFFIX", "")  # "" = original; "_a1lgbm" etc
 
 # Natural-calibration bank: bias_H near 0 OR tight OOF→LB gap.
 # Excludes recipe-family stacks with bias_H = +3.40 + leak channel.
@@ -56,6 +57,7 @@ NATURAL_BANK = [
     "recipe_full_te_catboost_natural",    # Phase 1 output
     "recipe_full_te_catboost_skte",       # Pick 2b output (sklearn TE CB) — A1
     "recipe_full_te_xgb_skte",            # XGB clone on recipe FE — A1
+    "recipe_full_te_lgbm_skte",           # LightGBM family-diversity — Option 1
     "recipe_full_te_catboost",            # LB 0.97935 gap +0.00001
     "recipe_full_te",                     # LB 0.97939 gap +0.00028 (recipe XGB)
     "realmlp",                            # 3-stack lift, NN diversity
@@ -223,8 +225,8 @@ def main():
     pcr = per_class_recall(y_eval, pred_at_bias)
     log(f"  PCR=[L={pcr[0]:.4f} M={pcr[1]:.4f} H={pcr[2]:.4f}]")
 
-    np.save(ART / "oof_sklearn_rf_meta_natural.npy", oof)
-    np.save(ART / "test_sklearn_rf_meta_natural.npy", test_pred)
+    np.save(ART / f"oof_sklearn_rf_meta_natural{META_SUFFIX}.npy", oof)
+    np.save(ART / f"test_sklearn_rf_meta_natural{META_SUFFIX}.npy", test_pred)
 
     summary = dict(
         n_folds=n_folds, smoke=SMOKE, seed=SEED,
@@ -239,9 +241,9 @@ def main():
         cal_verdict=cal_verdict,
         per_class_recall=pcr.tolist(),
     )
-    with open(ART / "sklearn_rf_meta_natural_results.json", "w") as f:
+    with open(ART / f"sklearn_rf_meta_natural{META_SUFFIX}_results.json", "w") as f:
         json.dump(summary, f, indent=2)
-    log(f"wrote {ART}/sklearn_rf_meta_natural_results.json")
+    log(f"wrote {ART}/sklearn_rf_meta_natural{META_SUFFIX}_results.json")
 
     # Blend gate (only on full production)
     if SMOKE:
@@ -316,7 +318,7 @@ def run_blend_gate(oof, test_pred, bias, y, test_ids):
                         ((a_test_pred == 2) & (b_test_pred != 2)).sum())
             churn_h = int(((b_test_pred == 2) ^ (a_test_pred == 2)).sum())
             log(f"    test diff vs {anchor_name}: net_H={net_h:+d}  churn_H={churn_h}")
-            sub_path = SUB / f"submission_rf_natural_blend_{anchor_name}_a{int(best['alpha']*100):03d}.csv"
+            sub_path = SUB / f"submission_rf_natural{META_SUFFIX}_blend_{anchor_name}_a{int(best['alpha']*100):03d}.csv"
             sub = pd.DataFrame({
                 "id": test_ids,
                 TARGET: [IDX2CLS[i] for i in b_test_pred],
