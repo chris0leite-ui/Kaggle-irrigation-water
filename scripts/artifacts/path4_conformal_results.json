@@ -1,0 +1,136 @@
+{
+  "alpha_sweep": [
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.01,
+      "delta": -0.00046755241711327056,
+      "pcr_delta": [
+        -0.00012705552867264824,
+        -0.0016563909082543127,
+        0.00038078918558714925
+      ],
+      "n_override_oof": 11109,
+      "n_override_test": 4665,
+      "net_h_oof": 368,
+      "churn_oof": 1336,
+      "ratio_oof": 0.2754491017964072,
+      "net_h_test": 147,
+      "churn_test": 457,
+      "ratio_test": 0.32166301969365424,
+      "G1": false,
+      "G2": false,
+      "G4": false,
+      "all_pass": false
+    },
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.02,
+      "delta": 0.0,
+      "pcr_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "n_override_oof": 0,
+      "n_override_test": 0,
+      "net_h_oof": 0,
+      "churn_oof": 0,
+      "ratio_oof": 0.0,
+      "net_h_test": 0,
+      "churn_test": 0,
+      "ratio_test": 0.0,
+      "G1": false,
+      "G2": true,
+      "G4": false,
+      "all_pass": false
+    },
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.05,
+      "delta": 0.0,
+      "pcr_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "n_override_oof": 0,
+      "n_override_test": 0,
+      "net_h_oof": 0,
+      "churn_oof": 0,
+      "ratio_oof": 0.0,
+      "net_h_test": 0,
+      "churn_test": 0,
+      "ratio_test": 0.0,
+      "G1": false,
+      "G2": true,
+      "G4": false,
+      "all_pass": false
+    },
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.1,
+      "delta": 0.0,
+      "pcr_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "n_override_oof": 0,
+      "n_override_test": 0,
+      "net_h_oof": 0,
+      "churn_oof": 0,
+      "ratio_oof": 0.0,
+      "net_h_test": 0,
+      "churn_test": 0,
+      "ratio_test": 0.0,
+      "G1": false,
+      "G2": true,
+      "G4": false,
+      "all_pass": false
+    },
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.15,
+      "delta": 0.0,
+      "pcr_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "n_override_oof": 0,
+      "n_override_test": 0,
+      "net_h_oof": 0,
+      "churn_oof": 0,
+      "ratio_oof": 0.0,
+      "net_h_test": 0,
+      "churn_test": 0,
+      "ratio_test": 0.0,
+      "G1": false,
+      "G2": true,
+      "G4": false,
+      "all_pass": false
+    },
+    {
+      "mode": "A_set_gt_1_to_raw",
+      "alpha": 0.2,
+      "delta": 0.0,
+      "pcr_delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "n_override_oof": 0,
+      "n_override_test": 0,
+      "net_h_oof": 0,
+      "churn_oof": 0,
+      "ratio_oof": 0.0,
+      "net_h_test": 0,
+      "churn_test": 0,
+      "ratio_test": 0.0,
+      "G1": false,
+      "G2": true,
+      "G4": false,
+      "all_pass": false
+    }
+  ]
+}
