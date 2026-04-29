@@ -1,0 +1,45 @@
+{
+  "variant_tag": "Va",
+  "replace_old": "realmlp",
+  "replace_new": "a2_natural_calib",
+  "bank": [
+    "rawashishsin_2600",
+    "recipe_full_te_catboost_natural",
+    "recipe_full_te_catboost",
+    "recipe_full_te",
+    "a2_natural_calib",
+    "xgb_corn",
+    "xgb_dist_digits"
+  ],
+  "n_components": 7,
+  "n_folds": 5,
+  "smoke": false,
+  "seed": 42,
+  "n_estimators": 500,
+  "max_depth": 12,
+  "fold_scores_argmax": [
+    0.9719861555647853,
+    0.9728444778963726,
+    0.9733926837356428,
+    0.9730575179175448,
+    0.9728924731974642
+  ],
+  "overall_argmax": 0.9728347110648841,
+  "tuned_log_bias": 0.980619845504947,
+  "log_bias": [
+    0.3324411632360974,
+    0.7689466919465482,
+    3.400768902044088
+  ],
+  "bias_drift": [
+    -0.19999999999999973,
+    -0.19999999999999973,
+    0.0
+  ],
+  "bias_drift_max_abs": 0.19999999999999973,
+  "per_class_recall": [
+    0.9946041949950934,
+    0.9666755899846909,
+    0.9805797515350564
+  ]
+}

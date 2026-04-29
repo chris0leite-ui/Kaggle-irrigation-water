@@ -1,0 +1,35 @@
+{
+  "variant": "S1",
+  "smoke": false,
+  "bank": [
+    "rawashishsin_2600",
+    "recipe_full_te_catboost_natural",
+    "recipe_full_te_catboost",
+    "recipe_full_te",
+    "realmlp",
+    "xgb_dist_digits",
+    "recipe_full_te_xgb_skte"
+  ],
+  "fold_scores": [
+    0.972050371862045,
+    0.9726394890557094,
+    0.9736656993017089,
+    0.9721600827461881,
+    0.9732757701885296
+  ],
+  "argmax": 0.9727583259448197,
+  "tuned": 0.9806023211695142,
+  "bias": [
+    0.3324411632360974,
+    0.7689466919465482,
+    3.400768902044088
+  ],
+  "pcr": [
+    0.9947042174325592,
+    0.9663325999481333,
+    0.98077014612785
+  ],
+  "v1_tuned": 0.980628290879414,
+  "delta_tuned_vs_v1": -2.596970989987568e-05,
+  "test_diff_vs_v1": 368
+}

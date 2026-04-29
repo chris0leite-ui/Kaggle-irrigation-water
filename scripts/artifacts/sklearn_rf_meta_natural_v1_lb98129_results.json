@@ -1,0 +1,11 @@
+{
+  "tuned_log_bias": 0.980628290879414,
+  "log_bias": [
+    0.4324411632360975,
+    0.8689466919465483,
+    3.2007689020440884
+  ],
+  "source": "oof_sklearn_rf_meta_natural_v1_lb98129.npy",
+  "lb_public": 0.98129,
+  "note": "Computed for T2 pseudo-label labeler config"
+}
