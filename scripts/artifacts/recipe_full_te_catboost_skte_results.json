@@ -1,0 +1,32 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "fold_scores_argmax": [
+    0.9779240498395456,
+    0.9785093203881132,
+    0.9802686817515983,
+    0.9793319263399803,
+    0.9789010513313049
+  ],
+  "best_iters": [
+    2599,
+    2198,
+    2600,
+    2600,
+    2600
+  ],
+  "overall_argmax_bal_acc": 0.9789870605388353,
+  "tuned_log_bias_bal_acc": 0.9793854257309219,
+  "log_bias": [
+    2.0324411632360975,
+    2.168946691946548,
+    2.8007689020440885
+  ],
+  "bias_H": 2.8007689020440885,
+  "cal_verdict": "FAIL \u2014 bias_H still high",
+  "ORIG_ROW_WEIGHT": 0.5,
+  "n_train": 630000,
+  "n_orig": 10000,
+  "n_test": 270000,
+  "encoder": "sklearn TargetEncoder(multiclass, cv=5, smooth=auto)"
+}
