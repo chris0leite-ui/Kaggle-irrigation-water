@@ -72,7 +72,8 @@ def main():
 
     out = {}
     for tag, label in [("Va", "V_a (realmlp -> a2_natural_calib)"),
-                        ("Vb", "V_b (realmlp -> realmlp_natural)")]:
+                        ("Vb", "V_b (realmlp -> realmlp_natural)"),
+                        ("Vc", "V_c (recipe_full_te_catboost -> recipe_full_te_catboost_skte)")]:
         oof_p = ART / f"oof_rf_natural_replace_{tag}.npy"
         test_p = ART / f"test_rf_natural_replace_{tag}.npy"
         json_p = ART / f"rf_natural_replace_{tag}_results.json"
