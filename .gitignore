@@ -1110,3 +1110,9 @@ scripts/artifacts/_recipe_mlp_fold*.npy
 scripts/artifacts/_recipe_mlp_fold*.json
 scripts/artifacts/_v1mlp_fold*.npy
 scripts/artifacts/_v1mlp_fold*.json
+scripts/artifacts/_recipe_lgbm_fold*.npy
+scripts/artifacts/_recipe_lgbm_fold*.json
+scripts/artifacts/_recipe_cb2_fold*.npy
+scripts/artifacts/_recipe_cb2_fold*.json
+scripts/artifacts/_recipe_mlp_ote_fold*.npy
+scripts/artifacts/_recipe_mlp_ote_fold*.json
