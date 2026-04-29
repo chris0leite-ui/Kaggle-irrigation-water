@@ -169,9 +169,11 @@ def run_rf_one_seed(X_tr_s, X_te_s, y, fold_seed, rf_seed, n_tr, n_te):
         bal = balanced_accuracy_score(y[va_idx], p_va.argmax(1))
         fold_scores.append(float(bal))
         wall = time.time() - t0
-        # Atomic save: write tmp then rename
-        np.save(ck_oof.with_suffix(".npy.tmp"), p_va); ck_oof.with_suffix(".npy.tmp").rename(ck_oof)
-        np.save(ck_test.with_suffix(".npy.tmp"), p_te); ck_test.with_suffix(".npy.tmp").rename(ck_test)
+        # Atomic save: write to .tmp.npy (np.save won't double-suffix), then rename
+        tmp_oof = ck_oof.parent / (ck_oof.stem + ".tmp.npy")
+        tmp_test = ck_test.parent / (ck_test.stem + ".tmp.npy")
+        np.save(tmp_oof, p_va); tmp_oof.rename(ck_oof)
+        np.save(tmp_test, p_te); tmp_test.rename(ck_test)
         ck_meta.write_text(json.dumps(dict(bal=float(bal), wall=wall)))
         log(f"    fold {fold}/{n_folds} bal={bal:.5f} wall={wall:.1f}s")
     return oof, test, fold_scores
