@@ -142,13 +142,16 @@ shutil.copy(ART / f"test_rawashishsin{SUFFIX_BAG}.npy",
             ART / f"test_{SEED_42}.npy")
 print(f"  oof_{SEED_42}.npy and test_... NOW point to bag5")
 
-# === Retrain RF natural meta with bag5 input ===
-print("\n=== retrain sklearn_rf_meta_natural.py (META_SUFFIX=_bag5) ===")
+# === Retrain RF natural meta with bag5 input on v1's EXACT 7-component bank ===
+# Use n1_rf_natural_v1bank.py instead of sklearn_rf_meta_natural.py because
+# the latter has the 11-component a1lgbm bank (LB 0.98098 regression),
+# not v1's 7-component bank (LB 0.98129).
+print("\n=== retrain n1_rf_natural_v1bank.py (META_SUFFIX=_v1bank_bag5) ===")
 import os
 env = os.environ.copy()
-env["META_SUFFIX"] = "_bag5"
+env["META_SUFFIX"] = "_v1bank_bag5"
 proc = subprocess.run(
-    ["python3", "scripts/sklearn_rf_meta_natural.py"],
+    ["python3", "scripts/n1_rf_natural_v1bank.py"],
     env=env, capture_output=True, text=True,
 )
 if proc.returncode != 0:
@@ -168,8 +171,8 @@ print(proc.stdout[-3000:])
 print("\n=== 4-gate vs v1 PRIMARY (LB 0.98129) ===")
 v1_oof = np.load(ART / "oof_sklearn_rf_meta_natural_v1_lb98129.npy")
 v1_test = np.load(ART / "test_sklearn_rf_meta_natural_v1_lb98129.npy")
-new_oof = np.load(ART / "oof_sklearn_rf_meta_natural_bag5.npy")
-new_test = np.load(ART / "test_sklearn_rf_meta_natural_bag5.npy")
+new_oof = np.load(ART / "oof_sklearn_rf_meta_natural_v1bank_bag5.npy")
+new_test = np.load(ART / "test_sklearn_rf_meta_natural_v1bank_bag5.npy")
 
 v1_bias, v1_score = tune_log_bias(v1_oof, y, prior)
 new_bias, new_score = tune_log_bias(new_oof, y, prior)
