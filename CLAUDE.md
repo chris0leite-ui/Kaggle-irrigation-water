@@ -18763,3 +18763,83 @@ N1 (multi-seed rawashishsin bag) launched on Kaggle GPU.
      for L3 and |0.20| for L2 (vs |0.30| gate). Drift gate passes
      but G1+G2 still fail because per-class trade is structurally
      unfavorable for macro-recall on this bank.
+
+### 2026-04-29 — N1 Kaggle bag5 result: PERFECT natural-cal drift [0,0,0] but G1/G2/G4 fail (36th saturation)
+
+After the 4 local-CPU candidates all closed NULL on the 4-gate filter,
+N1 (multi-seed rawashishsin via Kaggle GPU) completed all 4 new TE
+seeds × 5 folds successfully. Geomean across 5 seeds replaced
+single-seed rawashishsin in v1's bank; RF natural meta retrained on
+v1's exact 7-component bank.
+
+**Per-seed standalone scores** (TE seed varies, fold split + XGB seed
+fixed at SEED=42):
+```
+te7    : tuned 0.97978  drift_H 0.0
+te123  : tuned 0.97965  drift_H +0.4
+te2024 : tuned 0.97986  drift_H +0.5
+te9999 : tuned 0.97965  drift_H 0.0
+te42   : tuned 0.98010  drift_H -0.4   ← already on disk
+                       (rawashishsin_2600 = LB 0.98109)
+```
+Seed=42 is **stronger than every new seed** by 14-25 bp. The new
+seeds drift with TE_SEED in a band [0.97965, 0.98010] with non-trivial
+spread.
+
+**Geomean bag5** (across all 5 seeds): tuned 0.97996, drift [1.0, 0.7, -0.5].
+
+**v1 bank with bag5 in place of single-seed**:
+```
+v1 PRIMARY (LB 0.98129)        tuned 0.98063   drift [-0.1, -0.1, -0.2]
+v1 + bag5 input                 tuned 0.98045   drift [ 0.0,  0.0,  0.0]   ← PERFECT NATURAL-CAL
+Δ tuned = -0.00017   FAIL G1
+Δ PCR   = L-6e-5 / M-8e-4 / H+3.3e-4   FAIL G2 (M loss > -5e-4 floor)
+net_H = +202 ADD-direction  ratio 0.459   FAIL G4 (just below 0.5)
+test diff = 222 rows
+```
+
+**Mechanism — why standalone bag5 is weaker than seed=42 alone**:
+geomean of (1 stronger + 4 weaker) seeds blends down to the avg
+quality, not the best. Variance reduction across TE seeds is NOT the
+same as variance reduction at the bootstrap level — different TE
+seeds produce models of *different quality* (smooth='auto' with
+cv=5 means some seeds find better pseudo-shrinkage than others,
+e.g., seed=42 happened to land on smoothing parameters that
+generalize best on the 5-fold split). Averaging includes the
+weaker seeds.
+
+**The natural-cal mechanism IS validated** at the meta level:
+drift went from [-0.1, -0.1, -0.2] → [0, 0, 0]. Bag5 produces
+PERFECTLY-calibrated meta output. But standalone OOF dropped 17 bp,
+which the M-class operating point can't tolerate under the 4-gate
+filter.
+
+**36th saturation confirmation at LB 0.98129.** N1/N2/N2b/N3/N3b
+all NULL. The original brainstorm's 3 mechanisms are exhausted;
+v1's bank composition is locally OOF-optimal even when individual
+inputs can be variance-reduced.
+
+**Two new portable rules** (LEARNINGS.md candidates):
+1. **Multi-seed bag of a single component is NULL when the seed
+   variance is dominated by quality differences, not noise.**
+   sklearn's `TargetEncoder(cv=5, smooth='auto')` with random_state
+   varying produces 5 models with non-trivial spread (here ~25 bp
+   tuned). Geomean blends quality DOWN to the average. The
+   variance-reduction lever only works when seed variance is
+   high-frequency noise around a stable mean (e.g., neural net
+   bootstrap), not when seed selects different *good* models.
+2. **PERFECT natural-cal drift [0, 0, 0] is achievable but
+   insufficient.** Bag5 achieved literally-zero drift (the cleanest
+   natural-cal profile ever observed on this problem) yet failed
+   the 4-gate filter because OOF dropped. Drift gate is
+   necessary-but-not-sufficient for breaking ceilings; per-class
+   recall and standalone OOF are the binding constraints.
+
+LB-best primary unchanged at **LB 0.98129** via
+`submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`.
+LB budget: 0/10 used today. Final-selection lock unchanged:
+PRIMARY 0.98129 + HEDGE rawashishsin_2600 (LB 0.98109).
+
+Diagnostic candidate emitted (NOT for LB probe — fails 4-gate):
+`submissions/submission_n1_bag5_rf_natural.csv` (222-row diff
+from PRIMARY, projected LB regression).
