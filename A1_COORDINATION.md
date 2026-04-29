@@ -153,23 +153,34 @@ the TE phases collide because each takes 4 min. The CB fold 2 (PID
 checkpoints. Killed the XGB chain (PID 13193 + 13549 + 21407) at
 ~05:30. New strategy: fully sequential.
 
-### Live chain set (post-pivot)
+### Live chain set (post-pivot, after 05:34 chain-respawn)
+
+The original chain bashes (PID 12832 CB chain, PID b0x0wunwh XGB seq
+chain) died at some point — likely Bash-tool internal timeouts or
+container hiccups. Re-launched via standalone shell scripts under
+nohup+setsid which adopt init as parent and survive any wrapper death.
 
 ```
-PID 23736 — CB fold 2 v3 (detached, OMP_NUM_THREADS=4)
-            Logs to /tmp/cb_fold2_v3.log. Started 05:27.
+PID 23736 — CB fold 2 v3 (nohup detached, OMP_NUM_THREADS=4)
+            Logs to /tmp/cb_fold2_v3.log. Started 05:27. PPID=1.
 
-PID 12832 — Pick 2b CB chain (folds 3, 4, 5 + aggregate)
-            Unchanged; still waits for CB fold 2 npy.
+PID 28933 — CB chain v2: /tmp/cb_chain_v2.sh
+            Waits for fold 2 npy, then sequential folds 3, 4, 5 +
+            aggregate. Logs to /tmp/cb_chain_v2.log. PPID=1.
 
-PID b0x0wunwh — XGB sequential chain (NEW)
-            Waits for `oof_recipe_full_te_catboost_skte.npy`
-            (= CB aggregate done), then sequential RUN_FOLD=1..5
-            XGB python calls. No parallelism.
+PID 28934 — XGB sequential chain: /tmp/xgb_seq_chain.sh
+            Waits for CB aggregate, then sequential XGB folds 1..5
+            + aggregate. Logs to /tmp/xgb_seq_chain.log. PPID=1.
 
 PID 15032 — Final chain (waits both aggregates → RF rebuild + 4-gate)
-            Unchanged.
+            Unchanged. Triggered by both aggregates landing.
 ```
+
+Pattern: ALL persistent chains use `nohup setsid /path/to/chain.sh`
+with PPID=1 (adopted by init). This survives ANY wrapper death,
+container rehydrate, or Bash-tool-timeout. Shell-script files at
+`/tmp/cb_chain_v2.sh` and `/tmp/xgb_seq_chain.sh` are the
+authoritative coordination logic.
 
 ### Revised expected timeline (from 05:30 UTC)
 
