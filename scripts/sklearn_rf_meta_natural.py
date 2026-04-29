@@ -49,14 +49,19 @@ SMOKE = os.environ.get("SMOKE") == "1"
 
 # Natural-calibration bank: bias_H near 0 OR tight OOF→LB gap.
 # Excludes recipe-family stacks with bias_H = +3.40 + leak channel.
+# A1 expansion: + Pick 2b CB (sklearn TE), + XGB clone (rawashishsin parity),
+# + xgb_dist_routed_v3 (routing lever).
 NATURAL_BANK = [
     "rawashishsin_2600",                  # LB 0.98109 anchor (bias_H=0.00)
     "recipe_full_te_catboost_natural",    # Phase 1 output
+    "recipe_full_te_catboost_skte",       # Pick 2b output (sklearn TE CB) — A1
+    "recipe_full_te_xgb_skte",            # XGB clone on recipe FE — A1
     "recipe_full_te_catboost",            # LB 0.97935 gap +0.00001
     "recipe_full_te",                     # LB 0.97939 gap +0.00028 (recipe XGB)
     "realmlp",                            # 3-stack lift, NN diversity
     "xgb_corn",                           # Frank-Hall ordinal
     "xgb_dist_digits",                    # LB 0.97468 digit extraction
+    "xgb_dist_routed_v3",                 # routing lever, naturally-cal-friendly — A1
 ]
 
 # Distance / rule meta features (same as cuml_meta_input.npz)
