@@ -18563,3 +18563,88 @@ findings beyond simple closure.
   - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
     `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
     `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)
+
+### Next steps: 3 mechanism-distinct probes on v1 (2026-04-29 evening, deadline 2026-04-30)
+
+Senior-engineer reframe after 34 saturation confirmations and the
+2026-04-29 LB 0.98129 natural-cal breakthrough. The breakthrough is
+**under-exploited**: bank-extension on v1 nulled twice (a1lgbm
+LB 0.98097, v2 LB 0.98098) but those were the obvious-and-wrong
+directions. The right directions exploit natural-cal *without*
+perturbing the load-bearing 7-component bank composition.
+
+  **N1. Multi-seed bag rawashishsin BEFORE it enters v1's bank**
+  (highest EV, ~3h Kaggle GPU + 10 min local RF rebuild).
+  - Mechanism: rawashishsin v3 is the dominant LB-positive input
+    in v1's 7-component bank (LB 0.98109 standalone, drift
+    [+1.10, +0.80, -0.40]). sklearn `TargetEncoder(cv=5,
+    smooth='auto')` is **seed-sensitive** — internal CV-shuffle
+    isn't fully pinned (2026-04-28: 93bp CV drift across
+    reproducible runs). Train 5 rawashishsin clones at TE seeds
+    {42, 7, 123, 2024, 9999}, geomean their test/OOF probs →
+    `rawashishsin_bag5`. Drop-in replace the single rawashishsin
+    slot in v1's bank, re-run RF natural meta with
+    `class_weight=None, bootstrap=True, max_depth=12`.
+  - Why it works: variance reduction at the dominant input slot,
+    not bank extension. All 5 seeds inherit the natural-cal
+    property. Doesn't perturb v1's load-bearing 7-slot composition.
+    Sidesteps the bank-extension trap that killed a1lgbm and v2.
+  - Prior: ~30% of +0.00010-0.00030 LB. Hits 0.98140-0.98160
+    (pack territory).
+
+  **N2. Per-row gating on the v1↔rawashishsin disagreement set**
+  (cheapest, ~30 min CPU + 1 LB probe).
+  - Mechanism: v1 (LB 0.98129) and rawashishsin v3 (LB 0.98109)
+    are **both naturally-calibrated, both LB-positive**, and
+    disagree on ~620 test rows (0.23%). Train a small XGB binary
+    classifier on OOF: target = `1 if v1_argmax matches y else 0`,
+    restricted to OOF rows where v1 ≠ rawashishsin. Features: both
+    models' max_prob + argmax onehots + dgp_score + 4 signed
+    distances + rule_pred. At inference: on disagreement rows, if
+    classifier P(v1_correct) > 0.55 → use v1, if < 0.45 → use
+    rawashishsin, else keep v1.
+  - Why it works: both inputs are LB-positive (unlike the failed
+    missed-H detector where override domain had only 5% precision).
+    Both classes above break-even precision by construction.
+    Threshold band [0.45, 0.55] avoids OOF-overfit selection.
+  - Prior: ~25% of +0.00010-0.00025 LB.
+
+  **N3. Three-way bagging-architecture average on v1's bank**
+  (~45 min CPU).
+  - Mechanism: 3 structurally distinct bagging metas on v1's
+    exact 7-component bank, all with `class_weight=None`:
+      1. RandomForest (existing v1 LB-best)
+      2. ExtraTrees(n=500, max_depth=12, max_features='sqrt',
+         class_weight=None, bootstrap=True)
+      3. BaggingClassifier(LogisticRegression(C=0.1),
+         n_estimators=100)
+    L3 = arithmetic mean of the 3 OOFs (NOT log-blend — preserves
+    natural-cal). Tune log-bias once on the L3 OOF.
+  - Why it works: all three bagging-based + natural-cal-preserving.
+    RF/ET tree-based with different randomization (RF samples
+    splits, ET samples thresholds); BaggingLR is architecturally
+    orthogonal (linear). CMA-ES proved constant-weight blends
+    saturated, but no prior L3 used arithmetic-mean of
+    bagging-based metas.
+  - Prior: ~20% of +0.00010-0.00020 LB.
+
+  **Execution order**: N2 first (cheapest, ~1h end-to-end including
+  LB probe). N1 in parallel on Kaggle (queue 5 GPU kernels overnight).
+  N3 on local CPU while waiting. If any clears the 4-gate filter
+  (especially **G4 with net_H > 0**), LB-probe immediately. If N1
+  lifts, new bank becomes foundation; rerun N3 on top.
+
+  **Hard rules given deadline pressure**:
+  - **No grid search on any threshold/α** — pick from theory or
+    LB-validated values only (linear-projection rule).
+  - **Bias drift gate**: reject any candidate with drift > |0.30|
+    from -log(prior) (natural-cal is the load-bearing property).
+  - **Per-class recall guardrail**: every class within −5e-4 of v1,
+    with **net_H ≥ 0** as hard requirement (REMOVE-High direction
+    has killed 7+ candidates).
+  - **NEVER wrap `kaggle competitions submit` in any retry/loop**
+    (CLAUDE.md top-of-file rule).
+
+  Pack at 0.98148 is +0.00019 above. Two of these three landing
+  positively gets us there. All three landing puts us in striking
+  distance of Cdeotte at 0.98219.
