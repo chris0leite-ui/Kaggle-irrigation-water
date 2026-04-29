@@ -20,6 +20,7 @@ the candidate lands plausibly above LB-best primary 0.98094.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -37,6 +38,8 @@ SUB = Path("submissions")
 TARGET = "Irrigation_Need"
 CLS_MAP = {"Low": 0, "Medium": 1, "High": 2}
 IDX2CLS = {v: k for k, v in CLS_MAP.items()}
+
+META_SUFFIX = os.environ.get("META_SUFFIX", "")  # "" = LB-validated; "_a1lgbm" = extended bank
 
 
 def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
@@ -62,9 +65,9 @@ def main():
     test_ids = test["id"].values
     prior = np.bincount(y, minlength=3) / len(y)
 
-    log("loading RF natural + anchors")
-    rf_oof = np.load(ART / "oof_sklearn_rf_meta_natural.npy").astype(np.float32)
-    rf_test = np.load(ART / "test_sklearn_rf_meta_natural.npy").astype(np.float32)
+    log(f"loading RF natural{META_SUFFIX} + anchors")
+    rf_oof = np.load(ART / f"oof_sklearn_rf_meta_natural{META_SUFFIX}.npy").astype(np.float32)
+    rf_test = np.load(ART / f"test_sklearn_rf_meta_natural{META_SUFFIX}.npy").astype(np.float32)
     raw_oof = np.load(ART / "oof_rawashishsin_2600.npy").astype(np.float32)
     raw_test = np.load(ART / "test_rawashishsin_2600.npy").astype(np.float32)
 
@@ -171,7 +174,7 @@ def main():
             disagree = int((b_test_pred != a_test_pred).sum())
             log(f"  test diff vs {name}: {disagree}, net_H={net_h:+d}  churn_H={churn_h}")
             # Emit candidate
-            sub_path = SUB / f"submission_rf_natural_blend_{name}_a{int(best['alpha']*100):03d}.csv"
+            sub_path = SUB / f"submission_rf_natural{META_SUFFIX}_blend_{name}_a{int(best['alpha']*100):03d}.csv"
             sub = pd.DataFrame({
                 "id": test_ids,
                 TARGET: [IDX2CLS[i] for i in b_test_pred],
@@ -199,7 +202,7 @@ def main():
     log(f"  test diff vs primary: {rf_diff_vs_primary}")
     log(f"  test diff vs rawashishsin: {rf_diff_vs_raw}")
 
-    sub_path = SUB / "submission_sklearn_rf_meta_natural_standalone.csv"
+    sub_path = SUB / f"submission_sklearn_rf_meta_natural{META_SUFFIX}_standalone.csv"
     sub = pd.DataFrame({
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in rf_test_pred_idx],
@@ -213,7 +216,7 @@ def main():
             errs=rf_err_count, pcr=rf_pcr.tolist(),
             test_diff_vs_primary=rf_diff_vs_primary,
             test_diff_vs_rawashishsin=rf_diff_vs_raw,
-            sub_path="submissions/submission_sklearn_rf_meta_natural_standalone.csv",
+            sub_path=f"submissions/submission_sklearn_rf_meta_natural{META_SUFFIX}_standalone.csv",
         ),
         anchors=dict(
             rawashishsin_tuned=float(raw_tuned),
@@ -222,7 +225,7 @@ def main():
         ),
         blend_gate_results=results,
     )
-    out_p = ART / "blend_gate_rf_natural_full_results.json"
+    out_p = ART / f"blend_gate_rf_natural_full{META_SUFFIX}_results.json"
     out_p.write_text(json.dumps(summary, indent=2, default=float))
     log(f"wrote {out_p}")
 
