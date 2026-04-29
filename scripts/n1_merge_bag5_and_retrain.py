@@ -48,7 +48,7 @@ seed_test[42] = np.load(ART / f"test_{SEED_42}.npy").astype(np.float64)
 print(f"  loaded seed 42 (oof_{SEED_42}.npy): "
       f"oof={seed_oof[42].shape} test={seed_test[42].shape}")
 
-# 4 NEW seeds (pulled from Kaggle bag5 kernel)
+# 4 NEW seeds (pulled from Kaggle bag5 kernel) — handle partial completion
 missing = []
 for s in NEW_SEEDS:
     op = ART / f"oof_rawashishsin_te{s}.npy"
@@ -57,16 +57,26 @@ for s in NEW_SEEDS:
         missing.append(s)
         print(f"  MISSING seed {s}: {op.name} or {tp.name}")
         continue
-    seed_oof[s] = np.load(op).astype(np.float64)
+    o = np.load(op).astype(np.float64)
+    # Reject partial-fold OOF (sum<1 on some rows means fold not run for that row)
+    if (o.sum(1) < 0.5).any():
+        missing.append(s)
+        zeros = int((o.sum(1) < 0.5).sum())
+        print(f"  PARTIAL seed {s}: {zeros} zero-fold rows in OOF — skip")
+        continue
+    seed_oof[s] = o
     seed_test[s] = np.load(tp).astype(np.float64)
     print(f"  loaded seed {s}: oof={seed_oof[s].shape} test={seed_test[s].shape}")
 
-if missing:
-    print(f"\n[abort] {len(missing)} seeds missing: {missing}")
+n_loaded = len(seed_oof)
+if n_loaded < 2:
+    print(f"\n[abort] only {n_loaded} seed(s) loaded — bag needs ≥ 2 to be useful")
     print(f"  Pull from Kaggle: kaggle kernels output "
           f"chrisleitescha/irrigation-rawashishsin-bag5 -p {ART}")
-    print(f"  Then re-run this script.")
     sys.exit(1)
+if missing:
+    print(f"\n[partial] {len(missing)} seeds missing: {missing}")
+    print(f"  Proceeding with bag of {n_loaded} seeds (incl. seed=42)")
 
 # Geomean across all 5 seeds (preserves natural-cal: log-mean of probs)
 print(f"\n=== geomean bag of {len(seed_oof)} seeds ===")
