@@ -18853,3 +18853,283 @@ findings beyond simple closure.
   - `scripts/artifacts/sklearn_rf_meta_natural_xreg_results.json`
   - `scripts/artifacts/blend_gate_rf_natural_xreg_results.json`
   - `submissions/submission_sklearn_rf_meta_natural_xreg_standalone.csv` (LB 0.98115)
+
+### Next steps: 3 mechanism-distinct probes on v1 (2026-04-29 evening, deadline 2026-04-30)
+
+Senior-engineer reframe after 34 saturation confirmations and the
+2026-04-29 LB 0.98129 natural-cal breakthrough. The breakthrough is
+**under-exploited**: bank-extension on v1 nulled twice (a1lgbm
+LB 0.98097, v2 LB 0.98098) but those were the obvious-and-wrong
+directions. The right directions exploit natural-cal *without*
+perturbing the load-bearing 7-component bank composition.
+
+  **N1. Multi-seed bag rawashishsin BEFORE it enters v1's bank**
+  (highest EV, ~3h Kaggle GPU + 10 min local RF rebuild).
+  - Mechanism: rawashishsin v3 is the dominant LB-positive input
+    in v1's 7-component bank (LB 0.98109 standalone, drift
+    [+1.10, +0.80, -0.40]). sklearn `TargetEncoder(cv=5,
+    smooth='auto')` is **seed-sensitive** — internal CV-shuffle
+    isn't fully pinned (2026-04-28: 93bp CV drift across
+    reproducible runs). Train 5 rawashishsin clones at TE seeds
+    {42, 7, 123, 2024, 9999}, geomean their test/OOF probs →
+    `rawashishsin_bag5`. Drop-in replace the single rawashishsin
+    slot in v1's bank, re-run RF natural meta with
+    `class_weight=None, bootstrap=True, max_depth=12`.
+  - Why it works: variance reduction at the dominant input slot,
+    not bank extension. All 5 seeds inherit the natural-cal
+    property. Doesn't perturb v1's load-bearing 7-slot composition.
+    Sidesteps the bank-extension trap that killed a1lgbm and v2.
+  - Prior: ~30% of +0.00010-0.00030 LB. Hits 0.98140-0.98160
+    (pack territory).
+
+  **N2. Per-row gating on the v1↔rawashishsin disagreement set**
+  (cheapest, ~30 min CPU + 1 LB probe).
+  - Mechanism: v1 (LB 0.98129) and rawashishsin v3 (LB 0.98109)
+    are **both naturally-calibrated, both LB-positive**, and
+    disagree on ~620 test rows (0.23%). Train a small XGB binary
+    classifier on OOF: target = `1 if v1_argmax matches y else 0`,
+    restricted to OOF rows where v1 ≠ rawashishsin. Features: both
+    models' max_prob + argmax onehots + dgp_score + 4 signed
+    distances + rule_pred. At inference: on disagreement rows, if
+    classifier P(v1_correct) > 0.55 → use v1, if < 0.45 → use
+    rawashishsin, else keep v1.
+  - Why it works: both inputs are LB-positive (unlike the failed
+    missed-H detector where override domain had only 5% precision).
+    Both classes above break-even precision by construction.
+    Threshold band [0.45, 0.55] avoids OOF-overfit selection.
+  - Prior: ~25% of +0.00010-0.00025 LB.
+
+  **N3. Three-way bagging-architecture average on v1's bank**
+  (~45 min CPU).
+  - Mechanism: 3 structurally distinct bagging metas on v1's
+    exact 7-component bank, all with `class_weight=None`:
+      1. RandomForest (existing v1 LB-best)
+      2. ExtraTrees(n=500, max_depth=12, max_features='sqrt',
+         class_weight=None, bootstrap=True)
+      3. BaggingClassifier(LogisticRegression(C=0.1),
+         n_estimators=100)
+    L3 = arithmetic mean of the 3 OOFs (NOT log-blend — preserves
+    natural-cal). Tune log-bias once on the L3 OOF.
+  - Why it works: all three bagging-based + natural-cal-preserving.
+    RF/ET tree-based with different randomization (RF samples
+    splits, ET samples thresholds); BaggingLR is architecturally
+    orthogonal (linear). CMA-ES proved constant-weight blends
+    saturated, but no prior L3 used arithmetic-mean of
+    bagging-based metas.
+  - Prior: ~20% of +0.00010-0.00020 LB.
+
+  **Execution order**: N2 first (cheapest, ~1h end-to-end including
+  LB probe). N1 in parallel on Kaggle (queue 5 GPU kernels overnight).
+  N3 on local CPU while waiting. If any clears the 4-gate filter
+  (especially **G4 with net_H > 0**), LB-probe immediately. If N1
+  lifts, new bank becomes foundation; rerun N3 on top.
+
+  **Hard rules given deadline pressure**:
+  - **No grid search on any threshold/α** — pick from theory or
+    LB-validated values only (linear-projection rule).
+  - **Bias drift gate**: reject any candidate with drift > |0.30|
+    from -log(prior) (natural-cal is the load-bearing property).
+  - **Per-class recall guardrail**: every class within −5e-4 of v1,
+    with **net_H ≥ 0** as hard requirement (REMOVE-High direction
+    has killed 7+ candidates).
+  - **NEVER wrap `kaggle competitions submit` in any retry/loop**
+    (CLAUDE.md top-of-file rule).
+
+  Pack at 0.98148 is +0.00019 above. Two of these three landing
+  positively gets us there. All three landing puts us in striking
+  distance of Cdeotte at 0.98219.
+
+### 2026-04-29 — N2/N2b/N3/N3b execution: 4 local-CPU candidates all NULL, N1 launched on Kaggle GPU
+
+Executed the 3 next-steps from above per "note these next steps in
+main and go". 4 local-CPU candidates close NULL on the 4-gate filter;
+N1 (multi-seed rawashishsin bag) launched on Kaggle GPU.
+
+  **N2 — Symmetric per-row gating XGB on v1↔rawashishsin disagreement**
+  (`scripts/n2_v1_raw_gating.py`, ~3 min CPU). Trained binary XGB on
+  the 1858 OOF disagreement rows: target = `1 if v1_argmax matches y`.
+  AUC 0.882 (real ranking signal), base rate 0.624 (v1 correct on
+  62.4% of disagreement rows). Decision rule: P>0.55 keep v1, P<0.45
+  use raw, else default v1.
+  - Δ macro = **−0.00011** vs v1 PRIMARY
+  - Δ PCR L+0.00004 / **M+0.00144** / **H−0.00181**
+  - **net_H = −391** (REMOVE-High: ALL 391 flips were rem_H, 0 add_H)
+  - Test: 195 rows flipped from v1 to raw
+  - **G1 + G2 + G4 ALL FAIL.** The classifier confidently picks raw
+    on rows where v1=H, but those H predictions are mostly correct
+    (rare class is rare; v1 is more careful). Symmetric gate
+    structurally REMOVES High predictions.
+
+  **N2b — Class-conditional gating: never override v1=H**
+  (`scripts/n2b_class_conditional_gate.py`, ~5 sec CPU). Structural
+  fix: keep v1's High predictions exact; only override v1=L or v1=M
+  rows via the binary classifier from N2.
+  - Δ macro = 0 (no-op)
+  - Only 30 OOF rows overridden (where v1=L,M with P<0.45)
+  - Test: 31 rows differ from v1 PRIMARY (vs N2's 195)
+  - **G1 FAIL, G2+G4 PASS.** Structural problem: the N2 binary
+    classifier's P<0.45 cutoff fired predominantly on v1=H rows
+    (~93%). On v1≠H disagreements, the classifier mostly says
+    "v1 correct" (P>0.45 for 1330/1360 rows). Removing the v1=H
+    override eliminates the harm but also nearly all the lever.
+
+  **N3 — L3 arithmetic mean of 3 bagging metas on v1's 7-component bank**
+  (`scripts/n3_l3_bagging_metas.py`, ~12 min CPU including ET 3 min +
+  BagLR 7 min + RF reused from disk). Three structurally distinct
+  bagging metas, all `class_weight=None` natural-cal:
+    1. RF natural (existing v1 LB-best — reused)
+    2. ExtraTrees(n=500, max_depth=12, max_features='sqrt', bootstrap=True)
+    3. BaggingClassifier(LogisticRegression(C=0.1), n=100, max_features=0.7)
+  L3 = arithmetic mean of the 3 OOFs (NOT log-blend — preserves
+  natural-cal). Tune log-bias once on L3.
+  - Standalone: RF 0.98063, **ET 0.98029** (drift max 0.20),
+    **BagLR 0.98065** (drift max 0.10 — tightest natural-cal of
+    all bagging metas), L3 mean **0.98061**
+  - Δ macro vs v1 = **−0.00001** (tied)
+  - Δ PCR L−0.00005 / **M−0.00266** / **H+0.00267**
+  - **net_H = +701** (clean ADD-High direction!), ratio 0.93
+  - Test diff: 393 rows
+  - **G4 PASS (clean ADD-High), G1+G2 FAIL.** Same Pareto-frontier
+    closure: H-gain (+0.00267) exactly cancels M-loss (−0.00266).
+
+  **N3b — 2-way RF+BagLR L2 mean (drop ET for higher H drift)**
+  (`scripts/n3b_l2_rf_baglr_mean.py`, ~3 sec). Principled drop of
+  the meta with highest H-class drift (ET drift_H=+0.2 vs RF -0.2,
+  BagLR 0.0). Mean of RF+BagLR has cleanest drift profile.
+  - L2 mean tuned 0.98076, drift max 0.20 (PASS)
+  - Δ macro vs v1 = **+0.00013** (closest yet to G1, but still below)
+  - Δ PCR L+0.00034 / **M−0.00265** / **H+0.00271**
+  - **net_H = +619** (clean ADD-High, ratio 0.96)
+  - Test: 369 rows differ; H count +273 vs v1 PRIMARY
+  - **G1+G2 FAIL, G4 PASS.** Structural ceiling: arithmetic-mean
+    of bagging metas inherently shifts H predictions UP at exact
+    cost of M.
+
+  **Pattern across all 4**: per-row gating + bagging-mean-of-metas
+  cannot preserve v1's per-class operating point on the macro-recall
+  Pareto frontier. v1's bank composition (LB 0.98129) is locally
+  optimal; rearranging at the meta level produces tied or below-tied
+  macro-recall with different per-class trade-offs.
+
+  Pivoting to **N1**: variance reduction at the BASE level (BEFORE
+  the meta sees it), preserving v1's bank composition exactly.
+  - `kaggle_kernel/kernel_rawashishsin_bag5/` pushed to Kaggle GPU
+    (~2.4h ETA, RUNNING). Wraps existing rawashishsin v3 fold loop
+    with outer TE_SEED loop over {7, 123, 2024, 9999}; per-seed-
+    per-fold checkpoints make the run resumable.
+  - `scripts/n1_merge_bag5_and_retrain.py` ready: geomean across
+    5 TE seeds (4 NEW + seed=42 already on disk), drop-in replace
+    rawashishsin in v1's bank, retrain RF natural meta, 4-gate +
+    submission emit.
+
+  **LB-best primary unchanged**: `submission_tier1b_greedy_meta.csv`
+  at LB **0.98094**, NEW PRIMARY (since 2026-04-29):
+  `submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv` at
+  LB **0.98129**. LB budget: 0/10 used today.
+
+  **35th saturation confirmation** at LB 0.98129 (joins the 34 prior
+  structural-saturation entries documented above).
+
+  Three new portable rules (LEARNINGS.md candidates):
+  1. **Symmetric per-row gating between two LB-positive
+     naturally-calibrated models systematically REMOVES rare-class
+     predictions when one model is rare-class-correct on the
+     disagreement set.** The binary classifier's threshold cuts
+     fire predominantly on rows where the rare-class model's argmax
+     differs from the conservative model's, which under macro-recall
+     +12× rare-class leverage produces net-negative LB direction.
+     Class-conditional gates (preserve rare-class argmax) fix the
+     direction but eliminate most of the lever.
+  2. **Arithmetic-mean L3/L2 over bagging metas trained on the same
+     bank inherits Pareto-frontier closure of the bank.** Bagging
+     architecture diversity (RF/ET/BagLR) produces different per-row
+     prediction surfaces but the mean lands on the same per-class
+     Pareto curve as the constituent metas. H-gain exactly cancels
+     M-loss at every weighting; arithmetic mean is no different from
+     any other constant-weight blend.
+  3. **The natural-cal-preserving "arithmetic mean" rule (vs log-blend)
+     is necessary but not sufficient for breaking saturated-bank
+     ceilings.** Confirmed natural-cal preservation via drift |0.20|
+     for L3 and |0.20| for L2 (vs |0.30| gate). Drift gate passes
+     but G1+G2 still fail because per-class trade is structurally
+     unfavorable for macro-recall on this bank.
+
+### 2026-04-29 — N1 Kaggle bag5 result: PERFECT natural-cal drift [0,0,0] but G1/G2/G4 fail (36th saturation)
+
+After the 4 local-CPU candidates all closed NULL on the 4-gate filter,
+N1 (multi-seed rawashishsin via Kaggle GPU) completed all 4 new TE
+seeds × 5 folds successfully. Geomean across 5 seeds replaced
+single-seed rawashishsin in v1's bank; RF natural meta retrained on
+v1's exact 7-component bank.
+
+**Per-seed standalone scores** (TE seed varies, fold split + XGB seed
+fixed at SEED=42):
+```
+te7    : tuned 0.97978  drift_H 0.0
+te123  : tuned 0.97965  drift_H +0.4
+te2024 : tuned 0.97986  drift_H +0.5
+te9999 : tuned 0.97965  drift_H 0.0
+te42   : tuned 0.98010  drift_H -0.4   ← already on disk
+                       (rawashishsin_2600 = LB 0.98109)
+```
+Seed=42 is **stronger than every new seed** by 14-25 bp. The new
+seeds drift with TE_SEED in a band [0.97965, 0.98010] with non-trivial
+spread.
+
+**Geomean bag5** (across all 5 seeds): tuned 0.97996, drift [1.0, 0.7, -0.5].
+
+**v1 bank with bag5 in place of single-seed**:
+```
+v1 PRIMARY (LB 0.98129)        tuned 0.98063   drift [-0.1, -0.1, -0.2]
+v1 + bag5 input                 tuned 0.98045   drift [ 0.0,  0.0,  0.0]   ← PERFECT NATURAL-CAL
+Δ tuned = -0.00017   FAIL G1
+Δ PCR   = L-6e-5 / M-8e-4 / H+3.3e-4   FAIL G2 (M loss > -5e-4 floor)
+net_H = +202 ADD-direction  ratio 0.459   FAIL G4 (just below 0.5)
+test diff = 222 rows
+```
+
+**Mechanism — why standalone bag5 is weaker than seed=42 alone**:
+geomean of (1 stronger + 4 weaker) seeds blends down to the avg
+quality, not the best. Variance reduction across TE seeds is NOT the
+same as variance reduction at the bootstrap level — different TE
+seeds produce models of *different quality* (smooth='auto' with
+cv=5 means some seeds find better pseudo-shrinkage than others,
+e.g., seed=42 happened to land on smoothing parameters that
+generalize best on the 5-fold split). Averaging includes the
+weaker seeds.
+
+**The natural-cal mechanism IS validated** at the meta level:
+drift went from [-0.1, -0.1, -0.2] → [0, 0, 0]. Bag5 produces
+PERFECTLY-calibrated meta output. But standalone OOF dropped 17 bp,
+which the M-class operating point can't tolerate under the 4-gate
+filter.
+
+**36th saturation confirmation at LB 0.98129.** N1/N2/N2b/N3/N3b
+all NULL. The original brainstorm's 3 mechanisms are exhausted;
+v1's bank composition is locally OOF-optimal even when individual
+inputs can be variance-reduced.
+
+**Two new portable rules** (LEARNINGS.md candidates):
+1. **Multi-seed bag of a single component is NULL when the seed
+   variance is dominated by quality differences, not noise.**
+   sklearn's `TargetEncoder(cv=5, smooth='auto')` with random_state
+   varying produces 5 models with non-trivial spread (here ~25 bp
+   tuned). Geomean blends quality DOWN to the average. The
+   variance-reduction lever only works when seed variance is
+   high-frequency noise around a stable mean (e.g., neural net
+   bootstrap), not when seed selects different *good* models.
+2. **PERFECT natural-cal drift [0, 0, 0] is achievable but
+   insufficient.** Bag5 achieved literally-zero drift (the cleanest
+   natural-cal profile ever observed on this problem) yet failed
+   the 4-gate filter because OOF dropped. Drift gate is
+   necessary-but-not-sufficient for breaking ceilings; per-class
+   recall and standalone OOF are the binding constraints.
+
+LB-best primary unchanged at **LB 0.98129** via
+`submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`.
+LB budget: 0/10 used today. Final-selection lock unchanged:
+PRIMARY 0.98129 + HEDGE rawashishsin_2600 (LB 0.98109).
+
+Diagnostic candidate emitted (NOT for LB probe — fails 4-gate):
+`submissions/submission_n1_bag5_rf_natural.csv` (222-row diff
+from PRIMARY, projected LB regression).

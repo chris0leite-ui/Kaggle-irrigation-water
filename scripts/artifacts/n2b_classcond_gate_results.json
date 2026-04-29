@@ -1,0 +1,36 @@
+{
+  "n_oof_disagree": 1858,
+  "n_oof_v1H_kept": 498,
+  "n_oof_overridden": 30,
+  "v1_macro": 0.980628290879414,
+  "gated_macro": 0.9806279499683664,
+  "delta_macro": -3.409110476138011e-07,
+  "v1_pcr": [
+    0.9946447446319039,
+    0.9693734994185901,
+    0.9778666285877481
+  ],
+  "gated_pcr": [
+    0.9946771843413522,
+    0.969340036975999,
+    0.9778666285877481
+  ],
+  "delta_pcr": [
+    3.2439709448328635e-05,
+    -3.3462442591059016e-05,
+    0.0
+  ],
+  "net_h": 0,
+  "add_h": 0,
+  "rem_h": 0,
+  "g4_ratio": 0.0,
+  "g1_pass": false,
+  "g2_pass": true,
+  "g4_dir_pass": true,
+  "g4_asym_pass": true,
+  "overall_pass": false,
+  "n_test_diff_v1": 31,
+  "n_test_v1H_kept": 166,
+  "n_test_overridden": 31,
+  "submission_path": "submissions/submission_n2b_classcond_gate.csv"
+}
