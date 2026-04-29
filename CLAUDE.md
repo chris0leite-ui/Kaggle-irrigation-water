@@ -18628,3 +18628,60 @@ H1/H2/H5 are mechanism-preserving variance reduction on the one thing
 that worked. H3 is per-row exploitation of the only LB-validated model-
 class diversity we have. H4 is the cheapest test of bank-size vs
 composition. None of these have been run.
+
+### 2026-04-29 — H4 S1 substitution LB probe: 0.98102 (Δ -0.00027 vs LB-best 0.98129)
+
+Following the H1-H5 brainstorm, executed H1-H4 production + HistGBM
++ 3/4-way blend search to test 5 mechanism-distinct levers on the
+v1 RF natural-cal bank.
+
+H1 seed-bag (3 seeds {42, 7, 123} of v1's exact arch): OOF 0.98058
+(-0.00005 vs v1), test diff 13 rows (essentially zero diversity).
+RF at v1 config near-deterministic; bag = v1. NULL.
+
+H2 ExtraTrees on v1 bank: OOF 0.98029 (-0.00034), 227 row diff,
+ADD-High direction (+0.0022) but PCR_M -0.0033. Pareto-bounded.
+
+H3 router (hard + soft): AUC 0.8815 but OOF deployment max +0.00003
+at PCR_H -3e-4 (Pareto-bounded null).
+
+H4 S1 substitution (xgb_corn -> recipe_full_te_xgb_skte): OOF
+0.98060 (-0.00003, tied), 368 row diff, ADD-High direction
+(+0.0029). STRONGEST standalone candidate.
+
+H4 S2 substitution (xgb_dist_digits -> recipe_full_te_lgbm_skte):
+OOF 0.98054 (-0.00009), 277 row diff, ADD-Low/High direction.
+Higher argmax than v1 but lower tuned.
+
+HistGBM natural-cal (untested config per 2026-04-29 SMOKE entry):
+OOF 0.98029 (-0.00034), 638 row diff (most diverse), mixed
+direction.
+
+3-way + 4-way blend grid searches (v1 + S1 + S2 + HistGBM): best
+4-way w=(0.85, 0, 0.05, 0.10) → OOF +0.00008 with G2 PASS but
+G4 FAIL (net_H -13 RESHUFFLE). Predicted LB regression -0.0001
+to -0.0003 per documented carryover.
+
+**LB submission (user-approved)**: H4 S1 standalone → **LB 0.98102**.
+Δ vs LB-best 0.98129 = **-0.00027** (regression, fell into
+predicted 30% regression bucket at worse end). OOF→LB gap
++0.00042 vs v1's -0.00066. Confirms Pareto-frontier closure
+also applies at the BANK SUBSTITUTION level even when OOF is
+tied and per-class direction is favorable on standalone.
+
+**Portable rule** (LEARNINGS.md candidate): "Bank substitution on
+a saturated natural-cal RF meta-stacker (replacing one component
+with a different naturally-calibrated component while preserving
+bank size) does NOT transfer to LB even with: tied standalone
+OOF, hundreds of row-diff diversity, and ADD-Direction PCR
+shifts. The natural-cal mechanism is bank-specific (not
+size-specific or substitutable). Mechanism-preserving variance
+reduction (H1 seed-bag) and architectural diversification
+(H2 ExtraTrees, HistGBM) likewise null. The v1 7-component
+bank composition is structurally LB-locked at 0.98129."
+
+35th saturation confirmation at LB 0.98129.
+
+LB budget: 1/10 used today. 4 remaining.
+LB best unchanged: `submission_sklearn_rf_meta_natural_standalone.csv`
+(2026-04-29 04:27 commit) at LB **0.98129**.
