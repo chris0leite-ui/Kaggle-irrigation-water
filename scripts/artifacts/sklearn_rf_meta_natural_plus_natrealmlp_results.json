@@ -1,0 +1,69 @@
+{
+  "n_folds": 5,
+  "smoke": false,
+  "seed": 42,
+  "n_estimators": 500,
+  "max_depth": 12,
+  "bank": [
+    "rawashishsin_2600",
+    "recipe_full_te_catboost_natural",
+    "recipe_full_te_catboost",
+    "recipe_full_te",
+    "realmlp",
+    "xgb_corn",
+    "xgb_dist_digits",
+    "realmlp_natural"
+  ],
+  "bank_loaded": [
+    "rawashishsin_2600",
+    "realmlp",
+    "realmlp_natural",
+    "recipe_full_te",
+    "recipe_full_te_catboost",
+    "recipe_full_te_catboost_natural",
+    "xgb_corn",
+    "xgb_dist_digits"
+  ],
+  "feature_count": 38,
+  "fold_scores_argmax": [
+    0.9728315045642781,
+    0.9727669388856328,
+    0.9739965251382242,
+    0.9723236689020763,
+    0.9729626307738267
+  ],
+  "overall_argmax": 0.9729762701644216,
+  "tuned_log_bias": 0.980599810563016,
+  "log_bias": [
+    0.5324411632360971,
+    0.9689466919465479,
+    3.400768902044088
+  ],
+  "drift": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "max_abs_drift": 0.0,
+  "per_class_recall": [
+    0.9946717777231109,
+    0.9681186578214277,
+    0.9790089961445095
+  ],
+  "lb_validated_tuned": 0.980628290879414,
+  "delta_tuned_vs_lb_validated": -2.8480316398016292e-05,
+  "pcr_delta_vs_lb_validated": [
+    2.703309120699604e-05,
+    -0.0012548415971623816,
+    0.0011423675567614477
+  ],
+  "test_rows_differ_from_lb_validated": 118,
+  "net_h_flip": 98,
+  "churn_h": 100,
+  "asym_ratio": 0.98,
+  "g1_delta_pass": false,
+  "g2_pcr_pass": false,
+  "g4_direction_pass": true,
+  "overall_pass": false,
+  "submission_csv": "submissions/submission_sklearn_rf_meta_natural_plus_natrealmlp_standalone.csv"
+}
