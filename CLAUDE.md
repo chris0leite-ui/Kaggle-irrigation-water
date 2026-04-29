@@ -18677,3 +18677,98 @@ findings beyond simple closure.
   - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
     `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
     `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)
+
+### 2026-04-29 — XREG cross-regime bank extension: 33rd saturation, v1 7-component bank confirmed structural sweet spot
+
+- Goal: test whether the LB-best 0.98129 v1 RF natural meta-stacker can compound
+  across calibration regimes by adding the prior PRIMARY (4-stack
+  tier1b_greedy_meta, LB 0.98094) as the 8th bank component. v1's 7 components
+  are all NEGATIVE-bias natural-cal regime; the 4-stack is recipe-family
+  POSITIVE-bias regime. UNTESTED in any prior bank-extension on RF natural.
+- Hypothesis: cross-regime diversity might compound. ~10 min CPU, low cost.
+- Branch: `claude/reverse-engineer-data-process-GNBqt`. Single new file
+  `scripts/sklearn_rf_meta_natural_xreg.py`.
+- Pipeline:
+  1. Reconstruct tier1b_greedy_meta = 0.7 × LB-best-3-stack + 0.3 × meta_iso
+     OOF = 0.98084 @ recipe bias (matches documented LB-best 4-stack)
+  2. Train sklearn RF (class_weight=None, n_est=500, max_depth=12,
+     bootstrap=True) on 8-component bank with 14 dist meta features
+  3. 5-fold StratifiedKFold(seed=42) for OOF alignment
+  4. 4-gate diagnostic vs v1 LB-best
+- Standalone results (35.6 min wall):
+  - argmax 0.97332 / **tuned 0.98090** (vs v1 0.98060, **Δ +0.00031**)
+  - bias [0.632, 0.969, 3.401]
+  - **bias drift from -log(prior): [+0.10, 0.00, 0.00]** ← CLEANEST natural-cal
+    drift ever recorded (vs v1's [-0.10, -0.10, -0.20] and recipe-family's
+    [+0.50, +0.40, -0.10])
+  - Per-class trade vs v1: L+0.0004 M-0.0006 **H+0.0012** ← ADD-High direction
+  - Test disagreement vs v1: 391 / 270k (0.14%)
+- 4-gate verdict:
+  - G1 (Δ standalone ≥ +3e-4): **+0.00031 PASS**
+  - G2 (PCR ≥ v1 - 5e-4): Medium = -0.00062 **BORDERLINE FAIL** (just 0.0001
+    below floor)
+- LB submission (user-approved, 15:44:33 UTC):
+  `submission_sklearn_rf_meta_natural_xreg_standalone.csv`
+  → **LB public = 0.98115** (Δ vs v1 LB-best **-0.00014**, regression)
+- OOF→LB gap = 0.98090 − 0.98115 = **−0.00025** (smaller magnitude than v1's
+  −0.00066, despite cleaner natural-cal drift)
+
+- Cross-validation with parallel branch's R10 attempt:
+  ```
+                      bank   OOF       LB        gap
+  v1 (LB-best)        7      0.98063   0.98129   -0.00066
+  R10 (parallel)      8      0.98102   0.98119   -0.00017
+  XREG (this entry)   8      0.98090   0.98115   -0.00025
+  ```
+  Both 8-component variants (R10 and XREG) regress vs v1 by 10-14 bp.
+  R10 used a different 8th component (configuration not documented).
+  Mine added tier1b_greedy_meta. Both NULL.
+
+- **Structural findings** (the actual takeaway):
+  1. **G2 borderline FAIL is predictive.** Even with cleanest-ever natural-cal
+     drift [+0.10, 0, 0], ADD-High direction (+0.00119), and G1 PASS
+     (+0.00031 standalone), the Medium recall -0.00062 below floor blocked
+     LB transfer. The 4-gate framework's G2 floor is the binding constraint
+     for this saturation regime.
+  2. **Cross-regime bank extension PRESERVED natural calibration but did NOT
+     lift LB.** The v1 7-component bank IS the structural sweet spot. Adding
+     the recipe-bias 4-stack shifts the prediction surface by 0.14% (391 test
+     rows) and produces a worse-on-LB blend.
+  3. **The natural-cal mechanism is bank-composition-specific.** v1's
+     specific 7 components (rawashishsin + cb_natural + cb + recipe + realmlp
+     + xgb_corn + xgb_dist_digits) found a sweet spot. Bank-extension with
+     EITHER bias-aligned OR cross-regime components produces marginal-to-
+     negative LB transfer.
+
+- **LB-best UNCHANGED at 0.98129** via
+  `submission_sklearn_rf_meta_natural_standalone.csv` (v1).
+- LB budget today (2026-04-29): 1/10 used (this probe), 9 remaining.
+
+- **Final-selection lock recommendation** (1 day to deadline):
+  - **PRIMARY**: `submission_sklearn_rf_meta_natural_standalone.csv`
+    → LB **0.98129** (own-pipeline RF meta-stacker on natural-cal bank)
+  - **HEDGE**: `submission_tier1b_greedy_meta.csv`
+    → LB **0.98094** (own-pipeline 4-stack, opposite bias regime)
+  - Both LB-validated, structurally orthogonal (different bias regimes,
+    different model classes). Final-selection variance protection.
+
+- Two new portable rules (LEARNINGS.md candidates):
+  1. **Bank-extension on a saturated meta-stacker bank with G2 borderline
+     FAIL (per-class drop within 0.0001 of -5e-4 floor) reliably regresses
+     LB.** Demonstrated 3 times now: v2 (LB -0.00031), R10 (LB -0.00010),
+     XREG (LB -0.00014). The G2 floor is the binding constraint regardless
+     of G1 PASS, calibration drift, or rare-class direction.
+  2. **Cross-regime bank extension does NOT compound natural calibration.**
+     Adding a recipe-bias 4-stack (POSITIVE-bias regime) to a 7-component
+     natural-cal bank (NEGATIVE-bias regime) preserves the natural-cal
+     property at the meta-output level (drift [+0.10, 0, 0] is cleanest ever)
+     BUT does not produce LB lift. The natural-cal compounding mechanism is
+     bank-composition-specific, not calibration-regime-additive.
+
+- Artefacts:
+  - `scripts/sklearn_rf_meta_natural_xreg.py`
+  - `scripts/artifacts/oof_tier1b_greedy_meta.npy` + test (4-stack reconstruction)
+  - `scripts/artifacts/oof_sklearn_rf_meta_natural_xreg.npy` + test
+  - `scripts/artifacts/sklearn_rf_meta_natural_xreg_results.json`
+  - `scripts/artifacts/blend_gate_rf_natural_xreg_results.json`
+  - `submissions/submission_sklearn_rf_meta_natural_xreg_standalone.csv` (LB 0.98115)
