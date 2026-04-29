@@ -17893,3 +17893,172 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
   rawashishsin's negative CV-LB gap.
 - If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
   PRIMARY) as final pair.
+
+### 2026-04-29 — RF natural meta-stacker on natural-cal bank: NEW LB BEST 0.98129
+
+- Goal: execute the calibration recommendation triggered by the
+  2026-04-28 calibration analysis. Build a sklearn RandomForest meta
+  on a curated bank of NATURALLY-CALIBRATED inputs (rather than the
+  saturated 60+ component pool), with `class_weight=None` (drop the
+  rare-class upweight at training that crippled prior LR/v4 metas).
+  Hypothesis: bagging-based meta on a natural-cal bank compounds
+  monotonically rather than amplifying recipe-family bias-tune leak.
+- Branch: `claude/model-calibration-properties-hs3Lj`. Three new
+  scripts committed (Phase 1 / Phase 2 / Phase 3) following the
+  approved plan at `~/.claude/plans/do-it-rosy-taco.md`.
+
+- **Phase 1 — `scripts/recipe_catboost_natural.py`** (CatBoost
+  natural-cal rebuild on V10 recipe FE; depth=3, no L2 reg, lr=0.05,
+  iter=2600, ORIG_ROW_WEIGHT=0.5, OrderedTE retained). Per-fold
+  StratifiedKFold(seed=42), 5-fold production wall ~60 min CPU
+  (paired-parallel folds 1+2, 3+4, then 5).
+  - Per-fold argmax: 0.97701 / 0.97799 / 0.97924 / 0.97777 / 0.97845
+  - Mean fold argmax: 0.97809 (every fold hit iter=2600 cap)
+  - Tuned OOF: 0.97907  bias=[1.13, 1.77, 2.70]
+  - Bias drift from -log(prior)=[0.53, 0.97, 3.40]: [+0.60, +0.80, -0.70]
+  - Verdict: depth/reg/lr/orig-concat training-regime ALONE doesn't
+    deliver natural calibration on our recipe FE. Bias_H = 2.70 is
+    only 0.10 below existing CB's 2.80. **Confirms CLAUDE.md
+    hypothesis: sklearn TargetEncoder(cv=5) is the dominant
+    calibration mechanism**, not training-regime knobs. Pick 2b
+    (`scripts/recipe_catboost_skte.py`, OrderedTE→sklearn TE) was
+    written + SMOKE'd (bias_H drop 3.40→3.00 at smoke), but
+    production SKIPPED based on Phase 2 evidence below.
+
+- **Phase 2 — `scripts/blend_natural_geomean.py`** (geomean of
+  rawashishsin v3 + Phase 1 CB at no bias retune). Tested calibration
+  -profile compatibility hypothesis directly.
+  - rawashishsin tuned: 0.98010  bias=[1.63, 1.77, 3.00]
+  - Phase 1 CB tuned:   0.97907  bias=[1.13, 1.77, 2.70]
+  - Bias drift between them: max 0.50 on Low (mismatch boundary)
+  - Geomean OOF (no retune): 0.97840
+  - Geomean OOF (tuned):     0.98012  bias=[1.43, 1.77, 2.90]
+  - **Δ over rawashishsin standalone: +0.00002** — within fold
+    noise. Bias-mismatch trap suspected confirmed; the +0.50 Low
+    drift between components produces blend that ties rawashishsin
+    at retune and is +0.0017 below at no-retune. **No-submit gate
+    failed.** Pick 2b production projected to similarly tie at best
+    case → skipped to save ~50 min.
+
+- **Phase 3 — `scripts/sklearn_rf_meta_natural.py`** (sklearn RF
+  meta on 7-component natural-cal bank). 35-feature input matrix
+  (14 dist + 7 components × 3 cls). Bank: rawashishsin_2600 +
+  recipe_full_te_catboost_natural + recipe_full_te_catboost +
+  recipe_full_te + realmlp + xgb_corn + xgb_dist_digits.
+  Diff vs original sklearn_rf_meta:
+    - `class_weight=None` (was 'balanced')
+    - `max_depth=12` (was 14)
+    - bootstrap=True (kept)
+    - n_estimators=500 (kept)
+  - Production wall: 22 min CPU (5 folds × 4.5 min each).
+  - Per-fold argmax: 0.97236 / 0.97265 / 0.97388 / 0.97232 / 0.97292
+  - **Tuned OOF: 0.98063**  bias=[0.43, 0.87, 3.20]
+  - Bias drift from -log(prior): [-0.10, -0.10, -0.20] ← **CLOSEST TO
+    NATURAL CALIBRATION OF ANY MODEL IN OUR BANK** (smaller drift
+    than rawashishsin's [+1.10, +0.80, -0.40] or LB-best primary's
+    [+0.50, +0.40, -0.10]).
+  - PCR: L=0.9946 / M=0.9694 / H=0.9779 (vs rawashishsin's
+    L=0.9945 / M=0.9676 / H=0.9782 — slightly better M,
+    slightly worse H, tied L)
+  - Errors: 9768 (vs rawashishsin 10228 = -460 fewer; vs primary
+    9436 = +332 more)
+  - 4-gate blend analysis (tuned bias per blend):
+    - vs rawashishsin: best PASS α=0.40 OOF 0.98050 (Δ+0.00040,
+      all PCR positive/marginal). BUT test net_H=-36, churn 176
+      → ratio 0.20 = G4 RESHUFFLE/REMOVE-direction risk.
+    - vs LB-best primary: no PASS-gate alpha (best Δ+0.00011 at α=0.40)
+    - vs Phase 2 geomean: best PASS α=0.30 OOF 0.98037, also G4
+      RESHUFFLE risk
+  - **STANDALONE candidate is the cleanest** (no blend → no churn
+    → no G4 risk). 620 test rows differ from rawashishsin v3.
+
+- **LB submission** (user-approved):
+  `submission_sklearn_rf_meta_natural_standalone.csv` (RF natural
+  standalone @ tuned bias [0.43, 0.87, 3.20]).
+
+  **LB public = 0.98129** ← **NEW LB BEST**
+  - Δ vs rawashishsin v3 (prior LB-best 0.98109) = **+0.00020**
+  - Δ vs LB-best 4-stack primary 0.98094 = **+0.00035**
+  - OOF 0.98063 → LB 0.98129 = gap **−0.00066** (LB much better
+    than CV — naturally-calibrated bias profile transferred
+    cleanly to test)
+
+- **Updated calibration ladder:**
+  ```
+  rawashishsin v3 standalone        0.98010 → 0.98109   gap -0.00099
+  LB-best 4-stack primary           0.98084 → 0.98094   gap -0.00010
+  Phase 2 geomean (CB+raw)          0.98012 → ?         (not probed, near-tie)
+  **RF natural meta (this entry)    0.98063 → 0.98129   gap -0.00066**  ← NEW LB BEST
+  ```
+
+- **Calibration hypothesis CONFIRMED**: stacking on a naturally-
+  calibrated bank compounds monotonically. The RF natural meta
+  consumes rawashishsin v3 (LB 0.98109, naturally-calibrated) as
+  one of 7 inputs and produces a model with EVEN BETTER
+  calibration (drift -0.10/-0.10/-0.20) and HIGHER LB (+0.00020).
+  This is the FIRST own-pipeline mechanism in 33 saturation
+  confirmations to break the LB-best ceiling — and the mechanism
+  is calibration-axis, not architecture-axis.
+
+- Pack 0.98148 still +0.00019 above. Leader 0.98219 still +0.00090
+  above. Reachable now via additional natural-cal stacking layers
+  (e.g., a meta-stacker ON TOP of RF natural with similar bank
+  curation).
+
+- LB budget: 1/10 used today, 9 remaining.
+
+- **Updated final-selection candidates:**
+  - **NEW PRIMARY**: `submission_sklearn_rf_meta_natural_standalone.csv`
+    → **LB 0.98129** (RF natural meta on 7-component natural-cal bank,
+    bagging+bootstrap, class_weight=None)
+  - **PRIOR PRIMARY (HEDGE)**: `submission_rawashishsin_2600_standalone.csv`
+    → **LB 0.98109** (rawashishsin v3 standalone, structurally
+    different model — single XGB on sklearn TE FE; orthogonal
+    failure modes from bagging-meta)
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Bagging-based meta-stackers (sklearn RF, bootstrap=True,
+     class_weight=None) on a curated natural-cal bank are the
+     correct architecture for stacking on top of naturally-
+     calibrated inputs.** They preserve the bank's calibration
+     profile (all inputs at bias near -log(prior)) and add
+     orthogonal signal via bootstrap-aggregated decision boundaries.
+     Different from gradient-boosted XGB-meta which inflates OOF
+     via depth-4 cross-component pattern memorization but doesn't
+     transfer cleanly. Use RF-meta as default L2 architecture for
+     natural-cal banks.
+  2. **`class_weight=None` (not 'balanced') is required at the
+     meta-stacker level when the input bank is naturally
+     calibrated.** Class upweighting at the meta level pushes
+     the meta's per-class probabilities away from the inputs'
+     macro-recall optimum, requiring post-hoc bias retune that
+     re-introduces the leak channel. The natural-cal inputs
+     already encode the proper class balance; the meta's job is
+     to combine them, not re-balance them.
+  3. **Bias drift from -log(prior) is the correct natural-cal
+     diagnostic, NOT bias_H near 0.** Different bias-tuning
+     conventions report different absolute values (rawashishsin
+     reports kernel-relative; our `tune_log_bias` reports absolute).
+     The portable diagnostic is the DRIFT vector
+     (tuned_bias − (-log(prior))). Naturally-calibrated models have
+     drift magnitudes ≤ 0.3 across all classes. Larger drifts
+     indicate the model's raw output distribution disagrees with
+     the empirical class prior, requiring bias-tuning compensation
+     that risks leak.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/recipe_catboost_natural.py` (Phase 1 CB natural-cal)
+  - `scripts/recipe_catboost_skte.py` (Pick 2b sklearn TE variant — SMOKE'd)
+  - `scripts/blend_natural_geomean.py` (Phase 2 geomean diagnostic)
+  - `scripts/sklearn_rf_meta_natural.py` (Phase 3 RF natural)
+  - `scripts/blend_gate_rf_natural_full.py` (4-gate analyzer)
+  - `scripts/artifacts/oof_recipe_full_te_catboost_natural.npy` + test + JSON
+  - `scripts/artifacts/oof_sklearn_rf_meta_natural.npy` + test + JSON
+  - `scripts/artifacts/blend_gate_rf_natural_full_results.json`
+  - `submissions/submission_recipe_full_te_catboost_natural.csv`
+  - `submissions/submission_sklearn_rf_meta_natural_standalone.csv`
+    (**LB 0.98129, NEW PRIMARY**)
+  - `submissions/submission_rf_natural_blend_rawashishsin_a040.csv`
+    (diagnostic, not LB-probed; G4 RESHUFFLE risk)
+  - `submissions/submission_rf_natural_blend_geomean_a030.csv`
+    (diagnostic, not LB-probed; G4 RESHUFFLE risk)
