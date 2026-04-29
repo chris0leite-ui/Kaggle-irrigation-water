@@ -121,6 +121,7 @@ def run_cv(train, test, info, a_ote=1.0):
     oof = np.zeros(len(train), dtype=np.float32)
     test_pred = np.zeros(len(test), dtype=np.float32)
     fold_rmses, best_iters = [], []
+    feat_cols: list[str] = []  # populated when a fold is actually trained
     xgb_params = dict(
         n_estimators=300 if SMOKE else 3000,
         max_depth=4, max_leaves=30, learning_rate=0.1,
@@ -133,6 +134,25 @@ def run_cv(train, test, info, a_ote=1.0):
     )
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
+        # Per-fold rehydrate-resilient checkpoint: skip if both files exist.
+        fold_oof_path = ART / f"oof_recipe_y_regression_fold{fold}.npy"
+        fold_test_path = ART / f"test_recipe_y_regression_fold{fold}.npy"
+        if fold_oof_path.exists() and fold_test_path.exists():
+            log(f"  checkpoint exists — loading {fold_oof_path.name}")
+            fold_oof = np.load(fold_oof_path).astype(np.float32)
+            fold_test = np.load(fold_test_path).astype(np.float32)
+            assert fold_oof.shape[0] == len(va_idx), \
+                f"fold {fold} OOF shape mismatch: {fold_oof.shape[0]} vs {len(va_idx)}"
+            assert fold_test.shape[0] == len(test), \
+                f"fold {fold} test shape mismatch: {fold_test.shape[0]} vs {len(test)}"
+            oof[va_idx] = fold_oof
+            test_pred += fold_test  # already divided by N_FOLDS at save time
+            y_va = y[va_idx].astype(np.float32)
+            rmse = float(np.sqrt(((oof[va_idx] - y_va) ** 2).mean()))
+            fold_rmses.append(rmse)
+            best_iters.append(-1)  # unknown from cached fold
+            log(f"  fold {fold}  rmse={rmse:.5f}  (from cache)")
+            continue
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
         X_va = train.iloc[va_idx].copy().reset_index(drop=True)
         X_te = test.copy().reset_index(drop=True)
@@ -157,12 +177,20 @@ def run_cv(train, test, info, a_ote=1.0):
                   eval_set=[(X_va[feat_cols], y_va)], verbose=False)
         bi = int(getattr(model, "best_iteration", model.n_estimators))
         best_iters.append(bi)
-        oof[va_idx] = model.predict(X_va[feat_cols]).astype(np.float32)
-        test_pred += model.predict(X_te[feat_cols]).astype(np.float32) / N_FOLDS
+        fold_oof = model.predict(X_va[feat_cols]).astype(np.float32)
+        fold_test = (model.predict(X_te[feat_cols]).astype(np.float32) / N_FOLDS)
+        oof[va_idx] = fold_oof
+        test_pred += fold_test
         rmse = float(np.sqrt(((oof[va_idx] - y_va) ** 2).mean()))
         fold_rmses.append(rmse)
         log(f"  fold {fold}  best_iter={bi}  rmse={rmse:.5f}  "
             f"wall={time.time()-t1:.1f}s")
+        # Atomic per-fold save: write to .tmp then rename so a partial
+        # write doesn't fool the resume check.
+        for arr, path in ((fold_oof, fold_oof_path), (fold_test, fold_test_path)):
+            tmp = path.with_name(path.stem + ".tmp.npy")
+            np.save(tmp, arr); tmp.rename(path)
+        log(f"  fold {fold} checkpoint saved")
     log(f"=== OOF rmse mean={np.mean(fold_rmses):.5f} ± {np.std(fold_rmses):.5f}")
     return dict(oof=oof, test=test_pred, fold_rmses=fold_rmses,
                 best_iters=best_iters, feat_cols=feat_cols)
