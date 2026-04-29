@@ -70,7 +70,8 @@ def main():
 
     # Phase A — standalone diagnostic
     t2_bias = np.array(t2_res["log_bias"])
-    t2_tuned = float(t2_res["tuned_log_bias"])
+    t2_tuned = float(t2_res.get("tuned_log_bias_bal_acc",
+                                t2_res.get("tuned_log_bias")))
     print()
     print("=== PHASE A — STANDALONE DIAGNOSTIC ===")
     print(f"  recipe baseline (no pseudo)        OOF tuned ~ 0.97967")
