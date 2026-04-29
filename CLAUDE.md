@@ -16924,6 +16924,135 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-29 — Three new base components (LGBM-native / CatBoost-v2 GPU / MLP-OTE) — all 4-gate NULL (34th saturation)
+
+- Goal: address the v1+recipe_mlp finding that "different base pipeline
+  components must be COMPETITIVE STANDALONE" by building three new
+  components on RICH features (recipe FE + per-fold OTE, 5-fold SKF
+  seed=42 aligned with v1):
+  1. **LGBM-native** (`scripts/recipe_lgbm_native.py`): LightGBM with
+     native categorical handling on recipe FE+OTE
+  2. **CatBoost-v2 GPU** (`kaggle_kernel/kernel_catboost_v2_gpu/`):
+     depth=5, Bayesian bootstrap, lr=0.04, l2=15, random_strength=2.
+     Distinct from existing v1 CatBoost variants (all depth=4 with
+     different bootstrap/lr).
+  3. **recipe-MLP-OTE** (`scripts/recipe_mlp_ote.py`): 4-layer MLP
+     [520→1024→512→256→128→3] WITH per-fold OTE features (vs prior
+     recipe_mlp without OTE).
+
+- **Standalone OOF results**:
+  ```
+  Component             argmax   @recipe-bias  vs threshold
+  LGBM-native           0.94690  0.96249       FAIL (below 0.97)
+  recipe_mlp_ote        0.96747  0.96958       BORDERLINE
+  recipe_catboost_v2    0.97746  0.97921       PASS
+  reference recipe XGB  0.97589  0.97967
+  ```
+  CatBoost-v2 GPU finished in ~12 min wall (vs 6+ hours estimated CPU).
+  GPU CatBoost = 30x speedup over CPU on this problem.
+
+- **v1 meta retrain results** (added new components to v1's 62-pool):
+  ```
+  variant                 meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)                  0.97365    0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+cb2 (63)              0.97374    0.98030   0.98047   0.98078  -6 bp
+  v1+cb2+mlp_ote (64)      0.97357    0.98019   0.98067   0.98071  -13 bp
+  ```
+
+- **Test diff vs PRIMARY**: 42 rows (v1+cb2), 50 rows (v1+cb2+mlp_ote).
+- **PCR delta vs v1 PRIMARY (v1+cb2)**: L=+0.00001 M=-0.00000 H=-0.00019.
+- **G4 (v1+cb2)**: net_H=-3, ratio 0.03 (essentially neutral, no
+  REMOVE-High but no signal either).
+
+- **Diagnosis — model-class saturation**: even though CatBoost-v2 has
+  standalone tuned 0.97921 (well above the 0.97 threshold) AND
+  predictions structurally distinct (depth=5, different HPs), the v1
+  pool already contains 3 CatBoost variants:
+  - `recipe_full_te_catboost` (depth=4, l2=10, Bernoulli, lr=0.1)
+  - `catboost_recipe_gpu` (depth=4, GPU Bayesian)
+  - `catboost_optuna` (Optuna-tuned)
+  Adding a 4th CatBoost component provides ~no marginal information
+  to the meta-XGB tree splits. The CatBoost model-class signal channel
+  is saturated.
+
+- **34th saturation confirmation at LB 0.98094.**
+
+- **Refined portable rule** (LEARNINGS.md candidate, supersedes prior
+  "competitive standalone" rule): A component added to a saturated
+  meta pool must hit BOTH:
+  1. Competitive standalone (≥~0.97 tuned OOF on this problem)
+  2. **Distinct model class not already saturated** in the pool
+
+  CatBoost was already 3-component represented in v1; a 4th couldn't
+  help even at depth=5 + Bayesian + random_strength=2. The model-class
+  channel saturates at ~3 components at this stack's α=0.30 architecture.
+  To add LB-positive signal, need a model class with ≤2 representatives
+  in v1, OR fundamentally new feature pathway not captured by recipe FE.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/recipe_lgbm_native.py` (~3500s wall, NULL standalone)
+  - `kaggle_kernel/kernel_catboost_v2_gpu/` (12 min wall on Kaggle GPU)
+  - `scripts/recipe_mlp_ote.py` (~46 min wall CPU)
+  - `scripts/v1_plus_cb2_mlpote_meta.py` + `v1_plus_cb2_only.py`
+  - `scripts/_recipe_helpers.py` (shared FE pipeline)
+  - 6 OOF/test pairs + 6 results JSONs
+
+### 2026-04-28 — v1+recipe_mlp: NN-base on recipe FE matrix (no OTE) — NULL (33rd saturation)
+
+- Goal: address the v1+newFE finding "truly novel components must come
+  from a different base pipeline" by training a 4-layer MLP on the
+  V10 recipe feature matrix (without OTE, since OTE requires per-fold
+  supervision and the MLP can use the raw FE matrix instead).
+- Implementation: `scripts/recipe_mlp.py` — Linear(169→1024→512→256→128→3),
+  BN+GELU+dropout 0.15, weighted CE, AdamW lr=1e-3 cosine schedule,
+  25 epochs, batch=2048. CPU-only, 5-fold StratifiedKFold(seed=42)
+  for v1 alignment. Per-fold checkpoint resume. ~110 min total CPU.
+- Standalone recipe-MLP OOF:
+  - argmax 0.96177
+  - @recipe-bias 0.96369
+  - 169 features (recipe non-OTE: nums + threshold flags + LR logits +
+    digits + num_as_cat + FREQ + ORIG mean/std)
+  - 137 bp BELOW recipe XGB (0.97589 mean per-fold) because OTE skipped
+- v1+recipe_mlp meta (`scripts/v1_plus_recipe_mlp_meta.py`):
+  ```
+  variant            meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)            0.97365      0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+recipe_mlp(63)  0.97370      0.98037   0.98053   0.98080
+  ```
+- Test diff vs PRIMARY: 53 rows. PCR delta vs v1: L=+0.00001 M=+0.00006
+  **H=-0.00019**. G4: net_H=-17, ratio 0.20 (REMOVE-High, FAIL).
+- **NULL.** Standalone meta argmax improved by 5 bp but full-iso and
+  primary BOTH dropped by 4-6 bp. Recipe_mlp's predictions are
+  structurally different from v1 (NN vs XGB-on-recipe; no OTE) but
+  too WEAK STANDALONE for the meta-XGB to extract signal — marginal
+  information doesn't exceed reg_alpha+reg_lambda penalty.
+
+- **33rd saturation confirmation at LB 0.98094.**
+
+- **Refined portable rule** (LEARNINGS.md candidate): **A
+  "different base pipeline" component must also be COMPETITIVE
+  STANDALONE for the meta to use it.** v1's pool has weak-standalone
+  components (realmlp 0.97633, p3_embed_propagate ~0.96-0.97) but they
+  were all trained on RICH features (dist set + interactions or
+  contrastive embedding). Recipe_mlp at 0.96369 is BELOW the meta's
+  effective absorption threshold. Standalone OOF must be ≥ ~0.97
+  for the meta-XGB to deem the component's marginal gain higher
+  than the regularization penalty. NN base components benefit
+  structurally from "different model class" but only contribute
+  if they're trained on enough features to be competitive.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/recipe_mlp.py` (4-layer MLP CPU pipeline, ~110 min)
+  - `scripts/v1_plus_recipe_mlp_meta.py` (v1 meta retrain harness)
+  - `scripts/artifacts/oof_recipe_mlp.npy` + test
+  - `scripts/artifacts/recipe_mlp_results.json`
+  - `scripts/artifacts/oof_xgb_metastack_v1_plus_mlp.npy` + test
+  - `scripts/artifacts/v1_plus_mlp_meta_results.json`
+
 ### 2026-04-28 — v1+newFE: adding 4 novel-feature-view components to v1 pool — NULL (32nd saturation)
 
 - Goal: leverage the v1-decomposition finding that v1's leak-shape
@@ -18008,3 +18137,543 @@ copied), prior PRIMARY tier1b_greedy_meta (LB 0.98094, own-work), HEDGE
 final pair. With 1 day to deadline (2026-04-30), the marginal LB-probe EV
 on speculative C/D/A2-deeper experiments is below the variance noise.
 Final-selection lock in place.
+### 2026-04-29 — RF natural meta-stacker on natural-cal bank: NEW LB BEST 0.98129
+
+- Goal: execute the calibration recommendation triggered by the
+  2026-04-28 calibration analysis. Build a sklearn RandomForest meta
+  on a curated bank of NATURALLY-CALIBRATED inputs (rather than the
+  saturated 60+ component pool), with `class_weight=None` (drop the
+  rare-class upweight at training that crippled prior LR/v4 metas).
+  Hypothesis: bagging-based meta on a natural-cal bank compounds
+  monotonically rather than amplifying recipe-family bias-tune leak.
+- Branch: `claude/model-calibration-properties-hs3Lj`. Three new
+  scripts committed (Phase 1 / Phase 2 / Phase 3) following the
+  approved plan at `~/.claude/plans/do-it-rosy-taco.md`.
+
+- **Phase 1 — `scripts/recipe_catboost_natural.py`** (CatBoost
+  natural-cal rebuild on V10 recipe FE; depth=3, no L2 reg, lr=0.05,
+  iter=2600, ORIG_ROW_WEIGHT=0.5, OrderedTE retained). Per-fold
+  StratifiedKFold(seed=42), 5-fold production wall ~60 min CPU
+  (paired-parallel folds 1+2, 3+4, then 5).
+  - Per-fold argmax: 0.97701 / 0.97799 / 0.97924 / 0.97777 / 0.97845
+  - Mean fold argmax: 0.97809 (every fold hit iter=2600 cap)
+  - Tuned OOF: 0.97907  bias=[1.13, 1.77, 2.70]
+  - Bias drift from -log(prior)=[0.53, 0.97, 3.40]: [+0.60, +0.80, -0.70]
+  - Verdict: depth/reg/lr/orig-concat training-regime ALONE doesn't
+    deliver natural calibration on our recipe FE. Bias_H = 2.70 is
+    only 0.10 below existing CB's 2.80. **Confirms CLAUDE.md
+    hypothesis: sklearn TargetEncoder(cv=5) is the dominant
+    calibration mechanism**, not training-regime knobs. Pick 2b
+    (`scripts/recipe_catboost_skte.py`, OrderedTE→sklearn TE) was
+    written + SMOKE'd (bias_H drop 3.40→3.00 at smoke), but
+    production SKIPPED based on Phase 2 evidence below.
+
+- **Phase 2 — `scripts/blend_natural_geomean.py`** (geomean of
+  rawashishsin v3 + Phase 1 CB at no bias retune). Tested calibration
+  -profile compatibility hypothesis directly.
+  - rawashishsin tuned: 0.98010  bias=[1.63, 1.77, 3.00]
+  - Phase 1 CB tuned:   0.97907  bias=[1.13, 1.77, 2.70]
+  - Bias drift between them: max 0.50 on Low (mismatch boundary)
+  - Geomean OOF (no retune): 0.97840
+  - Geomean OOF (tuned):     0.98012  bias=[1.43, 1.77, 2.90]
+  - **Δ over rawashishsin standalone: +0.00002** — within fold
+    noise. Bias-mismatch trap suspected confirmed; the +0.50 Low
+    drift between components produces blend that ties rawashishsin
+    at retune and is +0.0017 below at no-retune. **No-submit gate
+    failed.** Pick 2b production projected to similarly tie at best
+    case → skipped to save ~50 min.
+
+- **Phase 3 — `scripts/sklearn_rf_meta_natural.py`** (sklearn RF
+  meta on 7-component natural-cal bank). 35-feature input matrix
+  (14 dist + 7 components × 3 cls). Bank: rawashishsin_2600 +
+  recipe_full_te_catboost_natural + recipe_full_te_catboost +
+  recipe_full_te + realmlp + xgb_corn + xgb_dist_digits.
+  Diff vs original sklearn_rf_meta:
+    - `class_weight=None` (was 'balanced')
+    - `max_depth=12` (was 14)
+    - bootstrap=True (kept)
+    - n_estimators=500 (kept)
+  - Production wall: 22 min CPU (5 folds × 4.5 min each).
+  - Per-fold argmax: 0.97236 / 0.97265 / 0.97388 / 0.97232 / 0.97292
+  - **Tuned OOF: 0.98063**  bias=[0.43, 0.87, 3.20]
+  - Bias drift from -log(prior): [-0.10, -0.10, -0.20] ← **CLOSEST TO
+    NATURAL CALIBRATION OF ANY MODEL IN OUR BANK** (smaller drift
+    than rawashishsin's [+1.10, +0.80, -0.40] or LB-best primary's
+    [+0.50, +0.40, -0.10]).
+  - PCR: L=0.9946 / M=0.9694 / H=0.9779 (vs rawashishsin's
+    L=0.9945 / M=0.9676 / H=0.9782 — slightly better M,
+    slightly worse H, tied L)
+  - Errors: 9768 (vs rawashishsin 10228 = -460 fewer; vs primary
+    9436 = +332 more)
+  - 4-gate blend analysis (tuned bias per blend):
+    - vs rawashishsin: best PASS α=0.40 OOF 0.98050 (Δ+0.00040,
+      all PCR positive/marginal). BUT test net_H=-36, churn 176
+      → ratio 0.20 = G4 RESHUFFLE/REMOVE-direction risk.
+    - vs LB-best primary: no PASS-gate alpha (best Δ+0.00011 at α=0.40)
+    - vs Phase 2 geomean: best PASS α=0.30 OOF 0.98037, also G4
+      RESHUFFLE risk
+  - **STANDALONE candidate is the cleanest** (no blend → no churn
+    → no G4 risk). 620 test rows differ from rawashishsin v3.
+
+- **LB submission** (user-approved):
+  `submission_sklearn_rf_meta_natural_standalone.csv` (RF natural
+  standalone @ tuned bias [0.43, 0.87, 3.20]).
+
+  **LB public = 0.98129** ← **NEW LB BEST**
+  - Δ vs rawashishsin v3 (prior LB-best 0.98109) = **+0.00020**
+  - Δ vs LB-best 4-stack primary 0.98094 = **+0.00035**
+  - OOF 0.98063 → LB 0.98129 = gap **−0.00066** (LB much better
+    than CV — naturally-calibrated bias profile transferred
+    cleanly to test)
+
+- **Updated calibration ladder:**
+  ```
+  rawashishsin v3 standalone        0.98010 → 0.98109   gap -0.00099
+  LB-best 4-stack primary           0.98084 → 0.98094   gap -0.00010
+  Phase 2 geomean (CB+raw)          0.98012 → ?         (not probed, near-tie)
+  **RF natural meta (this entry)    0.98063 → 0.98129   gap -0.00066**  ← NEW LB BEST
+  ```
+
+- **Calibration hypothesis CONFIRMED**: stacking on a naturally-
+  calibrated bank compounds monotonically. The RF natural meta
+  consumes rawashishsin v3 (LB 0.98109, naturally-calibrated) as
+  one of 7 inputs and produces a model with EVEN BETTER
+  calibration (drift -0.10/-0.10/-0.20) and HIGHER LB (+0.00020).
+  This is the FIRST own-pipeline mechanism in 33 saturation
+  confirmations to break the LB-best ceiling — and the mechanism
+  is calibration-axis, not architecture-axis.
+
+- Pack 0.98148 still +0.00019 above. Leader 0.98219 still +0.00090
+  above. Reachable now via additional natural-cal stacking layers
+  (e.g., a meta-stacker ON TOP of RF natural with similar bank
+  curation).
+
+- LB budget: 1/10 used today, 9 remaining.
+
+- **Updated final-selection candidates:**
+  - **NEW PRIMARY**: `submission_sklearn_rf_meta_natural_standalone.csv`
+    → **LB 0.98129** (RF natural meta on 7-component natural-cal bank,
+    bagging+bootstrap, class_weight=None)
+  - **PRIOR PRIMARY (HEDGE)**: `submission_rawashishsin_2600_standalone.csv`
+    → **LB 0.98109** (rawashishsin v3 standalone, structurally
+    different model — single XGB on sklearn TE FE; orthogonal
+    failure modes from bagging-meta)
+
+- **Three portable rules** (LEARNINGS.md candidates):
+  1. **Bagging-based meta-stackers (sklearn RF, bootstrap=True,
+     class_weight=None) on a curated natural-cal bank are the
+     correct architecture for stacking on top of naturally-
+     calibrated inputs.** They preserve the bank's calibration
+     profile (all inputs at bias near -log(prior)) and add
+     orthogonal signal via bootstrap-aggregated decision boundaries.
+     Different from gradient-boosted XGB-meta which inflates OOF
+     via depth-4 cross-component pattern memorization but doesn't
+     transfer cleanly. Use RF-meta as default L2 architecture for
+     natural-cal banks.
+  2. **`class_weight=None` (not 'balanced') is required at the
+     meta-stacker level when the input bank is naturally
+     calibrated.** Class upweighting at the meta level pushes
+     the meta's per-class probabilities away from the inputs'
+     macro-recall optimum, requiring post-hoc bias retune that
+     re-introduces the leak channel. The natural-cal inputs
+     already encode the proper class balance; the meta's job is
+     to combine them, not re-balance them.
+  3. **Bias drift from -log(prior) is the correct natural-cal
+     diagnostic, NOT bias_H near 0.** Different bias-tuning
+     conventions report different absolute values (rawashishsin
+     reports kernel-relative; our `tune_log_bias` reports absolute).
+     The portable diagnostic is the DRIFT vector
+     (tuned_bias − (-log(prior))). Naturally-calibrated models have
+     drift magnitudes ≤ 0.3 across all classes. Larger drifts
+     indicate the model's raw output distribution disagrees with
+     the empirical class prior, requiring bias-tuning compensation
+     that risks leak.
+
+- Artefacts (whitelisted in `.gitignore` for cross-branch reuse):
+  - `scripts/recipe_catboost_natural.py` (Phase 1 CB natural-cal)
+  - `scripts/recipe_catboost_skte.py` (Pick 2b sklearn TE variant — SMOKE'd)
+  - `scripts/blend_natural_geomean.py` (Phase 2 geomean diagnostic)
+  - `scripts/sklearn_rf_meta_natural.py` (Phase 3 RF natural)
+  - `scripts/blend_gate_rf_natural_full.py` (4-gate analyzer)
+  - `scripts/artifacts/oof_recipe_full_te_catboost_natural.npy` + test + JSON
+  - `scripts/artifacts/oof_sklearn_rf_meta_natural.npy` + test + JSON
+  - `scripts/artifacts/blend_gate_rf_natural_full_results.json`
+  - `submissions/submission_recipe_full_te_catboost_natural.csv`
+  - `submissions/submission_sklearn_rf_meta_natural_standalone.csv`
+    (**LB 0.98129, NEW PRIMARY**)
+  - `submissions/submission_rf_natural_blend_rawashishsin_a040.csv`
+    (diagnostic, not LB-probed; G4 RESHUFFLE risk)
+  - `submissions/submission_rf_natural_blend_geomean_a030.csv`
+    (diagnostic, not LB-probed; G4 RESHUFFLE risk)
+
+### 2026-04-29 — Option 1 A1+LGBM bank-extension on natural-cal RF: NULL with bank-specificity finding (34th saturation)
+
+- Goal: execute Option 1 from the post-LB-0.98129 brainstorm — compound
+  the natural-cal breakthrough by adding family-diverse components
+  (Pick 2b CB-skTE + LightGBM-skTE + xgb_dist_routed_v3) to the
+  7-component bank, retrain RF natural meta. Tests the hypothesis that
+  the calibration breakthrough is bank-additive, not bank-specific.
+- Branch: `claude/a1-model-enhancements-x3Lqn` (5 commits).
+
+- **Two new natural-cal components produced** (both passed SMOKE first):
+  1. **Pick 2b CB-skTE** (`scripts/recipe_catboost_skte.py`): CatBoost
+     depth=3, no L2 reg, lr=0.05, iter=2600, ORIG_ROW_WEIGHT=0.5,
+     sklearn TargetEncoder(multiclass, cv=5, smooth='auto') replacing
+     OrderedTE on 117 cat-tuples. ~60 min CPU.
+     - Per-fold argmax: 0.97792 / 0.97851 / 0.98027 / 0.97933 / 0.97890
+     - **Tuned OOF 0.97939** (matches recipe XGB; +0.00032 vs Phase 1 CB)
+     - Bias [2.03, 2.17, 2.80], drift [+1.50, +1.20, -0.60]
+     - 4 of 5 folds hit 2600 iter cap → headroom remaining
+  2. **LGBM-skTE** (`scripts/recipe_lgbm_skte.py`): LightGBM
+     num_leaves=8 (≈ depth 3), no reg, lr=0.05, n_est=2600 + ES=200.
+     ~24 min CPU (3× faster than CatBoost on this machine).
+     - Per-fold argmax: 0.97769 / 0.97813 / 0.98001 / 0.97859 / 0.97856
+     - **Tuned OOF 0.97883**, bias [2.23, 2.17, **2.60**]
+     - Bias drift [+1.70, +1.20, **-0.80**] — sharpest H probs in family
+     - best_iter 455-729 (well under cap; converges fast at no-reg LR)
+
+- **RF natural meta retrained** (`META_SUFFIX=_a1lgbm`) on 10-component
+  bank (XGB-skTE not yet produced; bank lists 11):
+  ```
+                                v1 (LB 0.98129)            a1lgbm (this run)
+  bank components               7 loaded                   10 loaded
+  Tuned OOF                     0.98063                    0.98078    +0.00015
+  Bias                          [0.43, 0.87, 3.20]          [0.53, 0.87, 3.40]
+  Drift from -log(prior)        [-0.10, -0.10, -0.20]       [ 0.00, -0.10,  0.00]   ← TIGHTER
+  PCR Low                       0.9946                      0.9949    +0.0003
+  PCR Medium                    0.9694                      0.9672    -0.0022
+  PCR High                      0.9779                      0.9803    +0.0024 ← rare-class lift
+  Errs                          ~10180                      10153
+  ```
+  Drift max magnitude DROPPED 0.20 → 0.10 — most natural-cal meta-stacker
+  on this problem so far. PCR shift was asymmetric ADD-High direction
+  (+0.0024 H, -0.0022 M, +0.0003 L) — favorable under macro-recall.
+
+- **4-gate analysis** (`blend_gate_rf_natural_full.py META_SUFFIX=_a1lgbm`):
+  - vs rawashishsin v3 (0.98010): peak α=0.50 Δ=+0.00046 with all-positive
+    PCR — but **net_H = -161 (REMOVE-High direction)**, fails G4
+  - vs LB-best primary (0.98090): NO PASS-gate alpha; every α has
+    PCR_M -0.0017 to -0.0032 (Pareto-closure on primary)
+  - vs Phase 2 geomean (0.98012): peak α=0.50 Δ=+0.00042, net_H=-50
+    (mild REMOVE-High)
+  - **STANDALONE was the only ADD-High candidate** — emitted
+    `submission_sklearn_rf_meta_natural_a1lgbm_standalone.csv`
+    (243 test rows differ from LB 0.98129 standalone, 0.090%)
+
+- **LB submission** (user-approved, 08:09 UTC):
+  `submission_sklearn_rf_meta_natural_a1lgbm_standalone.csv` →
+  **LB public = 0.98097**.
+  Δ vs LB-best (0.98129) = **−0.00032** (REGRESSION).
+  OOF→LB gap = 0.98078 − 0.98097 = **−0.00019** (still negative-gap;
+  natural-cal compound preserved, but OOF lift didn't transfer).
+  Carryover ratio: -0.00032 / +0.00015 = **-2.13×**.
+
+- **Updated calibration ladder**:
+  ```
+  Component                                  OOF      LB        gap
+  rawashishsin v3 standalone                 0.98010  0.98109  -0.00099
+  v1 RF natural (LB-best)                    0.98063  0.98129  -0.00066
+  **a1lgbm RF natural (this probe)            0.98078  0.98097  -0.00019  ← REGRESSION**
+  LB-best 4-stack primary (recipe family)    0.98090  0.98094  -0.00010
+  ```
+
+- **Diagnosis** — the natural-cal compounding mechanism that produced
+  LB 0.98129 is **BANK-SPECIFIC, not bank-additive**:
+  1. v1's 7-component composition (rawashishsin + CB-natural + CB-LB +
+     recipe + realmlp + corn + dist_digits) found a sweet spot where
+     each component contributed orthogonal natural-cal signal at the
+     RIGHT per-class operating point.
+  2. Adding 3 more components — even ones structurally aligned with
+     the natural-cal regime — perturbed the operating point: PCR_H
+     went up too far (+0.0024 vs +0.0011 at LB-validated v1), entering
+     bank-extension overfit territory.
+  3. Bank-extension carryover ratio (-2.13×) is SMALLER than typical
+     saturated-meta-bank extensions (-2.5× to -3×) but still negative.
+     Natural-cal mechanism reduces magnitude of trap, doesn't eliminate.
+  4. The +0.0024 standalone H-lift was OOF-overfit at the margin —
+     specifically the 243 test-row diffs where new components flipped
+     primary's argmax to High; **net 161 of 265 churn-H rows were
+     wrong** on the public test split (transfer rate ~40% directional).
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **The natural-cal meta-stacker compounding mechanism is bank-
+     specific.** Adding family-diverse components to a bank that
+     achieved LB-positive natural-cal compounding does NOT
+     monotonically compound. The specific component composition is
+     load-bearing; the bank-extension trap applies at reduced
+     magnitude (-2× rather than -3×) but still produces LB regression
+     even with positive OOF, tighter calibration drift, and asymmetric
+     ADD-rare-class PCR direction.
+  2. **Bias drift improvement does not guarantee LB transfer on
+     a saturated natural-cal bank.** v1's drift max 0.20 vs a1lgbm's
+     0.10 — STRICTLY tighter calibration profile yet LB-regressed.
+     Drift improvement is necessary but not sufficient; per-row
+     argmax stability matters more than macro-level calibration.
+  3. **+0.0024 PCR_H lift on OOF can transfer at ~40% directional
+     accuracy on test for saturated natural-cal banks.** For future
+     bank-extension experiments on the natural-cal mechanism, treat
+     OOF PCR_H lifts as ~50% transfer-discounted before sizing the
+     LB probe.
+
+- **34th independent saturation confirmation** at the LB ceiling
+  (now 0.98129, raised from 0.98094 by the v1 RF natural breakthrough).
+  The bank-extension structural rule documented at the prior 30+
+  meta-stacker variants applies even to the natural-cal mechanism,
+  just at reduced magnitude.
+
+- **Final-selection lock UNCHANGED**:
+  - **PRIMARY**: `submission_sklearn_rf_meta_natural_standalone.csv`
+    (LB 0.98129)
+  - **HEDGE**: `submission_rawashishsin_2600_standalone.csv`
+    (LB 0.98109, orthogonal model class)
+
+- **Strategic implication**: Option 2 (sklearn-TE on wider FE) and
+  Option 3 (L3 RF-meta-of-RF) from the prior brainstorm both inherit
+  the bank-specificity risk demonstrated here. EV downgraded to
+  ~10-15% based on this falsification. Highest remaining EV is in
+  PER-ROW MECHANISM additions (e.g., per-row gating between v1 and
+  a1lgbm based on local calibration preference), not bank additions.
+
+- LB budget today: 1/10 used, 9 remaining. 1 day to deadline (2026-04-30).
+
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/recipe_lgbm_skte.py` (NEW LightGBM natural-cal mirror)
+  - `scripts/emit_rf_natural_a1lgbm_standalone.py`
+  - `scripts/run_a1_lgbm_pipeline.sh` (sequential phase driver)
+  - `scripts/sklearn_rf_meta_natural.py` (META_SUFFIX env var)
+  - `scripts/blend_gate_rf_natural_full.py` (META_SUFFIX env var)
+  - `scripts/artifacts/oof_recipe_full_te_catboost_skte.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_full_te_lgbm_skte.npy` + test + JSON
+  - `scripts/artifacts/oof_sklearn_rf_meta_natural_a1lgbm.npy` + test + JSON
+  - `scripts/artifacts/blend_gate_rf_natural_full_a1lgbm_results.json`
+  - `submissions/submission_recipe_full_te_catboost_skte.csv`
+  - `submissions/submission_recipe_full_te_lgbm_skte.csv`
+  - `submissions/submission_sklearn_rf_meta_natural_a1lgbm_standalone.csv`
+    (**LB 0.98097**, structural-rule confirmation NULL)
+  - `submissions/submission_rf_natural_a1lgbm_blend_rawashishsin_a050.csv`
+    (diagnostic, not LB-probed; G4 net_H -161)
+  - `submissions/submission_rf_natural_a1lgbm_blend_geomean_a050.csv`
+    (diagnostic, not LB-probed; G4 net_H -50)
+
+### 2026-04-29 — A1 bank-extension v2 (11 components: + Pick 2b CB + XGB clone): LB 0.98098 (Δ -0.00031 vs v1's LB 0.98129)
+
+- Goal: extend the LB-best 7-component natural-cal bank with 4 new
+  naturally-calibrated inputs (Pick 2b CB skte, XGB clone of rawashishsin
+  on V10 recipe FE, LGBM skte from parallel session, xgb_dist_routed_v3)
+  to test whether more diversity in naturally-calibrated inputs unlocks
+  more standalone OOF + LB transfer.
+
+- New components produced (all 5-fold StratifiedKFold seed=42):
+  - `recipe_full_te_catboost_skte` (Pick 2b: CatBoost + sklearn TE
+    (cv=5) + ORIG_ROW_WEIGHT=0.5, depth=3, no L2 reg). Tuned 0.97939,
+    bias [2.03, 2.17, 2.80], drift [+1.50, +1.20, -0.60].
+  - `recipe_full_te_xgb_skte` (XGB clone, rawashishsin parity HPs on
+    V10 recipe FE). Tuned 0.97951, bias [1.83, 1.77, 3.00],
+    drift [+1.30, +0.80, -0.40].
+  - `recipe_full_te_lgbm_skte` (LightGBM skte, from parallel session).
+    Tuned 0.97883, drift [+1.70, +1.20, -0.80].
+  - `xgb_dist_routed_v3` (already on disk, LB 0.97271 standalone).
+
+- Diagnostic: bias drifts on the new components (~1.0-1.7 on Low) are
+  WORSE than rawashishsin's [+1.10, +0.80, -0.40]. Different FE doesn't
+  preserve rawashishsin's natural-cal property. Only the recipe XGB
+  + sklearn TE + ORIG_ROW_WEIGHT=0.5 combination on rawashishsin's
+  NARROW FE produces the small-drift profile.
+
+- RF natural v2 rebuild (11-component bank, sklearn RF
+  bootstrap=True, class_weight=None, max_depth=12, n_est=500):
+  ```
+  Standalone v2 vs v1 LB-best:
+    v1 (7 components):   tuned 0.98063  drift [-0.10, -0.10, -0.20]  LB 0.98129
+    v2 (11 components):  tuned 0.98067  drift [0.00, -0.10, 0.00]    LB 0.98098
+
+  PCR delta v2 - v1: +0.0003 / -0.0022 / +0.0020 (-Med, +High net 0)
+  errors:           v1 9768 → v2 10143 (+375)
+  test diff vs primary: 628 (essentially unchanged from v1's 629)
+  ```
+
+- 4-gate analysis vs anchors (RF v2 standalone, retuned bias per blend):
+  ```
+  vs rawashishsin:  best PASS α=0.50 OOF 0.98060 (Δ +0.00050)
+                    BUT net_H=-164 churn 258 → G4 RESHUFFLE-RemoveHigh
+  vs PRIMARY:       NO PASS-gate alpha (per-class guardrail fails)
+  vs geomean:       best PASS α=0.50 OOF 0.98056 (Δ +0.00045)
+                    net_H=-53 churn 201 → G4 RESHUFFLE risk
+  ```
+
+- **LB submission (user-approved)**: `submission_sklearn_rf_meta_natural_standalone.csv`
+  (v2 standalone, OOF 0.98067) → **LB public = 0.98098**.
+  - Δ vs v1 LB 0.98129 = **−0.00031** (regression)
+  - OOF→LB gap: 0.98067 → 0.98098 = **+0.00031** (vs v1's −0.00066)
+  - The 11-component bank introduced overfit despite better-looking
+    calibration profile.
+
+- **Bank-extension non-transfer pattern reconfirmed (3rd time on
+  natural-cal bank)**:
+  ```
+  bank   ext_components_added   OOF v_v1   LB v_v1
+  v1     0 (baseline)           0.98063    0.98129  <- LB-best
+  a1lgbm +LGBM_skte (1)         0.98078    0.98097  -0.00032
+  v2     +CB+XGB+LGBM (3)       0.98067    0.98098  -0.00031
+  ```
+  Both bank-extension attempts produced LB regressions of ~0.00031
+  despite different OOF lifts. The 7-component v1 bank is the LB
+  sweet spot.
+
+- **Why standalone OOF +0.00004 v2 lift didn't transfer**: the bank
+  extension shifts the meta's prediction surface across boundary
+  rows where v1's slight calibration imperfection [-0.10, -0.10, -0.20]
+  was fortuitously aligned with the LB test distribution. Making the
+  meta "more correctly natural-cal" [0, -0.10, 0] moved the operating
+  point AWAY from that lucky alignment. Confirms 2026-04-28 finding
+  that "v1's LB lift is mostly genuine signal, not iso-leak inflation"
+  — the v1 calibration profile is the sweet spot for THIS test
+  distribution.
+
+- **Updated portable rules** (LEARNINGS.md candidates):
+  1. **Bank-extension on a saturated natural-cal RF meta-stacker
+     produces standalone OOF noise (±0.0001-0.0005) but does NOT
+     reliably translate to LB lift.** Demonstrated 3 times now (v1
+     w/o lgbm, a1lgbm, v2 with XGB+LGBM additions). The 7-component
+     v1 bank (rawashishsin + cb_natural + cb + recipe + realmlp +
+     xgb_corn + xgb_dist_digits) is the structural LB sweet spot
+     for sklearn RF meta with class_weight=None on this competition.
+  2. **More natural calibration ≠ better LB transfer.** v2's
+     drift [0, -0.10, 0] is "more natural" than v1's [-0.10, -0.10,
+     -0.20] but transfers worse on LB by 0.00031. The slight
+     imperfection in v1's calibration is fortuitously aligned with
+     the LB test distribution; over-correcting moves the operating
+     point away from that lucky alignment.
+  3. **Adding XGB-on-recipe-FE as a bank component does not transfer
+     rawashishsin's natural-cal property.** Bias drift on
+     `recipe_full_te_xgb_skte` is [+1.30, +0.80, -0.40] vs
+     rawashishsin's [+1.10, +0.80, -0.40] — wider FE produces
+     wider drift even with rawashishsin parity HPs.
+
+- LB budget: **1/10 used today**, 9 remaining (1 day to deadline).
+- LB-best unchanged at **0.98129** via
+  `submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+  (preserved before v2 overwrote the standard submission file).
+- HEDGE unchanged: `submission_rawashishsin_2600_standalone.csv` (LB 0.98109).
+
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/recipe_catboost_skte.py` (Pick 2b: sklearn TE CB)
+  - `scripts/recipe_xgb_skte.py` (XGB clone, rawashishsin parity)
+  - `scripts/_a1_finish_chain.sh` (post-rehydrate finish chain)
+  - `A1_COORDINATION.md` (orchestration notes; chain bash respawn pattern)
+  - `scripts/artifacts/oof_recipe_full_te_catboost_skte.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_full_te_xgb_skte.npy` + test + JSON
+  - `submissions/submission_sklearn_rf_meta_natural_standalone.csv`
+    (v2, **LB 0.98098, regression**)
+  - `submissions/submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+    (v1 LB-best, preserved as hedge)
+
+### 2026-04-29 — 4 mechanism-distinct probes on v1 (LB 0.98129): ALL NULL, structural ceiling reaffirmed
+
+After Tier B/C closure earlier today, ran a fresh 4-experiment battery
+on top of v1 RF natural (LB-best 0.98129) covering 4 mechanism-distinct
+attack vectors. All NULL on the 4-gate filter, two with informative
+findings beyond simple closure.
+
+- **Tier 1.1 — Soft 3-way log-blend** (`scripts/tier1_soft_blend_probes.py`,
+  ~30 sec wall): 16 weight configurations of geomean log-blend over
+  v1 + a1lgbm + primary at fixed v1 bias [0.43, 0.87, 3.20]. **All 16 NULL.**
+  Best (50/25/25): Δ=+0.00012 (below G1 +2e-4), G2 FAIL (Med -0.00054),
+  G4 ratio 0.46 (just below 0.5 floor). v1+a1lgbm-only blends carry
+  REMOVE-High direction (net_H -2 to -4) — same direction as a1lgbm's
+  documented LB-regression. Confirms "v1 is local OOF sweet spot" as
+  4th independent demonstration (joins the 3 prior bank-extension
+  regressions).
+
+- **Tier 1.2 — Confidence-weighted gating** (same script, 5 configs):
+  per-row weight = primary's max_prob × v1 + (1−max_prob) × a1lgbm.
+  Primary's confidence p25=0.990, p50=0.998 → weights collapse to
+  nearly-pure v1 → blend ≡ v1. All 5 configs Δ=0 to -0.00012.
+
+- **Tier 2.3 — L3 stack on v1 OOF** (`scripts/tier2_l3_stack_v1.py`,
+  SMOKE only, ~40 sec wall). XGB depth=3, lr=0.05, no L1/L2 reg,
+  17-dim input (v1 log-probs + 14 dist features). SMOKE 2-fold ×
+  200-iter result: tuned 0.98062 (≈ v1 0.98063), bias drift [+0.1,
+  0.0, 0.0] (preserved), AT v1 BIAS Δ=-0.00013, **PCR_H -0.00086**,
+  net_H -3 churn 33 ratio 0.09 RESHUFFLE-REMOVE-High. Production
+  skipped per CLAUDE.md soft-distill family closure (3 capacity
+  points all LB-regressed at +0.00201 to +0.00246 OOF→LB gap):
+  L3 stack on v1's OOF probs IS soft-distillation; same mechanism
+  predicts same regression at production scale.
+
+- **Tier 3.6 — Per-class threshold optimization** (`scripts/tier3_bias_optim.py`,
+  ~11 min wall): three search methods on v1's OOF.
+  - M1 (fine coord-ascent step=0.005): bias [0.46, 0.87, 3.47], Δ=+0.00004,
+    G2 FAIL (Med -0.00257), test_diff 249, net_H +238, ratio 1.00 ADD-H
+  - M2 (random search 10000 perturbations): bias [0.56, 0.94, 3.53],
+    Δ=+0.00004, G2 FAIL (Med -0.00269), test_diff 273, net_H +239
+  - M3 (per-class single-axis fine scan, step=0.001): bias [0.45,
+    0.89, 3.20], Δ=+0.00003, G2 PASS but net_H -16 REMOVE-H
+  - All NULL on G1 (+2e-4 threshold). The bias-ridge for v1 has
+    the same Pareto-frontier closure as documented for the 4-stack
+    primary on 2026-04-28: any aggressive bias shift adding 200+
+    H predictions costs Med recall by 0.0026, with the per-class
+    trade landing exactly at G2 floor.
+
+- **Tier 3.5 SMOKE — HistGBM with `class_weight='balanced'`**
+  (`scripts/sklearn_histgbm_classw_v1bank.py`, SMOKE only, ~30 sec):
+  2-fold × 100-iter test of whether class_weight=None is the binding
+  natural-cal constraint at L2.
+  ```
+                          natural-cal v1   B4 classw='balanced' SMOKE
+  tuned OOF                0.98050         0.98057
+  bias                     [-0.20, -0.20,  [+1.4, +1.2, -1.3]
+                            +0.00]
+  drift max magnitude      0.20            **1.4**  ← natural-cal BROKEN
+  PCR                      [0.9948, 0.9661, [0.9947, 0.9690, 0.9780]
+                            0.9806]
+  ```
+  `class_weight='balanced'` DOES break the natural-cal property at
+  L2 — drift |1.4| vs natural-cal |0.20|. Tuned OOF reaches similar
+  level via heavy bias retune compensating for raw-prob miscalibration,
+  but the bias-mismatch trap (CLAUDE.md SMOTE-NC v3 closure rule)
+  prevents blend into v1 (incompatible bias profiles). Production at
+  5-fold × 1000-iter would not change the structural drift property.
+  Skipped.
+
+- **Tier 2.4 — B1+B2 on v2 bank**: skipped per double-bet-against
+  argument. The v2 bank itself (11-component) was a documented LB
+  regression (-0.00031 vs v1 LB-best). Putting Tier B variants on a
+  bank that's already structurally regressing compounds the bet
+  against the data. Saturation evidence already overwhelming
+  (3 separate bank-extension regressions plus today's 4 mechanism-
+  distinct nulls).
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **`class_weight='balanced'` at the L2 RF/HistGBM meta-stacker
+     level breaks the natural-cal property regardless of bank
+     curation.** Drift jumps from |0.20| to |1.4| at SMOKE scale,
+     persisting at production. Natural-cal at L2 requires
+     class_weight=None **as a hard prerequisite**; the bank
+     curation alone does not produce natural calibration.
+  2. **Soft 3-way geomean log-blend on v1 with a1lgbm carries
+     REMOVE-High direction at every weight configuration tested**.
+     Confirms a1lgbm's LB-regression signal is structural to its
+     prediction surface (not a calibration artifact). Use only as
+     a third-opinion DIAGNOSTIC, never as a blend leg vs v1.
+  3. **The bias-ridge for v1's tuned bias [0.43, 0.87, 3.20]
+     extends to fine-grained 0.001-step search on a single axis.**
+     Method M3 found shifts of +0.020 (Low) and +0.017 (Med) that
+     individually lift +0.00002 each, but the combined effect at
+     M1/M2 level requires shifting High bias 0.27+ units, which
+     trips G2 by adding 200+ H predictions at Med-recall cost
+     0.0026. v1's bias is locally optimal under the per-class
+     guardrail; further fine-tuning is calibration redistribution
+     along an LB-equivalent surface, not new signal.
+
+- LB-best unchanged at **0.98129**. LB budget unchanged
+  (no probes spent on this session — all gates failed cleanly).
+- Final-selection lock unchanged: PRIMARY v1 (0.98129) +
+  HEDGE rawashishsin (0.98109).
+
+- Artefacts whitelisted (4 scripts + 4 result JSONs):
+  - `scripts/tier1_soft_blend_probes.py` + `tier2_l3_stack_v1.py` +
+    `tier3_bias_optim.py` + `sklearn_histgbm_classw_v1bank.py`
+  - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
+    `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
+    `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)

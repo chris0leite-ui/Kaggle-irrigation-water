@@ -1,0 +1,31 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "fold_scores_argmax": [
+    0.9770117432995985,
+    0.9779852824382628,
+    0.9792392525952923,
+    0.9777744348157733,
+    0.9784467981430676
+  ],
+  "best_iters": [
+    2600,
+    2600,
+    2600,
+    2600,
+    2600
+  ],
+  "overall_argmax_bal_acc": 0.9780915681985153,
+  "tuned_log_bias_bal_acc": 0.9790715565176864,
+  "log_bias": [
+    1.1324411632360976,
+    1.7689466919465482,
+    2.7007689020440884
+  ],
+  "bias_H": 2.7007689020440884,
+  "cal_verdict": "FAIL \u2014 bias_H still high; sklearn TE may be needed (Pick 2b)",
+  "ORIG_ROW_WEIGHT": 0.5,
+  "n_train": 630000,
+  "n_orig": 10000,
+  "n_test": 270000
+}
