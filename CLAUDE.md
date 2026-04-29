@@ -18247,3 +18247,112 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
   complete. NOT for LB probe (tuned OOF 0.97862 << LB-best 0.98129).
   Submission CSV saved as diagnostic. OOF/test artefacts ready as the
   11th candidate for v3 RF rebuild after main's v2 lands.
+
+### 2026-04-29 — Uniform-TE LGBM SMOKE (cats + q-binned nums + tres) — FALSIFIED at SMOKE, hypothesis closed
+
+- Goal: test whether the LGBM-skte production drift 1.00 came from the
+  V10 recipe's narrow TE coverage (117 cat-tuples only, 92 numerics
+  ungrouped). Hypothesis: applying sklearn TargetEncoder to ALL input
+  features (cats + combos + digits + num_as_cat + tres + q-binned
+  raw nums = 128 cols) might restore natural-cal at production.
+- Branch: `claude/calibrated-random-forest-PaYxH`. New script
+  `scripts/recipe_lgbm_skte_full.py` (~340 lines, mirrors
+  `recipe_lgbm_skte.py` but with q-binned numerics added to
+  `te_cols` and removed from `numeric_feats`).
+- Implementation: each raw numeric (11 cols) binned via `pd.qcut(q=100,
+  duplicates='drop')` to ~100-bucket categorical, then added to
+  `te_cols` alongside cats. Final TE input: 128 cols × 3 classes =
+  384 OTE features. Numeric kept raw: logits + freq + orig_stats =
+  77 features. Total ~461 input features (vs base LGBM-skte's 443).
+- **SMOKE result (20k × 2-fold, ~17s wall)**:
+  ```
+  fold 1 argmax 0.96176
+  fold 2 argmax 0.96323
+  OOF argmax    0.96249
+  tuned         0.96524   bias=[-0.969, -0.129, +3.404]
+  bias drift from -log(prior) = [-1.50, -1.10, 0.00]
+  max drift     1.500   ← FAIL (was 0.200 in base LGBM-skte SMOKE)
+  natural-cal verdict:  FAIL
+  ```
+- **Drift signature INVERTED from base LGBM-skte**:
+  - Base LGBM-skte SMOKE drift: `[+0.20, +0.00, +0.00]` (under-predicts L slightly)
+  - Uniform LGBM-skte SMOKE drift: `[-1.50, -1.10, +0.00]` (over-predicts L+M heavily)
+  - **High class drift went 0.00 → 0.00** (preserved)
+  - **Low/Medium drift went +0.0 → -1.5/-1.1** (over-prediction broke the cal)
+
+  Mechanism: q-binned numerics encoded as `P(class | bin)` produce
+  sharp Low/Medium probabilities on bins dominated by majority
+  classes → model over-confidently predicts L/M. The High class is
+  protected because the rare-class signal is too thin per-bin to
+  shift confidence dramatically.
+
+- **Falsification by main's parallel evidence** (commit `9011ffc`,
+  CB skte 5-fold complete ~07:00 UTC): main's CatBoost-skte
+  production landed with **tuned 0.97939, drift max 1.50, verdict
+  FAIL** — same drift magnitude as my LGBM-skte production (1.00) and
+  same FAIL pattern. CB skte drift = `[+1.50, +1.20, -0.60]`,
+  LGBM-skte production drift = `[+1.00, +0.60, -0.30]`. Both
+  POSITIVE on Low/Medium (sign opposite to my uniform SMOKE), both
+  FAIL.
+
+- **Triple-confirmation that "uniform TE coverage alone" is not the
+  natural-cal mechanism**:
+  ```
+  Variant                              FE TE-coverage    PROD drift_max
+  ----------------------------------- ---------------   ---------------
+  rawashishsin v3 (LB 0.98109)        all 133 cols TE   0.000  PASS
+  CB skte (Pick 2b)                   117 cat-tuples    1.500  FAIL
+  LGBM-skte (base)                    117 cat-tuples    1.000  FAIL
+  LGBM-skte uniform (this experiment) 128 cols (incl    SMOKE 1.500
+                                       q-binned nums)   FAIL — production
+                                                        unlikely to fix
+  ```
+  Adding q-binned nums to TE input did NOT restore natural-cal at
+  SMOKE — drift went UP to 1.5 (worse than base). Aggregate evidence
+  predicts production drift will land in the 1.0-1.5 band (FAIL).
+  Skipping production: ~60 min CPU on a Bayesian prior <10% of
+  natural-cal at production scale.
+
+- **The structural conclusion** (the actual deliverable from this
+  experiment): **rawashishsin's natural-cal mechanism is NOT just
+  "uniform sklearn TE on every feature".** Some other property of
+  their pipeline preserves calibration that we can't replicate by
+  copying the regime alone. Candidates:
+  - Their FE breadth is SMALLER (133 cols total vs our 443) — less
+    feature-induced overfitting in the per-leaf class probabilities.
+  - Their TE happens to encode raw nums DIRECTLY (no q-binning),
+    which sklearn 1.4+ TargetEncoder handles via internal binning
+    that may differ from explicit q-binning. Untested at production
+    scale; would need a separate variant (skip q-bin step, pass raw
+    floats directly to TE — but produces ~500k unique categories
+    per numeric, likely OOM).
+  - Their post-tune log-bias coord-ascent finds a different operating
+    point because their FE matrix is structurally narrower.
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **"Uniform TE coverage" alone does NOT restore natural calibration
+     when applied to a wider FE bank.** Adding q-binned numerics to
+     TE input on V10 recipe FE made SMOKE drift WORSE (0.20 → 1.50).
+     The mechanism is not just "more features through TE" — it's
+     specific to rawashishsin's narrower feature set + their exact
+     numeric handling.
+  2. **SMOKE drift can INVERT compared to base** when adding new TE
+     inputs. Base LGBM-skte SMOKE drift was `[+0.20, +0.00, +0.00]`
+     (under-predicts L); adding q-binned nums to TE flipped to
+     `[-1.50, -1.10, +0.00]` (over-predicts L+M). The High class
+     drift remained 0 in both — a structural property that survives
+     TE breadth changes.
+  3. **Falsification via parallel-session evidence** (CB skte
+     drift 1.50 production = my LGBM-skte drift 1.00 production)
+     is more efficient than running production on a SMOKE-failed
+     variant. Aggregate evidence triples down on the same finding;
+     burning compute on the next variant is low EV.
+
+- **Production NOT launched.** SMOKE artifacts cleaned up. Hypothesis
+  closed at SMOKE level. LB best unchanged at 0.98129 (main's v1 RF
+  natural meta). Main's v2 RF natural rebuild on 10-component bank
+  still pending — XGB skte chain queued, expected v2 by ~07:50-08:30 UTC.
+- Artifacts:
+  - `scripts/recipe_lgbm_skte_full.py` (~340 lines, kept on branch
+    for reproducibility — production not run, no .npy outputs
+    committed)
