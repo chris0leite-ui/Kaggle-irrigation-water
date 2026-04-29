@@ -95,9 +95,21 @@ def main():
         feat_cols = static_cols + ote_cols + cat_feat_names
         seen = set(); feat_cols = [c for c in feat_cols if not (c in seen or seen.add(c))]
 
-        X_tr = tr_with_te[feat_cols].astype(np.float32).to_numpy()
-        X_va = va_with_te[feat_cols].astype(np.float32).to_numpy()
-        X_te = te_with_te[feat_cols].astype(np.float32).to_numpy()
+        # Build pandas DataFrames so CatBoost can preserve dtypes (cat=int, num=float)
+        X_tr = tr_with_te[feat_cols].copy()
+        X_va = va_with_te[feat_cols].copy()
+        X_te = te_with_te[feat_cols].copy()
+        # Cast cat cols to int (factorized cats may be int64 already; combos definitely)
+        # and num cols to float32 for memory efficiency
+        for c in feat_cols:
+            if c in cat_feat_names:
+                X_tr[c] = X_tr[c].fillna(-1).astype(np.int64)
+                X_va[c] = X_va[c].fillna(-1).astype(np.int64)
+                X_te[c] = X_te[c].fillna(-1).astype(np.int64)
+            else:
+                X_tr[c] = X_tr[c].astype(np.float32).fillna(0.0)
+                X_va[c] = X_va[c].astype(np.float32).fillna(0.0)
+                X_te[c] = X_te[c].astype(np.float32).fillna(0.0)
         y_tr = y[tr_idx]
         y_va = y[va_idx]
 
@@ -106,27 +118,29 @@ def main():
 
         log(f"    feat_dim={X_tr.shape[1]} cats={len(cat_idxs)}")
 
-        # CatBoost wants string categoricals natively, but we have factorized
-        # ints in those columns post-recipe-FE. CatBoost can still treat
-        # ints as categorical via cat_features param. Use Pool with cat_features.
-        # But the factorized ints range up to ~1e5 unique values for combos —
-        # CatBoost handles that fine.
         train_pool = Pool(X_tr, y_tr, cat_features=cat_idxs, weight=sw_tr)
         val_pool = Pool(X_va, y_va, cat_features=cat_idxs)
 
-        # DISTINCT config: depth=6, ordered, lighter reg, slower LR, more iters
+        # DISTINCT config from v1's catboost variants:
+        # - existing recipe_full_te_catboost: depth=4, lr=0.1, l2=10, Bernoulli, Plain, iter=2000
+        # - existing catboost_recipe_gpu: depth=4, GPU, Bayesian, Plain
+        # - existing catboost_optuna: Optuna-tuned
+        # NEW: depth=5, lr=0.04, l2=15, Bayesian bootstrap, Plain (not Ordered — too slow),
+        # iter=3000 with random_strength=2 for more split randomness.
+        # Distinct from all 3 via depth+LR+l2+random_strength combo.
         model = CatBoostClassifier(
-            iterations=4000,
-            depth=6,
-            learning_rate=0.03,
-            l2_leaf_reg=5.0,
-            boosting_type="Ordered",
+            iterations=3000,
+            depth=5,
+            learning_rate=0.04,
+            l2_leaf_reg=15.0,
+            boosting_type="Plain",
             bootstrap_type="Bayesian",
             bagging_temperature=1.0,
+            random_strength=2.0,
             random_seed=SEED,
             verbose=False,
             allow_writing_files=False,
-            early_stopping_rounds=300,
+            early_stopping_rounds=200,
             thread_count=-1,
             loss_function="MultiClass",
             classes_count=3,
@@ -134,8 +148,9 @@ def main():
         model.fit(train_pool, eval_set=val_pool)
         bi = int(model.tree_count_)
         best_iters.append(bi)
-        vp = model.predict_proba(X_va).astype(np.float32)
-        tp = model.predict_proba(X_te).astype(np.float32)
+        # predict_proba on DataFrame works; CatBoost treats it as a Pool with same cat config
+        vp = model.predict_proba(Pool(X_va, cat_features=cat_idxs)).astype(np.float32)
+        tp = model.predict_proba(Pool(X_te, cat_features=cat_idxs)).astype(np.float32)
         oof[va_idx] = vp
         test_preds.append(tp)
         argmax_bal = balanced_accuracy_score(y_va, vp.argmax(1))
