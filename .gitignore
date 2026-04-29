@@ -61,6 +61,8 @@ scripts/artifacts/*_fold[0-9].npy
 scripts/artifacts/*_fold[0-9][0-9].npy
 scripts/artifacts/*_fold[0-9].json
 scripts/artifacts/*_fold[0-9][0-9].json
+scripts/artifacts/*_fold[0-9]_meta.json
+scripts/artifacts/*_fold[0-9][0-9]_meta.json
 scripts/artifacts/*_smoke.npy
 scripts/artifacts/_smoke_*.npy
 scripts/artifacts/*_smoke*.json
