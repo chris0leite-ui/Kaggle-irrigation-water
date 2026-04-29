@@ -87,7 +87,7 @@ def _find_one(pattern: str) -> Path:
     raise FileNotFoundError(f"no match for {pattern} under {KAGGLE_INPUT}")
 
 # Toggle SMOKE manually before push: True for 2-fold smoke (fast), False for prod
-SMOKE = True
+SMOKE = False
 if SMOKE:
     N_FOLDS = 2
 

@@ -16924,6 +16924,81 @@ N1/R2/base-only OOF→LB gap.
   input bank (tree splits memorizing cross-component patterns) — NOT
   from macrorec's H direction.
 
+### 2026-04-29 — Three new base components (LGBM-native / CatBoost-v2 GPU / MLP-OTE) — all 4-gate NULL (34th saturation)
+
+- Goal: address the v1+recipe_mlp finding that "different base pipeline
+  components must be COMPETITIVE STANDALONE" by building three new
+  components on RICH features (recipe FE + per-fold OTE, 5-fold SKF
+  seed=42 aligned with v1):
+  1. **LGBM-native** (`scripts/recipe_lgbm_native.py`): LightGBM with
+     native categorical handling on recipe FE+OTE
+  2. **CatBoost-v2 GPU** (`kaggle_kernel/kernel_catboost_v2_gpu/`):
+     depth=5, Bayesian bootstrap, lr=0.04, l2=15, random_strength=2.
+     Distinct from existing v1 CatBoost variants (all depth=4 with
+     different bootstrap/lr).
+  3. **recipe-MLP-OTE** (`scripts/recipe_mlp_ote.py`): 4-layer MLP
+     [520→1024→512→256→128→3] WITH per-fold OTE features (vs prior
+     recipe_mlp without OTE).
+
+- **Standalone OOF results**:
+  ```
+  Component             argmax   @recipe-bias  vs threshold
+  LGBM-native           0.94690  0.96249       FAIL (below 0.97)
+  recipe_mlp_ote        0.96747  0.96958       BORDERLINE
+  recipe_catboost_v2    0.97746  0.97921       PASS
+  reference recipe XGB  0.97589  0.97967
+  ```
+  CatBoost-v2 GPU finished in ~12 min wall (vs 6+ hours estimated CPU).
+  GPU CatBoost = 30x speedup over CPU on this problem.
+
+- **v1 meta retrain results** (added new components to v1's 62-pool):
+  ```
+  variant                 meta argmax  @recipe   full-iso  primary @α=0.30
+  v1 (62)                  0.97365    0.98041   0.98059   0.98084 ← LB 0.98094
+  v1+cb2 (63)              0.97374    0.98030   0.98047   0.98078  -6 bp
+  v1+cb2+mlp_ote (64)      0.97357    0.98019   0.98067   0.98071  -13 bp
+  ```
+
+- **Test diff vs PRIMARY**: 42 rows (v1+cb2), 50 rows (v1+cb2+mlp_ote).
+- **PCR delta vs v1 PRIMARY (v1+cb2)**: L=+0.00001 M=-0.00000 H=-0.00019.
+- **G4 (v1+cb2)**: net_H=-3, ratio 0.03 (essentially neutral, no
+  REMOVE-High but no signal either).
+
+- **Diagnosis — model-class saturation**: even though CatBoost-v2 has
+  standalone tuned 0.97921 (well above the 0.97 threshold) AND
+  predictions structurally distinct (depth=5, different HPs), the v1
+  pool already contains 3 CatBoost variants:
+  - `recipe_full_te_catboost` (depth=4, l2=10, Bernoulli, lr=0.1)
+  - `catboost_recipe_gpu` (depth=4, GPU Bayesian)
+  - `catboost_optuna` (Optuna-tuned)
+  Adding a 4th CatBoost component provides ~no marginal information
+  to the meta-XGB tree splits. The CatBoost model-class signal channel
+  is saturated.
+
+- **34th saturation confirmation at LB 0.98094.**
+
+- **Refined portable rule** (LEARNINGS.md candidate, supersedes prior
+  "competitive standalone" rule): A component added to a saturated
+  meta pool must hit BOTH:
+  1. Competitive standalone (≥~0.97 tuned OOF on this problem)
+  2. **Distinct model class not already saturated** in the pool
+
+  CatBoost was already 3-component represented in v1; a 4th couldn't
+  help even at depth=5 + Bayesian + random_strength=2. The model-class
+  channel saturates at ~3 components at this stack's α=0.30 architecture.
+  To add LB-positive signal, need a model class with ≤2 representatives
+  in v1, OR fundamentally new feature pathway not captured by recipe FE.
+
+- LB-best PRIMARY unchanged at **0.98094**. LB budget: 3/10 used today.
+
+- Artifacts:
+  - `scripts/recipe_lgbm_native.py` (~3500s wall, NULL standalone)
+  - `kaggle_kernel/kernel_catboost_v2_gpu/` (12 min wall on Kaggle GPU)
+  - `scripts/recipe_mlp_ote.py` (~46 min wall CPU)
+  - `scripts/v1_plus_cb2_mlpote_meta.py` + `v1_plus_cb2_only.py`
+  - `scripts/_recipe_helpers.py` (shared FE pipeline)
+  - 6 OOF/test pairs + 6 results JSONs
+
 ### 2026-04-28 — v1+recipe_mlp: NN-base on recipe FE matrix (no OTE) — NULL (33rd saturation)
 
 - Goal: address the v1+newFE finding "truly novel components must come

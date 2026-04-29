@@ -1116,3 +1116,7 @@ scripts/artifacts/_recipe_cb2_fold*.npy
 scripts/artifacts/_recipe_cb2_fold*.json
 scripts/artifacts/_recipe_mlp_ote_fold*.npy
 scripts/artifacts/_recipe_mlp_ote_fold*.json
+scripts/artifacts/_v1pcm_fold*.npy
+scripts/artifacts/_v1pcm_fold*.json
+scripts/artifacts/_v1pcb_fold*.npy
+scripts/artifacts/_v1pcb_fold*.json
