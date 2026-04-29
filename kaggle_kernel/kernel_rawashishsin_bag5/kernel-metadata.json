@@ -1,0 +1,18 @@
+{
+  "id": "chrisleitescha/irrigation-rawashishsin-bag5",
+  "title": "irrigation-rawashishsin-bag5",
+  "code_file": "rawashishsin_bag5.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "miadul/irrigation-water-requirement-prediction-dataset"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
