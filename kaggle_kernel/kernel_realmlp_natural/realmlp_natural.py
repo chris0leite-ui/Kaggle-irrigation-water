@@ -134,7 +134,14 @@ def load_data():
         test_ids = test_ids[test_sub.index.to_numpy()]
         test = test_sub.reset_index(drop=True)
         orig = orig.sample(2_000, random_state=SEED).reset_index(drop=True)
-    log(f"  train={len(train):,}  test={len(test):,}  orig={len(orig):,}")
+    # Natural-cal parity via subsampling: pytabkit's RealMLP_TD_Classifier.fit()
+    # doesn't support sample_weight= (verified in smoke v1). Subsample orig to
+    # ORIG_ROW_WEIGHT fraction so 5000 unit-weight rows replicate the gradient
+    # contribution of 10000 × 0.5-weight rows in expectation.
+    n_orig_keep = max(1, int(round(len(orig) * ORIG_ROW_WEIGHT)))
+    orig = orig.sample(n=n_orig_keep, random_state=SEED).reset_index(drop=True)
+    log(f"  train={len(train):,}  test={len(test):,}  "
+        f"orig={len(orig):,} (subsampled @ ORIG_ROW_WEIGHT={ORIG_ROW_WEIGHT})")
     return train, test, orig, test_ids
 
 
@@ -200,8 +207,6 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
     FOLD1_KILL_SEC = 22 * 60 if not SMOKE else 10 * 60
     TOTAL_KILL_SEC = 55 * 60 if not SMOKE else 15 * 60
 
-    sample_weight_supported = None  # probe pytabkit fit() once
-
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
         X_tr = train.iloc[tr_idx].copy().reset_index(drop=True)
@@ -235,16 +240,16 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         va_frame = _frame(X_va, te_va)
         te_frame = _frame(X_te, te_te)
 
-        # Concat ORIG into training pool (rawashishsin pattern).
+        # Concat ORIG into training pool (rawashishsin pattern). orig was
+        # already subsampled to ORIG_ROW_WEIGHT fraction in load_data() so
+        # all rows enter at unit weight (= equivalent to original count
+        # × ORIG_ROW_WEIGHT in expectation).
         train_frame = pd.concat([tr_frame, or_frame], axis=0,
                                 ignore_index=True)
         y_train = np.concatenate([y_tr, y_orig])
-        sw = np.concatenate([
-            np.ones(len(tr_idx), dtype=np.float32),
-            np.full(len(or_frame), ORIG_ROW_WEIGHT, dtype=np.float32),
-        ])
         log(f"  combined train: {len(train_frame):,} (synth {len(tr_idx):,} "
-            f"+ orig {len(or_frame):,} @ sw={ORIG_ROW_WEIGHT})")
+            f"+ orig {len(or_frame):,}; orig pre-subsampled @ "
+            f"ORIG_ROW_WEIGHT={ORIG_ROW_WEIGHT})")
 
         cat_like = CATS + NUMS
         for frame in (train_frame, va_frame, te_frame):
@@ -261,22 +266,8 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
             random_state=SEED,
             verbosity=1,
         )
-        # Try sample_weight first; fall back to unweighted if pytabkit
-        # doesn't accept it (cleanest API probe).
-        if sample_weight_supported is False:
-            model.fit(train_frame, y_train, val_idxs=None,
-                      cat_col_names=cat_like)
-        else:
-            try:
-                model.fit(train_frame, y_train, val_idxs=None,
-                          cat_col_names=cat_like, sample_weight=sw)
-                sample_weight_supported = True
-            except TypeError as e:
-                log(f"  pytabkit fit() rejected sample_weight: {e}")
-                log(f"  falling back to unweighted concat (orig at full weight)")
-                sample_weight_supported = False
-                model.fit(train_frame, y_train, val_idxs=None,
-                          cat_col_names=cat_like)
+        model.fit(train_frame, y_train, val_idxs=None,
+                  cat_col_names=cat_like)
         log(f"  RealMLP fit in {time.time() - t0:.1f}s")
 
         proba_va = model.predict_proba(va_frame)
@@ -317,7 +308,6 @@ def run_cv(train, test, orig, NUMS, CATS, combo_cols) -> dict:
         overall_argmax=float(overall_argmax),
         fold_ba=fold_ba,
         folds_completed=folds_completed,
-        sample_weight_supported=sample_weight_supported,
     )
 
 
@@ -407,7 +397,6 @@ def main():
         "fold_ba": result["fold_ba"],
         "n_folds": N_FOLDS,
         "folds_completed": folds_completed,
-        "sample_weight_supported": result["sample_weight_supported"],
         "seed": SEED,
         "smoke": bool(SMOKE),
         "natcal_knobs": {
