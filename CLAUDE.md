@@ -18568,6 +18568,87 @@ Final-selection lock in place.
   - `submissions/submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
     (v1 LB-best, preserved as hedge)
 
+### 2026-04-29 — REPLACE-variants V_a + V_b on natural-cal RF meta: 35th saturation, FIRST clean G4 PASS pair
+
+- Goal: address the documented bank-EXTENSION failure pattern (a1lgbm and v2
+  both LB-regressed −0.00031) by REPLACING one component at constant
+  bank size 7. Different failure mode than ADD: instead of perturbing the
+  operating point with extra noise, swaps one signal channel for another
+  structurally distinct one.
+- Two variants tested via `scripts/rf_natural_replace.py` (parameterized
+  via REPLACE_OLD/REPLACE_NEW/VARIANT_TAG env vars):
+  - **V_a**: realmlp → a2_natural_calib (XGB rawashishsin parity on V10
+    recipe FE, OOF 0.98010, naturally calibrated bias_H=0)
+  - **V_b**: realmlp → realmlp_natural (RealMLP at natural-cal training
+    regime, OOF 0.97549)
+- Both SMOKE green; production wall ~25 min/variant on 4-core CPU.
+
+- **Standalone 5-fold OOF results** (recipe bias):
+  ```
+  variant     tuned     drift max  PCR L     PCR M     PCR H     Δ vs v1
+  v1 LB-best  0.98063   0.20       0.9946    0.9694    0.9779    —
+  V_a         0.98062   0.20       0.9946    0.9667    0.9806    -0.00001
+  V_b         0.98053   0.10       0.9943    0.9684    0.9789    -0.00009
+  ```
+  V_b's drift max 0.10 is the cleanest natural-cal observed on any meta
+  variant — but standalone tuned is below v1.
+
+- **4-gate filter** (`scripts/replace_4gate_compare.py`, vs v1 LB-best
+  preserved snapshot):
+  ```
+                       V_a              V_b
+  G1 (Δ ≥ +2e-4)         -0.00001 FAIL    -0.00009 FAIL
+  G2 (PCR ≥ -5e-4 each)  M=-0.0027 FAIL   M=-0.0010 FAIL
+  G3 (dual-α ratio)      1.56 PASS        -2.13 FAIL
+  G4 (net_H>0 ratio≥0.5) +252/286 r=0.88 PASS  +111/123 r=0.90 PASS
+  OVERALL                FAIL              FAIL
+  ```
+
+- **First-time finding — both candidates have CLEAN G4 ADD-High
+  asymmetry**: V_a net_H +252 with churn 286 (ratio 0.88, only 17 H
+  reverses out of 269 changes) and V_b net_H +111 (ratio 0.90, only
+  6 reverses out of 117). Cleanest asymmetric ADD-High direction in
+  the comp log — every prior G4 PASS variant either had net_H
+  near-zero (RESHUFFLE-class) or REMOVE-High direction. **Pareto-
+  frontier closure still binds**: M-loss (-0.0027 V_a / -0.0010 V_b)
+  exceeds H-gain (+0.0027 V_a / +0.0010 V_b) in absolute per-class
+  terms; under macro-recall's equal class weighting, the trade nets
+  to a wash (V_a: -0.00001) or small loss (V_b: -0.00009).
+
+- **Consequence — 4-gate filter is correctly distinguishing**: G1+G2
+  rule out candidates with Pareto-violation H↑/M↓ trades. G3+G4 PASS
+  signals "real signal in correct direction" but the standalone
+  ceiling 0.98063 + Pareto frontier shape mean nothing in the bank
+  rearrangement family can clear all 4 gates simultaneously on this
+  problem.
+
+- LB delta: n/a (both fail on standalone gate; no probe warranted).
+  LB best unchanged at **0.98129**. LB budget unchanged.
+
+- **35th independent saturation confirmation at LB 0.98129**.
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **REPLACE on a saturated natural-cal meta-stacker bank produces
+     the cleanest G4 ADD-High asymmetric directions of any blend
+     mechanism on this problem** (V_a ratio 0.88, V_b ratio 0.90)
+     but standalone-Δ vs v1 is bounded by the bank-curation sweet
+     spot. The 7-component v1 bank sits at a structural local maximum:
+     REPLACE produces clean direction but no lift; ADD perturbs the
+     operating point with bank-extension noise.
+  2. **Pareto-frontier closure on macro-recall**: candidates with
+     M-loss = H-gain in per-class recall terms net to ~0 macro-recall
+     change. Verified on V_a (+0.0027 H / -0.0027 M = -0.00001) and
+     V_b (+0.0010 / -0.0010 = -0.00009). For future imbalanced
+     multi-class experiments, predict macro-recall delta from per-class
+     trade BEFORE committing compute.
+
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/rf_natural_replace.py`, `scripts/replace_4gate_compare.py`
+  - `scripts/artifacts/oof_rf_natural_replace_{Va,Vb}.npy` + test + JSON
+  - `scripts/artifacts/replace_4gate_compare_results.json`
+  - `submissions/submission_rf_natural_replace_{Va,Vb}_standalone.csv`
+    (diagnostic, not for LB probe)
+
 ### 2026-04-29 — 4 mechanism-distinct probes on v1 (LB 0.98129): ALL NULL, structural ceiling reaffirmed
 
 After Tier B/C closure earlier today, ran a fresh 4-experiment battery
