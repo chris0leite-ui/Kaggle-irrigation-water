@@ -1,0 +1,42 @@
+{
+  "variant_tag": "Vc",
+  "replace_old": "recipe_full_te_catboost",
+  "replace_new": "recipe_full_te_catboost_skte",
+  "bank": [
+    "rawashishsin_2600",
+    "recipe_full_te_catboost_natural",
+    "recipe_full_te_catboost_skte",
+    "recipe_full_te",
+    "realmlp",
+    "xgb_corn",
+    "xgb_dist_digits"
+  ],
+  "n_components": 7,
+  "n_folds": 2,
+  "smoke": true,
+  "seed": 42,
+  "n_estimators": 100,
+  "max_depth": 8,
+  "fold_scores_argmax": [
+    0.9729340910894623,
+    0.9724261390676189
+  ],
+  "overall_argmax": 0.9726801025208639,
+  "tuned_log_bias": 0.9805958352246158,
+  "log_bias": [
+    0.33244116323609785,
+    0.8689466919465483,
+    3.400768902044088
+  ],
+  "bias_drift": [
+    -0.1999999999999993,
+    -0.09999999999999964,
+    0.0
+  ],
+  "bias_drift_max_abs": 0.1999999999999993,
+  "per_class_recall": [
+    0.9943744137198345,
+    0.9684992931059002,
+    0.9789137988481127
+  ]
+}
