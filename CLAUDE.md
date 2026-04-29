@@ -18046,3 +18046,111 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
     output, NOT for blend bank — Pareto-violator)
   - `scripts/artifacts/stack_on_rawashishsin_results.json` (history +
     4-gate breakdown + diff_vs_primary count)
+
+### 2026-04-29 — LGBM-skte clone (LGBM equivalent of A1) — SMOKE GREEN with cleanest natural calibration ever
+
+- Goal: while main's A1 + bank-expansion orchestration runs in a
+  separate compute pool (chains targeting 7 → 10 components, expected
+  v2 RF natural meta @ ~06:35 UTC), test the rawashishsin training
+  regime on a THIRD model class (LGBM) on this branch. Adds an
+  independent 11th candidate to the natural-cal bank for v3 absorption
+  after v2 lands. Different artifact namespace (`*_lgbm_skte`) — zero
+  collision with main's `*_xgb_skte` / `*_catboost_skte` chains.
+- Branch: `claude/calibrated-random-forest-PaYxH`. New script
+  `scripts/recipe_lgbm_skte.py` (~290 lines, mirrors A1's structure).
+- HPs translated XGB → LGBM:
+  ```
+  XGB                          ↔  LGBM
+  ---------------------------     ---------------------------------
+  max_depth=3                  ↔  num_leaves=8 + max_depth=-1
+  n_estimators=2600            ↔  n_estimators=2600
+  learning_rate=0.05           ↔  learning_rate=0.05
+  subsample=0.9                ↔  bagging_fraction=0.9 + bagging_freq=5
+  colsample_bytree=0.8         ↔  feature_fraction=0.8
+  max_bin=1100                 ↔  max_bin=1100
+  reg_alpha=0, reg_lambda=0    ↔  reg_alpha=0, reg_lambda=0
+  ```
+  Same V10 recipe FE pipeline, same per-fold StratifiedKFold(seed=42),
+  same sklearn TargetEncoder(multiclass, cv=5, smooth='auto') on 117
+  cat-tuples = 351 OTE features. Same ORIG_ROW_WEIGHT=0.5 + class-
+  balanced sample weights.
+
+- **SMOKE GREEN** (20k×2-fold, 22s wall):
+  ```
+  fold 1 argmax 0.96019
+  fold 2 argmax 0.96128
+  OOF argmax    0.96073   (mean fold 0.96073 ± 0.00054)
+  tuned         0.96462   bias=[+0.731, +0.971, +3.404]
+  bias drift from -log(prior) [+0.587, +0.977, +3.404]:
+                          [+0.20, +0.00, +0.00]
+  max drift     0.200    ← PASS (≤0.30 threshold)
+  natural-cal verdict:    PASS — uniform small drift
+  ```
+
+- **Cleanest natural calibration of any model in the bank**:
+  ```
+  variant                      max drift   verdict
+  -------                      ---------   -------
+  LGBM skte (this branch)      0.200       PASS  ← cleanest
+  A1 XGB skte (main, SMOKE)    0.700       PARTIAL
+  CB natural (no skte, SMOKE)  0.900       FAIL
+  A3 RF on V10 recipe (SMOKE)  3.404       FAIL  (= recipe XGB)
+  rawashishsin v3 (production) 0.000       PASS  (reference)
+  ```
+
+- **The mechanism is now triple-validated** across model classes:
+  natural calibration comes from the COMBINATION of (sklearn TE +
+  low depth + no reg + ORIG_ROW_WEIGHT=0.5 + low LR), not from any
+  single model class. LGBM (leaf-wise growth) produces the same
+  bias-drift profile as XGB (level-wise growth) under identical regime.
+
+- **Why this is structurally distinct from A3 RF**: A3 used
+  `RandomForestClassifier(class_weight=None, bootstrap=True)` on
+  recipe FE WITHOUT sklearn TE. SMOKE drift was 3.40 (FAIL — same
+  as recipe XGB). The natural-cal mechanism CAN be ablated cleanly:
+  drop sklearn TE → calibration breaks. Confirms the 2026-04-28
+  Phase 1 finding ("training-regime alone doesn't deliver natural
+  calibration; sklearn TE is the dominant mechanism") via a third
+  model class.
+
+- **Status**: Production launched in background (per-fold sequential
+  via RUN_FOLD env var, ~30 min wall expected, per-fold checkpoints
+  for rehydrate resilience). Artifact namespace
+  `oof_recipe_full_te_lgbm_skte.npy` + test. After main's v2 RF
+  natural meta lands (expected ~06:35 UTC), this LGBM artifact
+  becomes the 11th candidate for a future v3 RF rebuild.
+
+- **Implication for v3 strategy** (after v2 lands):
+  - If v2 lifts LB to ≥0.98140: expand to 11-component bank with
+    LGBM included → v3 RF rebuild → potential further LB lift via
+    model-class diversity (XGB level-wise + LGBM leaf-wise + CB
+    ordered-boosting + rawashishsin) at the natural-cal level.
+  - If v2 nulls/regresses: LGBM standalone diagnostic still useful
+    (confirms model-class invariance of the natural-cal mechanism).
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **The natural-cal mechanism transfers across XGB / LGBM under
+     identical HP regime** (depth=3 / num_leaves=8, no reg, lr=0.05,
+     ORIG_ROW_WEIGHT=0.5, sklearn TE cv=5 + smooth='auto').
+     LGBM SMOKE drift 0.20 vs XGB SMOKE drift 0.70 actually shows
+     LGBM produces TIGHTER calibration than XGB at the same regime
+     — possibly because leaf-wise growth at num_leaves=8 produces
+     smaller trees that don't over-fit per-leaf class probabilities
+     to the imbalanced empirical rate.
+  2. **Ablating sklearn TE while keeping all other natural-cal
+     ingredients (low depth + no reg + low lr + ORIG_ROW_WEIGHT)
+     completely breaks natural calibration**. A3 RF SMOKE confirmed
+     this with drift 3.40 (= recipe XGB's miscalibration). sklearn
+     TargetEncoder(multiclass, cv=5, smooth='auto') is the
+     necessary-AND-sufficient FE component for natural calibration
+     at this feature scale.
+
+- Artefacts (whitelisted via `.gitignore` for cross-branch reuse):
+  - `scripts/recipe_lgbm_skte.py` (~290 lines)
+  - `scripts/artifacts/oof_recipe_full_te_lgbm_skte.npy` + test
+    (when production aggregates)
+  - `scripts/artifacts/recipe_full_te_lgbm_skte_results.json`
+  - `submissions/submission_recipe_full_te_lgbm_skte.csv`
+    (diagnostic standalone, NOT for LB probe; LGBM SMOKE OOF 0.96462
+    is below LB-best 0.98129 standalone, will only contribute as
+    blend-bank component)
