@@ -17893,3 +17893,118 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
   rawashishsin's negative CV-LB gap.
 - If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
   PRIMARY) as final pair.
+
+### 2026-04-29 — A2 (natural-calibration hybrid) + B step 2 (k-NN distance features): both NULL — 32nd saturation
+
+Following the calibration analysis (rawashishsin v3 LB 0.98109 has bias High=0
+exactly; our recipe needs +3.40), launched two genuine differentiation attempts:
+
+**A2 — Natural-calibration hybrid** (Kaggle GPU, 47 min wall):
+- rawashishsin v3 pipeline + 3 own-recipe FE blocks (8 signed/abs distance,
+  16 ORIG mean/std per cat, 3 LR-formula logits)
+- Same training regime: depth=3, lr=0.05, no L1/L2 reg, ORIG_ROW_WEIGHT=0.5,
+  no class-balanced sample weight, n_est=2600
+- 5-fold OOF: argmax 0.97825 (vs rawashishsin 0.97827), tuned 0.98008 (vs 0.98016)
+- **Bias [-1.08, -1.005, 0.00]** ← High bias EXACTLY 0 (natural calibration
+  PRESERVED across our FE additions)
+- Lower Low/Medium magnitudes (-1.08 vs -1.36) indicate slightly-better
+  native discrimination on majority classes from our additions
+- Per-class trade vs rawashishsin: L+0.0003 M+0.0013 H-0.0018
+  (Pareto-violating direction on rare class)
+- Test-side disagreement vs rawashishsin: only 352/270k rows (0.13%)
+- Test-side disagreement vs PRIMARY 4-stack: 925 rows
+- **VERDICT: noisy copy of rawashishsin.** The 3 FE additions are
+  informationally absorbed by their `TargetEncoder(multiclass, cv=5)` which
+  already computes per-class probability info on every column. Projected LB
+  0.98100-0.98110 ties rawashishsin's 0.98109 within fold noise. Not LB-probed.
+
+**B step 2 — k-NN distance features added to recipe** (PID 2107, ~3.5h CPU
+including container rehydrate at 04:17 with seamless resume):
+- B step 1: FAISS FlatL2 k=100 on 43-d (11 std nums + 32 one-hot cats)
+  computed test→train + train→train LOO. 6 features per row:
+  knn_dist_min, knn_dist_mean, knn_class_low/med/high, knn_margin
+  (35 min wall, both train+test full data)
+- B step 2: recipe XGB with EXTRA_KNN_TRAIN=1 added 6 cols on top of
+  443-feature base = 449 features
+- Per-fold argmax ladder (5-fold seed=42):
+  ```
+  fold  knntr     vanilla   Δ
+  1     0.97505   0.97544   -0.00039
+  2     0.97593   0.97659   -0.00066
+  3     0.97727   0.97721   +0.00006
+  4     0.97401   0.97465   -0.00064
+  5     ?         0.97557   ?
+  mean fold Δ                -0.00041 (4-fold)
+  ```
+- Aggregate: argmax 0.97548 (Δ -0.00041), **tuned 0.97952 (Δ -0.00015** vs
+  vanilla recipe 0.97967 — within fold noise) bias [1.232, 1.169, 3.401]
+- 4-gate vs LB-best 4-stack PRIMARY (0.98084) at recipe bias:
+  ```
+  α=0.00  0.98084  +0.00000  ← peak (no blend)
+  α=0.30  0.98046  -0.00038  errs 9502 vs anchor 9415
+  α=0.50  0.98032  -0.00052
+  ```
+  G1 FAIL Δ -0.00038, G2 FAIL PCR_H -0.00090, G3 FAIL (negative), G4 FAIL
+  (net=+18 churn=104 ratio 0.17 RESHUFFLE).
+
+**Mechanism diagnosis** (the structural finding):
+1. Geometric "where in training manifold" features (k-NN distance + neighbor
+   class fractions) do NOT add signal that recipe XGB can't already extract
+   from its 117 OTE keys + DGP signed-distances + 66 digits + 38 ORIG_stats.
+   The 6 k-NN features compete with these ~440 feature splits at depth=4 +
+   reg_alpha=5; tree splits prefer the OTE/digit features (sharper per-class
+   probability cuts) and shrink k-NN features to leaf-level near-noise.
+2. Combined with B step 1 (boundary atlas, 31st saturation NULL with
+   per-cell P(deviate) feature), this confirms ALL geometric/spatial feature
+   classes I've tested on the recipe are absorbed by the existing OTE
+   encoding. Recipe's per-key per-class probabilities ARE the geometric
+   information.
+
+**Combined session output**:
+- A2 + B step 2 are the cleanest answer to "what can we do better in
+  modeling, not just blending":
+  - Calibration mechanism (rawashishsin's bias=0) IS reproducible from our
+    pipeline (A2 confirmed) — useful structural finding for future comps
+  - But our FE additions don't lift their pipeline (informationally
+    absorbed by `TargetEncoder(multiclass, cv=5)`)
+  - Geometric features on top of recipe don't lift it either (32nd saturation)
+- Conclusion: cannot beat 0.98109 (rawashishsin replica) via FE additions
+  to either pipeline within ~1-2h compute.
+
+**Three new portable rules** (LEARNINGS.md candidates):
+1. **`TargetEncoder(target_type='multiclass', cv=5, smooth='auto')` applied
+   to every column absorbs per-class probability info that DGP-distance + ORIG
+   stats + LR logits would otherwise add.** When the base pipeline already
+   uses sklearn TE broadly, adding hand-engineered probability-related
+   features is informationally redundant (visible as test-side disagreement
+   <1% in our A2 vs rawashishsin comparison).
+2. **Natural calibration via training-regime choices (no class-balanced
+   weight + low depth + no reg + smoothed TE) is reproducible** from our
+   recipe FE basis with rawashishsin's training regime. The bias High=0
+   property is a function of the training regime, not the FE — confirmed.
+3. **Geometric features (FAISS k-NN distance + neighbor class fractions)
+   on top of a 440-feature recipe with 117 OTE keys + 66 digits don't add
+   standalone or blend-gate signal.** Tree splits at depth=4 + reg_alpha=5
+   prefer the per-key per-class OTE features over k-NN aggregates of
+   neighbor labels.
+
+**LB-best unchanged**: NEW PRIMARY rawashishsin_2600_standalone (LB 0.98109,
+copied), prior PRIMARY tier1b_greedy_meta (LB 0.98094, own-work), HEDGE
+3way_recipe025_s1035_s7040 (LB 0.98005). LB budget today (2026-04-29):
+0/10 used, 10 remaining.
+
+**Untried levers from the post-merge brainstorm** (ranked by EV/cost):
+- C: Selective routing on (rawashishsin, prior PRIMARY) — hard-decision
+  per row, NOT log-blending. Bias mismatch killed the 37th saturation
+  blend; selective routing accepts the mismatch and picks WHOLE predictions
+  per row. ~30 min CPU, mechanism-novel for this comp.
+- D: NN-residual on rawashishsin v3 — small MLP fits residual; different
+  failure mode than soft-distillation. ~1h GPU.
+- A2 with deeper FE additions (e.g., 3-way OTE keys, feature-cross combos
+  not in rawashishsin's pipeline) — A2 verdict was "absorbed by their TE";
+  combinatorial features might NOT be absorbed since their TE is per-column.
+
+**Recommendation**: lock 0.98094 (own-work) + 0.98109 (rawashishsin) as
+final pair. With 1 day to deadline (2026-04-30), the marginal LB-probe EV
+on speculative C/D/A2-deeper experiments is below the variance noise.
+Final-selection lock in place.
