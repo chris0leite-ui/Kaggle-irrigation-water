@@ -1,0 +1,28 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "fold_scores_argmax": [
+    0.9776272451949994,
+    0.9777843362950671,
+    0.9791406335524266,
+    0.977968662781822,
+    0.9782496753087119
+  ],
+  "overall_argmax_bal_acc": 0.9781541463050156,
+  "tuned_log_bias_bal_acc": 0.9795090927011268,
+  "log_bias": [
+    1.8324411632360973,
+    1.7689466919465482,
+    3.000768902044088
+  ],
+  "bias_drift": [
+    1.3000000000000003,
+    0.8000000000000003,
+    -0.3999999999999999
+  ],
+  "drift_max": 1.3000000000000003,
+  "cal_verdict": "FAIL \u2014 drift > 0.7 on at least one class",
+  "ORIG_ROW_WEIGHT": 0.5,
+  "encoder": "sklearn TargetEncoder(multiclass, cv=5, smooth=auto)",
+  "model": "XGBoost depth=3, lr=0.05, max_bin=1100, no reg (rawashishsin parity)"
+}
