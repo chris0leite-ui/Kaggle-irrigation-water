@@ -18568,6 +18568,89 @@ Final-selection lock in place.
   - `submissions/submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
     (v1 LB-best, preserved as hedge)
 
+### 2026-04-29 — V_c REPLACE (CB OrderedTE → CB sklearn TE) LB-probed: 0.98113 (-0.00016 vs v1 LB 0.98129) — 36th saturation
+
+- Goal: third REPLACE-variant. Swap recipe_full_te_catboost (OrderedTE) for
+  recipe_full_te_catboost_skte (sklearn TargetEncoder cv=5) in v1's
+  7-component bank. Tests calibration hypothesis at the CatBoost slot —
+  does sklearn TE's internal CV-shuffled smoothing produce a structurally-
+  different CB prediction surface that the natural-cal RF meta can leverage?
+- SMOKE GREEN. Production 5-fold seed=42 ~25 min CPU.
+
+- **Standalone V_c results** (5-fold OOF, recipe bias):
+  - tuned **0.98075** (Δ vs v1 0.98063 = **+0.00012**, FIRST POSITIVE
+    standalone Δ on a REPLACE variant)
+  - bias [0.5324, 0.8689, 3.4008]  drift [0.00, 0.00, 0.00] from
+    -log(prior) — **most natural-cal observed on any meta variant**
+  - PCR [L=0.9949 M=0.9673 H=0.9801]
+  - PCR delta vs v1: L=+0.0003 M=-0.0021 H=+0.0022 (rare-class direction
+    favorable; per-class trade nets +0.00012 macro-recall)
+
+- **4-gate filter** (`scripts/replace_4gate_compare.py`):
+  ```
+  G1 (Δ ≥ +2e-4):         +0.00012  FAIL  (5×10⁻⁵ short of threshold)
+  G2 (PCR ≥ -5e-4 each):  M=-0.0021  FAIL  (4× over floor)
+  G3 (dual-α ratio):      1.153  PASS  (linear scaling)
+  G4 (net_H>0+ratio≥0.5): +172/182 ratio 0.945  PASS
+                                       (CLEANEST ASYMMETRY EVER RECORDED)
+  OVERALL: FAIL G1+G2 — submitted to LB anyway as user-approved
+                       cleanest-direction probe
+  ```
+
+- **LB submission** (`submission_rf_natural_replace_Vc_standalone.csv`):
+  - **LB public = 0.98113**
+  - Δ vs v1 LB-best 0.98129 = **−0.00016** (regression)
+  - Δ vs new LB-best 0.98134 (parallel session) = **−0.00021**
+  - OOF→LB gap = 0.98075 - 0.98113 = **-0.00038** (LB above OOF — V_c's
+    calibration tightness produced anomalous-positive transfer pattern)
+
+- **Counter-intuitive finding**: V_c had TIGHTER OOF→LB gap than v1
+  (-0.00038 vs v1's -0.00066) AND cleaner natural-cal drift (0.00 vs
+  v1's -0.20 max), AND cleaner G4 ratio (0.945 vs v1's 0.881)... yet
+  LB was LOWER. **The structural inflation in v1 (the leak benefit
+  documented in the 2026-04-28 leak-honest decomposition) is
+  load-bearing for LB transfer.** Replacing the OrderedTE CatBoost
+  with sklearn TE CB partially "fixed" the calibration but cost the
+  inflation benefit, netting LB regression.
+
+- **36th independent saturation confirmation**. Joins V_a/V_b
+  (35th) plus all prior 33 confirmations. The 7-component v1 bank
+  composition is a structural local maximum: REPLACE produces
+  cleaner direction + tighter calibration but no LB lift; ADD
+  perturbs the operating point with bank-extension noise. Both
+  failure modes confirmed across 3 REPLACE + 3 ADD variants now.
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **Calibration tightness (drift max ≤ 0.10) does NOT predict
+     LB transfer for REPLACE-variants on saturated banks.**
+     V_c's drift was the cleanest natural-cal seen but LB-regressed
+     vs v1's [-0.20, -0.20, +0.00]. The bias-retune leak channel in
+     v1 is load-bearing; "fixing" calibration removes the inflation
+     that helps LB.
+  2. **G4 ratio 0.945 + standalone-positive Δ + tight drift is
+     necessary but NOT sufficient for LB transfer** when standalone
+     Δ < +0.0002. The +0.0002 threshold is empirically calibrated;
+     +0.00012 below threshold transfers as ~0 LB lift OR small
+     regression depending on calibration overlap with v1.
+  3. **OOF→LB gap pattern -0.00010 to -0.00066 is structurally
+     better than gap -0.00038** on this problem when the gap-
+     producing mechanism is fold-leak inflation. A meta-stacker
+     with negative gap because of structural leak inflation
+     transfers BETTER to LB than a meta-stacker with negative gap
+     because of cleaner natural-cal — counter-intuitively.
+
+- LB best now **0.98134** (parallel session,
+  `submission_lbbest_overridden_by_unanimous_others.csv`). Our own
+  LB best (natural-cal RF meta) unchanged at **0.98129**. LB budget
+  today: 7/10 used.
+
+- Artifacts:
+  - `scripts/rf_natural_replace.py` (parameterized REPLACE)
+  - `scripts/replace_4gate_compare.py` (extended to V_a/V_b/V_c)
+  - `scripts/artifacts/oof_rf_natural_replace_Vc.npy` + test + JSON
+  - `scripts/artifacts/replace_4gate_compare_results.json`
+  - `submissions/submission_rf_natural_replace_Vc_standalone.csv` (LB 0.98113)
+
 ### 2026-04-29 — REPLACE-variants V_a + V_b on natural-cal RF meta: 35th saturation, FIRST clean G4 PASS pair
 
 - Goal: address the documented bank-EXTENSION failure pattern (a1lgbm and v2
