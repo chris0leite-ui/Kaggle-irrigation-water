@@ -18023,6 +18023,120 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
 - If both A2 + B null: lock 0.98109 (NEW PRIMARY) + 0.98094 (prior
   PRIMARY) as final pair.
 
+### 2026-04-29 — A2 (natural-calibration hybrid) + B step 2 (k-NN distance features): both NULL — 32nd saturation
+
+Following the calibration analysis (rawashishsin v3 LB 0.98109 has bias High=0
+exactly; our recipe needs +3.40), launched two genuine differentiation attempts:
+
+**A2 — Natural-calibration hybrid** (Kaggle GPU, 47 min wall):
+- rawashishsin v3 pipeline + 3 own-recipe FE blocks (8 signed/abs distance,
+  16 ORIG mean/std per cat, 3 LR-formula logits)
+- Same training regime: depth=3, lr=0.05, no L1/L2 reg, ORIG_ROW_WEIGHT=0.5,
+  no class-balanced sample weight, n_est=2600
+- 5-fold OOF: argmax 0.97825 (vs rawashishsin 0.97827), tuned 0.98008 (vs 0.98016)
+- **Bias [-1.08, -1.005, 0.00]** ← High bias EXACTLY 0 (natural calibration
+  PRESERVED across our FE additions)
+- Lower Low/Medium magnitudes (-1.08 vs -1.36) indicate slightly-better
+  native discrimination on majority classes from our additions
+- Per-class trade vs rawashishsin: L+0.0003 M+0.0013 H-0.0018
+  (Pareto-violating direction on rare class)
+- Test-side disagreement vs rawashishsin: only 352/270k rows (0.13%)
+- Test-side disagreement vs PRIMARY 4-stack: 925 rows
+- **VERDICT: noisy copy of rawashishsin.** The 3 FE additions are
+  informationally absorbed by their `TargetEncoder(multiclass, cv=5)` which
+  already computes per-class probability info on every column. Projected LB
+  0.98100-0.98110 ties rawashishsin's 0.98109 within fold noise. Not LB-probed.
+
+**B step 2 — k-NN distance features added to recipe** (PID 2107, ~3.5h CPU
+including container rehydrate at 04:17 with seamless resume):
+- B step 1: FAISS FlatL2 k=100 on 43-d (11 std nums + 32 one-hot cats)
+  computed test→train + train→train LOO. 6 features per row:
+  knn_dist_min, knn_dist_mean, knn_class_low/med/high, knn_margin
+  (35 min wall, both train+test full data)
+- B step 2: recipe XGB with EXTRA_KNN_TRAIN=1 added 6 cols on top of
+  443-feature base = 449 features
+- Per-fold argmax ladder (5-fold seed=42):
+  ```
+  fold  knntr     vanilla   Δ
+  1     0.97505   0.97544   -0.00039
+  2     0.97593   0.97659   -0.00066
+  3     0.97727   0.97721   +0.00006
+  4     0.97401   0.97465   -0.00064
+  5     ?         0.97557   ?
+  mean fold Δ                -0.00041 (4-fold)
+  ```
+- Aggregate: argmax 0.97548 (Δ -0.00041), **tuned 0.97952 (Δ -0.00015** vs
+  vanilla recipe 0.97967 — within fold noise) bias [1.232, 1.169, 3.401]
+- 4-gate vs LB-best 4-stack PRIMARY (0.98084) at recipe bias:
+  ```
+  α=0.00  0.98084  +0.00000  ← peak (no blend)
+  α=0.30  0.98046  -0.00038  errs 9502 vs anchor 9415
+  α=0.50  0.98032  -0.00052
+  ```
+  G1 FAIL Δ -0.00038, G2 FAIL PCR_H -0.00090, G3 FAIL (negative), G4 FAIL
+  (net=+18 churn=104 ratio 0.17 RESHUFFLE).
+
+**Mechanism diagnosis** (the structural finding):
+1. Geometric "where in training manifold" features (k-NN distance + neighbor
+   class fractions) do NOT add signal that recipe XGB can't already extract
+   from its 117 OTE keys + DGP signed-distances + 66 digits + 38 ORIG_stats.
+   The 6 k-NN features compete with these ~440 feature splits at depth=4 +
+   reg_alpha=5; tree splits prefer the OTE/digit features (sharper per-class
+   probability cuts) and shrink k-NN features to leaf-level near-noise.
+2. Combined with B step 1 (boundary atlas, 31st saturation NULL with
+   per-cell P(deviate) feature), this confirms ALL geometric/spatial feature
+   classes I've tested on the recipe are absorbed by the existing OTE
+   encoding. Recipe's per-key per-class probabilities ARE the geometric
+   information.
+
+**Combined session output**:
+- A2 + B step 2 are the cleanest answer to "what can we do better in
+  modeling, not just blending":
+  - Calibration mechanism (rawashishsin's bias=0) IS reproducible from our
+    pipeline (A2 confirmed) — useful structural finding for future comps
+  - But our FE additions don't lift their pipeline (informationally
+    absorbed by `TargetEncoder(multiclass, cv=5)`)
+  - Geometric features on top of recipe don't lift it either (32nd saturation)
+- Conclusion: cannot beat 0.98109 (rawashishsin replica) via FE additions
+  to either pipeline within ~1-2h compute.
+
+**Three new portable rules** (LEARNINGS.md candidates):
+1. **`TargetEncoder(target_type='multiclass', cv=5, smooth='auto')` applied
+   to every column absorbs per-class probability info that DGP-distance + ORIG
+   stats + LR logits would otherwise add.** When the base pipeline already
+   uses sklearn TE broadly, adding hand-engineered probability-related
+   features is informationally redundant (visible as test-side disagreement
+   <1% in our A2 vs rawashishsin comparison).
+2. **Natural calibration via training-regime choices (no class-balanced
+   weight + low depth + no reg + smoothed TE) is reproducible** from our
+   recipe FE basis with rawashishsin's training regime. The bias High=0
+   property is a function of the training regime, not the FE — confirmed.
+3. **Geometric features (FAISS k-NN distance + neighbor class fractions)
+   on top of a 440-feature recipe with 117 OTE keys + 66 digits don't add
+   standalone or blend-gate signal.** Tree splits at depth=4 + reg_alpha=5
+   prefer the per-key per-class OTE features over k-NN aggregates of
+   neighbor labels.
+
+**LB-best unchanged**: NEW PRIMARY rawashishsin_2600_standalone (LB 0.98109,
+copied), prior PRIMARY tier1b_greedy_meta (LB 0.98094, own-work), HEDGE
+3way_recipe025_s1035_s7040 (LB 0.98005). LB budget today (2026-04-29):
+0/10 used, 10 remaining.
+
+**Untried levers from the post-merge brainstorm** (ranked by EV/cost):
+- C: Selective routing on (rawashishsin, prior PRIMARY) — hard-decision
+  per row, NOT log-blending. Bias mismatch killed the 37th saturation
+  blend; selective routing accepts the mismatch and picks WHOLE predictions
+  per row. ~30 min CPU, mechanism-novel for this comp.
+- D: NN-residual on rawashishsin v3 — small MLP fits residual; different
+  failure mode than soft-distillation. ~1h GPU.
+- A2 with deeper FE additions (e.g., 3-way OTE keys, feature-cross combos
+  not in rawashishsin's pipeline) — A2 verdict was "absorbed by their TE";
+  combinatorial features might NOT be absorbed since their TE is per-column.
+
+**Recommendation**: lock 0.98094 (own-work) + 0.98109 (rawashishsin) as
+final pair. With 1 day to deadline (2026-04-30), the marginal LB-probe EV
+on speculative C/D/A2-deeper experiments is below the variance noise.
+Final-selection lock in place.
 ### 2026-04-29 — RF natural meta-stacker on natural-cal bank: NEW LB BEST 0.98129
 
 - Goal: execute the calibration recommendation triggered by the
@@ -18563,3 +18677,98 @@ findings beyond simple closure.
   - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
     `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
     `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)
+
+### 2026-04-29 — XREG cross-regime bank extension: 33rd saturation, v1 7-component bank confirmed structural sweet spot
+
+- Goal: test whether the LB-best 0.98129 v1 RF natural meta-stacker can compound
+  across calibration regimes by adding the prior PRIMARY (4-stack
+  tier1b_greedy_meta, LB 0.98094) as the 8th bank component. v1's 7 components
+  are all NEGATIVE-bias natural-cal regime; the 4-stack is recipe-family
+  POSITIVE-bias regime. UNTESTED in any prior bank-extension on RF natural.
+- Hypothesis: cross-regime diversity might compound. ~10 min CPU, low cost.
+- Branch: `claude/reverse-engineer-data-process-GNBqt`. Single new file
+  `scripts/sklearn_rf_meta_natural_xreg.py`.
+- Pipeline:
+  1. Reconstruct tier1b_greedy_meta = 0.7 × LB-best-3-stack + 0.3 × meta_iso
+     OOF = 0.98084 @ recipe bias (matches documented LB-best 4-stack)
+  2. Train sklearn RF (class_weight=None, n_est=500, max_depth=12,
+     bootstrap=True) on 8-component bank with 14 dist meta features
+  3. 5-fold StratifiedKFold(seed=42) for OOF alignment
+  4. 4-gate diagnostic vs v1 LB-best
+- Standalone results (35.6 min wall):
+  - argmax 0.97332 / **tuned 0.98090** (vs v1 0.98060, **Δ +0.00031**)
+  - bias [0.632, 0.969, 3.401]
+  - **bias drift from -log(prior): [+0.10, 0.00, 0.00]** ← CLEANEST natural-cal
+    drift ever recorded (vs v1's [-0.10, -0.10, -0.20] and recipe-family's
+    [+0.50, +0.40, -0.10])
+  - Per-class trade vs v1: L+0.0004 M-0.0006 **H+0.0012** ← ADD-High direction
+  - Test disagreement vs v1: 391 / 270k (0.14%)
+- 4-gate verdict:
+  - G1 (Δ standalone ≥ +3e-4): **+0.00031 PASS**
+  - G2 (PCR ≥ v1 - 5e-4): Medium = -0.00062 **BORDERLINE FAIL** (just 0.0001
+    below floor)
+- LB submission (user-approved, 15:44:33 UTC):
+  `submission_sklearn_rf_meta_natural_xreg_standalone.csv`
+  → **LB public = 0.98115** (Δ vs v1 LB-best **-0.00014**, regression)
+- OOF→LB gap = 0.98090 − 0.98115 = **−0.00025** (smaller magnitude than v1's
+  −0.00066, despite cleaner natural-cal drift)
+
+- Cross-validation with parallel branch's R10 attempt:
+  ```
+                      bank   OOF       LB        gap
+  v1 (LB-best)        7      0.98063   0.98129   -0.00066
+  R10 (parallel)      8      0.98102   0.98119   -0.00017
+  XREG (this entry)   8      0.98090   0.98115   -0.00025
+  ```
+  Both 8-component variants (R10 and XREG) regress vs v1 by 10-14 bp.
+  R10 used a different 8th component (configuration not documented).
+  Mine added tier1b_greedy_meta. Both NULL.
+
+- **Structural findings** (the actual takeaway):
+  1. **G2 borderline FAIL is predictive.** Even with cleanest-ever natural-cal
+     drift [+0.10, 0, 0], ADD-High direction (+0.00119), and G1 PASS
+     (+0.00031 standalone), the Medium recall -0.00062 below floor blocked
+     LB transfer. The 4-gate framework's G2 floor is the binding constraint
+     for this saturation regime.
+  2. **Cross-regime bank extension PRESERVED natural calibration but did NOT
+     lift LB.** The v1 7-component bank IS the structural sweet spot. Adding
+     the recipe-bias 4-stack shifts the prediction surface by 0.14% (391 test
+     rows) and produces a worse-on-LB blend.
+  3. **The natural-cal mechanism is bank-composition-specific.** v1's
+     specific 7 components (rawashishsin + cb_natural + cb + recipe + realmlp
+     + xgb_corn + xgb_dist_digits) found a sweet spot. Bank-extension with
+     EITHER bias-aligned OR cross-regime components produces marginal-to-
+     negative LB transfer.
+
+- **LB-best UNCHANGED at 0.98129** via
+  `submission_sklearn_rf_meta_natural_standalone.csv` (v1).
+- LB budget today (2026-04-29): 1/10 used (this probe), 9 remaining.
+
+- **Final-selection lock recommendation** (1 day to deadline):
+  - **PRIMARY**: `submission_sklearn_rf_meta_natural_standalone.csv`
+    → LB **0.98129** (own-pipeline RF meta-stacker on natural-cal bank)
+  - **HEDGE**: `submission_tier1b_greedy_meta.csv`
+    → LB **0.98094** (own-pipeline 4-stack, opposite bias regime)
+  - Both LB-validated, structurally orthogonal (different bias regimes,
+    different model classes). Final-selection variance protection.
+
+- Two new portable rules (LEARNINGS.md candidates):
+  1. **Bank-extension on a saturated meta-stacker bank with G2 borderline
+     FAIL (per-class drop within 0.0001 of -5e-4 floor) reliably regresses
+     LB.** Demonstrated 3 times now: v2 (LB -0.00031), R10 (LB -0.00010),
+     XREG (LB -0.00014). The G2 floor is the binding constraint regardless
+     of G1 PASS, calibration drift, or rare-class direction.
+  2. **Cross-regime bank extension does NOT compound natural calibration.**
+     Adding a recipe-bias 4-stack (POSITIVE-bias regime) to a 7-component
+     natural-cal bank (NEGATIVE-bias regime) preserves the natural-cal
+     property at the meta-output level (drift [+0.10, 0, 0] is cleanest ever)
+     BUT does not produce LB lift. The natural-cal compounding mechanism is
+     bank-composition-specific, not calibration-regime-additive.
+
+- Artefacts:
+  - `scripts/sklearn_rf_meta_natural_xreg.py`
+  - `scripts/artifacts/oof_tier1b_greedy_meta.npy` + test (4-stack reconstruction)
+  - `scripts/artifacts/oof_sklearn_rf_meta_natural_xreg.npy` + test
+  - `scripts/artifacts/sklearn_rf_meta_natural_xreg_results.json`
+  - `scripts/artifacts/blend_gate_rf_natural_xreg_results.json`
+  - `submissions/submission_sklearn_rf_meta_natural_xreg_standalone.csv` (LB 0.98115)
