@@ -142,22 +142,67 @@ tail -20 /tmp/cb_fold2_relaunch.log
 tail -20 /tmp/claude-0/-home-user-Kaggle-irrigation-water/d5edf624-d00b-42c4-92d9-9472bd100fb2/tasks/burjyjrrh.output
 ```
 
-## Expected timeline (from 05:11 UTC)
+## REVISED PLAN (2026-04-29 ~05:30 UTC after parallel-OOM abort)
+
+### Why we pivoted
+
+Earlier parallel attempts (CB fold 2 + XGB fold 1 simultaneously)
+OOM'd during simultaneous sklearn TE phases. Even with 8-min stagger,
+the TE phases collide because each takes 4 min. The CB fold 2 (PID
+20980) and XGB fold 1 (PID 19479 → 21407) BOTH died without
+checkpoints. Killed the XGB chain (PID 13193 + 13549 + 21407) at
+~05:30. New strategy: fully sequential.
+
+### Live chain set (post-pivot)
 
 ```
-05:17 — XGB fold 1 finishes
-05:27 — CB fold 2 finishes (detached relaunch)
-05:30 — XGB fold 2 starts (chain), CB fold 3 starts (chain)
-05:43 — XGB fold 2 ends, CB fold 3 ends → fold 4 starts each
-05:56 — XGB fold 3 / CB fold 4 ends → fold 4/5 starts each
-06:09 — XGB fold 4 / CB fold 5 ends → XGB fold 5 / CB aggregate
-06:22 — both aggregates DONE
-06:23 — final chain auto-triggers RF rebuild + 4-gate
-06:35 — final analysis output landed → review + ASK USER for LB
+PID 23736 — CB fold 2 v3 (detached, OMP_NUM_THREADS=4)
+            Logs to /tmp/cb_fold2_v3.log. Started 05:27.
+
+PID 12832 — Pick 2b CB chain (folds 3, 4, 5 + aggregate)
+            Unchanged; still waits for CB fold 2 npy.
+
+PID b0x0wunwh — XGB sequential chain (NEW)
+            Waits for `oof_recipe_full_te_catboost_skte.npy`
+            (= CB aggregate done), then sequential RUN_FOLD=1..5
+            XGB python calls. No parallelism.
+
+PID 15032 — Final chain (waits both aggregates → RF rebuild + 4-gate)
+            Unchanged.
 ```
 
-Slightly pessimistic; could be ~10 min faster if XGB hist is faster
-than CB at depth=3 + max_bin=1100.
+### Revised expected timeline (from 05:30 UTC)
+
+```
+05:44 — CB fold 2 v3 finishes
+05:45 — CB chain detects fold 2 npy, launches fold 3
+06:01 — CB fold 3 finishes
+06:18 — CB fold 4 finishes
+06:35 — CB fold 5 finishes
+06:36 — CB aggregate runs (~30 sec)
+06:37 — XGB chain detects CB aggregate, launches XGB fold 1
+06:49 — XGB fold 1 finishes (XGB hist ~12 min/fold)
+07:01 — XGB fold 2 finishes
+07:13 — XGB fold 3 finishes
+07:25 — XGB fold 4 finishes
+07:37 — XGB fold 5 finishes
+07:38 — XGB aggregate runs
+07:39 — final chain auto-triggers RF rebuild
+07:50 — final analysis output → review + ASK USER for LB
+```
+
+Total wall ≈ 2h 20min from 05:30. Conservative; if XGB folds run
+faster (some did finish in 10 min), shave 10–15 min.
+
+### What can speed this up
+
+- **XGB hist may run faster than CB**. SMOKE showed XGB completes
+  20k×2-fold in 30s vs CB's 60s. Per-fold prod could be 10 min vs
+  CB's 14 min, saving ~10–15 min total.
+- **OMP_NUM_THREADS=4 on CB** (current detached fold 2) may slightly
+  slow training but bounds RAM. Trade-off was deemed worth it.
+- **Skip XGB clone entirely**: would save ~60 min wall but lose half
+  the bank-expansion EV. Not recommended unless deadline pressure.
 
 ## What to do if you need to abort
 
