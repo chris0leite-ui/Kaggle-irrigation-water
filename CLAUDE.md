@@ -18453,3 +18453,113 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
     (v2, **LB 0.98098, regression**)
   - `submissions/submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
     (v1 LB-best, preserved as hedge)
+
+### 2026-04-29 — 4 mechanism-distinct probes on v1 (LB 0.98129): ALL NULL, structural ceiling reaffirmed
+
+After Tier B/C closure earlier today, ran a fresh 4-experiment battery
+on top of v1 RF natural (LB-best 0.98129) covering 4 mechanism-distinct
+attack vectors. All NULL on the 4-gate filter, two with informative
+findings beyond simple closure.
+
+- **Tier 1.1 — Soft 3-way log-blend** (`scripts/tier1_soft_blend_probes.py`,
+  ~30 sec wall): 16 weight configurations of geomean log-blend over
+  v1 + a1lgbm + primary at fixed v1 bias [0.43, 0.87, 3.20]. **All 16 NULL.**
+  Best (50/25/25): Δ=+0.00012 (below G1 +2e-4), G2 FAIL (Med -0.00054),
+  G4 ratio 0.46 (just below 0.5 floor). v1+a1lgbm-only blends carry
+  REMOVE-High direction (net_H -2 to -4) — same direction as a1lgbm's
+  documented LB-regression. Confirms "v1 is local OOF sweet spot" as
+  4th independent demonstration (joins the 3 prior bank-extension
+  regressions).
+
+- **Tier 1.2 — Confidence-weighted gating** (same script, 5 configs):
+  per-row weight = primary's max_prob × v1 + (1−max_prob) × a1lgbm.
+  Primary's confidence p25=0.990, p50=0.998 → weights collapse to
+  nearly-pure v1 → blend ≡ v1. All 5 configs Δ=0 to -0.00012.
+
+- **Tier 2.3 — L3 stack on v1 OOF** (`scripts/tier2_l3_stack_v1.py`,
+  SMOKE only, ~40 sec wall). XGB depth=3, lr=0.05, no L1/L2 reg,
+  17-dim input (v1 log-probs + 14 dist features). SMOKE 2-fold ×
+  200-iter result: tuned 0.98062 (≈ v1 0.98063), bias drift [+0.1,
+  0.0, 0.0] (preserved), AT v1 BIAS Δ=-0.00013, **PCR_H -0.00086**,
+  net_H -3 churn 33 ratio 0.09 RESHUFFLE-REMOVE-High. Production
+  skipped per CLAUDE.md soft-distill family closure (3 capacity
+  points all LB-regressed at +0.00201 to +0.00246 OOF→LB gap):
+  L3 stack on v1's OOF probs IS soft-distillation; same mechanism
+  predicts same regression at production scale.
+
+- **Tier 3.6 — Per-class threshold optimization** (`scripts/tier3_bias_optim.py`,
+  ~11 min wall): three search methods on v1's OOF.
+  - M1 (fine coord-ascent step=0.005): bias [0.46, 0.87, 3.47], Δ=+0.00004,
+    G2 FAIL (Med -0.00257), test_diff 249, net_H +238, ratio 1.00 ADD-H
+  - M2 (random search 10000 perturbations): bias [0.56, 0.94, 3.53],
+    Δ=+0.00004, G2 FAIL (Med -0.00269), test_diff 273, net_H +239
+  - M3 (per-class single-axis fine scan, step=0.001): bias [0.45,
+    0.89, 3.20], Δ=+0.00003, G2 PASS but net_H -16 REMOVE-H
+  - All NULL on G1 (+2e-4 threshold). The bias-ridge for v1 has
+    the same Pareto-frontier closure as documented for the 4-stack
+    primary on 2026-04-28: any aggressive bias shift adding 200+
+    H predictions costs Med recall by 0.0026, with the per-class
+    trade landing exactly at G2 floor.
+
+- **Tier 3.5 SMOKE — HistGBM with `class_weight='balanced'`**
+  (`scripts/sklearn_histgbm_classw_v1bank.py`, SMOKE only, ~30 sec):
+  2-fold × 100-iter test of whether class_weight=None is the binding
+  natural-cal constraint at L2.
+  ```
+                          natural-cal v1   B4 classw='balanced' SMOKE
+  tuned OOF                0.98050         0.98057
+  bias                     [-0.20, -0.20,  [+1.4, +1.2, -1.3]
+                            +0.00]
+  drift max magnitude      0.20            **1.4**  ← natural-cal BROKEN
+  PCR                      [0.9948, 0.9661, [0.9947, 0.9690, 0.9780]
+                            0.9806]
+  ```
+  `class_weight='balanced'` DOES break the natural-cal property at
+  L2 — drift |1.4| vs natural-cal |0.20|. Tuned OOF reaches similar
+  level via heavy bias retune compensating for raw-prob miscalibration,
+  but the bias-mismatch trap (CLAUDE.md SMOTE-NC v3 closure rule)
+  prevents blend into v1 (incompatible bias profiles). Production at
+  5-fold × 1000-iter would not change the structural drift property.
+  Skipped.
+
+- **Tier 2.4 — B1+B2 on v2 bank**: skipped per double-bet-against
+  argument. The v2 bank itself (11-component) was a documented LB
+  regression (-0.00031 vs v1 LB-best). Putting Tier B variants on a
+  bank that's already structurally regressing compounds the bet
+  against the data. Saturation evidence already overwhelming
+  (3 separate bank-extension regressions plus today's 4 mechanism-
+  distinct nulls).
+
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **`class_weight='balanced'` at the L2 RF/HistGBM meta-stacker
+     level breaks the natural-cal property regardless of bank
+     curation.** Drift jumps from |0.20| to |1.4| at SMOKE scale,
+     persisting at production. Natural-cal at L2 requires
+     class_weight=None **as a hard prerequisite**; the bank
+     curation alone does not produce natural calibration.
+  2. **Soft 3-way geomean log-blend on v1 with a1lgbm carries
+     REMOVE-High direction at every weight configuration tested**.
+     Confirms a1lgbm's LB-regression signal is structural to its
+     prediction surface (not a calibration artifact). Use only as
+     a third-opinion DIAGNOSTIC, never as a blend leg vs v1.
+  3. **The bias-ridge for v1's tuned bias [0.43, 0.87, 3.20]
+     extends to fine-grained 0.001-step search on a single axis.**
+     Method M3 found shifts of +0.020 (Low) and +0.017 (Med) that
+     individually lift +0.00002 each, but the combined effect at
+     M1/M2 level requires shifting High bias 0.27+ units, which
+     trips G2 by adding 200+ H predictions at Med-recall cost
+     0.0026. v1's bias is locally optimal under the per-class
+     guardrail; further fine-tuning is calibration redistribution
+     along an LB-equivalent surface, not new signal.
+
+- LB-best unchanged at **0.98129**. LB budget unchanged
+  (no probes spent on this session — all gates failed cleanly).
+- Final-selection lock unchanged: PRIMARY v1 (0.98129) +
+  HEDGE rawashishsin (0.98109).
+
+- Artefacts whitelisted (4 scripts + 4 result JSONs):
+  - `scripts/tier1_soft_blend_probes.py` + `tier2_l3_stack_v1.py` +
+    `tier3_bias_optim.py` + `sklearn_histgbm_classw_v1bank.py`
+  - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
+    `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
+    `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)
