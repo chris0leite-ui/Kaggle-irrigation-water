@@ -18563,3 +18563,68 @@ findings beyond simple closure.
   - `scripts/artifacts/tier1_soft_blend_probes_results.json` +
     `tier2_l3_stack_v1_results.json` + `tier3_bias_optim_results.json` +
     `sklearn_histgbm_classw_v1bank_results.json` (SMOKE)
+
+### Next steps (2026-04-29 evening): 5 mechanism-distinct heuristics for the final 5 LB slots
+
+After the v1 RF natural-cal breakthrough (LB 0.98129) and the bank-extension
+NULL ×3 (a1lgbm / v2 / a1+plus), the structural picture is: the natural-cal
+RF mechanism IS the only proven way past prior ceilings, and it's
+**bank-specific** rather than bank-additive. Pack 0.98148 sits +0.00019
+above; one more "compound the breakthrough" lift gets us into pack territory.
+Five heuristics, all **mechanism-preserving** (don't change what worked,
+vary the dimensions we haven't probed yet):
+
+  **H1. Seed-bag of v1 RF natural** (~30 min CPU, top pick).
+  v1 was a single sklearn RF run with one `random_state`. Run the EXACT
+  v1 architecture (7-component bank, `class_weight=None`,
+  `max_depth=12`, `n_estimators=500`, `bootstrap=True`) with
+  `random_state ∈ {42, 7, 123, 456, 789}`. Geomean the 5 OOFs / test
+  probs. Bias retune on the bag. Variance reduction on the proven
+  mechanism. EV: +0.00005 to +0.00020 LB if RF stochastic variance is
+  non-trivial. Risk: minimal (no bank change, no architecture change).
+
+  **H2. ExtraTrees natural on v1's bank** (~10 min CPU).
+  Different bagging-tree family (more randomization than RF). Same
+  bank, same `class_weight=None`, `bootstrap=True`. Tests if a
+  different bagging algorithm produces orthogonal errors to v1 RF.
+  If standalone passes G1+G2+G3+G4 vs LB-best, blend v1 RF + v1 ET
+  via geomean.
+
+  **H3. Per-row router on v1 ⊗ rawashishsin** (~1h CPU).
+  Two LB-validated outputs, orthogonal model classes (RF-meta vs
+  single XGB), 620 test-row disagreements. Direct log-blend fails
+  the bias-mismatch rule. But a per-row gate doesn't: train a small
+  XGB on OOF features → which model agrees with truth, apply to test,
+  pick v1 where gate prefers v1, rawashishsin where it prefers raw.
+  Different mechanism than every prior null (those were blend-weight
+  or stacking; this is per-row delegation between LB-validated
+  outputs).
+
+  **H4. Component substitution within the sweet-spot bank** (~1h CPU).
+  Bank-extension was NULL ×3. Subtraction is untested. **Substitution**
+  is the cheapest test of whether the 7-component sweet spot is
+  size-driven or composition-driven. Replace one v1 component
+  (likely `xgb_corn` or `xgb_dist_digits` — weakest standalone) with
+  one of the new natural-cal components (`recipe_full_te_xgb_skte`,
+  `recipe_full_te_lgbm_skte`). Holds bank size at 7. If new bank lifts,
+  composition-driven; if regresses, v1 is uniquely lucky.
+
+  **H5. RF HP sweep + bag** (~45 min CPU).
+  v1 was `(n_estimators=500, max_depth=12)`. Run 4 variants on the v1
+  bank: `(300, 10), (500, 14), (800, 12), (500, 16)`, all
+  `class_weight=None`. Bag the 4 OOFs/test (geomean). HP-axis variance
+  reduction analogous to H1 but along the model-capacity dimension.
+
+**Suggested slot allocation**:
+  Slot 1: H1 seed-bag (highest EV, lowest risk)
+  Slot 2: H2 ExtraTrees OR H3 per-row router (whichever lands first OOF-pos)
+  Slot 3: Winner of H4 / H5
+  Slot 4: Compound: H1 ⊗ best-of-(H2/H3) geomean
+  Slot 5: Reserve / variance-check probe
+
+**Single principle**: every prior null was bank-extension on saturated
+stacks, bias-retune-on-OOF, or new architecture on the same OOF surface.
+H1/H2/H5 are mechanism-preserving variance reduction on the one thing
+that worked. H3 is per-row exploitation of the only LB-validated model-
+class diversity we have. H4 is the cheapest test of bank-size vs
+composition. None of these have been run.
