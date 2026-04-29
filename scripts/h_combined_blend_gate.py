@@ -158,9 +158,12 @@ def main():
     h4_oof_p = ART / "oof_h4_S1.npy"
     h5_oof_p = ART / "oof_h5_hp_bag.npy"
 
+    histgbm_oof_p = ART / "oof_h_histgbm_natural.npy"
+
     candidates = []
     for name, p in [("H1_seedbag", h1_oof_p), ("H2_et", h2_oof_p),
-                    ("H4_S1", h4_oof_p), ("H5_hpbag", h5_oof_p)]:
+                    ("H4_S1", h4_oof_p), ("H5_hpbag", h5_oof_p),
+                    ("HistGBM", histgbm_oof_p)]:
         if p.exists():
             oof = _normed(np.load(p).astype(np.float32))
             test_p = _normed(np.load(ART / p.name.replace("oof_", "test_")).astype(np.float32))
@@ -196,10 +199,10 @@ def main():
             print(f"  EMIT: {sub_path}")
             results[name]["sub_path"] = str(sub_path)
 
-    # Bag-of-bags: if H1/H2/H4 ALL produced, geomean them
-    if len([n for n, _, _, _, _ in candidates if n in ("H1_seedbag", "H2_et", "H4_S1")]) >= 2:
-        print("\n=== Mega-bag: geomean of H1+H2+H4 ===")
-        sel = [(name, o, t) for name, o, t, _, _ in candidates if name in ("H1_seedbag", "H2_et", "H4_S1")]
+    # Bag-of-bags: if H1/H2/H4/HistGBM ALL produced, geomean them
+    if len([n for n, _, _, _, _ in candidates if n in ("H1_seedbag", "H2_et", "H4_S1", "HistGBM")]) >= 2:
+        print("\n=== Mega-bag: geomean of all candidates ===")
+        sel = [(name, o, t) for name, o, t, _, _ in candidates if name in ("H1_seedbag", "H2_et", "H4_S1", "HistGBM")]
         log_oofs = np.stack([safelog(o) for _, o, _ in sel], axis=0)
         log_tests = np.stack([safelog(t) for _, _, t in sel], axis=0)
         mega_oof = _normed(np.exp(log_oofs.mean(axis=0)))
