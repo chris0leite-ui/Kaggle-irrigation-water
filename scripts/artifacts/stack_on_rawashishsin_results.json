@@ -1,0 +1,50 @@
+{
+  "anchor": "rawashishsin_2600",
+  "anchor_oof": 0.9801615755373589,
+  "anchor_lb_documented": 0.98109,
+  "anchor_bias": [
+    -1.357,
+    -1.193,
+    0.0
+  ],
+  "pool_size": 19,
+  "history": [
+    {
+      "step": 0,
+      "added": "anchor",
+      "alpha": 1.0,
+      "oof": 0.9801615755373589
+    },
+    {
+      "step": 1,
+      "added": "recipe_pseudolabel_seed7labeler_raw",
+      "alpha": 0.3,
+      "oof": 0.9803656461937775,
+      "delta": 0.0002040706564185868
+    }
+  ],
+  "final_blend_oof": 0.9803656461937775,
+  "gates": {
+    "anchor_oof": 0.9801615755373589,
+    "blend_oof": 0.9803656461937775,
+    "g1_delta": 0.0002040706564185868,
+    "g1_pass": true,
+    "g2_pcr_delta": [
+      0.00020004487493141543,
+      0.0026017049114499535,
+      -0.0021895378171259416
+    ],
+    "g2_pass": false,
+    "g3_score": "n/a (greedy)",
+    "g4_add_high": 32,
+    "g4_rem_high": 327,
+    "g4_net_high": -295,
+    "g4_churn_high": 359,
+    "g4_ratio": 0.8217270194986073,
+    "g4_pass": false,
+    "diff_vs_primary": 1294,
+    "all_gates_pass": false
+  },
+  "submission_csv": null,
+  "elapsed_sec": 79.80951762199402
+}

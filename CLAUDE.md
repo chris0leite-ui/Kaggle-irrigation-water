@@ -17949,3 +17949,100 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
   - `scripts/a3_rf_recipe.py` (the orchestrator)
   - `scripts/artifacts/oof_a3_rf_recipe.npy` + test (SMOKE 20k×10k)
   - `scripts/artifacts/a3_rf_recipe_results.json` (SMOKE summary)
+
+### 2026-04-29 — Stack-on-rawashishsin (greedy forward at LB-best 0.98109 anchor): 33rd saturation, anchor calibration is NOT the binding constraint
+
+- Goal: every prior bank-extension / meta-stacker attempt (32 saturations)
+  was anchored on our recipe-XGB stack with bias `[+1.43, +1.47, +3.40]`,
+  whose +3.40 miscalibration on High may have been the binding constraint
+  on what stacking can transfer to LB. rawashishsin v3 is LB-validated
+  0.98109 with bias `[-1.357, -1.193, 0.0]` — naturally calibrated. Test
+  if greedy forward-selection at *rawashishsin's* bias frame produces a
+  stack that strictly dominates rawashishsin standalone.
+- Branch: `claude/calibrated-random-forest-PaYxH`. Single-file experiment
+  (`scripts/stack_on_rawashishsin.py`, ~210 lines), reuses
+  `tier1b_helpers` for iso_cal + LB-best 4-stack reconstruction. Wall ~80s.
+- Mechanism: anchor = rawashishsin v3 OOF + test (verified reproduces
+  documented OOF 0.98016 at bias `[-1.357, -1.193, 0]` exactly). Pool = 19
+  components: 9 LB-validated standalones × {raw, iso} + LB-best 4-stack
+  reconstruction. Greedy: at each step pick (component × α-grid 0.025-0.50)
+  log-blended onto current stack; stop when no candidate improves OOF
+  by ≥ +1e-4 at fixed rawashishsin bias. 4-gate filter on final blend.
+- **Greedy converged at step 1**:
+  ```
+  step 1: + recipe_pseudolabel_seed7labeler_raw  α=0.300  OOF=0.98037  Δ=+0.00020
+  step 2: STOP (best Δ=+0.00003 < +1e-4 gate)
+  ```
+- **4-gate result**:
+  ```
+  G1 (Δ ≥ +0.0001):                   +0.00020         PASS
+  G2 (PCR ≥ −5e-4 each class):        L+0.00020 / M+0.00260 / H−0.00219   FAIL
+  G3 (dual-α stability):              n/a (greedy)
+  G4 (net rare-flip > 0 + ratio≥0.5): add_H=32 / rem_H=327 / net=−295    FAIL
+                                      ratio 0.82 (asymmetric REMOVE-High)
+  ALL gates pass:                     FALSE
+  ```
+- **Test side**: 1,294 rows differ from current LB-PRIMARY (0.98094) — significant
+  prediction surface change but in WRONG direction (REMOVE-High).
+- **Carryover projection**: per CLAUDE.md REMOVE-High asymmetric averages
+  ~−3.4× on prior LB observations. Projected LB ≈ 0.98109 + (0.00020 ×
+  −3.4) = **~0.98041** (clear regression). No LB probe warranted.
+
+- **The actual finding (not just another saturation)**: **anchor
+  calibration is NOT the binding constraint on the stacking ceiling.**
+  Naturally-calibrated rawashishsin anchor (bias_H = 0.00) hit the same
+  Pareto-frontier violation that bias-retuned recipe-XGB anchors hit —
+  per-class trade is L+0.0002 / M+0.0026 / **H−0.0022**, demoting High
+  predictions to Medium on net 295 test rows. The Pareto-frontier
+  closure is a property of the COMPONENT BANK (the existing OOFs all
+  share Medium↔High boundary errors that compound additively when
+  blended), not of the ANCHOR's calibration profile.
+- **Updated structural-saturation diagnosis**: there are TWO independent
+  ceilings on this problem:
+  1. **Per-class Pareto frontier on the existing OOF bank**: any blend of
+     the 19 LB-validated components produces L↑M↑H↓ trades, regardless
+     of anchor (rawashishsin or recipe-XGB stack).
+  2. **OOF→LB carryover inflation on bank-extension metas**: −1× to −3.4×
+     LB regression per +0.0001 OOF lift.
+  Combined: no rearrangement of the existing bank breaks LB 0.98109.
+  Breaking past requires a NEW component whose errors are orthogonal to
+  the bank specifically in the rare-class direction (ADD-High asymmetry).
+  The macrorec surrogate (2026-04-27) was the only mechanism to clear G4
+  with ADD-High direction; it failed G1 (Medium loss > High gain at
+  per-class scale).
+
+- **33rd independent saturation confirmation**, but at the NEW LB
+  ceiling 0.98109 (the prior 32 were at 0.98094). First confirmation
+  on the rawashishsin-anchored stack architecture.
+
+- **Two new portable rules** (LEARNINGS.md candidates):
+  1. **Anchor natural-calibration does NOT bypass the per-class
+     Pareto-frontier ceiling on a saturated component bank.** The
+     constraint binds at the COMPONENT level, not the anchor level.
+     Replacing a bias-retuned anchor (recipe XGB +3.40 on H) with a
+     naturally-calibrated anchor (rawashishsin 0.00 on H) preserves
+     ALL the same Pareto-violation patterns when stacking the same
+     orthogonal components. The components carry the M↔H boundary
+     trade structurally; the anchor just sets the entry point on the
+     trade curve.
+  2. **Greedy forward-selection on a saturated bank stops at 1 step
+     when the bank is exhausted relative to the new anchor.** Only 1
+     of 19 candidates cleared the +1e-4 gate at the rawashishsin
+     anchor (`recipe_pseudolabel_seed7labeler_raw`); after step 1, the
+     remaining 18 components contributed Δ < +1e-4 each. This is
+     evidence the bank's information is fully extracted relative to
+     rawashishsin — no orthogonal-error component remains.
+
+- LB-best PRIMARY unchanged at **LB 0.98109** via
+  `submission_rawashishsin_2600_standalone.csv`. Final-selection
+  recommendation unchanged: PRIMARY 0.98109 + HEDGE
+  `submission_tier1b_greedy_meta.csv` (LB 0.98094, audit F1
+  swap — different model family + bias frame). LB budget: 0 spent
+  this session, full 10 remaining.
+
+- Artefacts (whitelisted via `.gitignore` for cross-branch reuse):
+  - `scripts/stack_on_rawashishsin.py` (~210 lines, single-file)
+  - `scripts/artifacts/oof_stack_on_rawashishsin.npy` + test (greedy
+    output, NOT for blend bank — Pareto-violator)
+  - `scripts/artifacts/stack_on_rawashishsin_results.json` (history +
+    4-gate breakdown + diff_vs_primary count)
