@@ -18340,3 +18340,116 @@ at LB 0.98094. HEDGE: 3-way multi-seed at LB 0.98005. LB budget today
     (diagnostic, not LB-probed; G4 net_H -161)
   - `submissions/submission_rf_natural_a1lgbm_blend_geomean_a050.csv`
     (diagnostic, not LB-probed; G4 net_H -50)
+
+### 2026-04-29 — A1 bank-extension v2 (11 components: + Pick 2b CB + XGB clone): LB 0.98098 (Δ -0.00031 vs v1's LB 0.98129)
+
+- Goal: extend the LB-best 7-component natural-cal bank with 4 new
+  naturally-calibrated inputs (Pick 2b CB skte, XGB clone of rawashishsin
+  on V10 recipe FE, LGBM skte from parallel session, xgb_dist_routed_v3)
+  to test whether more diversity in naturally-calibrated inputs unlocks
+  more standalone OOF + LB transfer.
+
+- New components produced (all 5-fold StratifiedKFold seed=42):
+  - `recipe_full_te_catboost_skte` (Pick 2b: CatBoost + sklearn TE
+    (cv=5) + ORIG_ROW_WEIGHT=0.5, depth=3, no L2 reg). Tuned 0.97939,
+    bias [2.03, 2.17, 2.80], drift [+1.50, +1.20, -0.60].
+  - `recipe_full_te_xgb_skte` (XGB clone, rawashishsin parity HPs on
+    V10 recipe FE). Tuned 0.97951, bias [1.83, 1.77, 3.00],
+    drift [+1.30, +0.80, -0.40].
+  - `recipe_full_te_lgbm_skte` (LightGBM skte, from parallel session).
+    Tuned 0.97883, drift [+1.70, +1.20, -0.80].
+  - `xgb_dist_routed_v3` (already on disk, LB 0.97271 standalone).
+
+- Diagnostic: bias drifts on the new components (~1.0-1.7 on Low) are
+  WORSE than rawashishsin's [+1.10, +0.80, -0.40]. Different FE doesn't
+  preserve rawashishsin's natural-cal property. Only the recipe XGB
+  + sklearn TE + ORIG_ROW_WEIGHT=0.5 combination on rawashishsin's
+  NARROW FE produces the small-drift profile.
+
+- RF natural v2 rebuild (11-component bank, sklearn RF
+  bootstrap=True, class_weight=None, max_depth=12, n_est=500):
+  ```
+  Standalone v2 vs v1 LB-best:
+    v1 (7 components):   tuned 0.98063  drift [-0.10, -0.10, -0.20]  LB 0.98129
+    v2 (11 components):  tuned 0.98067  drift [0.00, -0.10, 0.00]    LB 0.98098
+
+  PCR delta v2 - v1: +0.0003 / -0.0022 / +0.0020 (-Med, +High net 0)
+  errors:           v1 9768 → v2 10143 (+375)
+  test diff vs primary: 628 (essentially unchanged from v1's 629)
+  ```
+
+- 4-gate analysis vs anchors (RF v2 standalone, retuned bias per blend):
+  ```
+  vs rawashishsin:  best PASS α=0.50 OOF 0.98060 (Δ +0.00050)
+                    BUT net_H=-164 churn 258 → G4 RESHUFFLE-RemoveHigh
+  vs PRIMARY:       NO PASS-gate alpha (per-class guardrail fails)
+  vs geomean:       best PASS α=0.50 OOF 0.98056 (Δ +0.00045)
+                    net_H=-53 churn 201 → G4 RESHUFFLE risk
+  ```
+
+- **LB submission (user-approved)**: `submission_sklearn_rf_meta_natural_standalone.csv`
+  (v2 standalone, OOF 0.98067) → **LB public = 0.98098**.
+  - Δ vs v1 LB 0.98129 = **−0.00031** (regression)
+  - OOF→LB gap: 0.98067 → 0.98098 = **+0.00031** (vs v1's −0.00066)
+  - The 11-component bank introduced overfit despite better-looking
+    calibration profile.
+
+- **Bank-extension non-transfer pattern reconfirmed (3rd time on
+  natural-cal bank)**:
+  ```
+  bank   ext_components_added   OOF v_v1   LB v_v1
+  v1     0 (baseline)           0.98063    0.98129  <- LB-best
+  a1lgbm +LGBM_skte (1)         0.98078    0.98097  -0.00032
+  v2     +CB+XGB+LGBM (3)       0.98067    0.98098  -0.00031
+  ```
+  Both bank-extension attempts produced LB regressions of ~0.00031
+  despite different OOF lifts. The 7-component v1 bank is the LB
+  sweet spot.
+
+- **Why standalone OOF +0.00004 v2 lift didn't transfer**: the bank
+  extension shifts the meta's prediction surface across boundary
+  rows where v1's slight calibration imperfection [-0.10, -0.10, -0.20]
+  was fortuitously aligned with the LB test distribution. Making the
+  meta "more correctly natural-cal" [0, -0.10, 0] moved the operating
+  point AWAY from that lucky alignment. Confirms 2026-04-28 finding
+  that "v1's LB lift is mostly genuine signal, not iso-leak inflation"
+  — the v1 calibration profile is the sweet spot for THIS test
+  distribution.
+
+- **Updated portable rules** (LEARNINGS.md candidates):
+  1. **Bank-extension on a saturated natural-cal RF meta-stacker
+     produces standalone OOF noise (±0.0001-0.0005) but does NOT
+     reliably translate to LB lift.** Demonstrated 3 times now (v1
+     w/o lgbm, a1lgbm, v2 with XGB+LGBM additions). The 7-component
+     v1 bank (rawashishsin + cb_natural + cb + recipe + realmlp +
+     xgb_corn + xgb_dist_digits) is the structural LB sweet spot
+     for sklearn RF meta with class_weight=None on this competition.
+  2. **More natural calibration ≠ better LB transfer.** v2's
+     drift [0, -0.10, 0] is "more natural" than v1's [-0.10, -0.10,
+     -0.20] but transfers worse on LB by 0.00031. The slight
+     imperfection in v1's calibration is fortuitously aligned with
+     the LB test distribution; over-correcting moves the operating
+     point away from that lucky alignment.
+  3. **Adding XGB-on-recipe-FE as a bank component does not transfer
+     rawashishsin's natural-cal property.** Bias drift on
+     `recipe_full_te_xgb_skte` is [+1.30, +0.80, -0.40] vs
+     rawashishsin's [+1.10, +0.80, -0.40] — wider FE produces
+     wider drift even with rawashishsin parity HPs.
+
+- LB budget: **1/10 used today**, 9 remaining (1 day to deadline).
+- LB-best unchanged at **0.98129** via
+  `submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+  (preserved before v2 overwrote the standard submission file).
+- HEDGE unchanged: `submission_rawashishsin_2600_standalone.csv` (LB 0.98109).
+
+- Artefacts (whitelisted via `.gitignore`):
+  - `scripts/recipe_catboost_skte.py` (Pick 2b: sklearn TE CB)
+  - `scripts/recipe_xgb_skte.py` (XGB clone, rawashishsin parity)
+  - `scripts/_a1_finish_chain.sh` (post-rehydrate finish chain)
+  - `A1_COORDINATION.md` (orchestration notes; chain bash respawn pattern)
+  - `scripts/artifacts/oof_recipe_full_te_catboost_skte.npy` + test + JSON
+  - `scripts/artifacts/oof_recipe_full_te_xgb_skte.npy` + test + JSON
+  - `submissions/submission_sklearn_rf_meta_natural_standalone.csv`
+    (v2, **LB 0.98098, regression**)
+  - `submissions/submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+    (v1 LB-best, preserved as hedge)
