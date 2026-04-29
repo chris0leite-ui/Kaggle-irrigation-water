@@ -1,0 +1,30 @@
+{
+  "n_seeds": 5,
+  "seeds": [
+    7,
+    42,
+    123,
+    2024,
+    9999
+  ],
+  "v1_score": 0.980628290879414,
+  "bag5_score": 0.9804541259557453,
+  "delta_bal": -0.00017416492366872927,
+  "delta_pcr": [
+    -5.6769491534547356e-05,
+    -0.0007989158168600907,
+    0.00033319053738878335
+  ],
+  "net_h": 202,
+  "add_h": 321,
+  "rem_h": 119,
+  "ratio": 0.4590909090909091,
+  "drift_max": 0.0,
+  "g1": false,
+  "g2": false,
+  "g4": false,
+  "drift_pass": true,
+  "overall_pass": false,
+  "test_diff_vs_v1": 222,
+  "submission_path": "submissions/submission_n1_bag5_rf_natural.csv"
+}

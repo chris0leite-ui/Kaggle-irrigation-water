@@ -1127,3 +1127,11 @@ scripts/artifacts/_v1pcm_fold*.npy
 scripts/artifacts/_v1pcm_fold*.json
 scripts/artifacts/_v1pcb_fold*.npy
 scripts/artifacts/_v1pcb_fold*.json
+
+# A2 kernel outputs (large arrays)
+/kaggle_kernel/output_a2_smoke/oof_*
+/kaggle_kernel/output_a2_smoke/test_*
+/kaggle_kernel/output_a2_smoke/va_idx_*
+/kaggle_kernel/output_a2_prod/oof_*
+/kaggle_kernel/output_a2_prod/test_*
+/kaggle_kernel/output_a2_prod/va_idx_*

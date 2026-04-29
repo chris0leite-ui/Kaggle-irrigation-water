@@ -98,6 +98,13 @@ EXTRA_AV_PSYNTH = os.environ.get("EXTRA_AV_PSYNTH", "") == "1"
 # scripts/B_boundary_atlas.py from oof_boundary_atlas.npy + test_boundary_atlas.npy.
 # Mechanism-novel attack on within-cell flip signal.
 EXTRA_BOUNDARY = os.environ.get("EXTRA_BOUNDARY", "") == "1"
+# EXTRA_KNN_TRAIN=1 -> +6 cols [knn_dist_min, knn_dist_mean, knn_class_low,
+# knn_class_med, knn_class_high, knn_margin] from oof_knn_train.npy +
+# test_knn_train.npy (built by scripts/B_knn_features.py).
+# Geometric: per-row test→train (or train→train LOO) k=100 distances +
+# neighbor class fractions. Captures "where in training manifold does this
+# row sit?" — info no other recipe feature encodes.
+EXTRA_KNN_TRAIN = os.environ.get("EXTRA_KNN_TRAIN", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -219,6 +226,8 @@ if EXTRA_AV_PSYNTH:
     _parts.append("avp")
 if EXTRA_BOUNDARY:
     _parts.append("bnd")
+if EXTRA_KNN_TRAIN:
+    _parts.append("knntr")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
 if EXTRA_PHYS:
@@ -503,6 +512,21 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         test["boundary_pdev"] = a_te
         log(f"  +1 boundary_pdev col (B atlas P(deviate from cell-majority))")
 
+    knn_train_cols: list[str] = []
+    if EXTRA_KNN_TRAIN:
+        log("loading B k-NN distance features (test→train, train→train LOO)")
+        a_tr = np.load("scripts/artifacts/oof_knn_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_knn_train.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 6) and a_te.shape == (len(test), 6), (a_tr.shape, a_te.shape)
+        knn_train_cols = ["knn_dist_min", "knn_dist_mean", "knn_class_low",
+                          "knn_class_med", "knn_class_high", "knn_margin"]
+        for i, c in enumerate(knn_train_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(knn_train_cols)} k-NN-train cols")
+
     # Senior-FE NN-distance features (FAISS k-NN to 10k original).
     # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
     # adds 5 cols (dist_min, dist_mean, frac_low/med/high) from a different
@@ -535,7 +559,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         extra_phys_nums=extra_phys_nums, extra_phys_combo=extra_phys_combo,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
-        av=av_cols, boundary=boundary_cols,
+        av=av_cols, boundary=boundary_cols, knn_train=knn_train_cols,
         three_way=three_way_combos, nndist=nndist_cols,
         te_cols=(cats + combos + digits + num_as_cat + tres
                  + three_way_combos + extra_phys_combo),
@@ -782,6 +806,7 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("ood9", [])
                      + info.get("av", [])
                      + info.get("boundary", [])
+                     + info.get("knn_train", [])
                      + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
