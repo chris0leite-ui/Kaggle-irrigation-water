@@ -1,0 +1,36 @@
+{
+  "t2_oof_tuned": 0.9798963530382157,
+  "t2_bias": [
+    1.2324411632360972,
+    1.168946691946548,
+    3.000768902044088
+  ],
+  "t2_drift": [
+    0.7000000000000001,
+    0.20000000000000018,
+    -0.3999999999999999
+  ],
+  "t2_drift_max": 0.7000000000000001,
+  "t2_pcr": [
+    0.9949015589983699,
+    0.9693484025866468,
+    0.9754390975296302
+  ],
+  "v1_oof_bal_reproduced": 0.980628290879414,
+  "test_diff_vs_v1": 845,
+  "errs_t2_at_recipe_bias": 9961,
+  "errs_v1_at_recipe_bias": 9105,
+  "error_jaccard_t2_v1": 0.7691379790294145,
+  "net_high_flip": -55,
+  "churn_high": 515,
+  "g4_ratio": 0.10679611650485436,
+  "direction": "REMOVE-High",
+  "projected_lb_standalone": 0.9805563530382156,
+  "keep_rate": null,
+  "n_pseudo": null,
+  "pseudo_label_dist": [
+    119029,
+    70977,
+    8188
+  ]
+}
