@@ -19338,3 +19338,77 @@ bank composition is structurally LB-locked at 0.98129."
 LB budget: 1/10 used today. 4 remaining.
 LB best unchanged: `submission_sklearn_rf_meta_natural_standalone.csv`
 (2026-04-29 04:27 commit) at LB **0.98129**.
+
+### Next step: T4 rawashishsin pseudo (untested, 2026-04-29 — 1 day to deadline)
+
+After T1+T2+T3 closed NULL (35th-37th saturation confirmations on the
+analyze-progress-strategy branch + main's 36th independent confirmation
+via V_c REPLACE-variant), **T4 — rawashishsin clone with pseudo-label
+augmentation** is the only remaining mechanism-novel lever in the
+natural-cal family that hasn't been tested.
+
+**Mechanism**: combines T2's strong-labeler insight (LB 0.98129 v1 RF
+natural test predictions at τ=0.99) with rawashishsin's natural-cal
+**target** pipeline (XGB depth=3 + sklearn TargetEncoder cv=5 +
+ORIG_ROW_WEIGHT=0.5 + no L2 reg). Hypothesis: T2 standalone NULL'd
+because the recipe-XGB target inherits class-balanced sample weight
++ bias-retune leak channel that filters out the natural-cal advantage.
+The rawashishsin target naturally calibrates without bias retune —
+adding pseudo-labels from the LB-best natural-cal labeler to a
+naturally-cal target SHOULD compound monotonically per the v1 RF
+natural finding.
+
+**Concrete plan**:
+1. Scaffold `kaggle_kernel/kernel_rawashishsin_pseudo/` mirroring
+   `kernel_rawashishsin_v3/` (the LB-validated rawashishsin clone)
+   plus pseudo-label augmentation:
+   - Load v1 RF natural test predictions as labeler
+     (`test_sklearn_rf_meta_natural_v1_lb98129.npy`)
+   - Apply v1's bias [0.4324, 0.8689, 3.2008] then argmax
+   - Filter test rows where max_prob ≥ 0.99 → 198,194 pseudo rows
+   - Concat to rawashishsin training pool (504k → 702k)
+   - Train rawashishsin clone (XGB depth=3, sklearn TargetEncoder
+     cv=5, ORIG_ROW_WEIGHT=0.5, n_est=2600) per fold
+   - Save OOF + test as new natural-cal bank component
+2. Upload required Kaggle datasets:
+   - v1 RF natural test predictions
+   - 10k original (already at `chrisleitescha/irrigation-prediction-original`)
+3. Push kernel, expect ~70 min wall on Kaggle T4/P100 GPU.
+4. Pull artefacts back, evaluate as:
+   a. STANDALONE candidate at own tuned bias (vs LB-best 0.98129)
+   b. Bank-add to v1 RF natural's 7-component bank
+   c. REPLACE rawashishsin_2600 in v1's bank with the new
+      pseudo-augmented version
+
+**Bayesian prior** (calibrated against 37 saturation confirmations):
+~5-10% LB lift / ~50% null / ~35% mild regression. Lower than T1/T2/T3
+priors at start because we now have strong evidence (T2 NULL on recipe
+target, T3 NULL across all natural-cal variants) that the bank-
+specificity rule is structural — even the rawashishsin natural-cal
+target may inherit the same Pareto-frontier closure.
+
+**Cost**: ~30 min scaffold + ~15-30 min Kaggle queue + ~70 min compute
++ ~5 min pull/analyze = ~2-2.5 hours total wall, if no kernel bugs.
+
+**EV calculus** (1 day to deadline):
+  - Best case: +0.0005 to +0.0015 LB lift × 5-10% = +0.00003 to +0.00015
+  - Median: 0 LB × 50% = 0
+  - Worst case: -0.0003 to -0.0010 LB regression × 35% = -0.00011 to
+    -0.00035 (1 LB slot burn)
+
+**Decision recommendation**: do NOT pursue T4 unless a session starts
+with full LB budget AND container is rehydrate-stable for 2.5 hours.
+Expected value (~+0.00003 to +0.00015 nominal) is below the cost of
+one wasted LB submission slot, and even success likely doesn't beat
+the current LB-best by enough to displace the locked PRIMARY.
+
+**Lock recommendation**: PRIMARY
+`submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+(LB 0.98129) + HEDGE `submission_rawashishsin_2600_standalone.csv`
+(LB 0.98109). Lock on Kaggle's final-selection UI before deadline.
+
+If a future session has surplus compute AND confidence in container
+stability, the T4 scaffold can be built quickly by mirroring
+`kaggle_kernel/kernel_rawashishsin_v3/` exactly with the pseudo-label
+filtering step added inline (similar pattern to
+`scripts/recipe_pseudolabel.py`'s pseudo subset construction).
