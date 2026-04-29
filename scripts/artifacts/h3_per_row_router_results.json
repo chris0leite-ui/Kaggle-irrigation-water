@@ -1,0 +1,19 @@
+{
+  "n_oof_disagreements": 1858,
+  "v1_correct_at_disagreement": 1159,
+  "raw_correct_at_disagreement": 699,
+  "both_wrong": 0,
+  "router_n_train": 1858,
+  "router_target_v1_share": 0.623789020452099,
+  "router_oof_auc": 0.881505811951253,
+  "fold_aucs": [
+    0.891856527093596,
+    0.8980603448275862,
+    0.8857450738916256,
+    0.920021645021645,
+    0.9052964524931779
+  ],
+  "n_test_disagreements": 620,
+  "test_router_p_mean": 0.6387698650360107,
+  "test_router_p_std": 0.32659924030303955
+}

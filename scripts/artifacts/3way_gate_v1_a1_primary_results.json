@@ -1,0 +1,30 @@
+{
+  "v1_oof_tuned": 0.980628290879414,
+  "a1lgbm_oof_tuned": 0.980784195641486,
+  "primary_oof_tuned": 0.9809009444453641,
+  "gated_oof_tuned": 0.9808986817348243,
+  "gated_minus_v1": 0.0002703908554102519,
+  "n_oof_disagreements": 751,
+  "n_oof_switches": 311,
+  "switched_a1_correct": 119,
+  "switched_v1_correct": 192,
+  "n_test_disagreements": 243,
+  "n_test_switches": 119,
+  "test_diff_vs_v1": 119,
+  "v1_pcr": [
+    0.9946447446319039,
+    0.9693734994185901,
+    0.9778666285877481
+  ],
+  "a1lgbm_pcr": [
+    0.9948934490710079,
+    0.9671649782075843,
+    0.9802941596458661
+  ],
+  "gated_pcr": [
+    0.9948258663429904,
+    0.9686707881241792,
+    0.9791993907373031
+  ],
+  "sub_path": "submissions/submission_3way_gate_v1_a1_primary.csv"
+}
