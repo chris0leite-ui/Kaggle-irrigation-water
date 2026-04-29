@@ -1,0 +1,9 @@
+{
+  "fold": 3,
+  "bal_acc": 0.9789023508581502,
+  "n_combined": 514000,
+  "n_synth": 504000,
+  "n_orig": 10000,
+  "n_features_total": 443,
+  "n_te_out": 351
+}
