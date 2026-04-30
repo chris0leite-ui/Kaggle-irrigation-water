@@ -1,0 +1,63 @@
+{
+  "v1_baseline_tuned": 0.9806464684026942,
+  "drop": {
+    "standalone_tuned": 0.9806316632830194,
+    "delta_vs_v1": -1.4805119674776712e-05,
+    "pcr": [
+      0.9945068758667485,
+      0.969473886746363,
+      0.9779142272359465
+    ],
+    "best_dual_alpha": 0.1,
+    "best_dual_macro": 0.9807098119413862,
+    "best_dual_delta_vs_v1": 6.33435386919734e-05,
+    "jaccards": {
+      "v1": 0.9996349206349207,
+      "sklearn_rf_meta_natural": 0.9996349206349207,
+      "sklearn_rf_meta_natural_a1lgbm": 0.9995777777777778,
+      "sklearn_rf_meta_natural_r10_with_tier1b": 0.9992682539682539,
+      "rawashishsin_2600": 0.9968,
+      "tier1b_greedy_meta": 0.9986380952380952,
+      "recipe_full_te": 0.9977968253968253,
+      "recipe_pseudolabel": 0.9972111111111112,
+      "recipe_pseudolabel_seed7labeler": 0.9972539682539683,
+      "realmlp": 0.9971968253968254,
+      "xgb_nonrule": 0.6523888888888889,
+      "xgb_metastack": 0.9987079365079365,
+      "recipe_full_te_catboost_natural": 0.9958301587301587,
+      "recipe_full_te_catboost": 0.9962079365079365,
+      "lgbm_meta_natural": 0.9990285714285714
+    },
+    "test_flips_vs_v1": 25
+  },
+  "relabel": {
+    "standalone_tuned": 0.9806369654250097,
+    "delta_vs_v1": -9.502977684539005e-06,
+    "pcr": [
+      0.9944960626302657,
+      0.9680726469628651,
+      0.9793421866818982
+    ],
+    "best_dual_alpha": 0.15,
+    "best_dual_macro": 0.9806826702522168,
+    "best_dual_delta_vs_v1": 3.620184952257688e-05,
+    "jaccards": {
+      "v1": 0.9996333333333334,
+      "sklearn_rf_meta_natural": 0.9996333333333334,
+      "sklearn_rf_meta_natural_a1lgbm": 0.9995571428571428,
+      "sklearn_rf_meta_natural_r10_with_tier1b": 0.9992984126984127,
+      "rawashishsin_2600": 0.9968174603174603,
+      "tier1b_greedy_meta": 0.9986428571428572,
+      "recipe_full_te": 0.9978460317460317,
+      "recipe_pseudolabel": 0.997215873015873,
+      "recipe_pseudolabel_seed7labeler": 0.9972682539682539,
+      "realmlp": 0.9971920634920635,
+      "xgb_nonrule": 0.6523888888888889,
+      "xgb_metastack": 0.9986936507936508,
+      "recipe_full_te_catboost_natural": 0.9958507936507937,
+      "recipe_full_te_catboost": 0.996231746031746,
+      "lgbm_meta_natural": 0.9990460317460318
+    },
+    "test_flips_vs_v1": 27
+  }
+}
