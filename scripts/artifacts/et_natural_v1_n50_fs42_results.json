@@ -1,0 +1,38 @@
+{
+  "n_est": 50,
+  "fold_seed": 42,
+  "rf_seed": 42,
+  "smoke": true,
+  "bank": [
+    "rawashishsin_2600",
+    "recipe_full_te_catboost_natural",
+    "recipe_full_te_catboost",
+    "recipe_full_te",
+    "realmlp",
+    "xgb_corn",
+    "xgb_dist_digits"
+  ],
+  "bank_size": 7,
+  "fold_scores_argmax": [
+    0.972801271886223,
+    0.9694932399067285
+  ],
+  "overall_argmax": 0.9711463711598288,
+  "tuned_log_bias": 0.9805641327984929,
+  "log_bias": [
+    0.03922509828768861,
+    0.9616542736256852,
+    3.1656372062636047
+  ],
+  "drift_from_neg_log_prior": [
+    -0.5,
+    0.0,
+    -0.19999999999999973
+  ],
+  "max_drift_magnitude": 0.5,
+  "per_class_recall": [
+    0.9939300411522634,
+    0.9686077538847905,
+    0.979154603358425
+  ]
+}
