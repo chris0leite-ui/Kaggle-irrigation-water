@@ -194,7 +194,7 @@ def main():
         clf.fit(X_tr[tr_idx], fb_wrong[tr_idx],
                 eval_set=[(X_tr[va_idx], fb_wrong[va_idx])], verbose=False)
         p_wrong_oof[va_idx] = clf.predict_proba(X_tr[va_idx])[:, 1]
-        log(f"    fold {fold}: best_iter={clf.best_iteration}")
+        log(f"    fold {fold}: trained")
 
     # AUC of wrongness predictor
     from sklearn.metrics import roc_auc_score
