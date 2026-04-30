@@ -20,6 +20,8 @@
 - ✅ Route models by task: Haiku for read-only, Sonnet default,
   Opus for hard reasoning.
 - ✅ Pull-style updates: 1-2 sentences on demand.
+- ✅ Log friction one-liners to `audit/friction.md` when something
+  in the loop felt avoidable. Distill weekly into skill edits.
 
 ## Don't
 
@@ -51,6 +53,10 @@
   may be a hypothesis seeder you'll need.
 - ❌ Don't blend other people's LB submissions. (Banned per the
   reference comp's NEVER-SUGGEST-PUBLIC-CSV rule.)
+- ❌ Don't append friction observations to CLAUDE.md. They go in
+  `audit/friction.md` — one line per event, distilled weekly.
+- ❌ Don't try to fix every friction in real time. Capture, then
+  distill on the weekly schedule.
 
 ## Decision tree at session start
 

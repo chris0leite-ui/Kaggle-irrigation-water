@@ -51,6 +51,9 @@ If CLAUDE.md is > 50k tokens, archive it before doing anything else.
    sanity check.
 7. **Ask PI** before any submit. Single-shot, never loop.
 8. **Audit**: write `audit/YYYY-MM-DD-<topic>.md` end-of-session.
+9. **Log friction** as one-liners to `audit/friction.md` whenever
+   something in the loop felt avoidable. Don't append to CLAUDE.md.
+   See [self-improvement.md](self-improvement.md).
 
 ## What never to do
 
@@ -73,6 +76,7 @@ If CLAUDE.md is > 50k tokens, archive it before doing anything else.
 | [guardrails.md](guardrails.md) | The 11 invariants |
 | [personas.md](personas.md) | Persona rotation prompts |
 | [loops.md](loops.md) | The 5 loops (day / experiment / calibration / research / weekly) |
+| [self-improvement.md](self-improvement.md) | Friction tracking + skill-evolution workflow |
 | [do-and-dont.md](do-and-dont.md) | One-page concise checklist |
 | [examples/](examples/) | Walked examples from the reference comp |
 

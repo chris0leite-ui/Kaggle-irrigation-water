@@ -15,7 +15,9 @@ human triggers Calibration / Research / Weekly when conditions hit.
 3. Execute Experiment-loop (see below)
 4. End-of-day audit: write audit/YYYY-MM-DD-<topic>.md, update
                      calibration ladder, 3-bullet PI summary
-5. Queue next session's first 3 experiments
+5. Append any friction one-liners to audit/friction.md
+   (NOT CLAUDE.md — see self-improvement.md)
+6. Queue next session's first 3 experiments
 ```
 
 ## Experiment-loop
@@ -114,7 +116,11 @@ The agent will want to skip this. The human PI should enforce it.
 3. Persona rotation: rotate at least one on a stuck problem
 4. Update REPORT.md with the week's results
 5. Submission-budget audit: did we use 10/day? if not, why?
-6. Commit a 5-line weekly summary to audit/
+6. Friction distillation: scan audit/friction.md, find tags with
+   ≥3 entries, edit guardrails / personas / examples in the skill
+   itself. Reset friction.md (archive prior week).
+   See self-improvement.md.
+7. Commit a 5-line weekly summary to audit/
 ```
 
 ## Loop interaction
