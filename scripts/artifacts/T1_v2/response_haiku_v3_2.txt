@@ -1,0 +1,524 @@
+ROW 5366495
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.95
+REASON: Bank unanimous 14M/0H/0L, high confidence, amh low.
+
+ROW 5369542
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.88
+REASON: Bank 13M/0H/1L, v1 v3 say H, high temp 41C drives H.
+
+ROW 5374103
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 12M/1H/1L, mixed sub_votes, knn low 0.32.
+
+ROW 5380047
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Bank 10M/3H/1L split, all sub_votes H, hot temp 34C.
+
+ROW 5380581
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Bank 13M/1H/0L, all sub_votes H, hot temp 41C.
+
+ROW 5382335
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Bank unanimous 14M/0H/0L, all sub_votes H conflicts, trust bank.
+
+ROW 5389442
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Bank unanimous 14M/0H/0L, knn high 0.83, amh low 0.19.
+
+ROW 5396627
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank unanimous 14M/0H/0L, temp hot 41C, v1 says H override.
+
+ROW 5398169
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Bank 13M/0H/1L, high humidity 75% favors M, low amh.
+
+ROW 5400097
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Bank 13M/1H/0L, high knn consensus 0.84, fair confidence.
+
+ROW 5405260
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 13M/0H/1L, amh low 0.16, knn moderate 0.51.
+
+ROW 5406780
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank unanimous 14M/0H/0L, knn high 0.82, low amh.
+
+ROW 5410447
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank unanimous 14M/0H/0L, amh very high 0.95 anomaly.
+
+ROW 5411806
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/1H/0L, very high amh 0.90 cautions, knn moderate.
+
+ROW 5417622
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Bank unanimous 14M/0H/0L, v1 raw say H, very high amh.
+
+ROW 5424582
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 13M/0H/1L, amh very high 0.80, knn moderate 0.74.
+
+ROW 5425331
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.94
+REASON: Bank unanimous 14M/0H/0L, amh low 0.10, knn very high 0.92.
+
+ROW 5427717
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank unanimous 14M/0H/0L, amh moderate 0.58, knn high 0.76.
+
+ROW 5430977
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Bank 12M/2H/0L, amh very low 0.015, all sub_votes H.
+
+ROW 5434371
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/1H/0L, amh low 0.042, hot 39C but knn only 0.39.
+
+ROW 5439467
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 13M/0H/1L, amh moderate 0.45, knn high 0.79.
+
+ROW 5441934
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Bank 13M/1H/0L, amh very high 0.90, knn moderate 0.71.
+
+ROW 5442497
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.85
+REASON: Bank 13M/1H/0L, amh low 0.08, all sub_votes H, knn high.
+
+ROW 5443764
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh high 0.85, knn moderate 0.71.
+
+ROW 5446427
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank 11M/3H/0L split, all sub_votes H, very hot 40C.
+
+ROW 5447378
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Bank 13M/1H/0L, raw M but v1 t1 H, amh low 0.18.
+
+ROW 5447824
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Bank unanimous 14M/0H/0L, all sub_votes H, hot 30C.
+
+ROW 5449285
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank 13M/1H/0L, all sub_votes H, high humidity 83%.
+
+ROW 5451397
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/1H/0L, amh low 0.01, knn moderate 0.67.
+
+ROW 5452265
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank unanimous 14M/0H/0L, high humidity 83%, amh low 0.18.
+
+ROW 5452398
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank 12M/1H/1L, all sub_votes H, high humidity 81%.
+
+ROW 5454913
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Rule score 3 Low, but bank says M, rain low 541.
+
+ROW 5455048
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Bank 9M/5H/0L split, all sub_votes H, high knn 0.87.
+
+ROW 5455170
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 11M/2H/1L, high humidity 85%, amh low 0.035.
+
+ROW 5458530
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/1H/0L, high humidity 63%, low knn 0.29.
+
+ROW 5465155
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Bank unanimous 14M/0H/0L, high soil moisture 60%, amh low.
+
+ROW 5469198
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, amh moderate 0.38, knn high 0.77.
+
+ROW 5470599
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank unanimous 14M/0H/0L, v1 raw say H, amh low 0.20.
+
+ROW 5473737
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank unanimous 14M/0H/0L, amh high 0.71, knn moderate 0.71.
+
+ROW 5476138
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Bank unanimous 14M/0H/0L, high soil moisture 57%, amh low.
+
+ROW 5478652
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh moderate 0.44, knn high 0.80.
+
+ROW 5482778
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: High
+CONF: 0.70
+REASON: Rule score 3 Low, bank unanimous M, all sub_votes H.
+
+ROW 5486048
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Bank unanimous 14M/0H/0L, all sub_votes H, amh low 0.02.
+
+ROW 5486958
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 13M/1H/0L, amh low 0.044, knn high 0.72.
+
+ROW 5492540
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Bank 13M/0H/1L, v1 raw say H, very high amh 0.97.
+
+ROW 5492739
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Bank unanimous 14M/0H/0L, amh very low 0.004, knn high 0.83.
+
+ROW 5505818
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh very high 0.90, knn moderate 0.74.
+
+ROW 5506825
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Bank unanimous 14M/0H/0L, amh low 0.12, knn high 0.80.
+
+ROW 5508373
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank unanimous 14M/0H/0L, amh high 0.81, knn moderate 0.70.
+
+ROW 5509171
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank 12M/1H/1L, high humidity 78%, amh very low 0.006.
+
+ROW 5509612
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, high humidity 88%, amh moderate 0.51.
+
+ROW 5511087
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, very low knn 0.01, amh low 0.10.
+
+ROW 5512275
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, high humidity 79%, amh low 0.15.
+
+ROW 5516292
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank unanimous 14M/0H/0L, very high amh 0.98, knn high.
+
+ROW 5516884
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 13M/0H/1L, amh moderate 0.43, knn high 0.76.
+
+ROW 5519933
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 13M/0H/1L, amh low 0.078, knn high 0.76.
+
+ROW 5522292
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 12M/2H/0L, amh low 0.15, knn high 0.79.
+
+ROW 5522411
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Bank 12M/1H/1L, amh very high 0.85, knn high 0.76.
+
+ROW 5525145
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 12M/1H/1L, high humidity 87%, amh low 0.13.
+
+ROW 5526278
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Bank 13M/0H/1L, v1 raw say H, amh high 0.71.
+
+ROW 5528306
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Bank 10M/4H/0L split, all sub_votes H, hot 34C.
+
+ROW 5529370
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 11M/3H/0L split, all sub_votes H, hot 41C.
+
+ROW 5530397
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.81
+REASON: Bank unanimous 14M/0H/0L, v1 says M raw H, high humidity.
+
+ROW 5530930
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 13M/1H/0L, amh very low 0.009, knn moderate 0.52.
+
+ROW 5531555
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 13M/0H/1L, amh low 0.13, knn moderate 0.65.
+
+ROW 5531734
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 12M/1H/1L, all sub_votes H, very hot 41C.
+
+ROW 5536275
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, amh very high 0.84, knn moderate 0.73.
+
+ROW 5538998
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 13M/0H/1L, amh low 0.18, knn high 0.74.
+
+ROW 5539870
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 12M/1H/1L, amh low 0.15, knn moderate 0.53.
+
+ROW 5542757
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh high 0.72, knn high 0.74.
+
+ROW 5544663
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Bank unanimous 14M/0H/0L, high knn 0.94, amh high 0.73.
+
+ROW 5549719
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank unanimous 14M/0H/0L, high humidity 86%, amh low 0.045.
+
+ROW 5550726
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Bank 11M/2H/1L, all sub_votes H, hot 35C.
+
+ROW 5551367
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 13M/0H/1L, v1 raw say H, very low knn 0.24.
+
+ROW 5552396
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank unanimous 14M/0H/0L, amh low 0.11, knn high 0.74.
