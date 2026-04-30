@@ -19609,3 +19609,59 @@ LB budget today: 4/10 used (B, TC1, W3_MHonly merged from main, 4b),
 
 Pack 0.98148: now +0.00002 BELOW us.
 Leader (Cdeotte) 0.98219: +0.00069 above.
+
+### 2026-04-30 — Post-4b iteration sweep: override family fully saturated, ExcelFormer 5-fold queued
+
+After 4b set LB 0.98150, ran a battery of mechanism iterations + a wild-10
+sweep + Idea 5 (anchor switch). Key findings:
+
+**Idea 4b iter2** — same triple-consensus filter (bagged_v1 + {raw, tier1b}
+unanimous + 14-bank majority) on top of 4b: **0 new flips, saturated**.
+
+**Idea 4c (5-component bag, 5 different 5th components)**: ALL 5 variants
+(ET, RealMLP-nat, CB-nat, LGBM-nat, BagLR-nat) showed 0 strict flips. The
+"3rd axis" 14-bank majority is correlated with bagged_v1' (4 RF natural
+variants are IN the 14-bank), so they're the same signal. Loose variants
+(drop {raw, tier1b}) project sub-break-even precision.
+
+**Idea 5 — anchor switch** (rawashishsin LB 0.98109 + {v1, tier1b, 4b}
+k=3 unanimous): 472 unanimous overrides → **LB 0.98148** (+0.00039 over
+rawashishsin standalone, but -0.00002 vs 4b). Mechanism worked but starting
+LB too low to displace 4b. Math projection (+0.0042 macro at 92% precision)
+was 10× optimistic vs actual +0.00039.
+
+**Wild-10 cheap-idea sweep** (W1-W10, all on disk in submissions/):
+- W3, W8, W9 (plurality variants): IDENTICAL on Jaccard 1.0 — 9 M→H rows
+- W5 (Idea5's M→H subset): 9 M→H rows, 7 overlap with plurality + 2 unique
+- W10 (score=6 14-bank specialist): 918 H→M flips, high-variance Hail Mary
+- W1, W2, W4, W6, W7: marginal, saturated, or low-flip-count
+- **W5 critical reassessment**: 14-bank majority OPPOSES the M→H flip
+  direction on all 9 rows (says M, not H). Realistic precision ~39% (was
+  projected 80-95%). LB lift +0.00005 to +0.00020 expected (not +0.00024).
+  Asymmetric upside but downgraded vs initial framing.
+
+**Composition of 4b + Idea5**: 61 disagreement rows, 56 of 61 have 14-bank
+majority siding with 4b. Composition variants project ±0.0001 LB around
+4b — saturated noise. All 4 composition tests committed.
+
+**Override mechanism family fully exhausted** across:
+- All anchors (B, 4b, rawashishsin, B-with-3-OTHERS-incl-4b)
+- All 5-component bag variants (5 different 5th components)
+- All composition variants of 4b ⊕ Idea5
+- Strict triple-consensus + 2-axis loose filters
+
+**ExcelFormer 5-fold production queued** on Kaggle GPU (~45 min wall):
+- 19th NN family attempt on this comp
+- Reduced epochs to 12 (vs PROBE's 15) to fit 55-min cap
+- Per CLAUDE.md NN-magnitude-trap rule: ~5-8% prior of clearing magnitude
+  bar. Even if it clears, blend lift bounded by Pareto-frontier on recipe
+  FE. Realistic outcome: 19th NN null at standalone ~0.96-0.97.
+
+**LB-best stable at 0.98150** (Idea 4b above pack 0.98148 by +0.00002).
+**LB budget today**: 6/10 used (B, TC1, W3_MHonly[merged], 4b, Idea5,
+98150_drop_lm[parallel]), 4 remaining.
+
+**W5 candidate kept on disk** (`submission_W5_i5_MtoH_only.csv`) for
+post-ExcelFormer evaluation. If ExcelFormer adds a new LB-validated OTHER
+that confirms M→H direction on those 9 rows, W5 can be re-evaluated with
+stronger consensus support.
