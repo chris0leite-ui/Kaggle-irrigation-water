@@ -1,0 +1,15 @@
+{
+  "r1_tuned": 0.9807474232619106,
+  "lb_tuned": 0.980628290879414,
+  "delta_tuned": 0.00011913238249650071,
+  "delta_pcr": [
+    0.00026762760294885,
+    -0.0020997682725850675,
+    0.0021895378171260527
+  ],
+  "delta_errs": 357,
+  "rows_diff": 253,
+  "net_h": 172,
+  "churn_h": 182,
+  "candidate_csv": "submissions/submission_sklearn_rf_meta_natural_r2_swap_standalone.csv"
+}

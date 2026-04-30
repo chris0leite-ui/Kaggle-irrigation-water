@@ -1,0 +1,37 @@
+{
+  "n_components": 39,
+  "n_diagnostic_features": 12,
+  "diagnostic_names": [
+    "arg_agree_count_with_lb",
+    "argmax_mode_pct",
+    "mean_pL",
+    "mean_pM",
+    "mean_pH",
+    "std_pL",
+    "std_pM",
+    "std_pH",
+    "range_pL",
+    "range_pM",
+    "range_pH",
+    "lb_top1_top2_margin"
+  ],
+  "X_tr_shape": [
+    630000,
+    146
+  ],
+  "best_iters": [
+    2048,
+    1644,
+    2337,
+    1835,
+    1934
+  ],
+  "bal_at_recipe_bias": 0.979896431611369,
+  "tuned_bal_acc": 0.9801222938564469,
+  "own_bias": [
+    1.6324411632360976,
+    1.3689466919465483,
+    2.7007689020440884
+  ],
+  "wall_seconds": 1875.6133885383606
+}

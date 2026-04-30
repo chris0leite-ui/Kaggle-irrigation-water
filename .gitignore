@@ -18,6 +18,9 @@ submissions/*
 !submissions/submission_*.csv
 !legacy/submissions/submission_*.csv
 
+# Exception: distribution-shift research summary CSVs
+!scripts/artifacts/dist_shift/*.csv
+
 # Python
 __pycache__/
 *.py[cod]
@@ -56,12 +59,19 @@ scripts/artifacts/*.db
 scripts/artifacts/*.pkl
 scripts/artifacts/*_fold[0-9].npy
 scripts/artifacts/*_fold[0-9][0-9].npy
+scripts/artifacts/*_fold[0-9].json
+scripts/artifacts/*_fold[0-9][0-9].json
+scripts/artifacts/*_fold[0-9]_meta.json
+scripts/artifacts/*_fold[0-9][0-9]_meta.json
 scripts/artifacts/*_smoke.npy
 scripts/artifacts/_smoke_*.npy
+scripts/artifacts/*_smoke*.json
+scripts/artifacts/*_smoke*.npy
 scripts/artifacts/*_tmp.npy
 scripts/artifacts/_tmp_*.npy
 scripts/artifacts/tmp_*.npy
 scripts/artifacts/scratch_*.npy
+submissions/*_smoke*.csv
 
 # CatBoost training logs (auto-generated scratch)
 catboost_info/
@@ -81,6 +91,14 @@ kaggle_pulls/
 # Per-inner-fold checkpoints for the rehydrate-resilient leakfree teacher.
 # Regenerable + auto-cleaned when each outer fold consolidates.
 scripts/artifacts/_lf_inner_*.npy
+
+# B2 meta-stacker per-fold checkpoints (resumable from rehydrate kills).
+# Auto-cleaned after final oof_xgb_metastack_perfoldiso_inputs.npy lands.
+scripts/artifacts/_b2_meta_fold*.npy
+scripts/artifacts/_b2_meta_fold*.json
+# B2-clean (v1 pool restricted, per-fold-iso inputs) per-fold checkpoints.
+scripts/artifacts/_b2c_fold*.npy
+scripts/artifacts/_b2c_fold*.json
 
 # Kaggle kernel build outputs (assembled dist/ files via build.py).
 # Regenerated locally before each push; not source of truth.
@@ -1085,3 +1103,35 @@ kaggle_kernel/output_cuml_smoke/
 # chrisleitescha/irrigation-cuml-meta-input
 scripts/artifacts/cuml_meta_input.npz
 kaggle_kernel/ds_cuml_meta/cuml_meta_input.npz
+scripts/artifacts/_v1gk_fold*.npy
+scripts/artifacts/_v1gk_fold*.json
+scripts/artifacts/_v1cl_fold*.npy
+scripts/artifacts/_v1cl_fold*.json
+
+
+scripts/artifacts/_v1pn_fold*.npy
+scripts/artifacts/_v1pn_fold*.json
+
+kaggle_kernel/output_*/va_idx_*.npy
+scripts/artifacts/_recipe_mlp_fold*.npy
+scripts/artifacts/_recipe_mlp_fold*.json
+scripts/artifacts/_v1mlp_fold*.npy
+scripts/artifacts/_v1mlp_fold*.json
+scripts/artifacts/_recipe_lgbm_fold*.npy
+scripts/artifacts/_recipe_lgbm_fold*.json
+scripts/artifacts/_recipe_cb2_fold*.npy
+scripts/artifacts/_recipe_cb2_fold*.json
+scripts/artifacts/_recipe_mlp_ote_fold*.npy
+scripts/artifacts/_recipe_mlp_ote_fold*.json
+scripts/artifacts/_v1pcm_fold*.npy
+scripts/artifacts/_v1pcm_fold*.json
+scripts/artifacts/_v1pcb_fold*.npy
+scripts/artifacts/_v1pcb_fold*.json
+
+# A2 kernel outputs (large arrays)
+/kaggle_kernel/output_a2_smoke/oof_*
+/kaggle_kernel/output_a2_smoke/test_*
+/kaggle_kernel/output_a2_smoke/va_idx_*
+/kaggle_kernel/output_a2_prod/oof_*
+/kaggle_kernel/output_a2_prod/test_*
+/kaggle_kernel/output_a2_prod/va_idx_*

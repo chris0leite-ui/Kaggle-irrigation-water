@@ -1,0 +1,20 @@
+{
+  "r5_tuned": 0.980344925069676,
+  "lb_tuned": 0.980628290879414,
+  "delta_tuned": -0.0002833658097380898,
+  "delta_pcr": [
+    0.0002622209847074064,
+    -0.0018738967850958632,
+    0.0007615783711742985
+  ],
+  "delta_errs": 335,
+  "rows_diff": 494,
+  "net_h": 206,
+  "churn_h": 350,
+  "candidate_csv": "submissions/submission_lgbm_meta_natural_r7_swH150_standalone.csv",
+  "drift": [
+    0.30000000000000027,
+    0.20000000000000018,
+    0.0
+  ]
+}

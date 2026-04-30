@@ -1,0 +1,58 @@
+{
+  "n_domain": 101392,
+  "auc_overall": 0.8194536854413483,
+  "fold_aucs": [
+    0.8254736534440329,
+    0.8198256210689446,
+    0.8085419649237768,
+    0.829472669558425,
+    0.8161355927259255
+  ],
+  "target_prevalence": 0.04283375414233865,
+  "top_k_precision": [
+    {
+      "K": 50,
+      "n_correct": 21,
+      "precision": 0.42,
+      "wilson_lower_90": 0.3345,
+      "meets_break_even": "False"
+    },
+    {
+      "K": 100,
+      "n_correct": 43,
+      "precision": 0.43,
+      "wilson_lower_90": 0.3682,
+      "meets_break_even": "False"
+    },
+    {
+      "K": 200,
+      "n_correct": 85,
+      "precision": 0.425,
+      "wilson_lower_90": 0.381,
+      "meets_break_even": "False"
+    },
+    {
+      "K": 500,
+      "n_correct": 204,
+      "precision": 0.408,
+      "wilson_lower_90": 0.3802,
+      "meets_break_even": "False"
+    },
+    {
+      "K": 1000,
+      "n_correct": 385,
+      "precision": 0.385,
+      "wilson_lower_90": 0.3655,
+      "meets_break_even": "False"
+    },
+    {
+      "K": 2000,
+      "n_correct": 668,
+      "precision": 0.334,
+      "wilson_lower_90": 0.3206,
+      "meets_break_even": "False"
+    }
+  ],
+  "break_even_floor": 0.393,
+  "feasible_K": []
+}

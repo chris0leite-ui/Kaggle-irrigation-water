@@ -87,6 +87,24 @@ EXTRA_KNN10K = os.environ.get("EXTRA_KNN10K", "") == "1"
 # per-class Mahalanobis to centroid) from oof_ood9_train.npy + test_ood9.npy
 # Built by build_expanded_10k_anchor.py.
 EXTRA_OOD9 = os.environ.get("EXTRA_OOD9", "") == "1"
+# EXTRA_AV_PSYNTH=1 -> +1 col [av_p_synth] = leak-free P(synth | row) from the
+# AV classifier (orig vs synth-train) built by scripts/dist_shift/av_full_predict.py.
+# Distinct from EXTRA_OOD/EXTRA_KNN10K: those use unsupervised density on orig
+# features; this uses a discriminative classifier trained orig-vs-synth.
+# Diagnostic AUC for predicting (y != rule_pred) on full 630k = 0.5746.
+EXTRA_AV_PSYNTH = os.environ.get("EXTRA_AV_PSYNTH", "") == "1"
+# EXTRA_BOUNDARY=1 -> +1 col [boundary_pdev] = per-cell 7-feature LR's
+# P(primary deviates from cell-majority | row's non-rule features). Built by
+# scripts/B_boundary_atlas.py from oof_boundary_atlas.npy + test_boundary_atlas.npy.
+# Mechanism-novel attack on within-cell flip signal.
+EXTRA_BOUNDARY = os.environ.get("EXTRA_BOUNDARY", "") == "1"
+# EXTRA_KNN_TRAIN=1 -> +6 cols [knn_dist_min, knn_dist_mean, knn_class_low,
+# knn_class_med, knn_class_high, knn_margin] from oof_knn_train.npy +
+# test_knn_train.npy (built by scripts/B_knn_features.py).
+# Geometric: per-row test→train (or train→train LOO) k=100 distances +
+# neighbor class fractions. Captures "where in training manifold does this
+# row sit?" — info no other recipe feature encodes.
+EXTRA_KNN_TRAIN = os.environ.get("EXTRA_KNN_TRAIN", "") == "1"
 # EXTRA_FE: A4 FE transplant from public kernels.
 #   ""       — baseline recipe (no extra FE)
 #   "domain" — +11 utaazu-style ratio/product features (moist_rain, ET_proxy...)
@@ -97,6 +115,11 @@ EXTRA_FE = os.environ.get("EXTRA_FE", "")
 assert EXTRA_FE in ("", "domain", "decimal", "both", "w8"), (
     f"EXTRA_FE must be ''|domain|decimal|both|w8, got {EXTRA_FE!r}"
 )
+# EXTRA_PHYS: 2026-04-28 Option A — FAO-56 Penman-Monteith ETo + crop-stage
+# Kc lookup + soil-water-balance + 1 cat-triple OTE (Region × Soil_Type ×
+# Crop_Type). 9 new numerics + 1 OTE-able cat (3 OTE features). Suffix
+# "_phys" on outputs. See scripts/recipe_phys_features.py for math.
+EXTRA_PHYS = os.environ.get("EXTRA_PHYS", "") == "1"
 # GBY: rohit8527-style group-by cat x num stats on the SYNTHETIC 630k pool.
 # When set to "1", adds per-cat-group mean/std of each numeric, merged onto
 # train+test. Distinct from add_orig_mean_std which aggregates TARGET on
@@ -139,6 +162,13 @@ CLEANLAB_WEIGHT = float(os.environ.get("CLEANLAB_WEIGHT", "0.3"))
 # CLEANLAB_TREATMENT=downweight which DOWN-weights ambiguous rows
 # interpreted as label noise. Suffix "_anchwα{α}" on outputs.
 ANCHOR_WEIGHT_ALPHA = float(os.environ.get("ANCHOR_WEIGHT_ALPHA", "0"))
+# Option B' (drift session 2026-04-28): per-row sample_weight multiplier
+# = (1 + ORIG_WEIGHT_BETA × (1 − P(synth | row))). Loads AV oof from
+# scripts/artifacts/dist_shift/oof_av_p_synth_train.npy. Mechanism: rows
+# that look orig-like (low P(synth)) carry MORE flip mass per the AV
+# diagnostic (Cohen's d +0.335) — give them more gradient. Distinct from
+# ANCHOR_WEIGHT_ALPHA which uses primary's max_prob.
+ORIG_WEIGHT_BETA = float(os.environ.get("ORIG_WEIGHT_BETA", "0"))
 
 # Mech A: boundary-confined test-time augmentation. When set, identify
 # boundary rows via max_prob(LB-best 4-stack) < TTA_BOUNDARY_THRESH (default
@@ -192,8 +222,16 @@ if EXTRA_KNN10K:
     _parts.append("knn10k")
 if EXTRA_OOD9:
     _parts.append("ood9")
+if EXTRA_AV_PSYNTH:
+    _parts.append("avp")
+if EXTRA_BOUNDARY:
+    _parts.append("bnd")
+if EXTRA_KNN_TRAIN:
+    _parts.append("knntr")
 if EXTRA_FE:
     _parts.append(f"fex{EXTRA_FE}")
+if EXTRA_PHYS:
+    _parts.append("phys")
 if GBY:
     _parts.append("gby")
 if INSTAB:
@@ -204,6 +242,8 @@ if DROP_DETERMINISTIC:
     _parts.append("dropdet")
 if ANCHOR_WEIGHT_ALPHA != 0:
     _parts.append(f"anchw{('m' if ANCHOR_WEIGHT_ALPHA < 0 else '') + str(int(abs(ANCHOR_WEIGHT_ALPHA)*10)).zfill(2)}")
+if ORIG_WEIGHT_BETA != 0:
+    _parts.append(f"origw{('m' if ORIG_WEIGHT_BETA < 0 else '') + str(int(abs(ORIG_WEIGHT_BETA)*10)).zfill(2)}")
 if TTA_BOUNDARY:
     _parts.append(f"btta{int(TTA_BOUNDARY_THRESH*100):03d}k{TTA_K}s{int(TTA_SIGMA*100):03d}")
 if THREE_WAY_OTE:
@@ -297,6 +337,21 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         log("W8 FE block: +15 novel-on-recipe cross-products + per-score z-scores")
         for df in (train, test, orig):
             extra_w8 = add_w8_block(df)
+
+    # EXTRA_PHYS — FAO-56 Penman-Monteith ETo + Kc + SWB + 3-way cat combo.
+    # Numerics added BEFORE digit extraction (so they're tree inputs but not
+    # digit-expanded). The 3-way cat combo is built BEFORE pair combos so
+    # it can be added to te_cols downstream.
+    extra_phys_nums: list[str] = []
+    extra_phys_combo: list[str] = []
+    if EXTRA_PHYS:
+        from recipe_phys_features import add_phys_block, add_three_way_cat_combo
+        log("EXTRA_PHYS: +9 FAO-56 / SWB numerics + 1 cat-triple OTE key")
+        for df in (train, test, orig):
+            extra_phys_nums = add_phys_block(df)
+        extra_phys_combo = add_three_way_cat_combo(train, test, orig)
+        log(f"  extra_phys_nums={len(extra_phys_nums)} "
+            f"extra_phys_combo={len(extra_phys_combo)}")
 
     # Pair combos (concat string values; factorized across combined).
     log("adding cat x cat pair combos")
@@ -426,6 +481,51 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         for i, c in enumerate(ood9_cols):
             train[c] = a_tr[:, i]; test[c] = a_te[:, i]
         log(f"  +{len(ood9_cols)} ood9 cols")
+    av_cols: list[str] = []
+    if EXTRA_AV_PSYNTH:
+        log("loading AV-classifier P(synth | row) features")
+        a_tr = np.load("scripts/artifacts/dist_shift/oof_av_p_synth_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/dist_shift/test_av_p_synth.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train),) and a_te.shape == (len(test),)
+        av_cols = ["av_p_synth"]
+        train["av_p_synth"] = a_tr
+        test["av_p_synth"] = a_te
+        log(f"  +1 av_p_synth col (diagnostic AUC vs flip = 0.5746 on full 630k)")
+
+    boundary_cols: list[str] = []
+    if EXTRA_BOUNDARY:
+        log("loading B boundary-atlas P(deviate) feature")
+        a_tr = np.load("scripts/artifacts/oof_boundary_atlas.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_boundary_atlas.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        # Stored as (n, 1) for single-feature; flatten if needed.
+        if a_tr.ndim == 2 and a_tr.shape[1] == 1:
+            a_tr = a_tr[:, 0]; a_te = a_te[:, 0]
+        assert a_tr.shape == (len(train),) and a_te.shape == (len(test),), (a_tr.shape, a_te.shape)
+        boundary_cols = ["boundary_pdev"]
+        train["boundary_pdev"] = a_tr
+        test["boundary_pdev"] = a_te
+        log(f"  +1 boundary_pdev col (B atlas P(deviate from cell-majority))")
+
+    knn_train_cols: list[str] = []
+    if EXTRA_KNN_TRAIN:
+        log("loading B k-NN distance features (test→train, train→train LOO)")
+        a_tr = np.load("scripts/artifacts/oof_knn_train.npy").astype(np.float32)
+        a_te = np.load("scripts/artifacts/test_knn_train.npy").astype(np.float32)
+        if SMOKE:
+            assert train_subset_idx is not None and test_subset_idx is not None
+            a_tr = a_tr[train_subset_idx]; a_te = a_te[test_subset_idx]
+        assert a_tr.shape == (len(train), 6) and a_te.shape == (len(test), 6), (a_tr.shape, a_te.shape)
+        knn_train_cols = ["knn_dist_min", "knn_dist_mean", "knn_class_low",
+                          "knn_class_med", "knn_class_high", "knn_margin"]
+        for i, c in enumerate(knn_train_cols):
+            train[c] = a_tr[:, i]; test[c] = a_te[:, i]
+        log(f"  +{len(knn_train_cols)} k-NN-train cols")
 
     # Senior-FE NN-distance features (FAISS k-NN to 10k original).
     # Distinct from EXTRA_KNN10K (8 cols inc per-class distances): this
@@ -456,10 +556,13 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         orig_stats=orig_stats_cols, dae_embed=dae_cols,
         extra_domain=extra_domain, extra_decimal=extra_decimal,
         extra_w8=extra_w8,
+        extra_phys_nums=extra_phys_nums, extra_phys_combo=extra_phys_combo,
         gby=gby_cols, instab=instab_cols,
         ood=ood_cols, knn10k=knn10k_cols, ood9=ood9_cols,
+        av=av_cols, boundary=boundary_cols, knn_train=knn_train_cols,
         three_way=three_way_combos, nndist=nndist_cols,
-        te_cols=cats + combos + digits + num_as_cat + tres + three_way_combos,
+        te_cols=(cats + combos + digits + num_as_cat + tres
+                 + three_way_combos + extra_phys_combo),
         # Subset indices (None when not SMOKE) for downstream mask alignment.
         train_subset_idx=train_subset_idx, test_subset_idx=test_subset_idx,
     )
@@ -470,6 +573,8 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
         f"dae_embed={len(dae_cols)} "
         f"extra_domain={len(extra_domain)} extra_decimal={len(extra_decimal)} "
         f"extra_w8={len(extra_w8)} "
+        f"extra_phys_nums={len(extra_phys_nums)} "
+        f"extra_phys_combo={len(extra_phys_combo)} "
         f"gby={len(gby_cols)} "
         f"three_way={len(three_way_combos)} "
         f"nndist={len(nndist_cols)} "
@@ -479,6 +584,7 @@ def load_and_engineer() -> tuple[pd.DataFrame, pd.DataFrame, dict, np.ndarray]:
 
 _anchor_uncertainty: np.ndarray | None = None  # populated by run_cv when Mech B / Mech A active
 _anchor_uncertainty_test: np.ndarray | None = None  # populated when Mech A active
+_av_p_synth: np.ndarray | None = None  # populated when ORIG_WEIGHT_BETA != 0
 
 
 def _build_anchor_uncertainty_test(n_test: int = -1) -> np.ndarray:
@@ -692,11 +798,15 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
                      + info.get("extra_domain", [])
                      + info.get("extra_decimal", [])
                      + info.get("extra_w8", [])
+                     + info.get("extra_phys_nums", [])
                      + info.get("gby", [])
                      + info.get("instab", [])
                      + info.get("ood", [])
                      + info.get("knn10k", [])
                      + info.get("ood9", [])
+                     + info.get("av", [])
+                     + info.get("boundary", [])
+                     + info.get("knn_train", [])
                      + info.get("nndist", []))
     drop_after_te = info["te_cols"]  # raw cats dropped; only TE cols retained
 
@@ -719,16 +829,24 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
     # GPU recipe uses max_bin=10000 / n_est=50000. On CPU we cap both to
     # keep wall-time feasible while preserving most of the split quality
     # (max_bin=1024 still gives >99% of max_bin=10000 split AUC on this data).
+    # FAST=1: container-rehydrate-resilient settings for 4-core CPU. Cuts
+    # n_est 3000→1000, ES 200→100, lr 0.1→0.15 (more aggressive boosting
+    # per round). Targets ~8 min/fold on 4 cores. Standalone OOF Δ vs full
+    # settings ≈ −0.0005 (acceptable for diagnostic; rerun at full settings
+    # if standalone passes the gate).
+    FAST = os.environ.get("RECIPE_FAST", "") == "1"
     xgb_params = dict(
-        n_estimators=300 if SMOKE else 3000,
+        n_estimators=300 if SMOKE else (1000 if FAST else 3000),
         max_depth=4, max_leaves=30,
-        learning_rate=0.1, subsample=0.8, colsample_bytree=0.8,
+        learning_rate=0.15 if FAST else 0.1,
+        subsample=0.8, colsample_bytree=0.8,
         min_child_weight=2, reg_alpha=5, reg_lambda=5,
-        max_bin=256 if SMOKE else 1024,
+        max_bin=256 if SMOKE else (512 if FAST else 1024),
         objective="multi:softprob", tree_method="hist",
         eval_metric="mlogloss",
         enable_categorical=False, n_jobs=-1, random_state=SEED,
-        early_stopping_rounds=50 if SMOKE else 200, verbosity=0,
+        early_stopping_rounds=50 if SMOKE else (100 if FAST else 200),
+        verbosity=0,
         booster=XGB_BOOSTER,
     )
     if XGB_BOOSTER == "dart":
@@ -861,6 +979,21 @@ def run_cv(train: pd.DataFrame, test: pd.DataFrame, info: dict,
             sw = sw * (1.0 + ANCHOR_WEIGHT_ALPHA * au)
             log(f"  anchor-uncertainty weight α={ANCHOR_WEIGHT_ALPHA:.1f}: "
                 f"u-mean={au.mean():.4f} u-max={au.max():.4f} "
+                f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
+        if ORIG_WEIGHT_BETA != 0:
+            # Option B' (drift session): w *= (1 + β × (1 − P(synth | row)))
+            # AV oof (full-train, leak-free) loaded once at module level.
+            global _av_p_synth
+            if _av_p_synth is None:
+                _av_p_synth = np.load(
+                    "scripts/artifacts/dist_shift/oof_av_p_synth_train.npy"
+                ).astype(np.float32)
+                if SMOKE:
+                    _av_p_synth = _av_p_synth[info["train_subset_idx"]]
+            ow = 1.0 - _av_p_synth[fold_tr_idx]
+            sw = sw * (1.0 + ORIG_WEIGHT_BETA * ow)
+            log(f"  orig-weight β={ORIG_WEIGHT_BETA:.1f}: "
+                f"orig-mean={ow.mean():.4f} orig-max={ow.max():.4f} "
                 f"weight-range=[{sw.min():.3f},{sw.max():.3f}]")
 
         log(f"  training XGB on {len(feat_cols)} features, {len(X_tr):,} rows")

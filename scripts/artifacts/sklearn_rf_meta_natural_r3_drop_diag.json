@@ -1,0 +1,15 @@
+{
+  "r1_tuned": 0.9806984638344017,
+  "lb_tuned": 0.980628290879414,
+  "delta_tuned": 7.01729549876795e-05,
+  "delta_pcr": [
+    -1.0813236482776212e-05,
+    -0.0027773827350527913,
+    0.002998714836498717
+  ],
+  "delta_errs": 605,
+  "rows_diff": 298,
+  "net_h": 276,
+  "churn_h": 276,
+  "candidate_csv": "submissions/submission_sklearn_rf_meta_natural_r3_drop_standalone.csv"
+}
