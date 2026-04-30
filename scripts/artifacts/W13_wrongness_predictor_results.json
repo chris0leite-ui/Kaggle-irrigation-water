@@ -1,0 +1,6 @@
+{
+  "wrongness_oof_auc": 0.911013076839962,
+  "n_bank_components": 14,
+  "fb_wrong_rate_train": 0.015198412698412699,
+  "fb_train_overrides_proxy": 0
+}
