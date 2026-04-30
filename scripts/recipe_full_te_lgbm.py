@@ -59,6 +59,14 @@ SMOKE = os.environ.get("SMOKE") == "1"
 if SMOKE:
     N_FOLDS = 2
 
+# LGBM_BOOSTING knob: 'gbdt' (default, preserves prior LB-validated artefact),
+# 'goss' (gradient-one-sided sampling — different gradient utilization than gbdt),
+# 'dart' (tree dropout). Output paths get suffix when non-default.
+LGBM_BOOSTING = os.environ.get("LGBM_BOOSTING", "gbdt")
+assert LGBM_BOOSTING in ("gbdt", "goss", "dart"), \
+    f"LGBM_BOOSTING must be gbdt|goss|dart, got {LGBM_BOOSTING!r}"
+SUFFIX = "" if LGBM_BOOSTING == "gbdt" else f"_{LGBM_BOOSTING}"
+
 ART = Path("scripts/artifacts")
 SUB = Path("submissions")
 ART.mkdir(exist_ok=True, parents=True)
@@ -156,6 +164,21 @@ def run_cv(train, test, info, a_ote=1.0):
         verbose=-1,
         seed=SEED,
     )
+    if LGBM_BOOSTING == "goss":
+        # GOSS: gradient-one-sided sampling. Replaces bagging entirely;
+        # samples by gradient magnitude (top_rate large-grad rows kept,
+        # other_rate small-grad rows kept). bagging must be disabled.
+        lgbm_params["boosting"] = "goss"
+        lgbm_params["top_rate"] = 0.2
+        lgbm_params["other_rate"] = 0.1
+        lgbm_params.pop("bagging_fraction")
+        lgbm_params.pop("bagging_freq")
+    elif LGBM_BOOSTING == "dart":
+        lgbm_params["boosting"] = "dart"
+        lgbm_params["drop_rate"] = 0.1
+        lgbm_params["skip_drop"] = 0.5
+        # DART doesn't honour early stopping in older LGBMs; keep the
+        # callback path but cap rounds at 1500 to bound wall.
 
     for fold, (tr_idx, va_idx) in enumerate(skf.split(train, y), 1):
         log(f"=== fold {fold}/{N_FOLDS} ===")
@@ -216,8 +239,8 @@ def main():
     bias, tuned = tune_log_bias(result["oof"], y, prior)
     log(f"tuned log-bias bal_acc = {tuned:.5f}  bias={bias.round(4).tolist()}")
 
-    np.save(ART / "oof_recipe_full_te_lgbm.npy", result["oof"])
-    np.save(ART / "test_recipe_full_te_lgbm.npy", result["test"])
+    np.save(ART / f"oof_recipe_full_te_lgbm{SUFFIX}.npy", result["oof"])
+    np.save(ART / f"test_recipe_full_te_lgbm{SUFFIX}.npy", result["test"])
 
     # Jaccard vs recipe XGB. Skip in SMOKE (row-count mismatch).
     recipe_res = json.loads((ART/'recipe_full_te_results.json').read_text())
@@ -244,8 +267,8 @@ def main():
         "id": test_ids,
         TARGET: [IDX2CLS[i] for i in test_pred_idx],
     })
-    sub.to_csv(SUB / "submission_recipe_full_te_lgbm.csv", index=False)
-    log("wrote submission_recipe_full_te_lgbm.csv")
+    sub.to_csv(SUB / f"submission_recipe_full_te_lgbm{SUFFIX}.csv", index=False)
+    log(f"wrote submission_recipe_full_te_lgbm{SUFFIX}.csv")
 
     summary = dict(
         seed=SEED, n_folds=N_FOLDS,
@@ -261,9 +284,9 @@ def main():
         error_count_recipe=rec_err_count,
         jaccard_vs_recipe=jacc,
     )
-    with open(ART / "recipe_full_te_lgbm_results.json", "w") as f:
+    with open(ART / f"recipe_full_te_lgbm{SUFFIX}_results.json", "w") as f:
         json.dump(summary, f, indent=2)
-    log("wrote scripts/artifacts/recipe_full_te_lgbm_results.json")
+    log(f"wrote scripts/artifacts/recipe_full_te_lgbm{SUFFIX}_results.json")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+{
+  "n_axes": 4,
+  "n_sigmas": 3,
+  "feature_names": [
+    "cfr_sm_flip",
+    "cfr_rf_flip",
+    "cfr_tc_flip",
+    "cfr_ws_flip",
+    "cfr_total"
+  ],
+  "train_cfr_total_mean": 1.0967666666666667,
+  "test_cfr_total_mean": 1.0964074074074075,
+  "boundary_row_pct_train": 0.06173809523809524,
+  "boundary_row_pct_test": 0.061785185185185186
+}
