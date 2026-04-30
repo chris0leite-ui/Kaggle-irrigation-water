@@ -1,0 +1,164 @@
+{
+  "W1_score6_only": {
+    "label": "submission_W1_score6_only",
+    "n_flips": 80,
+    "directions": {
+      "H->M": 80
+    },
+    "net_h": -80,
+    "h_added": 0,
+    "h_removed": 80,
+    "lb_proj": {
+      "prec_95": 0.981623,
+      "prec_88": 0.981423,
+      "prec_50": 0.980336
+    },
+    "csv": "submissions/submission_W1_score6_only.csv"
+  },
+  "W2_anti_stability": {
+    "label": "submission_W2_anti_stability",
+    "n_flips": 5,
+    "directions": {
+      "L->M": 1,
+      "H->M": 4
+    },
+    "net_h": -4,
+    "h_added": 0,
+    "h_removed": 4,
+    "lb_proj": {
+      "prec_95": 0.981509,
+      "prec_88": 0.981499,
+      "prec_50": 0.981442
+    },
+    "csv": "submissions/submission_W2_anti_stability.csv"
+  },
+  "W3_plurality": {
+    "label": "submission_W3_plurality",
+    "n_flips": 11,
+    "directions": {
+      "M->L": 2,
+      "M->H": 9
+    },
+    "net_h": 9,
+    "h_added": 9,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.981779,
+      "prec_88": 0.981756,
+      "prec_50": 0.98163
+    },
+    "csv": "submissions/submission_W3_plurality.csv"
+  },
+  "W4_triple_mech": {
+    "label": "submission_W4_triple_mech",
+    "n_flips": 0,
+    "directions": {},
+    "net_h": 0,
+    "h_added": 0,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.9815,
+      "prec_88": 0.9815,
+      "prec_50": 0.9815
+    },
+    "csv": "submissions/submission_W4_triple_mech.csv"
+  },
+  "W5_i5_MtoH_only": {
+    "label": "submission_W5_i5_MtoH_only",
+    "n_flips": 9,
+    "directions": {
+      "M->H": 9
+    },
+    "net_h": 9,
+    "h_added": 9,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.981776,
+      "prec_88": 0.981753,
+      "prec_50": 0.981631
+    },
+    "csv": "submissions/submission_W5_i5_MtoH_only.csv"
+  },
+  "W6_reverse_ADD_H": {
+    "label": "submission_W6_reverse_ADD_H",
+    "n_flips": 0,
+    "directions": {},
+    "net_h": 0,
+    "h_added": 0,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.9815,
+      "prec_88": 0.9815,
+      "prec_50": 0.9815
+    },
+    "csv": "submissions/submission_W6_reverse_ADD_H.csv"
+  },
+  "W7_drop_bottom": {
+    "label": "submission_W7_drop_bottom",
+    "n_flips": 8,
+    "directions": {
+      "L->M": 1,
+      "M->L": 1,
+      "M->H": 6
+    },
+    "net_h": 6,
+    "h_added": 6,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.981689,
+      "prec_88": 0.981673,
+      "prec_50": 0.981587
+    },
+    "csv": "submissions/submission_W7_drop_bottom.csv"
+  },
+  "W8_plurality5": {
+    "label": "submission_W8_plurality5",
+    "n_flips": 10,
+    "directions": {
+      "M->L": 1,
+      "M->H": 9
+    },
+    "net_h": 9,
+    "h_added": 9,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.981778,
+      "prec_88": 0.981755,
+      "prec_50": 0.98163
+    },
+    "csv": "submissions/submission_W8_plurality5.csv"
+  },
+  "W9_lb_weighted": {
+    "label": "submission_W9_lb_weighted",
+    "n_flips": 10,
+    "directions": {
+      "M->L": 1,
+      "M->H": 9
+    },
+    "net_h": 9,
+    "h_added": 9,
+    "h_removed": 0,
+    "lb_proj": {
+      "prec_95": 0.981778,
+      "prec_88": 0.981755,
+      "prec_50": 0.98163
+    },
+    "csv": "submissions/submission_W9_lb_weighted.csv"
+  },
+  "W10_score6_bank": {
+    "label": "submission_W10_score6_bank",
+    "n_flips": 918,
+    "directions": {
+      "H->M": 918
+    },
+    "net_h": -918,
+    "h_added": 0,
+    "h_removed": 918,
+    "lb_proj": {
+      "prec_95": 0.982911,
+      "prec_88": 0.980613,
+      "prec_50": 0.968141
+    },
+    "csv": "submissions/submission_W10_score6_bank.csv"
+  }
+}

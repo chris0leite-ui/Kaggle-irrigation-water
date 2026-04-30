@@ -6,13 +6,15 @@ from pathlib import Path
 # IS_SMOKE: 2-fold/20k/2-epoch structural check
 # IS_PROBE: 1-fold full-data run for compute-budget validation
 IS_SMOKE = False
-IS_PROBE = True   # 1-fold full-data magnitude-bar check
+IS_PROBE = False  # 5-fold production at reduced epochs to fit 55-min GPU cap
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
 N_FOLDS = 2 if SMOKE else 5
 MAX_FOLDS = 2 if SMOKE else (1 if PROBE else 5)
-N_EPOCHS = 3 if SMOKE else (15 if PROBE else 25)
+# Production at 12 epochs (vs PROBE's 15): 5 folds × ~8 min/fold ≈ 42 min
+# + pip install 3.4 min = ~45 min total, well within 55-min cap
+N_EPOCHS = 3 if SMOKE else (15 if PROBE else 12)
 
 # ExcelFormer hyperparams (paper defaults).
 IN_CHANNELS = 32
