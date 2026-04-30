@@ -1,0 +1,206 @@
+{
+  "oof_n_total_flips": 1286,
+  "test_n_total_flips": 1237,
+  "by_K": [
+    {
+      "K": 50,
+      "precision": 0.96,
+      "min_p_new": 0.8289074897766113,
+      "per_direction_precision": {
+        "H->M": [
+          49,
+          0.9591836734693877
+        ]
+      }
+    },
+    {
+      "K": 100,
+      "precision": 0.94,
+      "min_p_new": 0.7995219826698303,
+      "per_direction_precision": {
+        "H->M": [
+          97,
+          0.9381443298969072
+        ]
+      }
+    },
+    {
+      "K": 200,
+      "precision": 0.905,
+      "min_p_new": 0.7577018141746521,
+      "per_direction_precision": {
+        "M->L": [
+          10,
+          0.8
+        ],
+        "H->M": [
+          189,
+          0.91005291005291
+        ]
+      }
+    },
+    {
+      "K": 300,
+      "precision": 0.8733333333333333,
+      "min_p_new": 0.726558268070221,
+      "per_direction_precision": {
+        "M->L": [
+          24,
+          0.7083333333333334
+        ],
+        "H->M": [
+          273,
+          0.8901098901098901
+        ]
+      }
+    },
+    {
+      "K": 500,
+      "precision": 0.826,
+      "min_p_new": 0.6667126417160034,
+      "per_direction_precision": {
+        "L->M": [
+          8,
+          0.375
+        ],
+        "M->L": [
+          75,
+          0.68
+        ],
+        "H->M": [
+          416,
+          0.8605769230769231
+        ]
+      }
+    },
+    {
+      "K": 800,
+      "precision": 0.7625,
+      "min_p_new": 0.6058159470558167,
+      "per_direction_precision": {
+        "L->M": [
+          18,
+          0.5
+        ],
+        "M->L": [
+          207,
+          0.6376811594202898
+        ],
+        "H->M": [
+          571,
+          0.8178633975481612
+        ]
+      }
+    },
+    {
+      "K": 1283,
+      "precision": 0.6819953234606392,
+      "min_p_new": 0.48085135221481323,
+      "per_direction_precision": {
+        "L->M": [
+          60,
+          0.4666666666666667
+        ],
+        "M->L": [
+          434,
+          0.5783410138248848
+        ],
+        "M->H": [
+          26,
+          0.38461538461538464
+        ],
+        "H->M": [
+          763,
+          0.7680209698558322
+        ]
+      }
+    }
+  ],
+  "test_kept_per_K": {
+    "50": {
+      "p_threshold": 0.8289074897766113,
+      "n_test_kept": 131,
+      "overlap_with_4b_flips": 41,
+      "new_vs_4b": 90,
+      "directions": {
+        "H->M": 131
+      }
+    },
+    "100": {
+      "p_threshold": 0.7995219826698303,
+      "n_test_kept": 268,
+      "overlap_with_4b_flips": 66,
+      "new_vs_4b": 202,
+      "directions": {
+        "H->M": 268
+      }
+    },
+    "200": {
+      "p_threshold": 0.7577018141746521,
+      "n_test_kept": 489,
+      "overlap_with_4b_flips": 94,
+      "new_vs_4b": 395,
+      "directions": {
+        "H->M": 489
+      }
+    },
+    "300": {
+      "p_threshold": 0.726558268070221,
+      "n_test_kept": 634,
+      "overlap_with_4b_flips": 103,
+      "new_vs_4b": 531,
+      "directions": {
+        "H->M": 634
+      }
+    },
+    "500": {
+      "p_threshold": 0.6667126417160034,
+      "n_test_kept": 824,
+      "overlap_with_4b_flips": 105,
+      "new_vs_4b": 719,
+      "directions": {
+        "M->L": 1,
+        "H->M": 823
+      }
+    },
+    "800": {
+      "p_threshold": 0.6058159470558167,
+      "n_test_kept": 1005,
+      "overlap_with_4b_flips": 106,
+      "new_vs_4b": 899,
+      "directions": {
+        "L->M": 1,
+        "M->L": 26,
+        "H->M": 978
+      }
+    },
+    "1283": {
+      "p_threshold": 0.48085135221481323,
+      "n_test_kept": 1235,
+      "overlap_with_4b_flips": 106,
+      "new_vs_4b": 1129,
+      "directions": {
+        "L->M": 3,
+        "M->L": 142,
+        "H->M": 1090
+      }
+    }
+  },
+  "candidates": {
+    "K50": {
+      "path": "submissions/submission_L5b_focal_topK50.csv",
+      "n_flips": 131,
+      "projected_lb": 0.9816443595907826
+    },
+    "K100": {
+      "path": "submissions/submission_L5b_focal_topK100.csv",
+      "n_flips": 268,
+      "projected_lb": 0.9816983150491093
+    },
+    "K200": {
+      "path": "submissions/submission_L5b_focal_topK200.csv",
+      "n_flips": 489,
+      "projected_lb": 0.9814531820765698
+    }
+  }
+}

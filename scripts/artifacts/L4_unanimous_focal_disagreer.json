@@ -1,0 +1,176 @@
+[
+  {
+    "label": "ALL14_ALL4",
+    "bank_min": 14,
+    "focal_min": 4,
+    "test_n_flips": 236,
+    "test_directions": {
+      "M->L": 5,
+      "H->M": 231
+    },
+    "oof_n_flips": 0,
+    "oof_overall_precision": NaN,
+    "oof_per_direction_precision": {}
+  },
+  {
+    "label": "ALL14_3of4",
+    "bank_min": 14,
+    "focal_min": 3,
+    "test_n_flips": 255,
+    "test_directions": {
+      "M->L": 6,
+      "H->M": 249
+    },
+    "oof_n_flips": 0,
+    "oof_overall_precision": NaN,
+    "oof_per_direction_precision": {}
+  },
+  {
+    "label": "13of14_ALL4",
+    "bank_min": 13,
+    "focal_min": 4,
+    "test_n_flips": 602,
+    "test_directions": {
+      "M->L": 33,
+      "H->M": 569
+    },
+    "oof_n_flips": 177,
+    "oof_overall_precision": 0.7796610169491526,
+    "oof_per_direction_precision": {
+      "M->L": [
+        71,
+        0.676056338028169
+      ],
+      "H->M": [
+        106,
+        0.8490566037735849
+      ]
+    }
+  },
+  {
+    "label": "13of14_3of4",
+    "bank_min": 13,
+    "focal_min": 3,
+    "test_n_flips": 656,
+    "test_directions": {
+      "M->L": 38,
+      "H->M": 618
+    },
+    "oof_n_flips": 228,
+    "oof_overall_precision": 0.7807017543859649,
+    "oof_per_direction_precision": {
+      "M->L": [
+        94,
+        0.6702127659574468
+      ],
+      "H->M": [
+        134,
+        0.8582089552238806
+      ]
+    }
+  },
+  {
+    "label": "12of14_ALL4",
+    "bank_min": 12,
+    "focal_min": 4,
+    "test_n_flips": 763,
+    "test_directions": {
+      "M->L": 56,
+      "H->M": 707
+    },
+    "oof_n_flips": 439,
+    "oof_overall_precision": 0.7562642369020501,
+    "oof_per_direction_precision": {
+      "L->M": [
+        9,
+        0.5555555555555556
+      ],
+      "M->L": [
+        158,
+        0.6265822784810127
+      ],
+      "H->M": [
+        272,
+        0.8382352941176471
+      ]
+    }
+  },
+  {
+    "label": "12of14_3of4",
+    "bank_min": 12,
+    "focal_min": 3,
+    "test_n_flips": 878,
+    "test_directions": {
+      "M->L": 70,
+      "H->M": 808
+    },
+    "oof_n_flips": 588,
+    "oof_overall_precision": 0.7534013605442177,
+    "oof_per_direction_precision": {
+      "L->M": [
+        9,
+        0.5555555555555556
+      ],
+      "M->L": [
+        222,
+        0.6351351351351351
+      ],
+      "H->M": [
+        357,
+        0.8319327731092437
+      ]
+    }
+  },
+  {
+    "label": "11of14_ALL4",
+    "bank_min": 11,
+    "focal_min": 4,
+    "test_n_flips": 841,
+    "test_directions": {
+      "M->L": 71,
+      "H->M": 770
+    },
+    "oof_n_flips": 581,
+    "oof_overall_precision": 0.7349397590361446,
+    "oof_per_direction_precision": {
+      "L->M": [
+        13,
+        0.46153846153846156
+      ],
+      "M->L": [
+        207,
+        0.5942028985507246
+      ],
+      "H->M": [
+        361,
+        0.8254847645429363
+      ]
+    }
+  },
+  {
+    "label": "10of14_3of4",
+    "bank_min": 10,
+    "focal_min": 3,
+    "test_n_flips": 1150,
+    "test_directions": {
+      "M->L": 113,
+      "H->M": 1037
+    },
+    "oof_n_flips": 1015,
+    "oof_overall_precision": 0.7123152709359606,
+    "oof_per_direction_precision": {
+      "L->M": [
+        24,
+        0.5
+      ],
+      "M->L": [
+        357,
+        0.5910364145658263
+      ],
+      "H->M": [
+        633,
+        0.7883096366508688
+      ]
+    }
+  }
+]
