@@ -1,0 +1,39 @@
+{
+  "candidate_csv": "submissions/submission_nonoverride_eqblend_v1raw_t1b.csv",
+  "method": "equal-weight (1/3,1/3,1/3) geomean of v1+raw+t1b, bias-tune on blend",
+  "components": [
+    {
+      "label": "v1",
+      "oof_bal_standalone": 0.980628290879414,
+      "lb": 0.98129,
+      "gap": -0.0006617091205859404
+    },
+    {
+      "label": "raw",
+      "oof_bal_standalone": 0.9800969378560188,
+      "lb": 0.98109,
+      "gap": -0.0009930621439812048
+    },
+    {
+      "label": "t1b",
+      "oof_bal_standalone": 0.9809009444453641,
+      "lb": 0.98094,
+      "gap": -3.905555463590282e-05
+    }
+  ],
+  "blend_oof_bal": 0.9808725123920152,
+  "blend_pcr": [
+    0.9944501063752139,
+    0.9695868224901076,
+    0.978580608310724
+  ],
+  "blend_bias": [
+    0.8324411632360974,
+    1.2689466919465482,
+    3.2007689020440884
+  ],
+  "arith_mean_oof_for_ref": 0.9807715857674997,
+  "diff_vs_primary_idea4b": 333,
+  "diff_vs_hedge_rf_natural": 327,
+  "note": "Equal-weight chosen to avoid OOF-selection-bias on weights. Single bias-tune is the standard calibration step, not a selectable hyperparameter. NO grid search, NO subset selection."
+}

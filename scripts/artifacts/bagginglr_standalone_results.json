@@ -1,0 +1,38 @@
+{
+  "candidate": "bagginglr_natural_standalone",
+  "oof_bal": 0.980654886970092,
+  "oof_pcr": [
+    0.9947907233244214,
+    0.9687837238679238,
+    0.9783902137179304
+  ],
+  "bias": [
+    0.4324411632360975,
+    0.8689466919465483,
+    3.400768902044088
+  ],
+  "v1_oof_bal": 0.980628290879414,
+  "v1_pcr": [
+    0.9946447446319039,
+    0.9693734994185901,
+    0.9778666285877481
+  ],
+  "delta_oof_vs_v1": 2.6596090677899475e-05,
+  "diffs_vs_refs": {
+    "v1 PRIMARY (LB 0.98129)": 456,
+    "idea4b PRIMARY (LB 0.98150)": 494,
+    "B (raw+t1b k=2 unan, LB 0.98140)": 486
+  },
+  "test_class_counts": [
+    159387,
+    100289,
+    10324
+  ],
+  "submission_path": "submissions/submission_bagginglr_natural_standalone.csv",
+  "purpose": "Test assumption: is v1's LB 0.98129 driven by RF L2 or by the bank? Same 7-component natural-cal bank, LR-bagging as L2 instead of RF.",
+  "expected_lb_ranges": {
+    "bank_carries_lift": ">=0.98129 (within noise of v1)",
+    "l2_matters_marginally": "0.98100-0.98128",
+    "rf_l2_essential": "<0.98100"
+  }
+}
