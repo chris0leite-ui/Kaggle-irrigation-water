@@ -5026,9 +5026,40 @@ architecture or feature view adds orthogonal bits at this base.
 
 ## Hypothesis board
 
-- **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
-  **LB 0.98094 / OOF tuned 0.98084** (gap **−0.00010** — LB above OOF,
-  first negative gap since digit-XGB era). Construction:
+- **Current best (LB)**: `submission_2other_raw_tier1b_k2.csv` →
+  **LB 0.98140 / OOF 0.98088** (gap **−0.00052**). Construction (per-row
+  hard argmax override on top of LB-best 4-stack):
+  ```
+  anchor  = LB-best 4-stack (lb3 + RealMLP + nonrule_iso + meta_iso, tuned bias)
+  others  = {rawashishsin v3 standalone, tier1b 4-stack standalone}
+  override_rule:  if BOTH others agree on a class != anchor's argmax,
+                  flip anchor's prediction to that class.
+  result:  145 test overrides
+              H→M:  88 (LB-best demoted by raw+tier1b unanimous)
+              M→L:  32
+              M→H:  14
+              L→M:  11
+  ```
+  Pack 0.98148 now only **+0.00008 above** (1bp from pack-busting);
+  leader 0.98219 only **+0.00079 above**. LB budget: 2/10 used today
+  (B + TC1 probes), 8 remaining.
+
+- **LB ladder (top of stack, latest):**
+  ```
+  rank  submission                                          LB        OOF       gap
+  ────  ──────────────────────────────────────────────────────────  ────────  ────────  ────────
+   1    submission_2other_raw_tier1b_k2.csv (override B)    0.98140   0.98088  -0.00052
+   2    submission_lbbest_overridden_by_unanimous_others    0.98134   ~0.98078 -0.00056   (k=4 unanimous)
+   3    submission_sklearn_rf_meta_natural_standalone       0.98129   0.98063  -0.00066   (v1 RF natural-cal meta)
+   4    submission_rawashishsin_2600_standalone.csv         0.98109   0.98016  -0.00093   (LB-validated OTHER)
+   5    submission_tier1b_greedy_meta.csv                   0.98094   0.98084  -0.00010   (LB-validated OTHER)
+   6    submission_3way_recipe025_s1035_s7040.csv           0.98005   0.98029  +0.00024
+   7    submission_recipe_greedy_recipe_pseudolabel.csv     0.97998   0.98012  +0.00014
+  ```
+
+- **Prior LB-best (own-pipeline, pre-override family)**:
+  `submission_tier1b_greedy_meta.csv` → LB 0.98094 / OOF 0.98084.
+  Construction:
   ```
   lb3      = log_blend(recipe_full_te, recipe_pseudolabel, recipe_pseudolabel_seed7labeler;
                        0.25/0.35/0.40)
@@ -5037,9 +5068,6 @@ architecture or feature view adds orthogonal bits at this base.
   final    = log_blend(stack2, xgb_metastack_iso;       0.70/0.30)     ← Tier-1b new step
   pred     = argmax(log(final) + [1.4324, 1.4689, 3.4008])
   ```
-  Pack 0.98114 now only **+0.00020 above**; leader 0.98219 only **+0.00125 above**.
-  LB budget: **3/10 used today** (3 = 1 recipe_full_te baseline from earlier,
-  1 LB-best-3-stack confirmation, 1 new probe). 7 remaining.
 
 - **Saturation status (2026-04-25 end-of-day)**: the new LB-best 4-stack
   is locally saturated against THREE independent attack vectors tested
@@ -19486,3 +19514,35 @@ filtering step added inline (similar pattern to
 - Mechanism family closed for winner-anchored ADD-H of any footprint.
   All remaining unprobed ADD-H winner-anchored candidates on disk
   (W3_HM_and_MH_only, W3_HMonly) project similar or worse outcomes.
+---
+
+## Session log addenda (modular, post-2026-04-29 cutoff)
+
+The session-log entries below were written as separate short files to
+keep CLAUDE.md from growing unbounded. **Read these for the current LB
+state and recent breakthroughs.** Each file is self-contained.
+
+- **2026-04-29 (evening) — k=4 unanimous override → NEW LB BEST 0.98134**
+  → `audit/2026-04-29-override-mechanism-0.98134.md`
+  First per-row hard-override mechanism. Broke prior closure rule
+  "REMOVE-High direction always LB-regresses" (net_H = −51 yet LB +0.00005).
+  Consensus signal hits 96% precision on H→M direction.
+
+- **2026-04-30 (early) — 2-OTHER k=2 unanimous → NEW LB BEST 0.98140**
+  → `audit/2026-04-30-override-saturation-0.98140.md`
+  Pack 0.98148 now +0.00008 above. Counter-intuitive carryover finding:
+  stricter consensus on the 2 most-distinct OTHERS (rawashishsin +
+  tier1b 4-stack) gives 0.52× transfer vs k=4 unanimous's 0.33×. TC1
+  follow-up confirmed override family is **saturated on this OTHERS pool**.
+
+- **2026-04-30 (final-day) — variants A/B/C + X1a + L2 + TabNet scaffolds**
+  → `audit/2026-04-30-final-day-followups.md`
+  Three more NULLs (soft router, ExtraTrees swap, router-as-feature).
+  L2 SupCon-NCM (paradigm-break: distance-based decision rule, no bias
+  retune) and TabNet (17th NN family) scaffolded but untested.
+
+**Current LB-best**: `submission_2other_raw_tier1b_k2.csv` → **LB 0.98140**.
+**Recommended hedge**: `submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+→ LB 0.98129 (orthogonal failure mode — base architecture without
+override layer; primary's failure mode depends on consensus structure,
+hedge doesn't).
