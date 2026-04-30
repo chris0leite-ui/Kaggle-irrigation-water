@@ -1,0 +1,28 @@
+{
+  "n_total": 7631,
+  "n_triple": 528,
+  "n_borderline_and_4b_disagrees_bank": 1269,
+  "top500_score_distribution": {
+    "3": 186,
+    "4": 13,
+    "5": 34,
+    "6": 248,
+    "7": 19
+  },
+  "top500_4b_class_distribution": {
+    "Medium": 198,
+    "Low": 164,
+    "High": 138
+  },
+  "top500_bank_argmax_distribution": {
+    "Medium": 323,
+    "Low": 177
+  },
+  "top500_bank_max_prob_quantiles": {
+    "q1": 0.5063948541879654,
+    "q25": 0.6155145317316055,
+    "q50": 0.7382001876831055,
+    "q75": 0.807184249162674,
+    "q99": 0.8404913908243179
+  }
+}

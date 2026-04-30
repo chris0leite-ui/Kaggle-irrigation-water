@@ -1137,3 +1137,4 @@ scripts/artifacts/_v1pcb_fold*.json
 /kaggle_kernel/output_a2_prod/va_idx_*
 kaggle_kernel/kernel_*/smoke_output/
 kaggle_kernel/kernel_*/probe_output/
+scripts/artifacts/T1_smoke/
