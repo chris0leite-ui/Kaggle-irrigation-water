@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/user/Kaggle-irrigation-water/.claude/hooks/inject_lb_state.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
