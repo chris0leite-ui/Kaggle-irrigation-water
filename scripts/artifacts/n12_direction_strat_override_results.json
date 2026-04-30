@@ -1,0 +1,57 @@
+{
+  "anchor": "submission_2other_raw_tier1b_k2.csv (LB 0.98140)",
+  "v1_test_anchor": "submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv",
+  "winner_v1_test_diff": 286,
+  "test_direction_counts": {
+    "Low->Medium": 8,
+    "Medium->Low": 95,
+    "Medium->High": 134,
+    "High->Medium": 49
+  },
+  "oof_direction_stats": {
+    "Low->Medium": {
+      "n": 16,
+      "prec": 0.25,
+      "be": 0.39257394608458906,
+      "margin": -0.14257394608458906,
+      "verdict": "REVERT"
+    },
+    "Medium->Low": {
+      "n": 94,
+      "prec": 0.574468085106383,
+      "be": 0.6074260539154108,
+      "margin": -0.03295796880902779,
+      "verdict": "REVERT"
+    },
+    "Medium->High": {
+      "n": 97,
+      "prec": 0.17525773195876287,
+      "be": 0.08077805931183507,
+      "margin": 0.0944796726469278,
+      "verdict": "KEEP"
+    },
+    "High->Medium": {
+      "n": 149,
+      "prec": 0.959731543624161,
+      "be": 0.9192219406881649,
+      "margin": 0.04050960293599615,
+      "verdict": "KEEP"
+    }
+  },
+  "revert_dirs": [
+    "Low->Medium",
+    "Medium->Low"
+  ],
+  "keep_dirs": [
+    "Medium->High",
+    "High->Medium"
+  ],
+  "n_reverted_per_variant": {
+    "REVERT_WEAK": 103,
+    "REVERT_ML_ONLY": 95,
+    "REVERT_LM_ONLY": 8,
+    "REVERT_ALL": 286
+  },
+  "estimated_macro_delta_REVERT_WEAK": 9.804905619657353e-06,
+  "projected_LB_REVERT_WEAK": 0.9814098049056197
+}

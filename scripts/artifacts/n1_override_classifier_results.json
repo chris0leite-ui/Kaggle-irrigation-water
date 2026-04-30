@@ -1,0 +1,42 @@
+{
+  "OOF_AUC": 0.8804347826086957,
+  "baseline_v1_OOF": 0.980628290879414,
+  "FULL_k2_OOF": 0.9808783108317461,
+  "FILTERED_OOF": 0.9808919978328734,
+  "delta_FILTERED_vs_FULL_OOF": 1.368700112724941e-05,
+  "delta_FILTERED_vs_v1_OOF": 0.0002637069534593417,
+  "n_oof_kept": 329,
+  "n_oof_candidates": 356,
+  "n_test_kept": 110,
+  "n_test_candidates": 118,
+  "diff_vs_winner": 184,
+  "direction_precision": {
+    "Low->Medium": {
+      "n": 16,
+      "prec": 0.25,
+      "BE": 0.39257394608458906
+    },
+    "Medium->Low": {
+      "n": 94,
+      "prec": 0.574468085106383,
+      "BE": 0.6074260539154108
+    },
+    "Medium->High": {
+      "n": 97,
+      "prec": 0.17525773195876287,
+      "BE": 0.08077805931183507
+    },
+    "High->Medium": {
+      "n": 149,
+      "prec": 0.959731543624161,
+      "BE": 0.9192219406881649
+    }
+  },
+  "direction_thresholds": {
+    "Low->Medium": 1.01,
+    "Medium->Low": 0.1970600038766861,
+    "Medium->High": 0.0,
+    "High->Medium": 0.0
+  },
+  "submission": "submissions/submission_n1_override_classifier_filtered.csv"
+}
