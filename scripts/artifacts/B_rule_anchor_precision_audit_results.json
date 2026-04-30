@@ -1,0 +1,107 @@
+{
+  "global_rule_acc": 0.9836444444444444,
+  "filters": [
+    {
+      "band": "low_safe",
+      "n_diff": 3,
+      "prec_diff": 0.0,
+      "n_bank_confirms": 1,
+      "prec_bank_confirms": 0.0,
+      "directions": {
+        "1->0": {
+          "n": 3,
+          "prec": 0.0
+        }
+      }
+    },
+    {
+      "band": "low_band",
+      "n_diff": 1282,
+      "prec_diff": 0.36817472698907955,
+      "n_bank_confirms": 521,
+      "prec_bank_confirms": 0.527831094049904,
+      "directions": {
+        "1->0": {
+          "n": 1282,
+          "prec": 0.36817472698907955
+        }
+      }
+    },
+    {
+      "band": "mid_band",
+      "n_diff": 3953,
+      "prec_diff": 0.6202883885656464,
+      "n_bank_confirms": 2648,
+      "prec_bank_confirms": 0.8055135951661632,
+      "directions": {
+        "0->1": {
+          "n": 179,
+          "prec": 0.061452513966480445
+        },
+        "2->1": {
+          "n": 3774,
+          "prec": 0.6467938526762056
+        }
+      }
+    },
+    {
+      "band": "high_band",
+      "n_diff": 823,
+      "prec_diff": 0.004860267314702308,
+      "n_bank_confirms": 0,
+      "prec_bank_confirms": 0.0,
+      "directions": {
+        "1->2": {
+          "n": 823,
+          "prec": 0.004860267314702308
+        }
+      }
+    },
+    {
+      "band": "high_safe",
+      "n_diff": 161,
+      "prec_diff": 0.012422360248447204,
+      "n_bank_confirms": 0,
+      "prec_bank_confirms": 0.0,
+      "directions": {
+        "1->2": {
+          "n": 161,
+          "prec": 0.012422360248447204
+        }
+      }
+    }
+  ],
+  "bank_max_sweep_extreme": [],
+  "bank_max_sweep_safe": [
+    {
+      "tau": 0.6,
+      "n": 1,
+      "prec": 0.0,
+      "oof_delta": -1.3942684412571182e-06
+    },
+    {
+      "tau": 0.65,
+      "n": 1,
+      "prec": 0.0,
+      "oof_delta": -1.3942684412571182e-06
+    },
+    {
+      "tau": 0.7,
+      "n": 1,
+      "prec": 0.0,
+      "oof_delta": -1.3942684412571182e-06
+    },
+    {
+      "tau": 0.75,
+      "n": 1,
+      "prec": 0.0,
+      "oof_delta": -1.3942684412571182e-06
+    },
+    {
+      "tau": 0.8,
+      "n": 1,
+      "prec": 0.0,
+      "oof_delta": -1.3942684412571182e-06
+    }
+  ]
+}
