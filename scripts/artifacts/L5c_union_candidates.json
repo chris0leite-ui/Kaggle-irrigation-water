@@ -1,0 +1,54 @@
+{
+  "thresholds": {
+    "50": [
+      0.8289,
+      0.9592
+    ],
+    "100": [
+      0.7995,
+      0.9381
+    ],
+    "200": [
+      0.7577,
+      0.9101
+    ]
+  },
+  "candidates": {
+    "K50": {
+      "path": "submissions/submission_L5c_4bUnionK50.csv",
+      "p_threshold": 0.8289,
+      "oof_h_to_m_precision": 0.9592,
+      "n_new_flips": 90,
+      "n_total_flips": 198,
+      "new_directions": {
+        "H->M": 90
+      },
+      "projected_lb": 0.9816679331702501,
+      "delta_vs_4b": 0.0001679331702501438
+    },
+    "K100": {
+      "path": "submissions/submission_L5c_4bUnionK100.csv",
+      "p_threshold": 0.7995,
+      "oof_h_to_m_precision": 0.9381,
+      "n_new_flips": 202,
+      "n_total_flips": 310,
+      "new_directions": {
+        "H->M": 202
+      },
+      "projected_lb": 0.9817245292453946,
+      "delta_vs_4b": 0.00022452924539455863
+    },
+    "K200": {
+      "path": "submissions/submission_L5c_4bUnionK200.csv",
+      "p_threshold": 0.7577,
+      "oof_h_to_m_precision": 0.9101,
+      "n_new_flips": 395,
+      "n_total_flips": 503,
+      "new_directions": {
+        "H->M": 395
+      },
+      "projected_lb": 0.9815436239661395,
+      "delta_vs_4b": 4.362396613949394e-05
+    }
+  }
+}
