@@ -1,0 +1,51 @@
+pseudo_id,rule_score,rule_pred,opus_final,opus_conf,opus_reason,row_idx,true_label
+2205146,6,Medium,High,0.7,"Dry, very hot, flowering, low humidity, low OC, low PI — over-irrigate signals.",205146,High
+2560276,6,Medium,Medium,0.75,"Not hot, soil moisture 44, no flip-up signals.",560276,Medium
+2470500,6,Medium,Medium,0.65,"Mulched, humid 60, high rain, decent OC — flip-down M.",470500,Medium
+2565572,6,Medium,Medium,0.8,"Cold T=12.6, very high rain, high OC 1.53 — clear M.",565572,Medium
+2519933,6,Medium,Medium,0.55,"High PI=110, high rain, bank 0.83 — lean M despite dry+hot.",519933,Medium
+2488167,6,Medium,Medium,0.65,"Not hot T=21.5, bank 0.847 strong — M.",488167,Medium
+2337247,6,Medium,High,0.55,"Very dry, hot 39.7, flowering, low humidity — lean H.",337247,Medium
+2248727,7,High,High,0.85,"Rule score=7, hot, windy, no rain — solid H.",248727,Medium
+2275003,6,Medium,Medium,0.75,"Not hot T=22, humid 64, high rain, very high PI=104 — M.",275003,Medium
+2175842,6,Medium,Medium,0.75,"Mulched, humidity 83, high PI=108, high rain — M.",175842,Medium
+2508858,6,Medium,Medium,0.75,"Not hot T=22, very high rain, very high PI=103 — M.",508858,Medium
+2276038,6,Medium,Medium,0.8,"Very humid 82, very high rain, decent OC and PI — M.",276038,Medium
+2058519,8,High,High,0.85,"Rule score=8, dry, no rain, windy, vegetative — solid H.",58519,Medium
+2287648,6,Medium,Medium,0.8,"Humidity 90, high OC 1.54 — strong flip-down to M.",287648,Medium
+2435904,6,Medium,High,0.5,"Very dry SM=8, hot, very low PI=6, nomulch — over-irrigate lean H.",435904,Medium
+2120737,7,High,High,0.85,"Rule score=7, dry, no rain, hot, windy — solid H.",120737,Medium
+2587923,6,Medium,High,0.5,"Very dry, hot, low OC 0.72 — lean H; mulch and PI partially offset.",587923,Medium
+2229489,6,Medium,Medium,0.75,"Not hot T=28.5, high rain, very high PI=101 — M.",229489,Medium
+2390577,6,Medium,Medium,0.55,"Not hot T=25, high rain — lean M.",390577,Medium
+2577153,6,Medium,Medium,0.65,"Mulched, humid 66, very high PI=102 — M.",577153,Medium
+2080277,6,Medium,High,0.55,"Very hot 39, low humidity 27, flowering — over-irrigate lean H.",80277,Medium
+2397377,7,High,High,0.8,"Rule score=7, dry, no rain, vegetative — solid H.",397377,Medium
+2221022,6,Medium,Medium,0.55,"Mulched, humid 66, very high rain — lean M.",221022,Medium
+2273242,5,Medium,Medium,0.85,"Rule score=5, wet soil, not hot, mulched — clear M.",273242,High
+2610276,6,Medium,High,0.5,"Dry, hot, low OC 0.59, very low PI=17 — over-irrigate H.",610276,High
+2611417,6,Medium,Medium,0.8,"Mulched, humidity 93 extreme, very high rain — strong M.",611417,Medium
+2440134,6,Medium,Medium,0.65,"Humid 73, high rain, high PI=90 — M.",440134,Medium
+2046413,6,Medium,Medium,0.65,"Not hot T=26, humid 82, high OC, high PI — M.",46413,Medium
+2292328,6,Medium,High,0.5,"Dry SM=14, hot 34, mid hum, mid PI — slight lean H.",292328,Medium
+2339203,6,Medium,Medium,0.55,"Mulched, humid 60, mid PI; v1 also Medium — M.",339203,Medium
+2100199,5,Medium,Medium,0.8,"Rule score=5, SM=34 not dry — clear M.",100199,Medium
+2525171,6,Medium,Medium,0.75,"Bank 0.859 very strong, humid 65, high OC 1.43 — M.",525171,Medium
+2469802,6,Medium,Medium,0.7,"Very high rain, very high PI=102, bank 0.827 — M.",469802,Medium
+2227538,5,Medium,Medium,0.85,"Rule score=5, wet soil 58, not hot, mulched — clear M.",227538,Medium
+2105212,6,Medium,High,0.55,"Very hot 41.6, low OC 0.49, flowering — lean H over-irrigate.",105212,Medium
+2308354,6,Medium,Medium,0.65,"Not hot T=21.7, humid 73, high OC 1.58 — M.",308354,Medium
+2255632,6,Medium,Medium,0.55,"Not hot T=21.9, mid signals — lean M.",255632,Medium
+2542379,6,Medium,Medium,0.55,"SM=42 not dry, very high PI=100 — flip-down M.",542379,High
+2332491,7,High,High,0.75,"Rule score=7, dry, no rain, vegetative — H (T=29.95 just under hot).",332491,Medium
+2287861,7,High,High,0.85,"Rule score=7, dry, very hot 40.8, windy, vegetative — solid H.",287861,Medium
+2476839,6,Medium,Medium,0.75,"Cold T=19, very high rain, mid PI=67 — clear M.",476839,Medium
+2431067,7,High,High,0.55,"Rule score=7 (mulched but rule still 7), dry, no rain, vegetative — H.",431067,Medium
+2143358,5,Medium,Medium,0.85,"Rule score=5, mulched, very high rain — clear M.",143358,Medium
+2042305,6,Medium,Medium,0.7,"Not hot T=25, humid 66, high rain, mid PI — M.",42305,High
+2232866,6,Medium,Medium,0.7,"Humidity 90 extreme, very high rain — flip-down M despite hot.",232866,Medium
+2026104,6,Medium,Medium,0.55,"SM=27 not dry, very high PI=102 — flip-down M despite very hot.",26104,High
+2122963,6,Medium,High,0.55,"Dry, hot, low humidity 31, low OC 0.53, flowering — over-irrigate H.",122963,High
+2040044,6,Medium,Medium,0.6,"Not hot T=27, humid 78, very high rain — flip-down M.",40044,Medium
+2475052,5,Medium,Medium,0.85,"Rule score=5, very cold T=13, mulched — clear M.",475052,Medium
+2423806,6,Medium,Medium,0.65,"Humid 64, high rain, high PI=90 — M.",423806,Medium

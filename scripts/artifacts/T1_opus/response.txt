@@ -1,0 +1,349 @@
+ROW 2205146
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: Dry, very hot, flowering, low humidity, low OC, low PI — over-irrigate signals.
+
+ROW 2560276
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Not hot, soil moisture 44, no flip-up signals.
+
+ROW 2470500
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Mulched, humid 60, high rain, decent OC — flip-down M.
+
+ROW 2565572
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Cold T=12.6, very high rain, high OC 1.53 — clear M.
+
+ROW 2519933
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: High PI=110, high rain, bank 0.83 — lean M despite dry+hot.
+
+ROW 2488167
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Not hot T=21.5, bank 0.847 strong — M.
+
+ROW 2337247
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.55
+REASON: Very dry, hot 39.7, flowering, low humidity — lean H.
+
+ROW 2248727
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule score=7, hot, windy, no rain — solid H.
+
+ROW 2275003
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Not hot T=22, humid 64, high rain, very high PI=104 — M.
+
+ROW 2175842
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Mulched, humidity 83, high PI=108, high rain — M.
+
+ROW 2508858
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Not hot T=22, very high rain, very high PI=103 — M.
+
+ROW 2276038
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very humid 82, very high rain, decent OC and PI — M.
+
+ROW 2058519
+RULE_SCORE: 8
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule score=8, dry, no rain, windy, vegetative — solid H.
+
+ROW 2287648
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Humidity 90, high OC 1.54 — strong flip-down to M.
+
+ROW 2435904
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.50
+REASON: Very dry SM=8, hot, very low PI=6, nomulch — over-irrigate lean H.
+
+ROW 2120737
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule score=7, dry, no rain, hot, windy — solid H.
+
+ROW 2587923
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.50
+REASON: Very dry, hot, low OC 0.72 — lean H; mulch and PI partially offset.
+
+ROW 2229489
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Not hot T=28.5, high rain, very high PI=101 — M.
+
+ROW 2390577
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: Not hot T=25, high rain — lean M.
+
+ROW 2577153
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Mulched, humid 66, very high PI=102 — M.
+
+ROW 2080277
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.55
+REASON: Very hot 39, low humidity 27, flowering — over-irrigate lean H.
+
+ROW 2397377
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.80
+REASON: Rule score=7, dry, no rain, vegetative — solid H.
+
+ROW 2221022
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: Mulched, humid 66, very high rain — lean M.
+
+ROW 2273242
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Rule score=5, wet soil, not hot, mulched — clear M.
+
+ROW 2610276
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.50
+REASON: Dry, hot, low OC 0.59, very low PI=17 — over-irrigate H.
+
+ROW 2611417
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Mulched, humidity 93 extreme, very high rain — strong M.
+
+ROW 2440134
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Humid 73, high rain, high PI=90 — M.
+
+ROW 2046413
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Not hot T=26, humid 82, high OC, high PI — M.
+
+ROW 2292328
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.50
+REASON: Dry SM=14, hot 34, mid hum, mid PI — slight lean H.
+
+ROW 2339203
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: Mulched, humid 60, mid PI; v1 also Medium — M.
+
+ROW 2100199
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule score=5, SM=34 not dry — clear M.
+
+ROW 2525171
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Bank 0.859 very strong, humid 65, high OC 1.43 — M.
+
+ROW 2469802
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Very high rain, very high PI=102, bank 0.827 — M.
+
+ROW 2227538
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Rule score=5, wet soil 58, not hot, mulched — clear M.
+
+ROW 2105212
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.55
+REASON: Very hot 41.6, low OC 0.49, flowering — lean H over-irrigate.
+
+ROW 2308354
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Not hot T=21.7, humid 73, high OC 1.58 — M.
+
+ROW 2255632
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: Not hot T=21.9, mid signals — lean M.
+
+ROW 2542379
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: SM=42 not dry, very high PI=100 — flip-down M.
+
+ROW 2332491
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.75
+REASON: Rule score=7, dry, no rain, vegetative — H (T=29.95 just under hot).
+
+ROW 2287861
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule score=7, dry, very hot 40.8, windy, vegetative — solid H.
+
+ROW 2476839
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Cold T=19, very high rain, mid PI=67 — clear M.
+
+ROW 2431067
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.55
+REASON: Rule score=7 (mulched but rule still 7), dry, no rain, vegetative — H.
+
+ROW 2143358
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Rule score=5, mulched, very high rain — clear M.
+
+ROW 2042305
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Not hot T=25, humid 66, high rain, mid PI — M.
+
+ROW 2232866
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Humidity 90 extreme, very high rain — flip-down M despite hot.
+
+ROW 2026104
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: SM=27 not dry, very high PI=102 — flip-down M despite very hot.
+
+ROW 2122963
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.55
+REASON: Dry, hot, low humidity 31, low OC 0.53, flowering — over-irrigate H.
+
+ROW 2040044
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: Not hot T=27, humid 78, very high rain — flip-down M.
+
+ROW 2475052
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Rule score=5, very cold T=13, mulched — clear M.
+
+ROW 2423806
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Humid 64, high rain, high PI=90 — M.

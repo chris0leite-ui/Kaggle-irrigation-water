@@ -1139,4 +1139,7 @@ kaggle_kernel/kernel_*/smoke_output/
 kaggle_kernel/kernel_*/probe_output/
 scripts/artifacts/T1_smoke/
 scripts/artifacts/T1_opus/prompt.txt
-scripts/artifacts/T1_opus/response.txt
+# response.txt and scored.csv kept tracked — costly to regenerate (~$0.50/call)
+!scripts/artifacts/T1_opus/response.txt
+!scripts/artifacts/T1_opus/scored.csv
+!scripts/artifacts/T1_opus/eval_keys.csv
