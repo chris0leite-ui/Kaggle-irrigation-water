@@ -1,0 +1,72 @@
+{
+  "per_focal_variant": [
+    {
+      "name": "recipe_focal_g2h3",
+      "n_flips_vs_B": 1213,
+      "directions": {
+        "L->M": 2,
+        "M->L": 137,
+        "H->M": 1074
+      },
+      "diff_vs_4b": 1111,
+      "flips_in_4b_not_here": 3,
+      "flips_here_not_in_4b": 1108,
+      "flips_overlap_with_4b": 105
+    },
+    {
+      "name": "recipe_focal_g2_aH1",
+      "n_flips_vs_B": 956,
+      "directions": {
+        "L->M": 3,
+        "M->L": 119,
+        "H->M": 834
+      },
+      "diff_vs_4b": 870,
+      "flips_in_4b_not_here": 11,
+      "flips_here_not_in_4b": 859,
+      "flips_overlap_with_4b": 97
+    },
+    {
+      "name": "recipe_focal_g2_invfreq",
+      "n_flips_vs_B": 1215,
+      "directions": {
+        "L->M": 2,
+        "M->L": 133,
+        "H->M": 1080
+      },
+      "diff_vs_4b": 1111,
+      "flips_in_4b_not_here": 2,
+      "flips_here_not_in_4b": 1109,
+      "flips_overlap_with_4b": 106
+    },
+    {
+      "name": "recipe_focal_effnum",
+      "n_flips_vs_B": 1237,
+      "directions": {
+        "L->M": 2,
+        "M->L": 140,
+        "H->M": 1095
+      },
+      "diff_vs_4b": 1133,
+      "flips_in_4b_not_here": 2,
+      "flips_here_not_in_4b": 1131,
+      "flips_overlap_with_4b": 106
+    },
+    {
+      "name": "focal_majority(4)",
+      "n_flips_vs_B": 1239,
+      "directions": {
+        "L->M": 2,
+        "M->L": 143,
+        "H->M": 1094
+      },
+      "diff_vs_4b": 1135,
+      "flips_in_4b_not_here": 2,
+      "flips_here_not_in_4b": 1133,
+      "flips_overlap_with_4b": 106
+    }
+  ],
+  "union_total_flips": 1241,
+  "union_4b_flips": 108,
+  "union_focal_only_new_flips": 1133
+}

@@ -1,0 +1,64 @@
+{
+  "consensus_rate_4way": 0.9972380952380953,
+  "consensus_unconditional_precision": 0.9882230286823926,
+  "focal_maj_overall_oof_acc": 0.9868063492063492,
+  "bank_maj_overall_oof_acc": 0.9873380952380952,
+  "by_anchor": {
+    "lgbm_meta_natural": {
+      "n_flips": 496,
+      "overall_precision": 0.45161290322580644,
+      "directions": {
+        "L->M": 76,
+        "M->L": 159,
+        "M->H": 214,
+        "H->M": 47
+      },
+      "per_direction_precision": {
+        "L->M": [
+          76,
+          0.4342105263157895
+        ],
+        "M->L": [
+          159,
+          0.4528301886792453
+        ],
+        "M->H": [
+          214,
+          0.4485981308411215
+        ],
+        "H->M": [
+          47,
+          0.48936170212765956
+        ]
+      }
+    },
+    "rawashishsin_2600": {
+      "n_flips": 1310,
+      "overall_precision": 0.6809160305343511,
+      "directions": {
+        "L->M": 48,
+        "M->L": 451,
+        "M->H": 18,
+        "H->M": 793
+      },
+      "per_direction_precision": {
+        "L->M": [
+          48,
+          0.4791666666666667
+        ],
+        "M->L": [
+          451,
+          0.5787139689578714
+        ],
+        "M->H": [
+          18,
+          0.3333333333333333
+        ],
+        "H->M": [
+          793,
+          0.7591424968474149
+        ]
+      }
+    }
+  }
+}
