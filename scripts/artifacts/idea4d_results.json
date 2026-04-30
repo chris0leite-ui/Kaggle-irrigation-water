@@ -1,0 +1,36 @@
+{
+  "anchor": "4b LB 0.98150",
+  "bank_names": [
+    "xgb_corn",
+    "recipe_full_te_macrorec_T1_lam03",
+    "recipe_full_te_basemargin_K2",
+    "recipe_full_te_residte"
+  ],
+  "filters": {
+    "k4_unan_RTunan_dirOK": {
+      "n_flips": 0
+    },
+    "k3_maj_RTunan_dirOK": {
+      "n_flips": 0
+    },
+    "k4_unan_RTunan_anydir": {
+      "n_flips": 0
+    },
+    "k3_maj_RTunan_anydir": {
+      "n_flips": 0
+    },
+    "k4_unan_dirOK": {
+      "n_flips": 163,
+      "dirs": {
+        "L->M": 12,
+        "M->L": 151
+      },
+      "net_h": 0,
+      "proj@0.30": 0.98124,
+      "proj@0.50": 0.98141,
+      "proj@0.65": 0.98155,
+      "proj@0.80": 0.98168
+    }
+  },
+  "emitted": []
+}
