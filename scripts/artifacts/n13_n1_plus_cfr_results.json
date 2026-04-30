@@ -1,0 +1,17 @@
+{
+  "OOF_AUC": 0.8859859061295039,
+  "baseline_v1": 0.980628290879414,
+  "FULL_k2": 0.9808783108317461,
+  "FILTERED": 0.980891181957595,
+  "delta_filt_vs_full": 1.2871125848801235e-05,
+  "n_oof_kept": 323,
+  "n_test_kept": 109,
+  "diff_vs_winner": 185,
+  "direction_thresholds": {
+    "Low->Medium": 1.01,
+    "Medium->Low": 0.26851001381874084,
+    "Medium->High": 0.0,
+    "High->Medium": 0.0
+  },
+  "submission": "submissions/submission_n13_n1_plus_cfr.csv"
+}

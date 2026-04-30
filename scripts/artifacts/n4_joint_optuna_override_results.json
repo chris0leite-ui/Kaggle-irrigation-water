@@ -1,0 +1,41 @@
+{
+  "base_v1_OOF": 0.980628290879414,
+  "best_OOF": 0.9808783108317461,
+  "delta_vs_v1_OOF": 0.0002500199523320923,
+  "delta_vs_LB_best_winner_OOF": 0.0,
+  "best_subset": [
+    "raw",
+    "t1b"
+  ],
+  "best_k_per_dir": [
+    [
+      0,
+      2,
+      2
+    ],
+    [
+      2,
+      0,
+      2
+    ],
+    [
+      2,
+      2,
+      0
+    ]
+  ],
+  "n_oof_overrides": 356,
+  "n_test_overrides": 118,
+  "diff_vs_LB_best_winner": 184,
+  "OOF_PCR": [
+    0.9947582836149731,
+    0.9694864351623347,
+    0.9783902137179304
+  ],
+  "v1_PCR": [
+    0.9946447446319039,
+    0.9693734994185901,
+    0.9778666285877481
+  ],
+  "submission": "submissions/submission_n4_optuna_override.csv"
+}

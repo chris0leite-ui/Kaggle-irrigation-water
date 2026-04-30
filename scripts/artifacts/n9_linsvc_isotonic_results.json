@@ -1,0 +1,16 @@
+{
+  "OOF_argmax": 0.9508495030047968,
+  "OOF_tuned": 0.9629348701868289,
+  "bias": [
+    0.6324411632360972,
+    1.068946691946548,
+    3.400768902044088
+  ],
+  "PCR_L": 0.9960369488290617,
+  "PCR_M": 0.9635468516024327,
+  "PCR_H": 0.9292208101289924,
+  "diff_oof_vs_v1": 7328,
+  "diff_test_vs_v1": 3137,
+  "n_features": 36,
+  "submission": "submissions/submission_n9_linsvc_isotonic.csv"
+}
