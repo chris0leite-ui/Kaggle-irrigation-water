@@ -158,6 +158,31 @@ def main(name):
     sub_path = SUB / f"submission_{name}_{config_name}.csv"
     pd.DataFrame({"id": test_ids, TARGET: [IDX2CLS[i] for i in test_pred]}).to_csv(sub_path, index=False)
     print(f"emitted {sub_path}")
+
+    # CLAUDE.md rule (2026-04-30): verify candidate not already LB-tested.
+    # Single-line guard via lb_status.py.
+    import subprocess
+    try:
+        guard = subprocess.run(
+            ["python", str(Path(__file__).parent / "lb_status.py"), sub_path.name],
+            capture_output=True, text=True, timeout=60,
+        )
+        if guard.returncode == 0:
+            # Already submitted — print actual LB result instead of recommending submit
+            print(f"\n*** WARNING: this candidate has ALREADY been LB-probed ***")
+            print(f"  {guard.stdout.strip()}")
+            print(f"  DO NOT re-submit. Surface the actual LB result above.")
+            return
+        elif guard.returncode == 1:
+            # Not yet probed — safe to recommend
+            print(f"\nLB-status check: {guard.stdout.strip()}")
+        else:
+            print(f"\nWARNING: lb_status.py guard errored ({guard.returncode}); "
+                  f"manually verify before LB-probing.")
+    except Exception as e:
+        print(f"\nWARNING: lb_status.py guard failed ({e}); "
+              f"manually verify before LB-probing.")
+
     print(f"\nLB-probe command (REQUIRES USER APPROVAL):")
     print(f"  kaggle competitions submit -f {sub_path} -m 'path={name} {config_name} OOF={oof:.5f}' -c playground-series-s6e4")
 
