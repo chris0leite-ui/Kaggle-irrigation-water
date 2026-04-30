@@ -1,0 +1,524 @@
+ROW 7100302
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.52
+REASON: High amh but knn weak, bank split 11M/2H; moderate signals
+
+ROW 7100555
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: Low knn_consensus=0.14; mulched, humid; bank 12M/1H leans M
+
+ROW 7101207
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 4H votes in bank, all 3 subs say H, low knn consensus
+
+ROW 7101557
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous bank despite high amh; t1=M anchors M
+
+ROW 7101675
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: All 3 subs H, 12M/2H split, weak knn; multiple H signals
+
+ROW 7101756
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous bank; high amh but bank fully unanimous M
+
+ROW 7101763
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: Mulched lowers H risk; knn 0.76 M; bank 10M/3H moderate split
+
+ROW 7102675
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/1H bank, raw=M; high amh but M-anchor signals present
+
+ROW 7103086
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 9M/4H bank split strong H lean, both non-t1 subs say H
+
+ROW 7103936
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: High humidity=92, previous irr 94mm; bank 10M/3H moderate
+
+ROW 7104034
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/1H bank, t1=M; high rainfall offsets dry soil signal
+
+ROW 7104421
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.57
+REASON: Mulched, high humidity 87, raw=M; knn very low 0.18
+
+ROW 7104756
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 12M/1H/1L bank, t1=M; very high rainfall offsets hot signal
+
+ROW 7104849
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 8M/5H split strong H lean, very low knn=0.08; mulched only partial offset
+
+ROW 7105212
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/1H bank; high rainfall mitigates; moderate confidence
+
+ROW 7105362
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H/1L bank; knn=0.70 strong M signal; high amh noted
+
+ROW 7106067
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: Low humidity=29, 12M/2H split, all 3 subs H; dry conditions
+
+ROW 7107082
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 14M/0H unanimous bank despite high amh; raw=M anchors M
+
+ROW 7107604
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.57
+REASON: 12M/1H/1L; all 3 subs H; humidity=92 but v1+raw=H
+
+ROW 7107710
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 10M/3H/1L bank split, all 3 subs H; high amh=0.874
+
+ROW 7107985
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous bank; raw=M; high prev irrigation anchors M
+
+ROW 7108703
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.55
+REASON: Sowing stage Kc=0; bank says 9M/4H; rule Low but context M
+
+ROW 7108995
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 10M/4H bank split strong H; all 3 subs H; hot+dry signals
+
+ROW 7109324
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 12M/2H bank; t1=M; mulched reduces H risk slightly
+
+ROW 7109343
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 9M/4H bank split, all 3 subs H; low humidity=40.79, dry soil
+
+ROW 7109974
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 14M/0H unanimous bank; mulched; high humidity; strong M signals
+
+ROW 7110144
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.52
+REASON: Harvest Kc=0; bank 10M/4H but rule Low; context leans M
+
+ROW 7110970
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/0H/1L bank; mulched; high humidity=87.55; raw=M anchors
+
+ROW 7111663
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/1H bank; both v1+raw=H but bank strongly M; high rainfall
+
+ROW 7112020
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 9M/4H bank, all 3 subs H; low humidity=25, mulched offsets partially
+
+ROW 7112171
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.53
+REASON: Harvest Kc=0; bank 12M/1H/1L; rule Low overridden by bank
+
+ROW 7112355
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/0H/1L bank, t1=M; high rainfall; moderate confidence
+
+ROW 7112604
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.53
+REASON: Mulched; knn very low=0.07; bank 11M/2H; very low confidence
+
+ROW 7112631
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H/1L bank; nomulch hot windy but knn=0.54 moderate
+
+ROW 7113176
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/0H/1L bank; t1=M; high rainfall moderate dry; knn=0.64
+
+ROW 7113335
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/0H/1L bank; t1=M; very high rainfall 1722mm; M signal strong
+
+ROW 7113443
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 10M/3H/1L bank, both v1+raw=H; knn=0.60 moderate; dry+windy
+
+ROW 7114383
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 11M/2H/1L bank, all 3 subs H; knn=0.61; multiple H indicators
+
+ROW 7114737
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H/1L bank; t1=M; mulched; low humidity but M bank strong
+
+ROW 7115016
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/1H bank; raw=M; knn=0.81 high; strong M consensus
+
+ROW 7115269
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/0H/1L bank; v1=M; knn only 0.30 but bank M-dominant
+
+ROW 7115419
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 11M/3H bank, all 3 subs H; nomulch low rain; H signals strong
+
+ROW 7115426
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.57
+REASON: 12M/2H bank; all 3 subs H; high amh=0.981; hot humid M-flip risk
+
+ROW 7115985
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 10M/3H/1L bank, all 3 subs H; mulched partial offset; v1+raw=H
+
+ROW 7116348
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 12M/2H bank; knn=0.84 very high M signal; bank leans M
+
+ROW 7116630
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 12M/2H bank, all 3 subs H; norain+nomulch strong H push
+
+ROW 7116719
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 8M/6H nearly tied bank, all 3 subs H; strong H signal
+
+ROW 7116978
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.67
+REASON: 12M/1H/1L bank; knn=0.73; high rainfall offsets dry soil
+
+ROW 7117096
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 11M/2H/1L bank, all 3 subs H; mulched partial; v1+raw=H
+
+ROW 7117299
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 14M/0H unanimous bank; mulched; knn only 0.31 but bank M
+
+ROW 7117389
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H/1L bank; v1=M; knn=0.56; bank M-dominant
+
+ROW 7117811
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/0H/1L bank; t1=M; very high humidity=92.93 supports M
+
+ROW 7119956
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 10M/3H/1L bank; raw=M; knn=0.62; Flowering+norain mixed signals
+
+ROW 7120737
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.53
+REASON: Harvest Kc=0; but amm=0.997 very high; bank 11M/2H; rule Low
+
+ROW 7120753
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 10M/4H bank strong H, all 3 subs H; high amh=0.982; hot dry
+
+ROW 7121086
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 13M/1H bank; all 3 subs H; high amh=0.983; moderate H flip
+
+ROW 7122219
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: amm=0.98 very high; v1+t1=H but raw=M; rule Medium; unclear
+
+ROW 7122945
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.58
+REASON: amm=0.992 extreme; knn=0.14 very low; bank 12M/1H; M default
+
+ROW 7123050
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 12M/1H/1L; all 3 subs H; low humidity=31.57; dry signal
+
+ROW 7123252
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/1H bank; mulched; knn=0.39; bank leans M moderately
+
+ROW 7123410
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous bank; raw=M; knn=0.68; strong M signal
+
+ROW 7123925
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/1H bank; t1=M; high rainfall offsets norain; M dominant
+
+ROW 7124259
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 12M/1H/1L bank; raw=M; mulched; knn=0.48 moderate M
+
+ROW 7124321
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 11M/3H bank, all 3 subs H; mulched only partial offset; hot signals
+
+ROW 7126447
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 8M/5H bank very strong H signal; all 3 subs H; hot dry soil
+
+ROW 7126845
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 11M/3H bank, all 3 subs H; hot+dry soil+nomulch convergent H
+
+ROW 7127463
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.58
+REASON: 11M/3H bank, all 3 subs H; nomulch norain; H signals align
+
+ROW 7128706
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 13M/0H/1L bank; high humidity=86; knn=0.32 weak; M bank strong
+
+ROW 7129182
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 14M/0H unanimous bank; v1=M; knn low=0.23 but bank fully M
+
+ROW 7129330
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous bank; t1=M; high rainfall; strong M signal
+
+ROW 7129500
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: amm=0.990 extreme; knn=0.32 low; bank 11M/2H; M default
+
+ROW 7129883
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.67
+REASON: 13M/0H/1L bank; t1=M; high humidity=82.9; M signals strong
+
+ROW 7130015
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.53
+REASON: amm=0.962 extreme; bank 9M/4H but amm anomaly flags M confusion
+
+ROW 7130112
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 13M/0H/1L bank; raw=M; knn=0.52; Flowering stage moderate M
+
+ROW 7130506
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.52
+REASON: Harvest Kc=0; bank 9M/4H; raw=M; rule Low overridden by bank M

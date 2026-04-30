@@ -1,0 +1,195 @@
+ROW 5559623
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: bank unanimous 13M/1H; amh low; Mulching_Used=Yes reduces over-irrigate risk
+
+ROW 5561758
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: v1=H raw=H t1=H all agree; soil_moisture very dry (11.95); temperature hot (40.69)
+
+ROW 5564121
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: bank unanimous 14M/0H; amh high (0.668) suggests low over-irrigate risk despite sub_votes H
+
+ROW 5566322
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: bank split 8M/6H; all sub_votes=H; soil_moisture dry (11.83); high wind
+
+ROW 5566385
+RULE_SCORE: 3
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: bank unanimous 13M/0H; amh very low (0.030); Mulching_Used=Yes; humidity high
+
+ROW 5568685
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: bank 13M/0H unanimous; v1=H raw=M split; amh=0.527 moderate; low E.C. odd
+
+ROW 5570954
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: bank 13M/1H; v1=M raw=H t1=H split suggests boundary; hot (41.75) dry soil (12.22)
+
+ROW 5579397
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: bank unanimous 14M/0H; amh very low (0.012); Mulching_Used=Yes; knn_consensus low
+
+ROW 5580018
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: bank 13M/1H; amh=0.123 low; Mulching_Used=No doesn't change unanimous bank signal
+
+ROW 5580437
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: bank 13M/1H; amh=0.126 low; Mulching_Used=Yes; all M-filter criteria met
+
+ROW 5584396
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.83
+REASON: bank unanimous 14M/0H but all sub_votes=H; dry soil (16.85); high wind; hot
+
+ROW 5586483
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: bank 13M/0H; amh=0.097 low; Mulching_Used=Yes; humidity very low (26.29)
+
+ROW 5593413
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: bank 13M/0H; amh=0.025 very low; soil_moisture moderate (58.16); v1=H raw=H
+
+ROW 5595149
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.79
+REASON: bank 13M/0H but all sub_votes=H; amh high (0.596); dry soil (14.72); high wind
+
+ROW 5595715
+RULE_SCORE: 3
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: bank 13M/0H; v1=H raw=M t1=H mixed; amh=0.154; soil_moisture high (59.38)
+
+ROW 5596354
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: bank 13M/0H; amh=0.355 moderate; v1=H raw=H t1=M split; humidity moderate
+
+ROW 5599532
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: bank 13M/1H; amh=0.332 moderate; knn_consensus high (0.83); Mulching_Used=No
+
+ROW 5599555
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.81
+REASON: bank unanimous 14M/0H but all sub_votes=H; very dry soil (12.33); hot (33.41)
+
+ROW 5601056
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: bank 13M/1H; amh=0.681 high; v1=H raw=H t1=M split; knn_consensus high (0.82)
+
+ROW 5602093
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: bank 13M/1H; amh=0.132 low; humidity very high (92.03); v1=H raw=H t1=M
+
+ROW 5606382
+RULE_SCORE: 3
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: bank 13M/0H; v1=H raw=M t1=H mixed; amh=0.039 very low; Mulching_Used=Yes
+
+ROW 5611234
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.81
+REASON: bank unanimous 14M/0H but all sub_votes=H; dry soil (8.56); hot (32.81); windy
+
+ROW 5616640
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: bank unanimous 13M/0H; amh=0.892 very high; v1=H raw=H t1=M mixed signal
+
+ROW 5620386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: bank unanimous 14M/0H; amh=0.958 very high; knn=0.910 high; t1=M signals M
+
+ROW 5624705
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: rule says High; bank 12M/1H but v1=H raw=H t1=H unanimous; dry soil (9.56)
+
+ROW 5627093
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: bank 11M/2H split; all sub_votes=H; dry soil (19.87); high wind; low rainfall
+
+ROW 5628447
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: bank unanimous 14M/0H but all sub_votes=H; dry soil (24.28); high knn (0.45 low)
+
+ROW 5628951
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: bank 13M/1H; amh=0.192 low; knn_consensus high (0.83); v1=H raw=H t1=M mixed

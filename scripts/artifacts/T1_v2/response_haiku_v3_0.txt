@@ -1,0 +1,524 @@
+ROW 5002953
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank unanimous 13M, high confidence. Low amh suggests rare H-flip.
+
+ROW 5003120
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 13M/1H, knn strong 0.72, amh low 0.088. Lean medium.
+
+ROW 5010986
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 13M/0H, unanimous signal, knn 0.83. Strong M confidence.
+
+ROW 5012241
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Bank 14M/0H unanimous, high bank_conf 0.834, amh moderate.
+
+ROW 5013342
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: All 3 sub_votes say H despite bank M. Strong override signal.
+
+ROW 5014360
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Bank 13M/0H, low amh 0.043, high temp/wind. Slight H risk.
+
+ROW 5015856
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 13M/1H, strong knn 0.89, low amh. Robust M signal.
+
+ROW 5017464
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, v1 agrees H but t1 says M. Lean M.
+
+ROW 5017875
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Two subs say H, one M. Bank split 13M/0H/1L. Mixed signals.
+
+ROW 5020209
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Bank 13M/0H/1L, mulching=Yes reduces dry stress slightly.
+
+ROW 5026382
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Bank 12M/1H/1L, amh high 0.613. Weaker M signal but majority M.
+
+ROW 5031550
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, low amh 0.197, high knn 0.78.
+
+ROW 5031880
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 13M/1H, amh high 0.517 but knn very high 0.84.
+
+ROW 5033086
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: amh very high 0.724, two subs say H, one M. Lean H.
+
+ROW 5038754
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Bank 12M/1H/1L, amh high 0.575. Weakest M bank but still majority.
+
+ROW 5039468
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 12M/1H/1L but amh low 0.173, knn very high 0.88.
+
+ROW 5046635
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Bank 14M/0H unanimous, low amh 0.034, high bank_conf 0.894.
+
+ROW 5055137
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, low amh 0.055, knn very high 0.30 weak.
+
+ROW 5055414
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 13M/0H/1L, low amh 0.065, all subs agree H but bank M.
+
+ROW 5057760
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 14M/0H but all 3 subs say H. Unanimous override to H.
+
+ROW 5060167
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Bank 13M/0H/1L, amh low 0.035, but high humidity 88.36.
+
+ROW 5061702
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Two subs H, bank 13M/1H/0L. High humidity 90.19 signals.
+
+ROW 5063398
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Bank 14M/0H but raw/t1 say H. amh 0.387 moderate. Lean H.
+
+ROW 5063722
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, knn very low 0.020. Override to M.
+
+ROW 5064903
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Bank 13M/1H, all subs say H. amh 0.042 low. Close call.
+
+ROW 5066989
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Bank 14M/0H but amh very high 0.805, raw says M. Mixed.
+
+ROW 5067787
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 14M/0H unanimous, amh very high 0.799 but knn high.
+
+ROW 5068826
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, amh high 0.462 but knn 0.76, all subs H.
+
+ROW 5074828
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank 14M/0H unanimous, low amh 0.053, all subs agree H.
+
+ROW 5076967
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh very high 0.758 but knn high.
+
+ROW 5079506
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Bank 12M/1H/1L, knn very low 0.18. Weak overall signal.
+
+ROW 5079765
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, amh 0.311 low, all subs agree H.
+
+ROW 5081484
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank 14M/0H unanimous, amh very high 0.739 but bank unanimous.
+
+ROW 5081521
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Bank 13M/0H/1L, amh 0.169 low, v1=H but t1=H. Mixed.
+
+ROW 5083858
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, amh 0.674 moderate, all subs agree H.
+
+ROW 5084068
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.79
+REASON: Bank 13M/0H/1L but all 3 subs say H. amh 0.846 high.
+
+ROW 5084924
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 11M/2H/1L, v1/t1 say H, raw M. amh 0.164 low but split.
+
+ROW 5097954
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.634 high. Knn 0.80 confirms M.
+
+ROW 5102181
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 12M/1H/1L, amh 0.567 high, temp high 38.94. Borderline.
+
+ROW 5102332
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.833 high but bank unanimous.
+
+ROW 5103561
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Bank 14M/0H unanimous, amh 0.953 very high. Bank dominates.
+
+ROW 5112767
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, amh 0.972 extreme high. Bank overrides.
+
+ROW 5118720
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.71
+REASON: Bank 9M/5H/0L split, low amh 0.089. All subs say H. Override.
+
+ROW 5121905
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/1H, amh 0.634 high, but knn 0.70 and t1=M.
+
+ROW 5128867
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, amh 0.774 high but knn 0.81 maintains M.
+
+ROW 5132718
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh 0.177 low, all subs say H. Close.
+
+ROW 5135188
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Bank 11M/3H, v1/t1 say H, raw M. amh low 0.027. Lean H.
+
+ROW 5136441
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank 14M/0H unanimous, amh 0.648 high but bank_conf 0.877.
+
+ROW 5141468
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.802 high but bank very confident.
+
+ROW 5142321
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Bank 13M/0H/1L but all subs say H except v1=M. Lean H.
+
+ROW 5143892
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Bank 14M/0H but all subs say H. amh 0.354 low. Override.
+
+ROW 5144788
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, amh 0.799 high but all subs say H.
+
+ROW 5150124
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Bank 13M/0H/1L, amh 0.467 moderate, all subs agree H.
+
+ROW 5163825
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Bank 12M/1H/1L, amh 0.117 low, high rainfall 725. Lean M.
+
+ROW 5164479
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.848 high but bank_conf 0.868.
+
+ROW 5166551
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Bank 14M/0H unanimous, amh 0.868 very high. Bank overrides.
+
+ROW 5168475
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Bank 13M/0H/1L but v1=M, raw/t1=H. amh 0.183 low. Mixed.
+
+ROW 5168876
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.005 lowest. Strong M confirmation.
+
+ROW 5175496
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Bank 13M/1H, v1/t1 say H, raw M. amh 0.467 moderate. Lean H.
+
+ROW 5176251
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Bank 14M/0H but all subs say H. amh 0.512 moderate. Override.
+
+ROW 5186919
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Bank 14M/0H but all subs say H. amh 0.110 low. Override.
+
+ROW 5187552
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh 0.145 low, all subs agree H.
+
+ROW 5189158
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Bank 14M/0H but v1=M, raw/t1=H. amh 0.183 low. Close.
+
+ROW 5195644
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 13M/0H/1L, amh 0.095 low, all subs agree H.
+
+ROW 5197257
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Bank 13M/0H/1L but all subs say H. amh 0.899 very high.
+
+ROW 5197928
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Rule says Low but bank 13M/1H, rare low case. Override to M.
+
+ROW 5200341
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Bank 10M/3H/1L split, all subs say H. amh 0.136 low. Override.
+
+ROW 5200512
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Bank 14M/0H unanimous, amh 0.316 low, all subs say H.
+
+ROW 5202697
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Bank 14M/0H unanimous, amh 0.851 high. Bank dominates.
+
+ROW 5204627
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Bank 12M/1H/1L, amh 0.081 low, all subs agree H. Lean M.
+
+ROW 5205220
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Bank 13M/1H but v1=M, raw/t1=H. amh 0.683 high. Lean H.
+
+ROW 5210574
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Bank 14M/0H but v1/t1 say H, raw M. amh 0.099 low. Close.
+
+ROW 5210782
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Bank 13M/0H/1L, amh 0.114 low, all subs say H. Lean M.
+
+ROW 5214923
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Bank 14M/0H unanimous, amh 0.045 low. Strong M signal.
+
+ROW 5215329
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Bank 13M/0H/1L, amh 0.020 very low. All subs agree H.

@@ -1,0 +1,524 @@
+ROW 7000605
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.52
+REASON: Split bank 10M/3H, 3 sub_votes=H, but M-signal marginal
+
+ROW 7000819
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H bank, knn low 0.24, t1=M supports Medium
+
+ROW 7001010
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H split, amh=0.40 moderate, bank lean Medium
+
+ROW 7001035
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amm=0.997, 9M/4H, all subs=H, strong H-flip signals
+
+ROW 7001102
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: amm=0.993, 10M/3H, all subs=H, very low knn=0.11
+
+ROW 7001441
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 13M/1H bank, Mulching=Yes reduces H risk, knn=0.50
+
+ROW 7002517
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.58
+REASON: 11M/3H, Mulching=Yes, amh=0.80 but bank mostly M
+
+ROW 7002825
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/1H unanimous leaning, amh=0.84 but humidity=79 high
+
+ROW 7003268
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: 13M/1H bank, knn=0.68, humidity=25 low but bank strong M
+
+ROW 7003712
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: amm=0.994, 9M/4H, all subs=H, very low knn=0.32
+
+ROW 7003809
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.52
+REASON: 10M/3H split, Mulching=Yes, knn very low 0.08 uncertain
+
+ROW 7004582
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amm=0.997, 11M/2H, all subs=H, very low knn=0.22
+
+ROW 7005268
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amm=0.999, 13M/0H but raw=M, very strong amm signal H
+
+ROW 7005899
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 13M/1H, raw=M, Mulching=Yes, amh high but raw supports M
+
+ROW 7006331
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 13M/1H, Mulching=Yes, knn=0.49, rainfall very high
+
+ROW 7006640
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/1H, t1=M, knn=0.37, high humidity 89 supports M
+
+ROW 7006926
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/1H, t1=M, amm=0.977 but knn=0.37, bank lean M
+
+ROW 7007229
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.52
+REASON: 9M/4H, knn=0.58, amh=0.70 moderate, borderline case
+
+ROW 7007314
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous bank, t1=M, Mulching=Yes supports M
+
+ROW 7007543
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/0H, raw=M, t1=H mixed, low humidity 27 but bank M
+
+ROW 7009349
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H, knn=0.56, humidity=37, borderline but bank M
+
+ROW 7009743
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H, Mulching=Yes, knn very low 0.16, weak signals
+
+ROW 7010232
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, t1=M, knn=0.54, bank strongly M
+
+ROW 7010515
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H, t1=M, amh=0.94 but bank unanimous, lean M
+
+ROW 7010820
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 14M/0H unanimous, t1=M, knn=0.66, strong M consensus
+
+ROW 7010898
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 14M/0H unanimous bank, knn=0.45, strong bank M signal
+
+ROW 7010937
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H, knn=0.47, rainfall very high 1986, lean M
+
+ROW 7010996
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amm=0.956, 11M/3H, all subs=H, hot+norain+nomulch
+
+ROW 7011618
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amm=0.780, 12M/2H, all subs=H, knn very low 0.20
+
+ROW 7011898
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: 9M/5H strong split, amh=0.87, all subs=H, lean H
+
+ROW 7012461
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 9M/4H, knn very low 0.09, all subs=H, amh=0.95
+
+ROW 7012929
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.58
+REASON: 12M/1H, knn=0.52, humidity=32 low but bank lean M
+
+ROW 7014322
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 14M/0H unanimous, knn=0.59, high humidity 80 supports M
+
+ROW 7014398
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 12M/1H, raw=M, t1=H mixed, humidity=61, bank leans M
+
+ROW 7014824
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 12M/2H, knn very low 0.16, amh=0.97 high, uncertain
+
+ROW 7015544
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 9M/5H strong split, amh=0.83, all subs=H, knn=0.90
+
+ROW 7016248
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 12M/1H, t1=M, knn=0.65, humidity=71, leans M
+
+ROW 7016617
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 12M/2H, knn=0.38, humidity=70 high, bank leans M
+
+ROW 7016775
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 12M/1H, t1=M, Mulching=Yes, knn=0.60, leans M
+
+ROW 7017542
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H, knn=0.46, humidity=52, borderline lean M
+
+ROW 7018429
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 7M/7H perfectly split, amh=0.99, all subs=H, lean H
+
+ROW 7019015
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 9M/4H, amh=0.94, all subs=H, knn=0.53, lean H
+
+ROW 7019247
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 14M/0H unanimous, knn=0.66, humidity=61, strong M
+
+ROW 7019500
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.58
+REASON: 12M/2H, knn=0.45, amh=0.84, humidity=48, lean M
+
+ROW 7020123
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 10M/3H, knn=0.69, humidity=28 low, borderline M
+
+ROW 7020531
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 10M/4H, knn very low 0.21, all subs=H, amh=0.91
+
+ROW 7020831
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.55
+REASON: bank says 11M/2H, Harvest stage Kc=0, score=3 Low but bank M
+
+ROW 7021078
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, t1=M, knn=0.64, strong M signal
+
+ROW 7021254
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: amm=0.999, 9M/4H, all subs=H, very low knn=0.14
+
+ROW 7021436
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H, t1=M, knn=0.61, rainfall very high, leans M
+
+ROW 7021621
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.58
+REASON: 11M/3H, knn=0.69, humidity=34 low but bank M
+
+ROW 7021645
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 13M/1H, Mulching=Yes, knn=0.29, humidity=51, leans M
+
+ROW 7022123
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amm=0.962, 12M/1H, t1=M mixed but amm very strong H
+
+ROW 7023104
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H, raw=M, t1=H, knn=0.61, humidity=77, leans M
+
+ROW 7023591
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.55
+REASON: bank 9M/4H, Sowing Kc=0, score=2 but bank says M
+
+ROW 7023765
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 12M/1H, Mulching=Yes, knn very low 0.16, humidity=91
+
+ROW 7024309
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 8M/5H strong split, amh=0.83, all subs=H, lean H
+
+ROW 7024633
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, Mulching=Yes, knn=0.50, strong M
+
+ROW 7024909
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/1H, knn=0.80, humidity=86 very high, strong M
+
+ROW 7025232
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amm=0.996, 13M/1H, all subs=H, very strong amm signal
+
+ROW 7025300
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 12M/2H, knn=0.66, humidity=62, leans M
+
+ROW 7025564
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, knn=0.64, humidity=58, strong M
+
+ROW 7026104
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 9M/4H, amh=0.65, all subs=H, knn very low 0.21
+
+ROW 7026177
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 12M/1H, Mulching=Yes, knn=0.80, humidity=67, leans M
+
+ROW 7026553
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 13M/1H, knn=0.53, humidity=30 low, bank mostly M
+
+ROW 7026857
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 12M/2H, knn=0.59, humidity=60, bank leans M
+
+ROW 7027078
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 11M/2H, knn=0.46, humidity=68, borderline lean M
+
+ROW 7027096
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.58
+REASON: bank 13M/0H, score=3 Low but bank unanimously says M
+
+ROW 7027587
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: amm=0.991, 9M/5H, all subs=H, knn=0.49, strong H signals
+
+ROW 7029921
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: 11M/2H, t1=M, knn=0.68, rainfall very high, leans M
+
+ROW 7030997
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 12M/2H, knn=0.67, humidity=29 low, bank leans M
+
+ROW 7031534
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.55
+REASON: bank 13M/0H, Harvest Kc=0, score=3, bank says M
+
+ROW 7031619
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: 12M/2H, knn=0.53, Mulching=Yes, humidity=64, leans M
+
+ROW 7032587
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.55
+REASON: 10M/3H, Mulching=Yes, knn=0.65, humidity=77, leans M
+
+ROW 7033751
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.50
+REASON: bank 7M/0H/7L extreme split, Harvest Kc=0, very uncertain

@@ -1,0 +1,699 @@
+ROW 4253609
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry soil, adequate rainfall, fair conditions
+
+ROW 4255632
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry soil, moderate rainfall, normal humidity
+
+ROW 4259068
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, moderate signals throughout
+
+ROW 4262552
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry soil, low rainfall, low humidity, strong M
+
+ROW 4265884
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.95
+REASON: Identical to example row 3265884, rule clear M
+
+ROW 4266404
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, has mulch protection
+
+ROW 4267866
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry soil, high rainfall, knn strong agree
+
+ROW 4269766
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Moderate moisture, very hot, high humidity
+
+ROW 4270323
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Moderate moisture, hot temperature, high humidity
+
+ROW 4271301
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry soil, high rainfall, very high humidity
+
+ROW 4274168
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4275916
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Very dry, low rainfall, prior irrigation very low
+
+ROW 4278849
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, high rainfall, strong consensus signals
+
+ROW 4282245
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, moderate rainfall, very high temperature
+
+ROW 4288802
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, high rainfall, strong bank confidence
+
+ROW 4291571
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4293688
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, high rainfall, good consensus signals
+
+ROW 4294746
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, moderate rainfall, high temperature
+
+ROW 4300002
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry soil, high rainfall, very high temperature
+
+ROW 4301601
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Very dry, high rainfall, very low humidity
+
+ROW 4303828
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, high rainfall, has mulch protection
+
+ROW 4305450
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, very high humidity
+
+ROW 4306603
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Moderate moisture, has mulch, harvest stage
+
+ROW 4307466
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, high rainfall, very low humidity
+
+ROW 4311140
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4313874
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, high rainfall, has mulch protection
+
+ROW 4316926
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, high rainfall, moderate conditions
+
+ROW 4320200
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, high rainfall, very high temperature
+
+ROW 4322257
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, has mulch, hot
+
+ROW 4322965
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Dry, moderate rainfall, strong agreement signals
+
+ROW 4326283
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry, high rainfall, strong consensus overall
+
+ROW 4329421
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, very low humidity
+
+ROW 4330705
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, high rainfall, very high humidity
+
+ROW 4332807
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.94
+REASON: Dry, high rainfall, very high humidity
+
+ROW 4333129
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, very high rainfall, strong consensus
+
+ROW 4343588
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Very dry, moderate rainfall, medium heat
+
+ROW 4346473
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Moderate moisture, high rainfall, very hot
+
+ROW 4348611
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4354449
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Moderate moisture, has mulch, good humidity
+
+ROW 4355097
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, low prior irrigation
+
+ROW 4355358
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, very hot, good humidity
+
+ROW 4356597
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, moderate rainfall, very high humidity
+
+ROW 4356983
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, high rainfall, moderate humidity signals
+
+ROW 4357118
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, very hot, good humidity
+
+ROW 4357504
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.68
+REASON: High moisture, low rainfall, moderate conditions
+
+ROW 4359328
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Very dry, high rainfall, strong consensus
+
+ROW 4359460
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, very hot, has mulch protection
+
+ROW 4360153
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, moderate rainfall, very high humidity
+
+ROW 4363038
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, high rainfall, has mulch, hot
+
+ROW 4364865
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, very high rainfall, very hot
+
+ROW 4366495
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Very dry, high rainfall, moderate consensus
+
+ROW 4369542
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Very dry, very hot, moderate humidity
+
+ROW 4374103
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, moderate rainfall, moderate temperature
+
+ROW 4380047
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, moderate rainfall, very hot
+
+ROW 4380581
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, high rainfall, very hot, has mulch
+
+ROW 4382335
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, moderate consensus
+
+ROW 4389442
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, high rainfall, good consensus signals
+
+ROW 4396627
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Very dry, very hot, has mulch protection
+
+ROW 4398169
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4400097
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.95
+REASON: Identical to example row 3400097, clear M
+
+ROW 4405260
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, moderate humidity signals
+
+ROW 4406780
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, moderate rainfall, moderate humidity
+
+ROW 4410447
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, high rainfall, very high humidity
+
+ROW 4411806
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Very dry, high rainfall, very high humidity
+
+ROW 4417622
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, high rainfall, very hot
+
+ROW 4424582
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, moderate conditions
+
+ROW 4425331
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Very dry, high rainfall, strong consensus
+
+ROW 4427717
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, moderate rainfall, good consensus
+
+ROW 4430977
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, strong consensus signals
+
+ROW 4434371
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Moderate moisture, high rainfall, very hot
+
+ROW 4439467
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Dry, high rainfall, strong consensus
+
+ROW 4441934
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, has mulch protection
+
+ROW 4442497
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, moderate rainfall, good consensus
+
+ROW 4443764
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, moderate rainfall, very hot, has mulch
+
+ROW 4446427
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry, high rainfall, very hot, low conf
+
+ROW 4447378
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, high rainfall, good consensus signals
+
+ROW 4447824
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, high rainfall, moderate temperature
+
+ROW 4449285
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, high rainfall, very high humidity
+
+ROW 4451397
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, moderate rainfall, has mulch
+
+ROW 4452265
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, very hot, good humidity
+
+ROW 4452398
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Very dry, moderate rainfall, very high humidity
+
+ROW 4454913
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Moderate moisture, moderate rainfall, higher
+
+ROW 4455048
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4455170
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, very hot, very high humidity
+
+ROW 4458530
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: High moisture, low rainfall, has mulch
+
+ROW 4465155
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.76
+REASON: High moisture, very hot, moderate conditions
+
+ROW 4469198
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, high rainfall, very high humidity
+
+ROW 4470599
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, high rainfall, good consensus
+
+ROW 4473737
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, good consensus signals
+
+ROW 4476138
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.74
+REASON: High moisture, moderate rainfall, good humidity
+
+ROW 4478652
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, high rainfall, moderate temperature
+
+ROW 4482778
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Moderate moisture, low rainfall, minimal
+
+ROW 4486048
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, moderate rainfall, has mulch protection
+
+ROW 4486958
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, moderate rainfall, good consensus
+
+ROW 4492540
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, moderate rainfall, good consensus
+
+ROW 4492739
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, strong consensus
+
+ROW 4505818
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, very hot, moderate humidity
+
+ROW 4506825
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, good consensus signals
+
+ROW 4508373
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry, very hot, good consensus signals
+
+ROW 4509171
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: High moisture, high rainfall, good consensus

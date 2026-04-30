@@ -1,0 +1,18 @@
+{
+  "n_critical_rows": 253,
+  "baseline_true_M": 0.8774703557312253,
+  "models": [
+    {
+      "model": "haiku",
+      "n_matched": 253,
+      "bank_only_acc": 0.8774703557312253,
+      "model_acc": 0.8300395256916996,
+      "M_conf07_precision": 0.8803418803418803,
+      "M_conf07_ci_lo": 0.8324950969393744,
+      "M_conf07_ci_hi": 0.9159021556859023,
+      "M_conf07_n": 234,
+      "verdict": "MARGINAL"
+    }
+  ],
+  "intersection": null
+}

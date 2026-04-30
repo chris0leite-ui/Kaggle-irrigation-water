@@ -1,0 +1,8 @@
+{
+  "n": 50,
+  "opus_acc": 0.66,
+  "bank_only_acc": 0.86,
+  "opus_M_conf07_precision": 0.8947368421052632,
+  "n_opus_says_M_conf07": 19,
+  "verdict": "OPUS_MARGINAL"
+}

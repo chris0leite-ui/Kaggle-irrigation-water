@@ -1138,3 +1138,17 @@ scripts/artifacts/_v1pcb_fold*.json
 kaggle_kernel/kernel_*/smoke_output/
 kaggle_kernel/kernel_*/probe_output/
 scripts/artifacts/T1_smoke/
+scripts/artifacts/T1_opus/prompt.txt
+# response.txt and scored.csv kept tracked — costly to regenerate (~$0.50/call)
+!scripts/artifacts/T1_opus/response.txt
+!scripts/artifacts/T1_opus/scored.csv
+!scripts/artifacts/T1_opus/eval_keys.csv
+# T1_v2: prompts + boundary CSV regen-able; eval_keys + critical_rows + responses tracked
+scripts/artifacts/T1_v2/haiku_*batch_*.txt
+scripts/artifacts/T1_v2/sonnet_*batch_*.txt
+scripts/artifacts/T1_v2/opus_*batch_*.txt
+!scripts/artifacts/T1_v2/eval_keys.csv
+!scripts/artifacts/T1_v2/critical_rows.csv
+!scripts/artifacts/T1_v2/boundary_rows.csv
+!scripts/artifacts/T1_v2/response_*.txt
+!scripts/artifacts/T1_v2/results_*.json

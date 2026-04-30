@@ -1,0 +1,524 @@
+ROW 5215880
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous 13M bank, low amm, t1=M; amh=0.621 moderate
+
+ROW 5219886
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: 14M/0H/0L unanimous, knn=0.89, t1=M; strong M signals
+
+ROW 5220888
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous; amh=0.934 high but bank unanimous M
+
+ROW 5222290
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Score=5 Medium; 13M/0H, knn=0.42 weak but bank conf=0.831
+
+ROW 5226861
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 12M/2H split, all 3 sub_votes=H, knn=0.93 but votes flip
+
+ROW 5228420
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, knn=0.93 strong, t1=M; amh=0.909 moderate
+
+ROW 5228835
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: Score=5 Medium; 13M bank, high humidity=85.89 suppresses H-flip
+
+ROW 5229962
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/1H bank, knn=0.81, t1=M; amh=0.197 low H-flip risk
+
+ROW 5230065
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H bank, knn=0.81, t1=M; amh=0.566 moderate but bank M
+
+ROW 5231166
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: Score=5 Medium; Mulching=Yes reduces nomulch; 13M bank
+
+ROW 5231216
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/0H bank, amh=0.818 but humidity=83.94 high suppresses H
+
+ROW 5233303
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 12M/2H split, all 3 sub_votes=H; moderate H signals
+
+ROW 5233643
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.71
+REASON: 13M/1H bank, knn=0.79, t1=M; amh=0.669 but bank M dominant
+
+ROW 5235612
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 13M/1H, all 3 sub_votes=H; high temp, low OC=0.42 H-flip risk
+
+ROW 5235814
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/0H bank, knn=0.78, t1=M; amh=0.332 moderate
+
+ROW 5237908
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: All 3 sub_votes=H, 14M/0H bank but amh=0.089 low; sub_votes override
+
+ROW 5239428
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, t1=M; amh=0.850 but humidity=27.65 moderate concern
+
+ROW 5241065
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.70
+REASON: Rule score=7 High; v1=H raw=H confirm; t1=M minority
+
+ROW 5245426
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, knn=0.73, t1=M; amh=0.477 moderate
+
+ROW 5246272
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous, knn=0.82, amh=0.637 but bank and knn strong M
+
+ROW 5248192
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 14M/0H but all 3 sub_votes=H; hot+dry+low prev_irr pattern
+
+ROW 5248321
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, knn=0.72, t1=M; amh=0.668 moderate, humidity=37 low
+
+ROW 5250968
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: 13M/0H bank, knn=0.77, t1=M; amh=0.004 very low H-flip risk
+
+ROW 5251935
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous; amh=0.824 but raw=M confirms M; knn=0.75
+
+ROW 5252386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 14M/0H but v1=M; raw=H t1=H; mixed sub_votes, lean H cautiously
+
+ROW 5253609
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/0H bank, knn=0.86, raw=M confirms; amh=0.528 moderate
+
+ROW 5255632
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 10M/3H/1L split with 3 H-votes, all 3 sub_votes=H; clear H signal
+
+ROW 5259068
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/0H bank, t1=M; knn=0.28 very low but bank conf=0.801 holds
+
+ROW 5262552
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 14M/0H but all 3 sub_votes=H, knn=0.37 very low; H cautious
+
+ROW 5265884
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Mirror of training example 3265884; 14M/0H unanimous, t1=M
+
+ROW 5266404
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: 14M/0H unanimous, Mulching=Yes reduces nomulch; t1=M; knn=0.64
+
+ROW 5267866
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, knn=0.77, t1=M; amh=0.643 moderate
+
+ROW 5269766
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H bank, high humidity=89.68 suppresses H-flip; t1=M
+
+ROW 5270323
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Score=5 Medium; 13M/1H bank, t1=M, humidity=73.30 moderate
+
+ROW 5271301
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous; raw=M confirms; amh=0.748 moderate; high humidity
+
+ROW 5274168
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H bank, v1=M raw=H t1=H split; knn=0.37 very low; lean M
+
+ROW 5275916
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, knn=0.71, t1=M; amh=0.053 very low H-flip risk
+
+ROW 5278849
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 12M/1H/1L bank, knn=0.94 very high, t1=M; amh=0.928 moderate
+
+ROW 5282245
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, raw=M confirms; amh=0.930 but bank unanimous M
+
+ROW 5288802
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous, bank_conf=0.903 very high, t1=M; knn=0.74
+
+ROW 5291571
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 12M/1H/1L bank, knn=0.82, t1=M; amh=0.350 moderate
+
+ROW 5293688
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 13M/1H, all 3 sub_votes=H; amh=0.037 low but sub unanimous H
+
+ROW 5294746
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 12M/2H bank split, knn=0.74, t1=M; two H-votes but t1 says M
+
+ROW 5300002
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, t1=M; knn=0.69, amh=0.097 very low H-flip risk
+
+ROW 5301601
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, t1=M; knn=0.70; amh=0.182 low H-flip risk
+
+ROW 5303828
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/1H, Mulching=Yes reduces H-flip; t1=M, amh=0.111 low
+
+ROW 5305450
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H bank, t1=M; amh=0.859 but high humidity=83.93 suppresses H
+
+ROW 5306603
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: 14M/0H unanimous, knn=0.77, t1=M; amh=0.042 very low H-flip
+
+ROW 5307466
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.67
+REASON: 13M/1H bank, raw=M confirms; amh=0.382, humidity=27.67 low concern
+
+ROW 5311140
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/1H bank, knn=0.85, t1=M; amh=0.083 very low H-flip risk
+
+ROW 5313874
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, Mulching=Yes; t1=M; knn=0.76; amh=0.725 mod
+
+ROW 5316926
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 14M/0H bank but all 3 sub_votes=H; amh=0.620 moderate H risk
+
+ROW 5320200
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous, t1=M; knn=0.71; amh=0.386 moderate
+
+ROW 5322257
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: 13M/0H but v1=M, raw=H t1=H; Mulching=Yes but sub split toward H
+
+ROW 5322965
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, bank_conf=0.883, t1=M; amh=0.913 but bank strong
+
+ROW 5326283
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 14M/0H unanimous, t1=M; knn=0.10 very low but bank unanimity holds
+
+ROW 5329421
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 14M/0H unanimous, raw=M confirms; amh=0.703 moderate; knn=0.80
+
+ROW 5330705
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 14M/0H but all 3 sub_votes=H; amh=0.853 high; knn=0.86 strong but H
+
+ROW 5332807
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, knn=0.85, t1=M; amh=0.821 but bank unanimous M
+
+ROW 5333129
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 12M/1H/1L split, all 3 sub_votes=H; amh=0.082 low but subs agree H
+
+ROW 5343588
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 14M/0H unanimous, t1=M; amh=0.919 moderate but high humidity=76.26
+
+ROW 5346473
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, knn=0.74, t1=M; amh=0.061 low H-flip risk
+
+ROW 5348611
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 12M/1H/1L bank, knn=0.86 high, t1=M; amh=0.534 moderate
+
+ROW 5354449
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/1H bank, Mulching=Yes; t1=M; knn=0.35 low but bank M dominant
+
+ROW 5355097
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 12M/1H/1L bank, knn=0.75, t1=M; amh=0.225 low H-flip risk
+
+ROW 5355358
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/1H bank, t1=M; knn=0.49, amh=0.181 low; high humidity=79.37
+
+ROW 5356597
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 14M/0H unanimous, bank_conf=0.899, t1=M; amh=0.894 but bank strong
+
+ROW 5356983
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H bank, t1=M; knn=0.52, amh=0.029 very low H-flip risk
+
+ROW 5357118
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 14M/0H unanimous, knn=0.74, t1=M; amh=0.936 but bank unanimous M
+
+ROW 5357504
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule score=7 High; v1=H raw=H confirm; Mulching=Yes partial offset
+
+ROW 5359328
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 12M/2H bank split, all 3 sub_votes=H; knn=0.87 but subs override
+
+ROW 5359460
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: 14M/0H but all 3 sub_votes=H; amh=0.082 low but unanimous sub H
+
+ROW 5360153
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H bank, knn=0.71, t1=M; amh=0.161 low H-flip risk
+
+ROW 5363038
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/0H bank, Mulching=Yes; t1=M, knn=0.76; amh=0.143 low
+
+ROW 5364865
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 14M/0H unanimous, t1=M; knn=0.46, amh=0.095 low H-flip risk
