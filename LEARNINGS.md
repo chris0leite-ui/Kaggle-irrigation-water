@@ -1789,3 +1789,83 @@ magnitude AND rare-class direction), not at the meta-stacker level.
 
 **Saturation count contribution**: 35th-38th confirmations at LB
 0.98094 (4 v8 variants).
+
+### 2026-04-30 — OOF-anchor vs TEST-anchor mismatch (catastrophic transfer failure)
+
+When validating an override mechanism on OOF using anchor A_oof but
+applying on TEST using anchor A_test ≠ A_oof, the flip-row
+distributions differ systematically — and any precision calibration
+learned on OOF flip rows DOES NOT transfer to TEST flip rows.
+
+**Quantified on this comp** (L5c K=100 union, 47th saturation):
+
+  - OOF probe used `oof_rawashishsin_2600.argmax` as anchor; the
+    flip set was `(rawashishsin != focal_maj) & raw=focal_maj &
+    tier1b=focal_maj & bank_maj=focal_maj`.
+  - TEST applied to `submission_2other_raw_tier1b_k2` (B at LB
+    0.98140), built from raw + tier1b k=2 unanimous override.
+  - Top-K=100 by `bank_mean_p(new_class) ≥ 0.80` cutoff.
+  - **OOF H→M precision = 93.8% → projected LB 0.98172 (+0.00022).**
+  - **Actual LB = 0.98005 (−0.00145 vs 4b's 0.98150).**
+  - Implied actual LB H→M precision = **71.3% (−225 bp drift).**
+
+The drift exceeded the prior LEARNINGS rule's documented 3-50 bp
+selection-bias warning by 5×. Root cause is not selection bias —
+it's that **A_oof disagrees with consensus on relatively easy rows
+(rawashishsin alone is far from raw + tier1b consensus), while
+A_test disagrees on relatively hard rows (B is itself a near-
+consensus mechanism, so B-disagreements concentrate on genuine
+boundary ambiguity)**. The bank-mean probability calibration
+"learned on easy" doesn't apply "to hard."
+
+**Rule**: validate override mechanisms on OOF using the SAME anchor
+that will be applied on TEST. If TEST anchor is a submission CSV
+(B), reconstruct B's PER-ROW OOF prediction by replaying B's
+mechanism on OOF inputs — do NOT substitute a "similar role"
+component (rawashishsin_2600 ≠ B even though both are non-recipe
+anchors).
+
+**Detection**: before LB-probing any override that uses anchor
+substitution on OOF, run the minimal-input probe with the actual
+TEST anchor reconstructed on OOF. If the OOF flip set under the
+real anchor is empty or much smaller than under the substitute,
+the OOF probe is invalid.
+
+### 2026-04-30 — Bank-mean probability unreliable on boundary rows
+
+The 14-bank-mean probability has good calibration globally (98.7%
+overall accuracy on this comp's OOF) but **breaks on boundary rows
+where the bank's own components disagree**.
+
+**Mechanism**: when components disagree, the per-class probability
+mass is split across components, but bank-mean averaging
+"sharpens" the average toward the majority view, **overestimating
+confidence on exactly the rows where confidence should be lowest**.
+A row with 9 components voting M at p=0.6 and 5 components voting H
+at p=0.7 averages to p_bank(M) ≈ 0.51 — which looks moderately
+confident, but is actually a coin-flip where the bank itself
+disagrees.
+
+**Quantified**: same L5c K=100 result. Among 202 test rows where
+`bank_mean_p(M) ≥ 0.80`, the actual M-fraction was ~71%, not 80%+.
+The bank-mean probability OVERESTIMATED M-likelihood by ~10
+percentage points on the rows that survived the threshold.
+
+**Rule**: never use bank-mean probability as a confidence ranking
+for override-mechanism candidates. Use bag-fold CV-confidence
+(e.g., bagged_v1's per-fold-seed disagreement rate) instead — it
+is inherently boundary-aware because each fold-seed produces a
+different argmax precisely on boundary rows.
+
+**Why bagged_v1' works where bank-mean fails**: bagged_v1' is itself
+an OOF-conf-aware ensemble whose disagreement events implicitly
+mark boundary rows. Static-argmax components averaged probabilities
+do not — averaging away the per-component disagreement IS the bug.
+
+**Cross-reference**: the L4 result ("bagged_v1's selection
+mechanism is irreplaceable by static argmax consensus at any
+strictness") and the L5c result ("bank-mean probability ranking
+catastrophically over-confident on boundary rows") are two facets
+of the same phenomenon. **Disagreer-as-confidence-source must be
+ensemble-based, not single-model-based**, for override mechanisms
+on saturated banks.
