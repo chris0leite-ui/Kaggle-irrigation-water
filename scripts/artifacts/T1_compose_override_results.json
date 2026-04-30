@@ -1,0 +1,23 @@
+{
+  "n_llm_rows": 500,
+  "axis_counts": {
+    "axis_1_llm_neq_4b": 292,
+    "axis_2_conf_gte_07": 495,
+    "axis_3_bank_eq_llm": 249,
+    "axis_4_h_to_m": 56
+  },
+  "n_fire_all_4_axes": 56,
+  "n_flips_applied": 56,
+  "net_H_vs_4b": -56,
+  "new_pred_dist": {
+    "Low": 159459,
+    "Medium": 100423,
+    "High": 10118
+  },
+  "candidate_csv": "submissions/submission_T1_llm_judge_override.csv",
+  "llm_conf_stats": {
+    "mean": 0.86804,
+    "median": 0.88,
+    "n_ge_07": 495
+  }
+}
