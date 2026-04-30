@@ -7,8 +7,8 @@ from pathlib import Path
 # pip install + GPU init + model fit pipeline end-to-end).
 # IS_PROBE: 1-fold full-data run for compute-budget validation
 # before committing to 5-fold. Mutually exclusive with SMOKE.
-IS_SMOKE = True   # SMOKE FIRST per CLAUDE.md rule
-IS_PROBE = False
+IS_SMOKE = False
+IS_PROBE = True   # 1-fold full-data magnitude-bar check
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
