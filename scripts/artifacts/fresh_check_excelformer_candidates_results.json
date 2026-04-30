@@ -1,0 +1,121 @@
+{
+  "candidates": {
+    "submission_4b_plus_safe3_exf_v1_MtoH": {
+      "n_flips_vs_4b": 21,
+      "directions": {
+        "M->H": 21
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.47619047619047616,
+        "14-bank": 0.0,
+        "v1": 0.42857142857142855,
+        "raw": 0.0,
+        "tier1b": 0.0
+      },
+      "worst_axis": "14-bank",
+      "macro_worst": -6.981777560566921e-05,
+      "macro_v1bank": 9.107176858534453e-05,
+      "verdict": "BORDERLINE POSITIVE \u2014 within noise floor"
+    },
+    "submission_4b_plus_safe4_exf_v1_raw_MtoH": {
+      "n_flips": 0,
+      "verdict": "STRUCTURALLY EMPTY"
+    },
+    "submission_4b_plus_exf_v1_3axis_MtoH": {
+      "n_flips_vs_4b": 40,
+      "directions": {
+        "M->H": 40
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.25,
+        "14-bank": 0.0,
+        "v1": 0.25,
+        "raw": 0.35,
+        "tier1b": 0.125
+      },
+      "worst_axis": "14-bank",
+      "macro_worst": -0.0001329862392488937,
+      "macro_v1bank": 4.577992096334375e-05,
+      "verdict": "PROJECTED REGRESSION (worst-axis floor < -1bp) \u2014 DO NOT PROBE"
+    },
+    "submission_4b_plus_exf_v1_raw_4axis_MtoH": {
+      "n_flips_vs_4b": 14,
+      "directions": {
+        "M->H": 14
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.0,
+        "14-bank": 0.0,
+        "v1": 0.07142857142857142,
+        "raw": 1.0,
+        "tier1b": 0.0
+      },
+      "worst_axis": "bagged_v1",
+      "macro_worst": -4.654518373711281e-05,
+      "macro_v1bank": -2.8668567715889057e-05,
+      "verdict": "BORDERLINE NEGATIVE \u2014 likely null on LB"
+    },
+    "submission_4b_plus_w5_only": {
+      "n_flips_vs_4b": 9,
+      "directions": {
+        "M->H": 9
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.0,
+        "14-bank": 0.0,
+        "v1": 1.0,
+        "raw": 1.0,
+        "tier1b": 0.0
+      },
+      "worst_axis": "bagged_v1",
+      "macro_worst": -2.9921903831001087e-05,
+      "macro_v1bank": 0.00013096764036001264,
+      "verdict": "POSITIVE PROJECTION \u2014 worth probing"
+    },
+    "submission_4b_plus_w5_3axis": {
+      "n_flips_vs_4b": 167,
+      "directions": {
+        "M->L": 158,
+        "M->H": 9
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.0,
+        "14-bank": 0.9461077844311377,
+        "v1": 0.05389221556886228,
+        "raw": 0.05389221556886228,
+        "tier1b": 0.9461077844311377
+      },
+      "worst_axis": "bagged_v1",
+      "macro_worst": -0.0005552175488641312,
+      "macro_v1bank": 3.319374146716767e-05,
+      "verdict": "PROJECTED REGRESSION (worst-axis floor < -1bp) \u2014 DO NOT PROBE"
+    },
+    "submission_4b_plus_w5_strict85": {
+      "n_flips_vs_4b": 79,
+      "directions": {
+        "M->L": 70,
+        "M->H": 9
+      },
+      "axis_agreement_pct": {
+        "bagged_v1": 0.0,
+        "14-bank": 0.8860759493670886,
+        "v1": 0.11392405063291139,
+        "raw": 0.11392405063291139,
+        "tier1b": 0.8860759493670886
+      },
+      "worst_axis": "bagged_v1",
+      "macro_worst": -0.0002626478225165651,
+      "macro_v1bank": 8.765009021761299e-05,
+      "verdict": "PROJECTED REGRESSION (worst-axis floor < -1bp) \u2014 DO NOT PROBE"
+    }
+  },
+  "break_even": {
+    "M->H": 0.9070110367287859,
+    "H->M": 0.09298896327121405,
+    "L->M": 0.6143496205462748,
+    "M->L": 0.6143496205462748,
+    "L->H": 0.9395342270745954,
+    "H->L": 0.060465772925404566
+  },
+  "anchor_lb": 0.9815
+}
