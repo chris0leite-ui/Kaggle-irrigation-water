@@ -1,0 +1,17 @@
+{
+  "mode": "drop",
+  "smoke": true,
+  "n_kept": 628369,
+  "n_flagged": 1631,
+  "fold_scores_argmax": [
+    0.9795053711886315,
+    0.9778809628573918
+  ],
+  "overall_argmax_originaly": 0.9727902828269271,
+  "tuned_macro_originaly": 0.9804553604112528,
+  "log_bias": [
+    0.33244116323609785,
+    0.8689466919465483,
+    3.400768902044088
+  ]
+}
