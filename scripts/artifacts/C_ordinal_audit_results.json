@@ -1,0 +1,24 @@
+{
+  "raw_argmax": 0.9493490578286562,
+  "standalone_tuned": 0.9733284884824553,
+  "v1_alone_tuned": 0.9806464684026942,
+  "best_dual_alpha": 0.1,
+  "best_dual_macro": 0.9806536514672656,
+  "best_dual_delta_vs_v1": 7.183064571369968e-06,
+  "jaccards": {
+    "sklearn_rf_meta_natural": 0.993584126984127,
+    "sklearn_rf_meta_natural_a1lgbm": 0.9935746031746032,
+    "sklearn_rf_meta_natural_r10_with_tier1b": 0.9936206349206349,
+    "rawashishsin_2600": 0.9928412698412699,
+    "tier1b_greedy_meta": 0.9934984126984127,
+    "recipe_full_te": 0.9933142857142857,
+    "recipe_pseudolabel": 0.9931476190476191,
+    "recipe_pseudolabel_seed7labeler": 0.9932253968253968,
+    "realmlp": 0.9918333333333333,
+    "xgb_nonrule": 0.6533333333333333,
+    "xgb_metastack": 0.993463492063492,
+    "recipe_full_te_catboost_natural": 0.9917063492063493,
+    "recipe_full_te_catboost": 0.9922492063492063,
+    "lgbm_meta_natural": 0.9934571428571428
+  }
+}

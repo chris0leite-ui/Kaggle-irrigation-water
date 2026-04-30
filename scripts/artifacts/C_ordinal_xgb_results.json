@@ -1,0 +1,37 @@
+{
+  "smoke": false,
+  "metas": [
+    {
+      "fold": 0,
+      "bi1": 910,
+      "bi2": 1375,
+      "fold_argmax_bal": 0.9512234324743787
+    },
+    {
+      "fold": 1,
+      "bi1": 823,
+      "bi2": 1021,
+      "fold_argmax_bal": 0.9475102596961169
+    },
+    {
+      "fold": 2,
+      "bi1": 521,
+      "bi2": 1693,
+      "fold_argmax_bal": 0.950906364599048
+    },
+    {
+      "fold": 3,
+      "bi1": 686,
+      "bi2": 909,
+      "fold_argmax_bal": 0.9487490462809176
+    },
+    {
+      "fold": 4,
+      "bi1": 593,
+      "bi2": 1441,
+      "fold_argmax_bal": 0.9483565795617563
+    }
+  ],
+  "full_oof_macro_argmax": 0.9493490578286562,
+  "wall_seconds": 2265.873683691025
+}
