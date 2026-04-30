@@ -19412,3 +19412,107 @@ stability, the T4 scaffold can be built quickly by mirroring
 `kaggle_kernel/kernel_rawashishsin_v3/` exactly with the pseudo-label
 filtering step added inline (similar pattern to
 `scripts/recipe_pseudolabel.py`'s pseudo subset construction).
+
+### 2026-04-30 — L2 SupCon-NCM (paradigm-break for final day): 38th saturation, 16th NN-family null
+
+- Goal: deadline-day attack on the LB 0.98134 ceiling. After T1/T2/T3 closed
+  the natural-cal-rawashishsin family (37th saturation), Phase 1 brainstorm
+  ranked SupCon embedding + Mahalanobis NCM with macro-recall-Bayes-optimal
+  decision rule as the only feasible mechanism-novel paradigm-break in the
+  remaining budget.
+- Mechanism (load-bearing differentiator vs 15 prior NN nulls):
+  1. **Loss**: SupCon + CE joint loss → class-separable embedding (≠ pure CE
+     pulling probs toward majority class)
+  2. **Decision rule**: distance-based Mahalanobis NCM via per-class
+     LedoitWolf-shrunk covariance (≠ softmax classifier head)
+  3. **Calibration**: closed-form Bayes-optimal under macro-recall via
+     uniform-prior posterior — **ZERO post-hoc log-bias retune** by
+     construction. Eliminates the leak channel that bounds every prior
+     +OOF/-LB carryover.
+- Implementation: 9-module modular kernel (boot/config/features/ote/data/
+  embedder/ncm/cv/main + build.py concatenator) + 3 local scripts
+  (`l2_ncm_helpers.py`, `l2_supcon_ncm.py`, `blend_gate_l2.py`). Reuses p3's
+  SupCon Embedder unchanged. All files ≤150L per CLAUDE.md modularity rule.
+- SMOKE-first discipline: local CPU SMOKE (50 sec, fold-1 0.81) + Kaggle
+  SMOKE (83 sec on P100 cu121 shim, 2 folds 0.82/0.70). Production v2 pushed
+  with env-driven IS_SMOKE=False.
+- Production: 5-fold StratifiedKFold(seed=42, v1-bank-aligned) × 504k × 30
+  epochs × Mahalanobis NCM. Wall: **~50 min** on P100 (within 55-min cap).
+- **Standalone OOF results**:
+  ```
+  per-fold argmax: 0.96552 / 0.96709 / 0.96960 / 0.96716 / 0.96740
+  overall argmax = 0.96736
+  ```
+  No bias retune. Diagnostic-tuned 0.96789 (≈ argmax + 5e-4) confirms NCM's
+  argmax IS at the macro-recall optimum under its own posterior calibration
+  — the natural-cal mechanism worked as designed.
+- **Blend-gate analysis** (anchor = v1 RF natural OOF 0.98067, the OOF
+  surface behind LB-0.98134 override):
+  ```
+  Standalone OOF Δ vs anchor:    -0.01331  (~13× below G1 +0.0003 threshold)
+  Jaccard(L2 errs vs anchor):     0.494  (record-low NN-family orthogonality)
+  PCR delta vs anchor:           L -0.36% / M +0.53% / **H -4.16%**
+                                   (REMOVE-High Pareto violation)
+  Errs:                          11089 vs anchor 10143 (+9.3% magnitude)
+
+  Blend sweep (fixed anchor bias):
+    α=0.10: Δ=-0.0046         monotone-negative from α=0.10
+    α=0.30: Δ=-0.0119
+    α=0.50: Δ=-0.0132
+
+  4-GATE @ α=0.30:  G1 FAIL  G2 FAIL  G3 FAIL  G4 FAIL (net_H -944)
+  ```
+- **Verdict: 38th saturation confirmation + 16th NN-family null.** The
+  Bayes-optimal decision rule eliminated the bias-retune leak channel as
+  hypothesized — but the underlying SupCon embedding extracts
+  insufficient signal to compete with v1 RF natural. H recall craters
+  at 0.938 (anchor 0.980) because the NCM's per-class Gaussian centroids
+  in 32-d SupCon space don't produce enough rare-class separation when
+  High = 3.3% of train. Same magnitude trap as Mambular SSM (Jaccard
+  0.49 + magnitude failure) and KAN (Jaccard 0.13 + 6.28× magnitude).
+- **No LB probe warranted.** Linear-projection rule says no α threads
+  the needle (every α monotone-negative). Standalone projected LB
+  ~0.967 (way below LB-best 0.98134).
+- **Three new portable rules** (LEARNINGS.md candidates):
+  1. **Closed-form Bayes-optimal NCM under uniform prior IS the correct
+     calibration mechanism** for natural-cal models — diagnostic-tuned
+     ≈ argmax confirms zero leak. But the calibration mechanism alone
+     can't compensate for insufficient embedding signal. Standalone
+     OOF must be within ~0.005 of the strongest available anchor for
+     the mechanism to compound positively.
+  2. **SupCon embedding produces good orthogonality (Jaccard 0.49)
+     but plateaus at the same NN-family standalone band (~0.96-0.97)**
+     as MLP/RealMLP/Trompt/Mamba/KAN. The SupCon contrastive loss
+     improves error orthogonality vs anchor but doesn't extract more
+     rare-class signal than CE-trained MLPs. To break the ~0.97
+     standalone NN ceiling requires either (a) a fundamentally
+     different feature representation (recipe FE saturated for NNs),
+     (b) a different training signal (rare-class focal loss combined
+     with SupCon), or (c) a non-NN backbone (e.g., gradient-boosted
+     trees with NCM-style decision rule on tree leaves).
+  3. **The 16th NN-family null at LB 0.98134 confirms the structural
+     ceiling is feature-set-bounded, not model-class-bounded.** All
+     16 NN families tested (MLP v5-v9, FT-T, TabPFN, RealMLP, Trompt,
+     Mamba, KAN, DAE, pretrain-FT, NN-on-orig, soft-distill, recipe-MLP,
+     mlp_ote, p3 label-prop, **L2 SupCon-NCM**) plateau at ~0.965-0.977
+     standalone tuned bal_acc on the recipe FE matrix. Tree-based
+     architectures (recipe XGB, CatBoost natural, LGBM, RF natural)
+     and stacking metas (XGB-meta, RF-meta) reach 0.98+ tuned but
+     no NN family ever has.
+- **LB-best primary unchanged**: `submission_lbbest_overridden_by_unanimous_others.csv`
+  at **LB 0.98134** (k=4 unanimous override on v1 RF natural, 2026-04-29).
+  Final-selection HEDGE: `submission_3way_recipe025_s1035_s7040.csv`
+  at LB 0.98005 (audit F1 swap, structurally orthogonal to meta-stacker).
+- **LB budget today (2026-04-30 deadline)**: 0/10 used today. Lock final
+  selection on Kaggle UI before deadline.
+- Artifacts (whitelisted via .gitignore for cross-branch reuse):
+  - `kaggle_kernel/kernel_l2_supcon_ncm/` (9 source files + build.py +
+    metadata, modular ≤150L per file)
+  - `scripts/l2_supcon_ncm.py`, `scripts/l2_ncm_helpers.py`,
+    `scripts/blend_gate_l2.py`, `scripts/emit_l2_submission.py`
+  - `scripts/artifacts/oof_l2_supcon_ncm.npy` + test (10.8 MB)
+  - `scripts/artifacts/l2_supcon_ncm_results.json`
+  - `scripts/artifacts/blend_gate_l2_supcon_ncm_results.json` (4-gate
+    decision matrix + sweep + diagnostic tuned)
+  - **No submission CSV emitted** (gate FAIL on all 4 axes; no LB probe
+    warranted).
