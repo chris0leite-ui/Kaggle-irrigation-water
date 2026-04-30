@@ -1,0 +1,15 @@
+{
+  "r1_tuned": 0.9805519822958123,
+  "lb_tuned": 0.980628290879414,
+  "delta_tuned": -7.630858360174742e-05,
+  "delta_pcr": [
+    2.4329782086329743e-05,
+    -0.0010624325522641254,
+    0.0008091770193726644
+  ],
+  "delta_errs": 228,
+  "rows_diff": 170,
+  "net_h": 102,
+  "churn_h": 124,
+  "candidate_csv": "submissions/submission_sklearn_rf_meta_natural_r4_drop_digits_standalone.csv"
+}
