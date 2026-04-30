@@ -1,0 +1,524 @@
+ROW 5366495
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Unanimous bank M; split sub_votes 2H/1M, moderate knn
+
+ROW 5369542
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: All sub_votes H, hot, knn=0.80, bank has L outlier
+
+ROW 5374103
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: Rule=5, bank mostly M, t1=M, low knn uncertain
+
+ROW 5380047
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: 3H bank votes, all sub_votes H, hot
+
+ROW 5380581
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: All sub_votes H, hot+windy, 13M/1H bank split
+
+ROW 5382335
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous bank, rule=5, all sub H but bank strong
+
+ROW 5389442
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, knn=0.83, sub all H but bank dominant
+
+ROW 5396627
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Unanimous bank, Mulching=Yes, t1=M, low amh
+
+ROW 5398169
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Bank mostly M, t1=M, low amh; 2H sub not decisive
+
+ROW 5400097
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Identical to example 3400097 TRUE=Medium; high knn
+
+ROW 5405260
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, moderate amh, rule=6
+
+ROW 5406780
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, t1=M, knn=0.82, moderate amh
+
+ROW 5410447
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amh=0.95 extreme flip risk, similar to example 3047734
+
+ROW 5411806
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amh=0.90 very high, hot, sub mostly H like 3047734
+
+ROW 5417622
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amh=0.95 extreme, hot, sub 2H/1M, high knn
+
+ROW 5424582
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.60
+REASON: t1=M, bank mostly M; amh=0.80 high but uncertain
+
+ROW 5425331
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Unanimous bank, knn=0.92 very high, t1=M, low amh
+
+ROW 5427717
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, t1=M, knn=0.76, moderate amh
+
+ROW 5430977
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 2H bank votes, all sub H, no strong M anchor
+
+ROW 5434371
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Rule=5 no-dry, t1=M, bank mostly M, low amh
+
+ROW 5439467
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, knn=0.79, moderate amh
+
+ROW 5441934
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.60
+REASON: amh=0.90 very high, Mulch=Yes reduces but amh dominant
+
+ROW 5442497
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: knn=0.91 very high M neighbors, low amh, bank mostly M
+
+ROW 5443764
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: Mulch=Yes, t1=M, bank mostly M; amh=0.85 high uncertain
+
+ROW 5446427
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: 3H bank votes, all sub H, hot
+
+ROW 5447378
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: raw=M, bank mostly M, mixed sub_votes lean M
+
+ROW 5447824
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Unanimous bank; example 3064903 same profile TRUE=Medium
+
+ROW 5449285
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: All sub H, hot, bank 13M/1H but sub consensus H
+
+ROW 5451397
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Mulch=Yes, amh=0.01 very low, t1=M, rule=5
+
+ROW 5452265
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, t1=M, moderate amh, knn=0.56
+
+ROW 5452398
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: Bank mostly M, t1=H but amh low, knn=0.80 supports M
+
+ROW 5454913
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Unanimous bank, amh=0.01 very low, t1=M, rule=5
+
+ROW 5455048
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: 5H bank votes strong signal, all sub H, knn=0.87
+
+ROW 5455170
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 2H bank votes, hot, sub mostly H; amh low but pattern H
+
+ROW 5458530
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Mulch=Yes, t1=M, rule=5, bank mostly M, low amh
+
+ROW 5465155
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous bank, t1=M, rule=5 no-dry, low amh
+
+ROW 5469198
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, knn=0.77, moderate amh
+
+ROW 5470599
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Unanimous bank, raw=M, knn=0.82, moderate amh
+
+ROW 5473737
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Unanimous bank, t1=M; amh=0.71 high but bank dominant
+
+ROW 5476138
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous bank, rule=5 no-dry, t1=M, amh=0.03 low
+
+ROW 5478652
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: t1=M, bank mostly M, knn=0.80, moderate amh
+
+ROW 5482778
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: knn=0.01 extreme outlier, all sub H; bank unanimous but knn signals H
+
+ROW 5486048
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, amh=0.02 very low, rule=5, low amh
+
+ROW 5486958
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Low amh, t1=M, bank mostly M, knn=0.72
+
+ROW 5492540
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amh=0.97 extreme, Previous_Irrigation=2.85 very low
+
+ROW 5492739
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Unanimous bank, amh=0.004 very low, knn=0.83, t1=M
+
+ROW 5505818
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: amh=0.90 very high, hot, sub mostly H like 3047734
+
+ROW 5506825
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous bank, t1=M, knn=0.80, moderate amh
+
+ROW 5508373
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amh=0.81 high, hot, unanimous bank but amh pattern H
+
+ROW 5509171
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Very low amh, t1=M, rule=5 no-dry, bank mostly M
+
+ROW 5509612
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, moderate amh, knn=0.76
+
+ROW 5511087
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: Mulch=Yes, t1=M, rule=5, amh low; knn=0.01 uncertain
+
+ROW 5512275
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Rule=5 no-dry, t1=M, bank mostly M, moderate amh
+
+ROW 5516292
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: amh=0.98 extreme flip risk, high H indicator
+
+ROW 5516884
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Rule=5 no-dry, t1=M, bank mostly M, knn=0.76
+
+ROW 5519933
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Low amh, t1=M, bank mostly M, knn=0.76
+
+ROW 5522292
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: 2H bank votes, sub mostly H, knn=0.79 some M support
+
+ROW 5522411
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.63
+REASON: amh=0.85 high, hot, sub mostly H; bank 12M/1H/1L
+
+ROW 5525145
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, knn=0.76, moderate amh
+
+ROW 5526278
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: All sub H, amh=0.71 high, hot; Mulch=Yes partial offset
+
+ROW 5528306
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: 4H bank votes strong signal, all sub H
+
+ROW 5529370
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: 3H bank votes, all sub H, hot
+
+ROW 5530397
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Unanimous bank, v1=M, knn=0.74; raw+t1 H but bank strong
+
+ROW 5530930
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: amh=0.009 very low, t1=M, Harvest stage Kc=0, rule=5
+
+ROW 5531555
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: t1=M, bank mostly M, moderate amh, knn=0.65
+
+ROW 5531734
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.62
+REASON: All sub H, hot; Mulch=Yes partial offset, lean H
+
+ROW 5536275
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: Mulch=Yes, t1=M; amh=0.84 high but Mulch reduces stress
+
+ROW 5538998
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Mulch=Yes, t1=M, bank mostly M, moderate amh
+
+ROW 5539870
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: Mulch=Yes, t1=M, bank mostly M, moderate amh
+
+ROW 5542757
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.63
+REASON: t1=M, bank mostly M; amh=0.72 high but t1 anchors M
+
+ROW 5544663
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Unanimous bank, knn=0.94 very high, t1=M
+
+ROW 5549719
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: Unanimous bank, t1=M, amh=0.045 low, knn=0.56
+
+ROW 5550726
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: 2H bank votes, all sub H, hot; amh low but bank+sub signal
+
+ROW 5551367
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.62
+REASON: raw=M, bank mostly M, knn=0.24 low; mixed sub lean M
+
+ROW 5552396
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Unanimous bank, Mulch=Yes, t1=M, moderate amh

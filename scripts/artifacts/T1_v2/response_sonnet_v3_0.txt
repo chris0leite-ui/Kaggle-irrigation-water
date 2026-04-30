@@ -1,0 +1,524 @@
+ROW 5002953
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Rule=M, 0 H bank votes, weak knn offset by 2 subs H
+
+ROW 5003120
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=High, 2 of 3 subs say H, score exceeds Medium ceiling
+
+ROW 5010986
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.70
+REASON: Rule=High score 7, 2 subs H, overrides bank 0-H split
+
+ROW 5012241
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High despite unanimous bank M, 2 subs H
+
+ROW 5013342
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule=High, all 3 subs agree H, strong convergence
+
+ROW 5014360
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, Harvest Kc=0, 0 H bank votes, weak knn
+
+ROW 5015856
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.88
+REASON: Rule=High, all 3 subs H, strong signal
+
+ROW 5017464
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, overrides unanimous bank M
+
+ROW 5017875
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.75
+REASON: Rule=High, 2 subs H including raw
+
+ROW 5020209
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, Mulching=Yes lowers score, 0 H bank votes
+
+ROW 5026382
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, Mulching=Yes, only 1 H bank vote
+
+ROW 5031550
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5031880
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=High, 2 subs H, 1 H bank vote
+
+ROW 5033086
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, 0 H bank votes, low wind offsets hot+dry
+
+ROW 5038754
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, Mulching=Yes, 1 H bank vote only
+
+ROW 5039468
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, low wind, 1 H bank vote, high knn confirms M
+
+ROW 5046635
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, unanimous bank, 0 H bank votes, low knn anomaly
+
+ROW 5055137
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, Sowing Kc=0, very low knn, 0 H bank votes
+
+ROW 5055414
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, low wind+temp, 0 H bank votes
+
+ROW 5057760
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: Rule=M, unanimous bank M, all subs H conflict; bank wins
+
+ROW 5060167
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, not dry, 0 H bank votes, 2 subs H insufficient
+
+ROW 5061702
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, amh very low, matches example 3064903 true Medium
+
+ROW 5063398
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, Mulching=Yes, unanimous bank M
+
+ROW 5063722
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, Harvest Kc=0, unanimous bank despite knn anomaly
+
+ROW 5064903
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Identical to example 3064903 true Medium; rule=M confirmed
+
+ROW 5066989
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7, 2 subs H, unanimous bank M offset by rule score
+
+ROW 5067787
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, unanimous bank, high knn, low wind
+
+ROW 5068826
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.73
+REASON: Rule=7 High, 2 subs H, bank near-unanimous M
+
+ROW 5074828
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, unanimous bank, low wind speed
+
+ROW 5076967
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5079506
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, Mulching=Yes, very low knn, lean M
+
+ROW 5079765
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, unanimous bank, low wind, high knn
+
+ROW 5081484
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5081521
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, Mulching=Yes, 0 H bank votes, 2 subs H insufficient
+
+ROW 5083858
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.68
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5084068
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.88
+REASON: Rule=High, all 3 subs H, very high knn=0.90
+
+ROW 5084924
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: Rule=M, 2 H bank votes but majority M, low wind
+
+ROW 5097954
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5102181
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.76
+REASON: Rule=M, 1 H bank vote, low wind, lean M
+
+ROW 5102332
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5103561
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.63
+REASON: Rule=7 High, 2 subs H; very high knn/amh pull M
+
+ROW 5112767
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, unanimous bank, low wind, high amh still M
+
+ROW 5118720
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.92
+REASON: Rule=High, all 3 subs H, 5 H bank votes, strong signal
+
+ROW 5121905
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.73
+REASON: Rule=High, 2 subs H, 1 H bank vote
+
+ROW 5128867
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.73
+REASON: Rule=High, 2 subs H, 0 H bank votes offset by rule
+
+ROW 5132718
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, low wind, 0 H bank votes, lean M
+
+ROW 5135188
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.78
+REASON: Rule=7 High, 3 H bank votes, 2 subs H
+
+ROW 5136441
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5141468
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, unanimous bank, low wind, high amh still M
+
+ROW 5142321
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=7 High, 2 subs H, 0 H bank votes
+
+ROW 5143892
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=7, all 3 subs H overrides unanimous bank M
+
+ROW 5144788
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5150124
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=High, 2 subs H, 0 H bank votes
+
+ROW 5163825
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, not dry, 1 H bank vote, lean M
+
+ROW 5164479
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5166551
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, unanimous bank, low wind, 0 H bank votes
+
+ROW 5168475
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=7 High, 2 subs H, 0 H bank votes
+
+ROW 5168876
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, not dry, unanimous bank, amh near zero
+
+ROW 5175496
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.73
+REASON: Rule=High, 2 subs H, 1 H bank vote, high knn
+
+ROW 5176251
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.75
+REASON: Rule=7, all 3 subs H overrides unanimous bank M
+
+ROW 5186919
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=7, all 3 subs H, unanimous bank M conflict
+
+ROW 5187552
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, 0 H bank votes, low wind, lean M
+
+ROW 5189158
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Rule=M, unanimous bank, low wind, lean M
+
+ROW 5195644
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, Mulching=Yes, 0 H bank votes, low knn
+
+ROW 5197257
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.85
+REASON: Rule=High, all 3 subs H, strong convergence
+
+ROW 5197928
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: Rule=M, very low knn=0.10, 1 H bank vote, lean M
+
+ROW 5200341
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: All 3 subs H, 3 H bank votes; matches example 3386117 pattern
+
+ROW 5200512
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5202697
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5204627
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, not dry, 1 H bank vote only, lean M
+
+ROW 5205220
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.72
+REASON: Rule=High, 2 subs H, 1 H bank vote
+
+ROW 5210574
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.65
+REASON: Rule=7 High, 2 subs H, unanimous bank M conflict
+
+ROW 5210782
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Rule=M, not dry, 0 H bank votes, lean M
+
+ROW 5214923
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Identical to example 3214923 true Medium; unanimous bank confirms
+
+ROW 5215329
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Rule=M, not dry, 0 H bank votes, amh near zero
