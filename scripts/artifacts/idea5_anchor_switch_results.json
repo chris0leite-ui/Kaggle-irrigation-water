@@ -1,0 +1,19 @@
+{
+  "anchor": "submission_rawashishsin_2600_standalone",
+  "others": [
+    "v1_rf",
+    "tier1b",
+    "4b"
+  ],
+  "n_override": 472,
+  "directions": {
+    "L->M": 31,
+    "M->L": 71,
+    "M->H": 117,
+    "H->M": 253
+  },
+  "net_h": -136,
+  "diff_vs_4b": 61,
+  "diff_vs_b": 153,
+  "candidate_csv": "submissions/submission_idea5_anchor_switch.csv"
+}
