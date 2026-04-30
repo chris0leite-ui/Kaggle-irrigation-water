@@ -1,0 +1,152 @@
+{
+  "curated_pool_best (k=3 of 4)": {
+    "anchor_oof_macro": 0.980628290879414,
+    "candidate_oof_macro": 0.9808040845550298,
+    "oof_delta_vs_anchor": 0.0001757936756157097,
+    "row_diff_vs_anchor_test": 553,
+    "row_diff_vs_lb_best_0p98140": 432,
+    "test_overrides_count": 553,
+    "test_direction_breakdown": {
+      "directions": {
+        "Medium->High": 91,
+        "High->Medium": 277,
+        "Medium->Low": 160,
+        "Low->Medium": 25
+      },
+      "net_per_class": {
+        "Low": 135,
+        "Medium": 51,
+        "High": -186
+      }
+    },
+    "oof_direction_precision": {
+      "Medium->Low": {
+        "n": 305,
+        "correct_to_b": 167,
+        "wrong_back_to_a": 138,
+        "true_class_breakdown": {
+          "0": 167,
+          "1": 138,
+          "2": 0
+        },
+        "precision": 0.5475409836065573,
+        "break_even": 0.6074260539154109,
+        "expected_macro_delta": -4.192483717956392e-05
+      },
+      "High->Medium": {
+        "n": 616,
+        "correct_to_b": 560,
+        "wrong_back_to_a": 55,
+        "true_class_breakdown": {
+          "0": 1,
+          "1": 560,
+          "2": 55
+        },
+        "precision": 0.9090909090909091,
+        "break_even": 0.919221940688165,
+        "expected_macro_delta": -9.18515565139096e-05
+      },
+      "Medium->High": {
+        "n": 434,
+        "correct_to_b": 55,
+        "wrong_back_to_a": 378,
+        "true_class_breakdown": {
+          "0": 1,
+          "1": 378,
+          "2": 55
+        },
+        "precision": 0.12672811059907835,
+        "break_even": 0.08077805931183507,
+        "expected_macro_delta": 0.0003456084128289697
+      },
+      "Low->Medium": {
+        "n": 175,
+        "correct_to_b": 53,
+        "wrong_back_to_a": 122,
+        "true_class_breakdown": {
+          "0": 122,
+          "1": 53,
+          "2": 0
+        },
+        "precision": 0.3028571428571429,
+        "break_even": 0.3925739460845891,
+        "expected_macro_delta": -3.6038343519797226e-05
+      }
+    }
+  },
+  "recursive_k4 (improved-OTHERS k=4)": {
+    "anchor_oof_macro": 0.980628290879414,
+    "candidate_oof_macro": 0.9807973040399377,
+    "oof_delta_vs_anchor": 0.00016901316052364557,
+    "row_diff_vs_anchor_test": 120,
+    "row_diff_vs_lb_best_0p98140": 25,
+    "test_overrides_count": 120,
+    "test_direction_breakdown": {
+      "directions": {
+        "High->Medium": 65,
+        "Medium->High": 14,
+        "Medium->Low": 31,
+        "Low->Medium": 10
+      },
+      "net_per_class": {
+        "Low": 21,
+        "Medium": 30,
+        "High": -51
+      }
+    },
+    "oof_direction_precision": {
+      "Medium->Low": {
+        "n": 64,
+        "correct_to_b": 37,
+        "wrong_back_to_a": 27,
+        "true_class_breakdown": {
+          "0": 37,
+          "1": 27,
+          "2": 0
+        },
+        "precision": 0.578125,
+        "break_even": 0.6074260539154109,
+        "expected_macro_delta": -4.304435426304293e-06
+      },
+      "Low->Medium": {
+        "n": 15,
+        "correct_to_b": 4,
+        "wrong_back_to_a": 11,
+        "true_class_breakdown": {
+          "0": 11,
+          "1": 4,
+          "2": 0
+        },
+        "precision": 0.26666666666666666,
+        "break_even": 0.3925739460845891,
+        "expected_macro_delta": -4.335059677380866e-06
+      },
+      "High->Medium": {
+        "n": 108,
+        "correct_to_b": 103,
+        "wrong_back_to_a": 5,
+        "true_class_breakdown": {
+          "0": 0,
+          "1": 103,
+          "2": 5
+        },
+        "precision": 0.9537037037037037,
+        "break_even": 0.919221940688165,
+        "expected_macro_delta": 6.427856912237654e-05
+      },
+      "Medium->High": {
+        "n": 92,
+        "correct_to_b": 14,
+        "wrong_back_to_a": 78,
+        "true_class_breakdown": {
+          "0": 0,
+          "1": 78,
+          "2": 14
+        },
+        "precision": 0.15217391304347827,
+        "break_even": 0.08077805931183507,
+        "expected_macro_delta": 0.0001133740865050854
+      }
+    }
+  }
+}
