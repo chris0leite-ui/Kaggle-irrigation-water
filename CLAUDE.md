@@ -19474,6 +19474,46 @@ stability, the T4 scaffold can be built quickly by mirroring
 filtering step added inline (similar pattern to
 `scripts/recipe_pseudolabel.py`'s pseudo subset construction).
 
+### 2026-04-30 — W3_MHonly winner-anchored ADD-H override: NULL (LB 0.98127, −0.00013)
+
+- Goal: surprise-options sweep ADDED on top of LB-best 0.98140 winner. Built
+  W3 = k=3 unanimous of {lb3, 3way, T4_pseudo} on winner anchor; the M→H
+  direction subset (W3_MHonly) was the strongest unprobed candidate after
+  H→M alone at +0.000008 OOF and the all-direction W3 at +0.000091. M→H
+  direction only: 42 test overrides, all Medium→High, OOF Δ +0.000113
+  vs winner anchor (OOF 0.98088 → 0.98099). OOF M→H precision 11.7% >
+  8.1% break-even.
+- LB submission (06:36 UTC): `submission_W3_MHonly.csv`
+  → **LB public = 0.98127**
+  Δ vs LB-best 0.98140 = **−0.00013** (regression).
+  OOF→LB gap = winner's −0.00052 → candidate's −0.00028 (gap NARROWED;
+  the candidate consumed 24bp of the anchor's LB-generous calibration).
+- **Cross-confirmation**: a parallel session today probed
+  `submission_tier_1_1_tc1_v1_k4_k2.csv` (16-row winner-anchored ADD-H
+  override using {v1_rf, k4} k=2 unanimous) and got **LB 0.98136** —
+  also regressing from 0.98140. Two independent winner-anchored ADD-H
+  mechanisms both regress.
+- **Diagnosis** (40th saturation confirmation, this time on the 0.98140
+  winner anchor): the k=2 unan {raw, tier1b} mechanism captured EXACTLY
+  the right set of overrides on v1. The winner's negative OOF→LB gap
+  (−0.00052) is structurally a function of WHICH 145 rows it chose to
+  override, not a margin to spend. Adding more M→H overrides — even at
+  OOF-validated above-break-even precision — narrows the gap because the
+  new overrides have lower test-side precision than the OOF estimate.
+- **Portable rule** (LEARNINGS.md candidate): "OOF M→H precision >
+  break-even is necessary but NOT sufficient for LB transfer when the
+  anchor is itself an override of a saturated stack. The override-family
+  carryover ratio inverts: anchors with negative OOF→LB gap (LB > OOF)
+  consume the gap as additional overrides are stacked, EVEN IF those
+  overrides are direction-positive at the OOF level. The signature of
+  this failure: candidate gap < anchor gap (in absolute value) by
+  more than +1bp per ~5 added overrides."
+- LB best UNCHANGED at **0.98140** via `submission_2other_raw_tier1b_k2.csv`.
+- LB budget today: 2/10 used (W3_MHonly + parallel TC1 attempt earlier),
+  8 remaining.
+- Mechanism family closed for winner-anchored ADD-H of any footprint.
+  All remaining unprobed ADD-H winner-anchored candidates on disk
+  (W3_HM_and_MH_only, W3_HMonly) project similar or worse outcomes.
 ---
 
 ## Session log addenda (modular, post-2026-04-29 cutoff)
