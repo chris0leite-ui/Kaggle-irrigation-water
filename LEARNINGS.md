@@ -1789,3 +1789,82 @@ magnitude AND rare-class direction), not at the meta-stacker level.
 
 **Saturation count contribution**: 35th-38th confirmations at LB
 0.98094 (4 v8 variants).
+
+### 2026-04-30 — High global AUC ≠ boundary-row discrimination
+
+When you have a binary auxiliary detector with high global AUC
+(e.g., AUC 0.98) and you want to use it as a **per-row gate** for
+overrides on a saturated bank, do NOT trust the global AUC. Verify
+per-decile precision on the **specific decision-boundary
+sub-population** where overrides will fire.
+
+**Concrete failure** (T7+T8, 2026-04-30): `aux_missed_high` had
+TRAIN OOF AUC 0.983 globally — strongest single binary signal in the
+14-bank. Used in two override-gate experiments:
+- T7 (drop high-amh from 4b's H→M flips): drop-set on V1-floor was
+  78-80% true-M, ~20% true-H — opposite of the mechanism's premise.
+- T8 (rescue B's M-predictions where amh > τ): rescue-set was
+  97-100% true-M at every threshold τ ∈ {0.80, ..., 0.99}; AMH ranks
+  rows that B confidently labels as M, NOT rows where the rule
+  missed an H.
+
+**Why**: the global AUC is dominated by *easy* cases (clear-L vs
+clear-H rows where the rule and bank trivially agree). The
+auxiliary detector and the bank components share training data and
+saturate **together** on borderline rows. The detector adds zero
+discriminative power on the exact subset where you'd want a 4th
+axis.
+
+**Diagnostic protocol**: before adopting an "AUC-X detector" as a
+per-row override gate, run this 2-line check:
+```python
+mask = (bank_argmax == M) & (rule_disagrees)   # boundary rows
+print(np.percentile(detector[mask], [50, 90, 95, 99]))
+for tau in [0.5, 0.8, 0.95]:
+    print((y[mask & (detector > tau)] == target_class).mean())
+```
+If per-decile precision on the boundary mask is flat (within ±5pp
+across deciles), the detector cannot be used as a per-row gate.
+This applies whether the detector is an XGB binary head, a separate
+NN, an LLM judge, or a stacked meta.
+
+**Saturation count contribution**: 43rd confirmation at LB 0.98150
+(T7 emit-only + T8 NULL).
+
+### 2026-04-30 — 80/20 public/private splits put a hard floor on probe resolution
+
+For Kaggle Playground competitions with 80/20 (or other heavily
+skewed) public/private splits, the public LB sees only ~20% of test
+rows. This places a **noise floor on what tweak-size override
+candidates can be measurably distinguished from baseline on public
+LB**.
+
+**Math**: a candidate that flips N total rows lands ~0.2·N flips on
+public. With balanced-accuracy as the metric and ~50k public rows,
+the per-flip macro-recall delta is roughly ±1/N_class_public ≈
+±5e-5 per correct flip and ~3e-4 per wrong rare-class flip. For
+N≤30 total flips, the public LB delta from row-allocation luck alone
+is ±2-7bp — comparable to or larger than typical override-mechanism
+lifts.
+
+**Empirical validation**: across 30+ override-mechanism probes in
+this comp, every difference of ≤2bp on public LB falls within
+plausible row-allocation noise at 80/20. The 0.98140 / 0.98143 /
+0.98148 / 0.98150 ranking does NOT reliably correspond to private
+ranking; tweaks at this scale measure noise as much as signal.
+
+**Operational rules**:
+1. Skip LB probes for candidates with <30 row changes vs the
+   anchor — you won't learn anything actionable.
+2. For 80/20 splits, candidate-mechanism probes need **≥50-100 row
+   changes** to give a public-LB readout above the noise floor.
+3. For final-2 selection, hedge with a **structurally distinct**
+   candidate (different override depth or no override at all)
+   rather than a near-twin variant of the LB-best — the public-LB
+   difference between near-twins is mostly noise; private LB could
+   reorder them.
+
+**This isn't a saturation, it's a structural rule for interpreting
+the saturation ladder.** Half the "NULL" verdicts on small-tweak
+overrides may have been noise rather than evidence of mechanism
+failure.
