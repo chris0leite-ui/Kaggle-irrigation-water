@@ -1,0 +1,699 @@
+ROW 754753
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.95
+REASON: Soil moisture adequate, rainfall high, no mulch offset by heat
+
+ROW 713434
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Boundary case; flowering stage may trigger NN flip upward
+
+ROW 679777
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, mulch, low score signals no irrigation need
+
+ROW 742970
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.99
+REASON: Abundant rainfall, adequate soil moisture, cool temperature
+
+ROW 799075
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, vegetative stage adds Kc=2, adequate rainfall stops upward flip
+
+ROW 841914
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.96
+REASON: Dry soil, massive rainfall, cool temperature mitigates
+
+ROW 711198
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry soil, high rainfall and humidity prevent Medium override
+
+ROW 675783
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: Adequate moisture, abundant rainfall, mulch protection applied
+
+ROW 734223
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, abundant rainfall, cool temperature, vegetative
+
+ROW 719693
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Dry soil, massive rainfall buffers; low humidity absent risk
+
+ROW 714414
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry soil, wind present, low prior irrigation, low humidity
+
+ROW 708586
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Very dry soil, moderate rainfall, high humidity protects adequately
+
+ROW 794371
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry soil, heat, wind, sowing stage without flowering Kc
+
+ROW 733365
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.68
+REASON: Adequate soil moisture, vegetative stage adds 2, wind, heat present
+
+ROW 877272
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Adequate moisture, abundant rainfall, mulch, flowering buffered
+
+ROW 697620
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Moderate moisture, adequate rainfall, heat offset by wind benefit
+
+ROW 769168
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: High moisture despite low rainfall, mulch, wind, cool harvest
+
+ROW 666289
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry soil, abundant rainfall, moderate recent irrigation history
+
+ROW 749076
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: Adequate moisture, very high rainfall, vegetative, cool season
+
+ROW 886617
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.95
+REASON: Moderate dryness, moderate rainfall, flowering, cool temperature
+
+ROW 833893
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Very dry soil, moderate rainfall, cool harvest, adequate prior
+
+ROW 643294
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Adequate moisture, moderate rainfall, flowering, wind offsets heat
+
+ROW 885933
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Dry soil, moderate rainfall, cool sowing, adequate prior irrigation
+
+ROW 755844
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Dry soil, abundant rainfall, high wind, low organic carbon trigger
+
+ROW 815274
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry soil, massive rainfall, cool harvest, high humidity protects
+
+ROW 849262
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.68
+REASON: Moderate dryness, abundant rainfall, flowering heat override present
+
+ROW 712149
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry soil, moderate rainfall, vegetative, low prior irrigation caution
+
+ROW 866408
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil, moderate rainfall, heat offset by mulch, harvest stage
+
+ROW 680008
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry soil, moderate rainfall, cool harvest, adequate prior irrigation
+
+ROW 738662
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Adequate moisture, moderate rainfall, cool, wind benefit present
+
+ROW 760225
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Very dry soil, low rainfall, heat, high humidity NN may flip upward
+
+ROW 817737
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Adequate moisture, very low rainfall, vegetative, no mulch offset
+
+ROW 776638
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Dry soil, moderate rainfall, vegetative, cool temperature, adequate
+
+ROW 795462
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Dry soil, moderate rainfall, wind, low prior irrigation concerns
+
+ROW 788810
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, low rainfall, heat, sowing, mulch helps offset
+
+ROW 849978
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.95
+REASON: High moisture, abundant rainfall, flowering, cool temperature
+
+ROW 785265
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: Adequate moisture, abundant rainfall, vegetative, cool temperature
+
+ROW 807026
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry soil, moderate rainfall, sowing, cool, adequate prior irrigation
+
+ROW 684343
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: High
+CONF: 0.65
+REASON: Dry-marginal, extreme heat, wind, sowing, very low rainfall crisis
+
+ROW 720203
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Dry soil, moderate rainfall, flowering, low humidity no upward nudge
+
+ROW 694907
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.95
+REASON: Dry soil, very high rainfall, cool harvest, adequate prior irrigation
+
+ROW 719968
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Moderate dryness, moderate rainfall, flowering, adequate prior
+
+ROW 869861
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Dry soil, abundant rainfall, heat, sowing, low prior irrigation
+
+ROW 682777
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil, moderate rainfall, sowing, high humidity adequate
+
+ROW 712142
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Dry soil, abundant rainfall, cool harvest, wind benefit
+
+ROW 722949
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: High moisture, abundant rainfall, heat offset by wind, harvest
+
+ROW 743562
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Dry soil, moderate rainfall, sowing, adequate prior irrigation history
+
+ROW 696606
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry soil, abundant rainfall, cool harvest, adequate prior irrigation
+
+ROW 765570
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Moderate dryness, moderate rainfall, flowering heat, low humidity
+
+ROW 825897
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.68
+REASON: Very dry soil, moderate rainfall, heat, low prior, low organic carbon
+
+ROW 746871
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil, moderate rainfall, sowing, high humidity buffer adequate
+
+ROW 803859
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: High moisture, extreme low rainfall, heat, wind harvest offset
+
+ROW 767889
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: High moisture, moderate rainfall, cool flowering, adequate prior
+
+ROW 630097
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: Moderate moisture, abundant rainfall, cool flowering, adequate prior
+
+ROW 826116
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Dry soil, moderate rainfall, cool harvest, adequate prior irrigation
+
+ROW 699036
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: High
+CONF: 0.62
+REASON: Adequate moisture, extreme low rainfall, wind, very low prior irrigation
+
+ROW 670757
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry soil, moderate rainfall, flowering, adequate prior irrigation
+
+ROW 723988
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry soil, heat, sowing, moderate rainfall, low prior
+
+ROW 739545
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry soil, moderate rainfall, sowing, moderate humidity adequate
+
+ROW 733254
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: High moisture, moderate rainfall, flowering, adequate prior irrigation
+
+ROW 866493
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Adequate moisture, abundant rainfall, heat, harvest, moderate humidity
+
+ROW 721395
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Very dry soil, abundant rainfall, cool sowing, adequate prior
+
+ROW 892509
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: High moisture, abundant rainfall, cool flowering, adequate prior
+
+ROW 837637
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Moderate moisture, abundant rainfall, cool vegetative, high wind
+
+ROW 817250
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Very dry soil, moderate rainfall, heat, low prior irrigation present
+
+ROW 707097
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: Adequate moisture, abundant rainfall, cool flowering, adequate prior
+
+ROW 646552
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: High moisture, moderate rainfall, heat, flowering, mulch offset
+
+ROW 757585
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.73
+REASON: Very dry soil, abundant rainfall, heat, low prior irrigation concern
+
+ROW 887849
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: High moisture, moderate rainfall, flowering heat, adequate prior
+
+ROW 686780
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: Adequate moisture, moderate rainfall, vegetative, cool temperature
+
+ROW 668038
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, abundant rainfall, cool flowering, adequate prior
+
+ROW 846366
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Very dry soil, moderate rainfall, cool harvest, high wind offset
+
+ROW 801525
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.71
+REASON: Dry soil, moderate rainfall, heat, flowering, low prior irrigation
+
+ROW 825666
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: High moisture, moderate rainfall, cool vegetative, adequate prior
+
+ROW 835780
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Dry soil, abundant rainfall, cool flowering, high humidity adequate
+
+ROW 756458
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: Adequate moisture, abundant rainfall, cool flowering, high humidity
+
+ROW 828772
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, abundant rainfall, cool vegetative, high humidity
+
+ROW 683059
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: High moisture, moderate rainfall, sowing extreme heat offset
+
+ROW 869386
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Very dry soil, moderate rainfall, heat, low prior irrigation marked
+
+ROW 873265
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, abundant rainfall, cool flowering, adequate prior
+
+ROW 687184
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.73
+REASON: Very dry soil, abundant rainfall, cool sowing, low prior irrigation
+
+ROW 812507
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: High moisture, very low rainfall, cool harvest, high wind harvest
+
+ROW 655267
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: Adequate moisture, moderate rainfall, cool flowering, adequate prior
+
+ROW 660733
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.95
+REASON: Adequate moisture, abundant rainfall, heat, vegetative, mulch offset
+
+ROW 750333
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Dry soil, abundant rainfall, heat, sowing, low prior irrigation
+
+ROW 728709
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: High moisture, very low rainfall, heat, sowing, adequate prior
+
+ROW 854086
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Adequate moisture, moderate rainfall, heat, harvest, wind offset
+
+ROW 692446
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Dry soil, moderate rainfall, flowering, high wind, low organic carbon
+
+ROW 699525
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.98
+REASON: High moisture, moderate rainfall, vegetative, cool temperature
+
+ROW 713974
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Dry soil, moderate rainfall, extreme heat, harvest, low organic carbon
+
+ROW 635054
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, abundant rainfall, heat, harvest, high wind
+
+ROW 898011
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Dry soil, low rainfall, heat, flowering, high humidity buffer
+
+ROW 699232
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Dry soil, abundant rainfall, cool harvest, wind, low humidity nudge
+
+ROW 644351
+RULE_SCORE: 0
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.97
+REASON: Moderate moisture, abundant rainfall, cool vegetative, adequate prior
+
+ROW 825484
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.73
+REASON: Dry soil, abundant rainfall, cool harvest, low prior irrigation risk
+
+ROW 826962
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Moderate dryness, abundant rainfall, heat, vegetative, moderate humidity
+
+ROW 870222
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.94
+REASON: Moderate moisture, abundant rainfall, heat, harvest, cool wind
+
+ROW 879489
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Very dry soil, moderate rainfall, cool harvest, high wind, low prior
+
+ROW 702057
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Very dry soil, moderate rainfall, cool harvest, high humidity adequate
+
+ROW 721737
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Very dry soil, abundant rainfall, cool harvest, adequate prior

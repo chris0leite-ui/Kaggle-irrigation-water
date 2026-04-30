@@ -1,0 +1,10 @@
+{
+  "n_test_flips": 45,
+  "n_oof_cand": 263,
+  "oof_precision_m": 0.9543726235741445,
+  "oof_precision_h": 0.04182509505703422,
+  "oof_macro_4b": 0.9808164969569102,
+  "oof_macro_new": 0.980991929958947,
+  "oof_delta": 0.00017543300203681778,
+  "candidate_csv": "submissions/submission_T6_directional_4b_plus_t6_hm.csv"
+}

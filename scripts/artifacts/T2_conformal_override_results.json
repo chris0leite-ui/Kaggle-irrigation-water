@@ -1,0 +1,19 @@
+{
+  "alpha": 0.01,
+  "q_hat": 0.7141830921173096,
+  "oof_coverage": 0.9900015873015873,
+  "test_set_size_dist": {
+    "singleton": 267972,
+    "two_class": 2028,
+    "three_class": 0
+  },
+  "n_overrides_test": 692,
+  "directions_test": {
+    "H->M": 692
+  },
+  "net_h_test": -692,
+  "train_oof_base_macro": 0.9728642203211567,
+  "train_oof_t2_macro": 0.9730910594146183,
+  "train_oof_delta": 0.0002268390934615505,
+  "n_flips_train_oof": 23
+}

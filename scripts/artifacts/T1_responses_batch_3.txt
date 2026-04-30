@@ -1,0 +1,699 @@
+ROW 696942
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.95
+REASON: Dry soil, low wind, high temperature offsets
+
+ROW 776494
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Adequate moisture, high rainfall, flowering stage growth
+
+ROW 637901
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: High moisture, adequate rain, no wind, flowering stage
+
+ROW 750026
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, high rainfall, barely hot, flowering
+
+ROW 705171
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Low rainfall, dry-ish, flowering stage, no mulch add
+
+ROW 764523
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Very dry soil, low rainfall, somewhat hot, windy
+
+ROW 748722
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry soil, adequate rainfall, no mulch, cool temperature
+
+ROW 824293
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Adequate moisture, very low rainfall, cool, harvest stage
+
+ROW 862881
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Low rainfall overweight; hot, windy offsets adequate moisture
+
+ROW 726625
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Adequate moisture, high rainfall, cool, flowering stage
+
+ROW 865375
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: High moisture, adequate rainfall, cool, flowering stage
+
+ROW 753360
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.72
+REASON: Adequate moisture, vegetative high Kc, hot temperature bias
+
+ROW 764573
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Adequate moisture, low rainfall, hot, flowering stage
+
+ROW 680627
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, high rainfall, hot offset, vegetative Kc
+
+ROW 697427
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Adequate moisture, high rainfall, windy, hot temperature
+
+ROW 899387
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, low rainfall, hot, windy, sowing stage
+
+ROW 783694
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Adequate moisture, high rainfall, cool, vegetative, no wind
+
+ROW 636712
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: High moisture, high rainfall, hot but vegetative Kc, yes mulch
+
+ROW 737996
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Adequate moisture, low-med rainfall, cool, vegetative stage
+
+ROW 743921
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Borderline dry, high rainfall, windy, vegetative high Kc
+
+ROW 810799
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil, high rainfall compensates, cool, sowing stage
+
+ROW 813266
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Adequate moisture, low rainfall, hot, barely windy compensate
+
+ROW 695062
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Dry soil, high rainfall, hot, sowing stage, low organic carbon
+
+ROW 702264
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Adequate moisture, low rainfall, hot, flowering, no mulch
+
+ROW 835797
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry-moderate, very low rainfall, windy, sowing stage
+
+ROW 678164
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: Very dry soil, low rainfall, hot, low previous irrigation
+
+ROW 704082
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Adequate moisture, low rainfall, hot, windy, low recent irrigation
+
+ROW 799355
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Dry-moderate, high rainfall, hot, vegetative, low humidity
+
+ROW 643374
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, low rainfall, hot but flowering only
+
+ROW 694081
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: High moisture, low rainfall, cool, flowering, adequate carbon
+
+ROW 833172
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, low rainfall, cool, vegetative, no mulch
+
+ROW 742937
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: High moisture, low rainfall, cool, flowering, windy mitigated
+
+ROW 665262
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Dry soil, high rainfall, hot, harvest stage, low carbon
+
+ROW 829788
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.82
+REASON: Borderline dry, very low rainfall, windy, harvest, high humidity
+
+ROW 779873
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Adequate moisture, high rainfall, cool, vegetative, windy
+
+ROW 889149
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, low rainfall, moderate hot, windy, vegetative
+
+ROW 734221
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.75
+REASON: Borderline dry-adequate, low rainfall, hot, vegetative, high Kc
+
+ROW 651877
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Borderline dry, low rainfall, windy, harvest, no mulch
+
+ROW 871160
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, high rainfall, hot, vegetative, yes mulch
+
+ROW 727746
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: High moisture, very low rainfall, moderate hot, windy, sowing
+
+ROW 873898
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Adequate moisture, high rainfall, moderate hot, vegetative
+
+ROW 751569
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Adequate moisture, very low rainfall, very hot, windy, sowing
+
+ROW 892402
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Borderline dry, very low rainfall, moderate hot, windy, flowering
+
+ROW 663322
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Very dry soil, low rainfall, windy, vegetative, no mulch
+
+ROW 889870
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, high rainfall, cool, windy, vegetative
+
+ROW 844910
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Borderline dry, high rainfall, hot, flowering, moderate carbon
+
+ROW 708868
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, very low rainfall, hot, harvest, no mulch
+
+ROW 865765
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, flowering, very low recent irrigation
+
+ROW 816602
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.70
+REASON: Adequate moisture, very low rainfall, hot, windy, high humidity bias
+
+ROW 720868
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Adequate moisture, very low rainfall, hot, windy, flowering
+
+ROW 801927
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Very dry soil, high rainfall, very hot, very windy, sowing
+
+ROW 773324
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, low rainfall, hot, windy, flowering, no mulch
+
+ROW 871957
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Dry soil, low rainfall, hot, windy, vegetative, very low humidity
+
+ROW 642912
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, vegetative, no mulch
+
+ROW 730423
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Very dry soil, low rainfall, very hot, very windy, vegetative
+
+ROW 785748
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Dry soil, low rainfall, hot, vegetative, very low humidity
+
+ROW 671219
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, high rainfall, hot, windy, flowering, no mulch
+
+ROW 766750
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Adequate moisture, very low rainfall, hot, flowering, low humidity
+
+ROW 860171
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Very dry soil, very low rainfall, windy, harvest, no mulch
+
+ROW 738092
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, high rainfall, hot, very windy, flowering
+
+ROW 866695
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Adequate moisture, very low rainfall, hot, sowing, very low humidity
+
+ROW 827042
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Dry soil, very low rainfall, hot, windy, sowing, low humidity
+
+ROW 638468
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, very low rainfall, windy, harvest, no mulch
+
+ROW 792636
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Adequate moisture, very low rainfall, hot, windy, vegetative
+
+ROW 660435
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, vegetative, no mulch
+
+ROW 759712
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, low rainfall, hot, vegetative, no mulch
+
+ROW 863615
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Very dry soil, low rainfall, very hot, very windy, vegetative
+
+ROW 711279
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, low rainfall, cool, very windy, flowering
+
+ROW 822217
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Borderline dry, low rainfall, cool, windy, flowering
+
+ROW 892771
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Adequate moisture, very low rainfall, moderate hot, vegetative
+
+ROW 720213
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, low rainfall, hot, very windy, flowering
+
+ROW 822159
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, high rainfall, cool, very windy, flowering
+
+ROW 883730
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Very dry soil, high rainfall, cool, vegetative, adequate carbon
+
+ROW 788831
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.85
+REASON: Very dry soil, low rainfall, very hot, very windy, vegetative
+
+ROW 730494
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Borderline dry, very low rainfall, hot, windy, harvest
+
+ROW 802922
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Very dry soil, low rainfall, cool, very windy, vegetative
+
+ROW 785953
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, very low rainfall, cool, vegetative, no mulch
+
+ROW 848766
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, flowering, no mulch
+
+ROW 636210
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Borderline dry, low rainfall, cool, windy, flowering
+
+ROW 655956
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry soil, low rainfall, hot, vegetative, high humidity
+
+ROW 826519
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Borderline dry, very low rainfall, cool, windy, flowering
+
+ROW 840258
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, very low rainfall, hot, windy, vegetative
+
+ROW 785212
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, cool, windy, flowering
+
+ROW 815477
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Very dry soil, high rainfall, hot, vegetative, low humidity
+
+ROW 715530
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Very dry soil, low rainfall, hot, very windy, flowering
+
+ROW 807627
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, low rainfall, hot, vegetative, no mulch
+
+ROW 631164
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, vegetative, high humidity
+
+ROW 773319
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Borderline dry, very low rainfall, very hot, very windy, flowering
+
+ROW 835725
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Very dry soil, high rainfall, hot, windy, flowering
+
+ROW 712667
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, low rainfall, moderate hot, very windy, vegetative
+
+ROW 716676
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Very dry soil, high rainfall, cool, windy, flowering
+
+ROW 661282
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Very dry soil, low rainfall, hot, flowering, no mulch
+
+ROW 827445
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.80
+REASON: Borderline dry, high rainfall, very hot, vegetative, very low irrigation
+
+ROW 639122
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Borderline dry, low rainfall, cool, windy, flowering
+
+ROW 758672
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Borderline dry, low rainfall, hot, vegetative, no mulch
+
+ROW 849371
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Very dry soil, low rainfall, cool, very windy, vegetative
+
+ROW 709240
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Very dry soil, low rainfall, hot, vegetative, no mulch
+
+ROW 736524
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Borderline dry, low rainfall, cool, windy, flowering
+
+ROW 795155
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Borderline dry, low rainfall, very hot, very windy, vegetative
+
+ROW 867192
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Very dry soil, high rainfall, cool, very windy, flowering

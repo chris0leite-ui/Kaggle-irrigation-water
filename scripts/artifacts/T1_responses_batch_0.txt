@@ -1,0 +1,699 @@
+ROW 788672
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.9
+REASON: Soil moisture adequate, rainfall high, no growth stage boost
+
+ROW 885439
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil but high rainfall, sowing stage, net low need
+
+ROW 661296
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: High wind but no Kc boost, adequate moisture, borderline
+
+ROW 830914
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.9
+REASON: Adequate soil moisture, high rainfall, flowering but stable
+
+ROW 712329
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry soil, high wind, flowering stage adds Kc factor
+
+ROW 847633
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry soil, high rainfall, hot, sowing stage lacks Kc boost
+
+ROW 675525
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry soil, hot, vegetative stage, moderate rainfall combines
+
+ROW 732746
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, vegetative no Kc, low score
+
+ROW 848309
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil but high rainfall, low wind net, harvest stage
+
+ROW 799610
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.88
+REASON: Dry, no rain, hot, windy, low humidity predicts irrigation
+
+ROW 768603
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry soil, hot, high rainfall counterbalance, harvest stage
+
+ROW 864251
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: High moisture, high wind, low rain, sowing lacks Kc
+
+ROW 811218
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil, high rainfall, no mulch, sowing stage nets low
+
+ROW 822471
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.9
+REASON: Adequate moisture, high rainfall, vegetative, low need
+
+ROW 823220
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry soil, high wind, no mulch, harvest stage, low rain
+
+ROW 864379
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Hot, high wind, flowering, very low previous irrigation flags
+
+ROW 696642
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil, high wind, vegetative no Kc, adequate history
+
+ROW 749436
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry soil, high wind, low rainfall, vegetative stage net
+
+ROW 867569
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry soil, hot, flowering adds Kc, no mulch compounds
+
+ROW 847038
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Adequate moisture, hot, high wind, vegetative, no rain trigger
+
+ROW 859056
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, flowering stage, low carbon predicts higher need
+
+ROW 855869
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, high wind, flowering, no mulch, very low irrigation
+
+ROW 872508
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil, high wind, low temp, vegetative no boost
+
+ROW 719276
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, hot, vegetative stage, low humidity plus carbon low
+
+ROW 775166
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, hot, flowering stage, low wind, no mulch risk
+
+ROW 661870
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, flowering but good moisture
+
+ROW 708945
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: Dry soil, high wind, adequate rainfall, vegetative net low
+
+ROW 727445
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, high wind, flowering stage, very low humidity
+
+ROW 688200
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: Adequate moisture, high wind, low rain, harvest no Kc
+
+ROW 669959
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.8
+REASON: Dry, hot, high wind, vegetative, low carbon, low humidity
+
+ROW 743239
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, hot, flowering, high wind, adequate rainfall offsets
+
+ROW 752907
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, flowering stage, high wind, very low irrigation
+
+ROW 799223
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.8
+REASON: Dry, hot, flowering, high wind, low carbon plus humidity
+
+ROW 745517
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil, high wind, vegetative, high rainfall, adequate
+
+ROW 835609
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Adequate moisture but hot, high wind, flowering, low carbon
+
+ROW 635392
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: High moisture but hot, flowering, high wind, low humidity
+
+ROW 849107
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, sowing no Kc boost
+
+ROW 648428
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, vegetative, high rainfall, adequate carbons
+
+ROW 698058
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry soil, high wind, flowering, high rainfall dominates
+
+ROW 767220
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry soil, high wind, flowering, moderate rainfall net low
+
+ROW 840451
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, flowering, adequate rainfall, good moisture
+
+ROW 886948
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, vegetative, high rainfall, low wind
+
+ROW 817601
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: Dry, hot, vegetative no Kc, adequate rainfall, low wind
+
+ROW 884366
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, sowing no Kc, low rain, adequate carbon
+
+ROW 893800
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Adequate moisture, low temp, flowering, virtually no rain
+
+ROW 725505
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, vegetative no Kc, high rainfall, high humidity buffered
+
+ROW 646620
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry, hot, vegetative no Kc, high rainfall dominates decision
+
+ROW 741215
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, high wind, harvest no Kc, low rain, high humidity
+
+ROW 822197
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, vegetative no Kc, high rainfall overrides
+
+ROW 690074
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, high wind, flowering stage, moderate rainfall balance
+
+ROW 773903
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, harvest no Kc, moderate rainfall, adequate
+
+ROW 780824
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Dry, hot, vegetative, very high rainfall contradicts hot flag
+
+ROW 797474
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, vegetative stage, low wind, adequate rainfall offset
+
+ROW 831754
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, high wind, flowering, low humidity, low carbon risk
+
+ROW 783409
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, flowering, high rainfall
+
+ROW 689108
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, hot, vegetative, high rainfall dominates
+
+ROW 842067
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, low wind, vegetative no Kc, low rain, adequate moisture
+
+ROW 632229
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: High moisture, hot, flowering, no wind, very low rain flag
+
+ROW 683962
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, hot, flowering, low wind, low rain
+
+ROW 837773
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry, flowering, high rainfall, low wind, high humidity
+
+ROW 890037
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, hot, vegetative, low wind, moderate rainfall, adequate
+
+ROW 661957
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, vegetative, adequate rainfall, low temp
+
+ROW 632203
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, flowering, moderate rainfall, low humidity
+
+ROW 643396
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, hot, high wind, vegetative stage, moderate rainfall
+
+ROW 686601
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Adequate moisture, high wind, vegetative, low rainfall, low
+
+ROW 868968
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, hot, vegetative, high rainfall, low carbon
+
+ROW 874684
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, hot, high wind, harvest no Kc, low rain plus high wind
+
+ROW 879126
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, vegetative, high rainfall, high humidity
+
+ROW 846613
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Adequate moisture, hot, flowering, high rainfall, low humidity
+
+ROW 785711
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, hot, high wind, vegetative, moderate rainfall balance
+
+ROW 709645
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, flowering, high rainfall, low wind, low
+
+ROW 806975
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, high wind, flowering, low rain, low temp
+
+ROW 647098
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, hot, flowering, low wind, high rainfall dominates
+
+ROW 662010
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.8
+REASON: Dry, hot, high wind, flowering stage, moderate rainfall net
+
+ROW 742386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Dry, hot, high wind, sowing, very low rainfall triggers need
+
+ROW 807687
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, vegetative, high rainfall, low
+
+ROW 855420
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, flowering, low rain but good
+
+ROW 716770
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: High moisture, vegetative no Kc, low rain, adequate carbon
+
+ROW 648928
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, flowering, moderate rainfall
+
+ROW 729337
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, high wind, harvest no Kc, low rain, low temp offsets
+
+ROW 821112
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry, vegetative, high rainfall, low wind, low temp dominates
+
+ROW 717095
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, high wind, harvest no Kc, low carbon predicts
+
+ROW 696234
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, flowering, high rainfall, low temp offsets
+
+ROW 683325
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Dry, flowering, high rainfall, low wind, moderate carbon
+
+ROW 646006
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, harvest no Kc, low rain, low
+
+ROW 878051
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, high wind, flowering, high rainfall, low
+
+ROW 860721
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, flowering, high rainfall
+
+ROW 747413
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, high wind, flowering, low humidity plus low carbon
+
+ROW 699597
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Adequate moisture, hot, vegetative, very low rainfall, moderate
+
+ROW 695202
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, vegetative, moderate rainfall, adequate carbon
+
+ROW 696507
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, vegetative, moderate rainfall, low temp
+
+ROW 631760
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, hot, vegetative, high rainfall, low wind
+
+ROW 855405
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, hot, high wind, flowering stage, very low humidity flag
+
+ROW 894098
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, sowing, low rain, decent
+
+ROW 648895
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Adequate moisture, high wind, flowering, low rain, low wind
+
+ROW 827719
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, high wind, flowering, moderate rainfall, good carbon
+
+ROW 873516
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, hot, flowering, low wind, moderate rainfall, adequate
+
+ROW 867523
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Adequate moisture, hot, high wind, flowering, very low rain
+
+ROW 738374
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.85
+REASON: Dry, hot, flowering, low wind, high rainfall, adequate carbon
+
+ROW 631860
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.8
+REASON: Dry, hot, harvest no Kc, low wind, low rain, moderate carbon

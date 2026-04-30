@@ -1,0 +1,8 @@
+{
+  "consensus_threshold": 12,
+  "n_consensus_test": 268932,
+  "n_consensus_oof": 627112,
+  "oof_macro_4b_baseline": 0.9808275910273698,
+  "oof_macro_t5": 0.9748431285518677,
+  "oof_delta": -0.005984462475502106
+}

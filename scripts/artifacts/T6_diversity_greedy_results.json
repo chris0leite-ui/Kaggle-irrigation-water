@@ -1,0 +1,279 @@
+{
+  "0.0": {
+    "final_macro": 0.9810898802084577,
+    "lift_over_anchor": 0.0004434118057634606,
+    "path": [
+      {
+        "step": 0,
+        "name": "sklearn_rf_meta_natural",
+        "alpha": 1.0,
+        "macro": 0.9806464684026942,
+        "bias": [
+          -1.3333333333333335,
+          -1.0,
+          1.5
+        ]
+      },
+      {
+        "step": 1,
+        "name": "xgb_metastack",
+        "alpha": 0.3,
+        "macro": 0.9809248155888817,
+        "jaccard": 0.9986888888888888,
+        "delta": 0.00027834718618746646
+      },
+      {
+        "step": 2,
+        "name": "recipe_pseudolabel_seed7labeler",
+        "alpha": 0.1,
+        "macro": 0.9810353159107423,
+        "jaccard": 0.9975904761904761,
+        "delta": 0.00011050032186066261
+      },
+      {
+        "step": 3,
+        "name": "tier1b_greedy_meta",
+        "alpha": 0.3,
+        "macro": 0.9810898802084577,
+        "jaccard": 0.9992126984126984,
+        "delta": 5.4564297715331556e-05
+      }
+    ]
+  },
+  "0.005": {
+    "final_macro": 0.9811054822690687,
+    "lift_over_anchor": 0.00045901386637448027,
+    "path": [
+      {
+        "step": 0,
+        "name": "sklearn_rf_meta_natural",
+        "alpha": 1.0,
+        "macro": 0.9806464684026942,
+        "bias": [
+          -1.3333333333333335,
+          -1.0,
+          1.5
+        ]
+      },
+      {
+        "step": 1,
+        "name": "xgb_nonrule",
+        "alpha": 0.15,
+        "macro": 0.9807012034604631,
+        "jaccard": 0.6523888888888889,
+        "delta": 5.473505776887322e-05
+      },
+      {
+        "step": 2,
+        "name": "xgb_metastack",
+        "alpha": 0.3,
+        "macro": 0.9809500001235371,
+        "jaccard": 0.9986888888888888,
+        "delta": 0.0002487966630739802
+      },
+      {
+        "step": 3,
+        "name": "recipe_pseudolabel_seed7labeler",
+        "alpha": 0.05,
+        "macro": 0.9810578902271488,
+        "jaccard": 0.9975904761904761,
+        "delta": 0.00010789010361178519
+      },
+      {
+        "step": 4,
+        "name": "sklearn_rf_meta_natural_r10_with_tier1b",
+        "alpha": 0.05,
+        "macro": 0.9810688739191554,
+        "jaccard": 0.9993412698412698,
+        "delta": 1.0983692006583112e-05
+      },
+      {
+        "step": 5,
+        "name": "tier1b_greedy_meta",
+        "alpha": 0.3,
+        "macro": 0.9810822194855757,
+        "jaccard": 0.9992126984126984,
+        "delta": 1.3345566420297494e-05
+      },
+      {
+        "step": 6,
+        "name": "realmlp",
+        "alpha": 0.1,
+        "macro": 0.9811054822690687,
+        "jaccard": 0.9972031746031746,
+        "delta": 2.326278349296107e-05
+      }
+    ]
+  },
+  "0.01": {
+    "final_macro": 0.9811054822690687,
+    "lift_over_anchor": 0.00045901386637448027,
+    "path": [
+      {
+        "step": 0,
+        "name": "sklearn_rf_meta_natural",
+        "alpha": 1.0,
+        "macro": 0.9806464684026942,
+        "bias": [
+          -1.3333333333333335,
+          -1.0,
+          1.5
+        ]
+      },
+      {
+        "step": 1,
+        "name": "xgb_nonrule",
+        "alpha": 0.15,
+        "macro": 0.9807012034604631,
+        "jaccard": 0.6523888888888889,
+        "delta": 5.473505776887322e-05
+      },
+      {
+        "step": 2,
+        "name": "xgb_metastack",
+        "alpha": 0.3,
+        "macro": 0.9809500001235371,
+        "jaccard": 0.9986888888888888,
+        "delta": 0.0002487966630739802
+      },
+      {
+        "step": 3,
+        "name": "recipe_pseudolabel_seed7labeler",
+        "alpha": 0.05,
+        "macro": 0.9810578902271488,
+        "jaccard": 0.9975904761904761,
+        "delta": 0.00010789010361178519
+      },
+      {
+        "step": 4,
+        "name": "sklearn_rf_meta_natural_r10_with_tier1b",
+        "alpha": 0.05,
+        "macro": 0.9810688739191554,
+        "jaccard": 0.9993412698412698,
+        "delta": 1.0983692006583112e-05
+      },
+      {
+        "step": 5,
+        "name": "tier1b_greedy_meta",
+        "alpha": 0.3,
+        "macro": 0.9810822194855757,
+        "jaccard": 0.9992126984126984,
+        "delta": 1.3345566420297494e-05
+      },
+      {
+        "step": 6,
+        "name": "realmlp",
+        "alpha": 0.1,
+        "macro": 0.9811054822690687,
+        "jaccard": 0.9972031746031746,
+        "delta": 2.326278349296107e-05
+      }
+    ]
+  },
+  "0.02": {
+    "final_macro": 0.9811054822690687,
+    "lift_over_anchor": 0.00045901386637448027,
+    "path": [
+      {
+        "step": 0,
+        "name": "sklearn_rf_meta_natural",
+        "alpha": 1.0,
+        "macro": 0.9806464684026942,
+        "bias": [
+          -1.3333333333333335,
+          -1.0,
+          1.5
+        ]
+      },
+      {
+        "step": 1,
+        "name": "xgb_nonrule",
+        "alpha": 0.15,
+        "macro": 0.9807012034604631,
+        "jaccard": 0.6523888888888889,
+        "delta": 5.473505776887322e-05
+      },
+      {
+        "step": 2,
+        "name": "xgb_metastack",
+        "alpha": 0.3,
+        "macro": 0.9809500001235371,
+        "jaccard": 0.9986888888888888,
+        "delta": 0.0002487966630739802
+      },
+      {
+        "step": 3,
+        "name": "recipe_pseudolabel_seed7labeler",
+        "alpha": 0.05,
+        "macro": 0.9810578902271488,
+        "jaccard": 0.9975904761904761,
+        "delta": 0.00010789010361178519
+      },
+      {
+        "step": 4,
+        "name": "sklearn_rf_meta_natural_r10_with_tier1b",
+        "alpha": 0.05,
+        "macro": 0.9810688739191554,
+        "jaccard": 0.9993412698412698,
+        "delta": 1.0983692006583112e-05
+      },
+      {
+        "step": 5,
+        "name": "tier1b_greedy_meta",
+        "alpha": 0.3,
+        "macro": 0.9810822194855757,
+        "jaccard": 0.9992126984126984,
+        "delta": 1.3345566420297494e-05
+      },
+      {
+        "step": 6,
+        "name": "realmlp",
+        "alpha": 0.1,
+        "macro": 0.9811054822690687,
+        "jaccard": 0.9972031746031746,
+        "delta": 2.326278349296107e-05
+      }
+    ]
+  },
+  "0.05": {
+    "final_macro": 0.9810017367879493,
+    "lift_over_anchor": 0.0003552683852551253,
+    "path": [
+      {
+        "step": 0,
+        "name": "sklearn_rf_meta_natural",
+        "alpha": 1.0,
+        "macro": 0.9806464684026942,
+        "bias": [
+          -1.3333333333333335,
+          -1.0,
+          1.5
+        ]
+      },
+      {
+        "step": 1,
+        "name": "xgb_nonrule",
+        "alpha": 0.15,
+        "macro": 0.9807012034604631,
+        "jaccard": 0.6523888888888889,
+        "delta": 5.473505776887322e-05
+      },
+      {
+        "step": 2,
+        "name": "xgb_metastack",
+        "alpha": 0.3,
+        "macro": 0.9809500001235371,
+        "jaccard": 0.9986888888888888,
+        "delta": 0.0002487966630739802
+      },
+      {
+        "step": 3,
+        "name": "recipe_full_te_catboost_natural",
+        "alpha": 0.05,
+        "macro": 0.9810017367879493,
+        "jaccard": 0.9959190476190476,
+        "delta": 5.173666441227187e-05
+      }
+    ]
+  }
+}

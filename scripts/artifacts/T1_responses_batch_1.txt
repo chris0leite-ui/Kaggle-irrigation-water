@@ -1,0 +1,699 @@
+ROW 649996
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry soil, high rainfall, low wind, Flowering stage.
+
+ROW 761264
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.95
+REASON: Dry soil, high temp, Vegetative stage Kc=2.
+
+ROW 860042
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.96
+REASON: Dry soil, high temp, high wind, Flowering stage.
+
+ROW 838986
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.93
+REASON: Very dry, hot, high humidity buffers need slightly.
+
+ROW 848900
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, high rainfall threshold, Flowering marginal case.
+
+ROW 780341
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.94
+REASON: Dry, low rainfall, hot, Flowering stage triggered.
+
+ROW 897199
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet soil, mulching, Vegetative Kc=2 offset by wet.
+
+ROW 797918
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Wet soil reduces dry-stress score despite hot.
+
+ROW 709393
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry, high rainfall, windy, Vegetative stage Kc=2.
+
+ROW 752226
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Dry but high rainfall, mulching, Vegetative Kc=2.
+
+ROW 681433
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet soil, very hot, low rainfall, Vegetative Kc=2.
+
+ROW 867925
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Wet soil, high rainfall, mulching, Vegetative stage.
+
+ROW 722250
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry, high rainfall, mulching, Vegetative stage Kc=2.
+
+ROW 634757
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet soil, low rainfall threshold, mulching no wind.
+
+ROW 650021
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Dry, high rainfall, cold, windy, Flowering stage.
+
+ROW 676175
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, high rainfall, very hot, Flowering dry boundary.
+
+ROW 814308
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, very low rainfall, windy, Flowering stage.
+
+ROW 730784
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, low rainfall, cold, mulching, Vegetative stage.
+
+ROW 648765
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, cold, windy, Vegetative stage.
+
+ROW 764596
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry, low rainfall, cold, Flowering stage low-stress.
+
+ROW 712204
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, high rainfall, hot, windy, Flowering stage.
+
+ROW 671626
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, high rainfall, temperate, windy, Vegetative stage.
+
+ROW 801378
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Wet, temperate rainfall, hot, windy, Flowering stage.
+
+ROW 654936
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, high rainfall, hot, windy, Flowering mulching.
+
+ROW 667384
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very high rainfall, cold, Vegetative stage.
+
+ROW 891349
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, moderate rainfall, temperate, windy, Vegetative.
+
+ROW 636699
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very high rainfall, cold, Flowering stage low.
+
+ROW 745558
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry, high rainfall, cold, Flowering stage buffered.
+
+ROW 737695
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Wet, very low rainfall, cold, Flowering stage.
+
+ROW 873407
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, high rainfall, temperate, windy, Vegetative stage.
+
+ROW 884090
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, very high rainfall, temperate, windy, Flowering.
+
+ROW 745736
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, cold, Vegetative stage low need.
+
+ROW 854759
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, low rainfall, hot, windy, Vegetative mulching.
+
+ROW 767024
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Wet, very high rainfall, hot, Flowering stage triggered.
+
+ROW 684997
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Wet, high rainfall, very hot, Vegetative stage low.
+
+ROW 873868
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, high rainfall, temperate, Flowering stage buffered.
+
+ROW 642885
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Wet, moderate rainfall, very hot, Flowering stage.
+
+ROW 665450
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, low rainfall, very hot, Flowering stage triggered.
+
+ROW 861776
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, high rainfall, temperate, Flowering stage buffered.
+
+ROW 838007
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry, high rainfall, cold, Vegetative stage low need.
+
+ROW 703281
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, very high rainfall, cold, Flowering windy offset.
+
+ROW 774175
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Wet, very low rainfall, cold, Flowering mulching offset.
+
+ROW 762308
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, temperate, Flowering stage buffered.
+
+ROW 760312
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Wet, moderate rainfall, cold, Flowering windy offset.
+
+ROW 887771
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Very dry, moderate rainfall, cold, Flowering windy.
+
+ROW 898109
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, high rainfall, temperate, Vegetative windy stage.
+
+ROW 728894
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, high rainfall, very hot, Flowering stage triggered.
+
+ROW 731517
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry, high rainfall, hot, Vegetative stage Kc=2.
+
+ROW 809555
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, moderate rainfall, temperate, Vegetative windy.
+
+ROW 882324
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, very high rainfall, very hot, Flowering stage.
+
+ROW 815144
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry, moderate rainfall, temperate, Vegetative windy.
+
+ROW 778816
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, temperate, Harvest stage no Kc.
+
+ROW 655459
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very low rainfall, temperate, Harvest stage.
+
+ROW 632822
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, high rainfall, hot, Harvest stage no Kc.
+
+ROW 739708
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very low rainfall, temperate, Harvest stage.
+
+ROW 826177
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Wet soil, very high rainfall, Vegetative stage Kc.
+
+ROW 684629
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.89
+REASON: Dry, high rainfall, very hot, Harvest stage low.
+
+ROW 829526
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very low rainfall, hot, Harvest windy offset.
+
+ROW 846696
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, cold, Harvest stage no Kc.
+
+ROW 852601
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Wet, high rainfall, temperate, Flowering mulching.
+
+ROW 702131
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, very high rainfall, very hot, Flowering stage.
+
+ROW 632358
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, high rainfall, very hot, Harvest stage mulching.
+
+ROW 638754
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Very dry, high rainfall, temperate, Harvest stage.
+
+ROW 705011
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very low rainfall, cold, Flowering mulching.
+
+ROW 713927
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet soil, low rainfall, temperate, Sowing stage.
+
+ROW 727949
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet soil, very low rainfall, cold, Vegetative stage.
+
+ROW 863598
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very low rainfall, hot, Harvest stage no Kc.
+
+ROW 709675
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, low rainfall, hot, Vegetative stage Kc=2.
+
+ROW 896946
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Wet, very high rainfall, very hot, Sowing stage.
+
+ROW 839017
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very low rainfall, temperate, Harvest stage.
+
+ROW 797615
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, very high rainfall, temperate, Flowering stage.
+
+ROW 699953
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, cold, Harvest stage no Kc.
+
+ROW 706804
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very high rainfall, temperate, Flowering stage.
+
+ROW 852371
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Very dry, very high rainfall, cold, Harvest stage.
+
+ROW 637454
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Dry, moderate rainfall, hot, Sowing windy mulching.
+
+ROW 833106
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very high rainfall, temperate, Vegetative stage.
+
+ROW 635246
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, moderate rainfall, temperate, Harvest stage.
+
+ROW 716404
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very low rainfall, temperate, Harvest stage.
+
+ROW 812815
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, very low rainfall, hot, Vegetative stage Kc.
+
+ROW 853304
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, moderate rainfall, temperate, Sowing stage.
+
+ROW 771878
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Wet, very high rainfall, very hot, Sowing stage.
+
+ROW 861801
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, moderate rainfall, hot, Harvest stage no Kc.
+
+ROW 866760
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, moderate rainfall, temperate, Harvest stage.
+
+ROW 648113
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, high rainfall, very hot, Sowing stage low.
+
+ROW 651652
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, high rainfall, very hot, Sowing mulching stage.
+
+ROW 885851
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, high rainfall, very hot, Sowing stage low.
+
+ROW 834339
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, high rainfall, temperate, Vegetative stage.
+
+ROW 737517
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Very dry, very high rainfall, cold, Harvest stage.
+
+ROW 832308
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very high rainfall, cold, Flowering stage.
+
+ROW 836674
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, high rainfall, hot, Sowing windy mulching.
+
+ROW 883170
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, hot, Sowing mulching stage.
+
+ROW 801882
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very high rainfall, hot, Harvest stage mulching.
+
+ROW 717652
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very low rainfall, temperate, Sowing stage.
+
+ROW 816546
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, very high rainfall, hot, Flowering stage.
+
+ROW 830335
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Wet, very low rainfall, cold, Harvest stage.
+
+ROW 702819
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Very dry, moderate rainfall, cold, Harvest windy.
+
+ROW 839682
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, moderate rainfall, hot, Sowing stage low.
+
+ROW 692636
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Wet, high rainfall, temperate, Vegetative stage.
+
+ROW 781837
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.91
+REASON: Very dry, high rainfall, hot, Sowing stage low.
+
+ROW 851513
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Wet, moderate rainfall, temperate, Flowering stage.

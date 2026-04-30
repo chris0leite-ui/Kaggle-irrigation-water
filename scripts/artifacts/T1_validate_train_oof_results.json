@@ -1,0 +1,17 @@
+{
+  "n_train_oof_v1": 2979,
+  "v1_p_true_M": 0.8173883853642162,
+  "v1_p_true_H": 0.1822759315206445,
+  "v1_p_true_L": 0.0003356831151393085,
+  "v1_macro_after_override": 0.9755961852875462,
+  "v1_macro_delta": -0.005220311669363986,
+  "n_train_oof_v2": 2820,
+  "v2_p_true_M": 0.8124113475177305,
+  "v2_macro_after_override": 0.9756334038729922,
+  "v2_macro_delta": -0.005183093083917956,
+  "base_macro": 0.9808164969569102,
+  "v1_projected_test_precision_haircut": 0.6423883853642163,
+  "v2_projected_test_precision_haircut": 0.6374113475177305,
+  "n_t1_test_fire_4axis": 56,
+  "break_even_precision": 0.92
+}

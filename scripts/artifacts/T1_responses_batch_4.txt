@@ -1,0 +1,699 @@
+ROW 864381
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.92
+REASON: Dry soil, no rain, vegetative stage, high humidity moderates NN.
+
+ROW 874715
+RULE_SCORE: 7
+RULE_PRED: High
+FINAL: High
+CONF: 0.94
+REASON: Dry, hot, flowering, windy compensate for high rainfall.
+
+ROW 879396
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, hot, windy compensate for good previous irrigation and mulch.
+
+ROW 896727
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, hot, no mulch, but high humidity and prior irrigation may flip.
+
+ROW 781176
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Not dry, adequate rain, cool, low previous irrigation drives rule to low.
+
+ROW 717483
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, adequate rain, cool, vegetative avoids Kc boost.
+
+ROW 715111
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, adequate rain, cool, flowering Kc cancelled by other factors.
+
+ROW 838358
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, adequate rain, cool, flowering Kc offset by low multiplier sum.
+
+ROW 888964
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.89
+REASON: Not dry, adequate rain, cool, vegetative, low organic carbon.
+
+ROW 738611
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.88
+REASON: Not dry, excellent rain, cool, high humidity supports low classification.
+
+ROW 845069
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, some rain, hot, flowering, but high humidity protects.
+
+ROW 778301
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, adequate rain, cool, vegetative, windy offsets moisture slightly.
+
+ROW 761653
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Soil moisture at boundary, low rain, vegetative, mulched protects.
+
+ROW 790461
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, minimal rain, very hot, low organic carbon triggers NN flip potential.
+
+ROW 669068
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, low rain, hot, vegetative, low humidity supports medium.
+
+ROW 784230
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, moderate rain, cool, flowering, windy, low recent irrigation.
+
+ROW 895416
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.90
+REASON: Dry, low rain, hot, flowering, windy, but high humidity deters flip.
+
+ROW 796930
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Not dry, moderate rain, hot, vegetative, windy, high humidity provides buffer.
+
+ROW 725062
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Not dry, minimal rain, very hot, low humidity, low previous irrigation NN flip.
+
+ROW 670331
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, excellent rain, hot, flowering, high humidity protects from high.
+
+ROW 866481
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, adequate rain, hot, vegetative, windy, low organic carbon.
+
+ROW 775859
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, moderate rain, hot, vegetative, windy, but adequate carbon.
+
+ROW 812748
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.82
+REASON: Dry, low rain, very hot, vegetative, no mulch, low humidity NN overirrigate.
+
+ROW 635217
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Not dry, excellent rain, cool, vegetative, no multiplier drivers.
+
+ROW 850865
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, low rain, hot, flowering, but high humidity and adequate soil.
+
+ROW 818627
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, adequate rain, hot, vegetative, windy but high humidity moderates.
+
+ROW 795023
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Not dry, adequate rain, cool, vegetative, high humidity protects completely.
+
+ROW 785391
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Very dry, low rain, cool, vegetative, high humidity blocks NN flip.
+
+ROW 792369
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, very low rain, hot, harvest stage omits Kc, moderate humidity.
+
+ROW 653607
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, adequate rain, cool, flowering, low humidity supports low.
+
+ROW 645981
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, excellent rain, cool, flowering, but adequate humidity protects.
+
+ROW 893543
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, low rain, cool, flowering, windy, but high humidity blocks.
+
+ROW 798147
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: Dry, excellent rain, very hot, flowering, low humidity drives NN overirrigate.
+
+ROW 877029
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Not dry, low rain, hot, vegetative, but high humidity and adequate carbon.
+
+ROW 649189
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Not dry, low rain, hot, sowing stage, windy, adequate humidity.
+
+ROW 874931
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry, low rain, cool, flowering, high humidity and rain abundance protect.
+
+ROW 724547
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, excellent rain, hot, flowering, high humidity may moderate high.
+
+ROW 745627
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, excellent rain, hot, vegetative, low humidity but abundant rain.
+
+ROW 847227
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Very dry, adequate rain, cool, flowering, high humidity protects.
+
+ROW 667433
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, low rain, cool, vegetative, high humidity shields from dry.
+
+ROW 836723
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Very dry, adequate rain, cool, vegetative, high humidity prevents high.
+
+ROW 800488
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Not dry, low rain, hot, vegetative, low humidity supports medium.
+
+ROW 723850
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, very low rain, cool, flowering, low humidity, low prior irrigation.
+
+ROW 635999
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry, excellent rain, cool, vegetative, high humidity blocks drivers.
+
+ROW 897180
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Not dry, moderate rain, hot, flowering, windy, low humidity supports.
+
+ROW 757787
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.79
+REASON: Very dry, excellent rain, hot, vegetative, high humidity, low carbon NN flip.
+
+ROW 640639
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, low rain, hot, vegetative, windy, low humidity but adequate.
+
+ROW 827722
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Dry, excellent rain, hot, vegetative, low humidity and low carbon trigger.
+
+ROW 727317
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Not dry, moderate rain, hot, flowering, windy, adequate carbon.
+
+ROW 704670
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Very dry, excellent rain, cool, vegetative, high humidity completely blocks.
+
+ROW 870992
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Not dry, moderate rain, very hot, vegetative, low humidity drives medium.
+
+ROW 812111
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, excellent rain, cool, flowering, high humidity protects.
+
+ROW 824823
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Not dry, moderate rain, hot, vegetative, low humidity moderates.
+
+ROW 823563
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, excellent rain, hot, vegetative, low humidity, low prior irrigation.
+
+ROW 659691
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, excellent rain, hot, vegetative, adequate humidity and carbon.
+
+ROW 884457
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Very dry, excellent rain, hot, flowering, high humidity protects.
+
+ROW 839492
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, excellent rain, hot, vegetative, low humidity supports medium.
+
+ROW 680160
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, low rain, cool, sowing stage, high humidity protects.
+
+ROW 780373
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, excellent rain, hot, vegetative, moderate humidity balances.
+
+ROW 682908
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, low rain, hot, flowering, low humidity but adequate soil.
+
+ROW 842078
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Very dry, moderate rain, hot, vegetative, moderate humidity.
+
+ROW 805351
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Dry, moderate rain, very hot, vegetative, low humidity, low carbon NN.
+
+ROW 775494
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, moderate rain, very hot, flowering, low humidity offsets.
+
+ROW 780329
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, minimal rain, hot, flowering, high humidity protects.
+
+ROW 631411
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, low rain, hot, flowering, low humidity supports medium.
+
+ROW 725388
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, minimal rain, hot, vegetative, windy, low humidity.
+
+ROW 707197
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, moderate rain, cool, flowering, adequate humidity and carbon.
+
+ROW 813376
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, moderate rain, hot, vegetative, high humidity protects.
+
+ROW 770299
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Very dry, low rain, cool, flowering, windy, moderate humidity.
+
+ROW 684847
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Very dry, excellent rain, hot, flowering, high humidity, low carbon NN flip.
+
+ROW 894255
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Not dry, very low rain, hot, vegetative, windy, high humidity blocks.
+
+ROW 882541
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, moderate rain, cool, vegetative, windy, adequate humidity.
+
+ROW 872099
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry, moderate rain, cool, vegetative, adequate humidity and carbon.
+
+ROW 771701
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, excellent rain, cool, flowering, low humidity supports.
+
+ROW 640868
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Very dry, excellent rain, cool, flowering, high humidity protects.
+
+ROW 632566
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Very dry, moderate rain, cool, vegetative, high humidity blocks.
+
+ROW 870408
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Dry, excellent rain, cool, vegetative, low humidity but excellent rain.
+
+ROW 675060
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, low rain, cool, vegetative, windy, high humidity blocks.
+
+ROW 639103
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, moderate rain, hot, flowering, low humidity offsets by organic carbon.
+
+ROW 684514
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.79
+REASON: Dry, low rain, very hot, harvest omits Kc, low humidity drives NN flip.
+
+ROW 678891
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Not dry, low rain, hot, vegetative, moderate humidity balances.
+
+ROW 731564
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.77
+REASON: Dry, low rain, very hot, flowering, low humidity, low carbon NN.
+
+ROW 728390
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.78
+REASON: Not dry, low rain, very hot, flowering, low humidity and high carbon trigger.
+
+ROW 771895
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, moderate rain, cool, vegetative, windy, high humidity protects.
+
+ROW 764926
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, low rain, cool, flowering, windy, moderate humidity supports.
+
+ROW 692606
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Not dry, moderate rain, hot, flowering, moderate humidity balances.
+
+ROW 691682
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Very dry, low rain, hot, flowering, high humidity, adequate carbon.
+
+ROW 809272
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Dry, excellent rain, hot, vegetative, very high humidity blocks.
+
+ROW 642016
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Very dry, excellent rain, cool, flowering, very high humidity blocks.
+
+ROW 647041
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, low rain, very hot, vegetative, windy, adequate humidity.
+
+ROW 771223
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, moderate rain, hot, vegetative, very high humidity completely.
+
+ROW 753200
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, moderate rain, cool, flowering, adequate humidity and carbon.
+
+ROW 688250
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, moderate rain, cool, flowering, adequate humidity and carbon.
+
+ROW 757297
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, moderate rain, very hot, flowering, moderate humidity supports.
+
+ROW 682722
+RULE_SCORE: 1
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.93
+REASON: Not dry, low rain, cool, vegetative, low humidity but adequate carbon.
+
+ROW 690680
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.91
+REASON: Not dry, minimal rain, cool, vegetative, moderate humidity offsets.
+
+ROW 807403
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Not dry, low rain, hot, vegetative, low humidity supports medium.
+
+ROW 849721
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.90
+REASON: Dry, moderate rain, hot, vegetative, windy, high humidity protects.
+
+ROW 817157
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Not dry, excellent rain, cool, flowering, very high humidity blocks.
+
+ROW 786635
+RULE_SCORE: 2
+RULE_PRED: Low
+FINAL: Low
+CONF: 0.92
+REASON: Dry, low rain, cool, vegetative, moderate humidity, adequate carbon.
