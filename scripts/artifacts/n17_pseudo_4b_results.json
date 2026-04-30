@@ -1,0 +1,16 @@
+{
+  "tau": 0.99,
+  "n_pseudo_kept": 211418,
+  "n_pseudo_pct": 0.7830296296296296,
+  "OOF_argmax": 0.9624488428594482,
+  "OOF_tuned": 0.9717603712886583,
+  "PCR": [
+    0.9956287491518367,
+    0.9587784535332157,
+    0.9608739111809225
+  ],
+  "diff_oof_vs_v1": 6312,
+  "n_test_overrides_on_4b": 402,
+  "diff_test_vs_4b": 402,
+  "submission": "submissions/submission_n17_pseudo4b_layered.csv"
+}

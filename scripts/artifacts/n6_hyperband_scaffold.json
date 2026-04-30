@@ -1,0 +1,51 @@
+{
+  "is_smoke": false,
+  "n_trials": 150,
+  "n_folds": 5,
+  "hp_space": {
+    "depth": [
+      3,
+      4,
+      5
+    ],
+    "lr": [
+      0.02,
+      0.04,
+      0.05,
+      0.07,
+      0.1
+    ],
+    "reg_alpha": [
+      0.0,
+      1.0,
+      2.0,
+      5.0
+    ],
+    "reg_lambda": [
+      0.0,
+      1.0,
+      2.0,
+      5.0
+    ],
+    "orig_w": [
+      0.3,
+      0.5,
+      0.7,
+      1.0
+    ],
+    "smooth": [
+      "auto",
+      1.0,
+      5.0,
+      10.0
+    ]
+  },
+  "scaffold_only": true,
+  "production_ready": false,
+  "next_steps": [
+    "Inline FE+training from kernel_rawashishsin_v3/rawashishsin.py",
+    "Add HyperBand bracket scheduling",
+    "SMOKE locally; push as private Kaggle kernel",
+    "Run ~3h on T4 GPU; pull artifacts and add to natural-cal bank"
+  ]
+}

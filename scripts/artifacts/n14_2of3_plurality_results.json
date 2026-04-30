@@ -1,0 +1,39 @@
+{
+  "v1_baseline_OOF": 0.980628290879414,
+  "k2_unanimous_OOF": 0.9808783108317461,
+  "2of3_plurality_OOF": 0.9809255132225969,
+  "delta_2of3_vs_k2": 4.720239085076461e-05,
+  "delta_2of3_vs_v1": 0.0002972223431828569,
+  "n_oof_overrides": 946,
+  "n_test_overrides": 360,
+  "diff_vs_winner": 248,
+  "diff_vs_v1_anchor": 360,
+  "direction_stats": {
+    "Low->Medium": {
+      "n": 50,
+      "prec": 0.26,
+      "be": 0.39257394608458906
+    },
+    "Medium->Low": {
+      "n": 133,
+      "prec": 0.5714285714285714,
+      "be": 0.6074260539154108
+    },
+    "Medium->High": {
+      "n": 532,
+      "prec": 0.10150375939849623,
+      "be": 0.08077805931183507
+    },
+    "High->Low": {
+      "n": 1,
+      "prec": 1.0,
+      "be": 0.9462583711495269
+    },
+    "High->Medium": {
+      "n": 230,
+      "prec": 0.9521739130434783,
+      "be": 0.9192219406881649
+    }
+  },
+  "submission": "submissions/submission_n14_2of3_plurality.csv"
+}
