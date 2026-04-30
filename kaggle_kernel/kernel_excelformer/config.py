@@ -5,8 +5,8 @@ from pathlib import Path
 
 # IS_SMOKE: 2-fold/20k/2-epoch structural check
 # IS_PROBE: 1-fold full-data run for compute-budget validation
-IS_SMOKE = True   # SMOKE FIRST per CLAUDE.md rule
-IS_PROBE = False
+IS_SMOKE = False
+IS_PROBE = True   # 1-fold full-data magnitude-bar check
 SMOKE = IS_SMOKE or os.environ.get("SMOKE") == "1"
 PROBE = IS_PROBE or os.environ.get("PROBE") == "1"
 
