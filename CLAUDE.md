@@ -19,6 +19,39 @@ If you need a transient .npy (smoke / debug / scratch), name it
 with one of the ignored prefixes (`tmp_xxx.npy`, `scratch_xxx.npy`)
 or it WILL be tracked.
 
+## ⚠️ ALWAYS CHECK KAGGLE LB SUBMISSIONS BEFORE RECOMMENDING ANY CANDIDATE
+
+**Kaggle's `kaggle competitions submissions playground-series-s6e4` is
+the ONLY authoritative source of truth for what has been LB-tested
+and what score it got.** Git commit messages, CLAUDE.md prose, and
+session-log entries can lag behind, omit results, or describe
+candidates that were emitted but never submitted.
+
+**Mandatory pre-recommendation check**: before recommending ANY
+submission CSV as an "unprobed candidate" or "highest-EV next probe",
+run:
+```
+python scripts/lb_status.py | grep <filename>
+```
+or directly:
+```
+kaggle competitions submissions playground-series-s6e4
+```
+and verify the candidate filename does NOT appear in the list.
+
+If it appears, the LB score is the documented outcome — STOP, do not
+re-recommend, and surface the actual score to the user.
+
+Cost asymmetry: re-recommending an already-tested LB-regressor wastes
+user attention, can lead to a duplicate submission burning a slot,
+and erodes trust in the agent's analysis. The check costs <5 seconds.
+
+This rule was added 2026-04-30 after recommending
+`submission_rawashishsin_k4_overridden.csv` (already submitted at
+LB 0.98112, −0.00022 regression vs prior LB-best 0.98134) as a
+"highest-EV unprobed candidate" — the candidate had been probed
+and regressed 8 hours earlier, but I hadn't checked Kaggle's CLI.
+
 ## ⚠️ NEVER SUGGEST LOCKING FINAL SUBMISSIONS
 
 **Do not recommend "lock the 2 finals and stop"** in any form — not as a
@@ -4993,9 +5026,40 @@ architecture or feature view adds orthogonal bits at this base.
 
 ## Hypothesis board
 
-- **Current best (LB)**: `submission_tier1b_greedy_meta.csv` →
-  **LB 0.98094 / OOF tuned 0.98084** (gap **−0.00010** — LB above OOF,
-  first negative gap since digit-XGB era). Construction:
+- **Current best (LB)**: `submission_2other_raw_tier1b_k2.csv` →
+  **LB 0.98140 / OOF 0.98088** (gap **−0.00052**). Construction (per-row
+  hard argmax override on top of LB-best 4-stack):
+  ```
+  anchor  = LB-best 4-stack (lb3 + RealMLP + nonrule_iso + meta_iso, tuned bias)
+  others  = {rawashishsin v3 standalone, tier1b 4-stack standalone}
+  override_rule:  if BOTH others agree on a class != anchor's argmax,
+                  flip anchor's prediction to that class.
+  result:  145 test overrides
+              H→M:  88 (LB-best demoted by raw+tier1b unanimous)
+              M→L:  32
+              M→H:  14
+              L→M:  11
+  ```
+  Pack 0.98148 now only **+0.00008 above** (1bp from pack-busting);
+  leader 0.98219 only **+0.00079 above**. LB budget: 2/10 used today
+  (B + TC1 probes), 8 remaining.
+
+- **LB ladder (top of stack, latest):**
+  ```
+  rank  submission                                          LB        OOF       gap
+  ────  ──────────────────────────────────────────────────────────  ────────  ────────  ────────
+   1    submission_2other_raw_tier1b_k2.csv (override B)    0.98140   0.98088  -0.00052
+   2    submission_lbbest_overridden_by_unanimous_others    0.98134   ~0.98078 -0.00056   (k=4 unanimous)
+   3    submission_sklearn_rf_meta_natural_standalone       0.98129   0.98063  -0.00066   (v1 RF natural-cal meta)
+   4    submission_rawashishsin_2600_standalone.csv         0.98109   0.98016  -0.00093   (LB-validated OTHER)
+   5    submission_tier1b_greedy_meta.csv                   0.98094   0.98084  -0.00010   (LB-validated OTHER)
+   6    submission_3way_recipe025_s1035_s7040.csv           0.98005   0.98029  +0.00024
+   7    submission_recipe_greedy_recipe_pseudolabel.csv     0.97998   0.98012  +0.00014
+  ```
+
+- **Prior LB-best (own-pipeline, pre-override family)**:
+  `submission_tier1b_greedy_meta.csv` → LB 0.98094 / OOF 0.98084.
+  Construction:
   ```
   lb3      = log_blend(recipe_full_te, recipe_pseudolabel, recipe_pseudolabel_seed7labeler;
                        0.25/0.35/0.40)
@@ -5004,9 +5068,6 @@ architecture or feature view adds orthogonal bits at this base.
   final    = log_blend(stack2, xgb_metastack_iso;       0.70/0.30)     ← Tier-1b new step
   pred     = argmax(log(final) + [1.4324, 1.4689, 3.4008])
   ```
-  Pack 0.98114 now only **+0.00020 above**; leader 0.98219 only **+0.00125 above**.
-  LB budget: **3/10 used today** (3 = 1 recipe_full_te baseline from earlier,
-  1 LB-best-3-stack confirmation, 1 new probe). 7 remaining.
 
 - **Saturation status (2026-04-25 end-of-day)**: the new LB-best 4-stack
   is locally saturated against THREE independent attack vectors tested
@@ -19412,3 +19473,76 @@ stability, the T4 scaffold can be built quickly by mirroring
 `kaggle_kernel/kernel_rawashishsin_v3/` exactly with the pseudo-label
 filtering step added inline (similar pattern to
 `scripts/recipe_pseudolabel.py`'s pseudo subset construction).
+
+### 2026-04-30 — W3_MHonly winner-anchored ADD-H override: NULL (LB 0.98127, −0.00013)
+
+- Goal: surprise-options sweep ADDED on top of LB-best 0.98140 winner. Built
+  W3 = k=3 unanimous of {lb3, 3way, T4_pseudo} on winner anchor; the M→H
+  direction subset (W3_MHonly) was the strongest unprobed candidate after
+  H→M alone at +0.000008 OOF and the all-direction W3 at +0.000091. M→H
+  direction only: 42 test overrides, all Medium→High, OOF Δ +0.000113
+  vs winner anchor (OOF 0.98088 → 0.98099). OOF M→H precision 11.7% >
+  8.1% break-even.
+- LB submission (06:36 UTC): `submission_W3_MHonly.csv`
+  → **LB public = 0.98127**
+  Δ vs LB-best 0.98140 = **−0.00013** (regression).
+  OOF→LB gap = winner's −0.00052 → candidate's −0.00028 (gap NARROWED;
+  the candidate consumed 24bp of the anchor's LB-generous calibration).
+- **Cross-confirmation**: a parallel session today probed
+  `submission_tier_1_1_tc1_v1_k4_k2.csv` (16-row winner-anchored ADD-H
+  override using {v1_rf, k4} k=2 unanimous) and got **LB 0.98136** —
+  also regressing from 0.98140. Two independent winner-anchored ADD-H
+  mechanisms both regress.
+- **Diagnosis** (40th saturation confirmation, this time on the 0.98140
+  winner anchor): the k=2 unan {raw, tier1b} mechanism captured EXACTLY
+  the right set of overrides on v1. The winner's negative OOF→LB gap
+  (−0.00052) is structurally a function of WHICH 145 rows it chose to
+  override, not a margin to spend. Adding more M→H overrides — even at
+  OOF-validated above-break-even precision — narrows the gap because the
+  new overrides have lower test-side precision than the OOF estimate.
+- **Portable rule** (LEARNINGS.md candidate): "OOF M→H precision >
+  break-even is necessary but NOT sufficient for LB transfer when the
+  anchor is itself an override of a saturated stack. The override-family
+  carryover ratio inverts: anchors with negative OOF→LB gap (LB > OOF)
+  consume the gap as additional overrides are stacked, EVEN IF those
+  overrides are direction-positive at the OOF level. The signature of
+  this failure: candidate gap < anchor gap (in absolute value) by
+  more than +1bp per ~5 added overrides."
+- LB best UNCHANGED at **0.98140** via `submission_2other_raw_tier1b_k2.csv`.
+- LB budget today: 2/10 used (W3_MHonly + parallel TC1 attempt earlier),
+  8 remaining.
+- Mechanism family closed for winner-anchored ADD-H of any footprint.
+  All remaining unprobed ADD-H winner-anchored candidates on disk
+  (W3_HM_and_MH_only, W3_HMonly) project similar or worse outcomes.
+---
+
+## Session log addenda (modular, post-2026-04-29 cutoff)
+
+The session-log entries below were written as separate short files to
+keep CLAUDE.md from growing unbounded. **Read these for the current LB
+state and recent breakthroughs.** Each file is self-contained.
+
+- **2026-04-29 (evening) — k=4 unanimous override → NEW LB BEST 0.98134**
+  → `audit/2026-04-29-override-mechanism-0.98134.md`
+  First per-row hard-override mechanism. Broke prior closure rule
+  "REMOVE-High direction always LB-regresses" (net_H = −51 yet LB +0.00005).
+  Consensus signal hits 96% precision on H→M direction.
+
+- **2026-04-30 (early) — 2-OTHER k=2 unanimous → NEW LB BEST 0.98140**
+  → `audit/2026-04-30-override-saturation-0.98140.md`
+  Pack 0.98148 now +0.00008 above. Counter-intuitive carryover finding:
+  stricter consensus on the 2 most-distinct OTHERS (rawashishsin +
+  tier1b 4-stack) gives 0.52× transfer vs k=4 unanimous's 0.33×. TC1
+  follow-up confirmed override family is **saturated on this OTHERS pool**.
+
+- **2026-04-30 (final-day) — variants A/B/C + X1a + L2 + TabNet scaffolds**
+  → `audit/2026-04-30-final-day-followups.md`
+  Three more NULLs (soft router, ExtraTrees swap, router-as-feature).
+  L2 SupCon-NCM (paradigm-break: distance-based decision rule, no bias
+  retune) and TabNet (17th NN family) scaffolded but untested.
+
+**Current LB-best**: `submission_2other_raw_tier1b_k2.csv` → **LB 0.98140**.
+**Recommended hedge**: `submission_sklearn_rf_meta_natural_standalone_v1_lb98129.csv`
+→ LB 0.98129 (orthogonal failure mode — base architecture without
+override layer; primary's failure mode depends on consensus structure,
+hedge doesn't).
