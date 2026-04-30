@@ -1,0 +1,9 @@
+{
+  "B_OOF": 0.9808783108317461,
+  "n14_on_B_OOF": 0.9809255132225969,
+  "delta_n14_vs_B": 4.720239085076461e-05,
+  "n14_STRONG_on_B_OOF": 0.9809384695762077,
+  "delta_strong_vs_B": 6.0158744461524805e-05,
+  "n_test_overrides_ALL": 294,
+  "n_test_overrides_STRONG": 225
+}

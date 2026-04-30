@@ -1,0 +1,11 @@
+{
+  "v1_baseline_OOF": 0.980628290879414,
+  "k2_unanimous_OOF": 0.9808783108317461,
+  "2of3_ALL_OOF": 0.9809255132225969,
+  "2of3_STRONG_OOF": 0.9809508169124044,
+  "2of3_STRONG_plus_HL_OOF": 0.9809517180154446,
+  "STRONG_n_test_overrides": 285,
+  "STRONG_diff_vs_winner": 281,
+  "ALL_n_test_overrides": 360,
+  "ALL_diff_vs_winner": 248
+}
