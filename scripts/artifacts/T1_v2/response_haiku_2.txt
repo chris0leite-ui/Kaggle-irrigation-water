@@ -1,0 +1,370 @@
+ROW 4509612
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry soil; high humidity mitigates H-flip risk; bank conf strong.
+
+ROW 4511087
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, low humidity, low knn_consensus; mulching helps; stay M.
+
+ROW 4512275
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Moderate moisture, high rainfall; amh low; bank confident on M.
+
+ROW 4516292
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry soil; amh very high (0.982) signals low H-flip; stay M.
+
+ROW 4516884
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: High moisture, high rainfall, hot; bank conf 0.84 supports M.
+
+ROW 4519933
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Very dry, hot, low wind; high humidity mitigates; bank supports M.
+
+ROW 4522292
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry soil, low organic carbon 0.34, but high humidity rescues M.
+
+ROW 4522411
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry, hot; amh high 0.849 signals low H-flip; stay M.
+
+ROW 4525145
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, low temperature; high humidity 87.33; bank confident 0.817.
+
+ROW 4526278
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry soil; mulching helps; bank conf 0.809; moderate humidity.
+
+ROW 4528306
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: Dry, hot, but mulching + good organic carbon 0.48; low bank conf.
+
+ROW 4529370
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry, hot; high humidity 83.72; knn consensus 0.77 supports M.
+
+ROW 4530397
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, moderate temp; high humidity 71.38; bank confident 0.805.
+
+ROW 4530930
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry, hot; high humidity 72.85; amh very low 0.009 supports M.
+
+ROW 4531555
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, low humidity 25.19; high rainfall; bank conf 0.843 strong.
+
+ROW 4531734
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot; mulching helps; low knn_consensus but amh 0.176.
+
+ROW 4536275
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, hot; mulching + good humidity 71.35; amh high 0.839 helps.
+
+ROW 4538998
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry, hot, windy; mulching present; bank conf 0.844 strong.
+
+ROW 4539870
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry, hot, windy; mulching helps; bank confident 0.833.
+
+ROW 4542757
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, low temp; high humidity 88.07; previous irrigation good 108.19.
+
+ROW 4544663
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry; high knn_consensus 0.94; bank conf 0.845 very strong.
+
+ROW 4549719
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, low temp; high humidity 86.16; but low prior irrigation 20mm.
+
+ROW 4550726
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot; very high humidity 91.05 mitigates; amh low 0.015.
+
+ROW 4551367
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, moderate temp; high rainfall; bank conf 0.818 supports M.
+
+ROW 4552396
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Very dry, hot, windy; mulching + good humidity 25.32; bank 0.873.
+
+ROW 4559623
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, moderate temp; mulching helps; high humidity 79.52; bank 0.812.
+
+ROW 4561758
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot; high humidity 70.22; rainfall good 2027.57mm.
+
+ROW 4564121
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, low temp, windy; high humidity 89.63; bank conf 0.829.
+
+ROW 4566322
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry; low temp; high humidity 60.65; low bank conf 0.486.
+
+ROW 4566385
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Moderate moisture; mulching; very high humidity 92.22; bank 0.881.
+
+ROW 4568685
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Moderate moisture; low rainfall 226.24; high humidity 57.55; bank 0.823.
+
+ROW 4570954
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot; mulching helps; high rainfall 2312.91; bank 0.806.
+
+ROW 4579397
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry, hot; mulching helps; bank conf 0.861 very strong.
+
+ROW 4580018
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry; moderate temp; high humidity 66.33; bank conf 0.819.
+
+ROW 4580437
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, very hot; mulching helps; high humidity 73.84; bank 0.813.
+
+ROW 4584396
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry; moderate temp; mulching; high humidity 82.08; bank 0.807.
+
+ROW 4586483
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, very hot, windy; mulching helps; low humidity 26.29 risky.
+
+ROW 4593413
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Moderate moisture; moderate temp; bank conf 0.810 supports M.
+
+ROW 4595149
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry; low temp; high humidity 72.55; knn consensus 0.91 very strong.
+
+ROW 4595715
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Moderate moisture; low rainfall 156.56; mulching helps; bank 0.817.
+
+ROW 4596354
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry; low temp; high humidity 55.40; bank conf 0.815 supports M.
+
+ROW 4599532
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, moderate temp, very windy; knn consensus 0.83 strong.
+
+ROW 4599555
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot; low wind; high rainfall; bank conf 0.804.
+
+ROW 4601056
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry; low temp; good humidity 63.93; knn 0.82 strong.
+
+ROW 4602093
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry; moderate temp; very high humidity 92.03; bank conf 0.811.
+
+ROW 4606382
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: Medium
+CONF: 0.78
+REASON: Moderate moisture; low rainfall; very high humidity 92.87; bank 0.805.
+
+ROW 4611234
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Very dry, hot, windy; mulching helps; bank conf 0.811 supports M.
+
+ROW 4616640
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Very dry; low temp; moderate humidity 46.25; knn 0.79 supports M.
+
+ROW 4620386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry; low temp; good humidity 62.14; knn 0.91 very strong.
+
+ROW 4624705
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry; hot; mulching helps; good humidity 65.93; bank 0.785.
+
+ROW 4627093
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry; low temp; moderate humidity 44.87; knn 0.85 strong.
+
+ROW 4628447
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, moderate temp; low humidity 33.12; bank conf 0.859 very strong.
+
+ROW 4628951
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Very dry; low temp; high humidity 87.05; knn 0.83 strong.

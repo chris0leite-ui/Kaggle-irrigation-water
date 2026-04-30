@@ -1,0 +1,10 @@
+{
+  "n_v1_floor": 2979,
+  "n_critical": 253,
+  "n_critical_strict4": 25,
+  "n_boundary": 1007,
+  "critical_baseline_true_M": 0.8774703557312253,
+  "critical_baseline_true_H": 0.1225296442687747,
+  "strict4_baseline_true_M": 0.88,
+  "verdict": "PROCEED_TO_HAIKU"
+}

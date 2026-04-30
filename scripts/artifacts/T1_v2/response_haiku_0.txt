@@ -1,0 +1,699 @@
+ROW 4002953
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Humidity high, good knn consensus. Rule M stable.
+
+ROW 4003120
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry soil, strong bank agreement, knn_consensus high.
+
+ROW 4010986
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry soil but strong signals, high bank_conf, low amh.
+
+ROW 4012241
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry soil, high knn. Some amh elevation but bank agrees.
+
+ROW 4013342
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, windy, flowering. Rule M, bank M, knn solid.
+
+ROW 4014360
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.75
+REASON: Dry soil, very hot, low humidity. Over-irrigate signals.
+
+ROW 4015856
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry but high humidity offsets. knn_consensus 0.89.
+
+ROW 4017464
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Low amh, strong bank_conf. Rule M stable, knn good.
+
+ROW 4017875
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, flowering. Rule M, high bank and knn agreement.
+
+ROW 4020209
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, hot, windy but mulched. Bank 0.816 supports M.
+
+ROW 4026382
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry soil, dry humidity. High amh=0.613 weakly, knn OK.
+
+ROW 4031550
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry soil, low amh. Bank 0.810, knn 0.780 support M.
+
+ROW 4031880
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, high humidity. amh elevated but bank M, knn good.
+
+ROW 4033086
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Very hot, dry soil. amh high=0.724. Over-irrigate likely.
+
+ROW 4038754
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Very hot, dry soil, low humidity. amh=0.575, clear over-irrigate.
+
+ROW 4039468
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, hot, flowering. knn_consensus 0.880 strong. Bank M.
+
+ROW 4046635
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Rule 4, low amh. Very high bank_conf 0.894 overrides.
+
+ROW 4055137
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.76
+REASON: Very hot, dry, low humidity. amh=0.055 but bank only 0.857.
+
+ROW 4055414
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, high rainfall masks. knn 0.440 weak, amh low.
+
+ROW 4057760
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Very hot, dry soil, low humidity. Weak knn but signals.
+
+ROW 4060167
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Intermediate soil, very high humidity. High bank_conf.
+
+ROW 4061702
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Rule 4, very high humidity. High bank_conf 0.806.
+
+ROW 4063398
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, very hot, but mulched. knn 0.730, bank 0.830.
+
+ROW 4063722
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: Rule 5, low knn_consensus 0.020. Bank M weak signal.
+
+ROW 4064903
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.78
+REASON: High rainfall offsets heat. Bank 0.664 lower, knn 0.720.
+
+ROW 4066989
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, flowering. amh very high 0.805 but rule M.
+
+ROW 4067787
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, very hot. amh high 0.799, knn strong 0.800.
+
+ROW 4068826
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, cooling. High amh but bank 0.864, knn 0.760.
+
+ROW 4074828
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, low amh 0.053. Bank 0.840, knn weak 0.480.
+
+ROW 4076967
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, flowering. amh very high 0.758, bank 0.823.
+
+ROW 4079506
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Moderate moisture. Low knn 0.180, but bank 0.811.
+
+ROW 4079765
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, hot. High humidity and rainfall offset. Bank agrees.
+
+ROW 4081484
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh very high 0.739, but knn 0.780.
+
+ROW 4081521
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, warm, mulched. Bank 0.803, knn weak 0.530.
+
+ROW 4083858
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, flowering. amh high 0.674, but knn 0.700.
+
+ROW 4084068
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, cool. amh very high 0.846, knn strongest 0.900.
+
+ROW 4084924
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, hot. Low bank 0.663, knn 0.730 stabilizes.
+
+ROW 4097954
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry. amh very high 0.634, knn strong 0.800.
+
+ROW 4102181
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Very hot, dry. Low rainfall, amh 0.567. Signals high.
+
+ROW 4102332
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh very high 0.833, bank 0.842.
+
+ROW 4103561
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, cool, flowering. amh extreme 0.953, knn strongest.
+
+ROW 4112767
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Very hot, amh extreme 0.972. Clear over-irrigate signal.
+
+ROW 4118720
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.77
+REASON: Dry. Low bank_conf 0.581. knn 0.850 stabilizes slightly.
+
+ROW 4121905
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, warm, flowering. amh 0.634, bank 0.815.
+
+ROW 4128867
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, cool, flowering. amh very high 0.774, knn 0.810.
+
+ROW 4132718
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Very hot, dry, low knn 0.600. amh 0.177 weak.
+
+ROW 4135188
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.79
+REASON: Dry, cool. Low bank_conf 0.651, amh very low.
+
+ROW 4136441
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, cool. Very high bank_conf 0.877, knn 0.830.
+
+ROW 4141468
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.74
+REASON: Dry, very hot, flowering. amh very high 0.802.
+
+ROW 4142321
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, cool. Very high humidity. High bank_conf 0.810.
+
+ROW 4143892
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh 0.354 moderate, knn 0.770.
+
+ROW 4144788
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, warm, flowering. amh very high 0.799, bank 0.852.
+
+ROW 4150124
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, warm, flowering. amh 0.467 moderate, knn 0.750.
+
+ROW 4163825
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Dry, very hot, low humidity. Low knn 0.420, weak signals.
+
+ROW 4164479
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry. amh very high 0.848, knn 0.740.
+
+ROW 4166551
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, hot. Very high bank_conf 0.872, amh highest.
+
+ROW 4168475
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, cool. Very high humidity. knn 0.700, bank 0.810.
+
+ROW 4168876
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Intermediate moisture, very high humidity. High bank 0.860.
+
+ROW 4175496
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Dry, cool. Strong knn 0.900, bank 0.820.
+
+ROW 4176251
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, cool, flowering. Low knn but bank 0.815.
+
+ROW 4186919
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.81
+REASON: Dry, cool, windy. amh low 0.110, weak knn.
+
+ROW 4187552
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, very hot. Bank 0.823, knn 0.680 moderate.
+
+ROW 4189158
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Dry, hot, low humidity. amh 0.183, weak knn 0.350.
+
+ROW 4195644
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, cool, flowering. High humidity compensates. Bank agrees.
+
+ROW 4197257
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Low rainfall, dry. amh extreme 0.899, bank 0.824.
+
+ROW 4197928
+RULE_SCORE: 3
+RULE_PRED: Low
+FINAL: High
+CONF: 0.68
+REASON: Very low rainfall, very hot, extreme signals. Override.
+
+ROW 4200341
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.71
+REASON: Dry, very hot, low previous irrigation. amh 0.136.
+
+ROW 4200512
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, cool. Very high humidity, bank 0.828.
+
+ROW 4202697
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, warm. amh very high 0.851, knn 0.750.
+
+ROW 4204627
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Moderate moisture, very hot. High bank_conf 0.861.
+
+ROW 4205220
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh very high 0.683, bank 0.808.
+
+ROW 4210574
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.80
+REASON: Dry, cool, windy. Low bank 0.765, knn 0.700.
+
+ROW 4210782
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Intermediate moisture, very hot. Low knn 0.600, stable.
+
+ROW 4214923
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Moderate moisture, warm. Bank 0.865, knn 0.680.
+
+ROW 4215329
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Moderate moisture, very hot, high humidity. High bank.
+
+ROW 4215880
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool, windy. amh 0.621, bank 0.844.
+
+ROW 4219886
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, cool, flowering. amh 0.474, strong knn 0.890.
+
+ROW 4220888
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, cool, flowering. amh extreme 0.934, knn 0.830.
+
+ROW 4222290
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, warm, low knn 0.420. bank 0.831 stabilizes.
+
+ROW 4226861
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.82
+REASON: Dry, cool, windy. Very strong knn 0.930, low bank.
+
+ROW 4228420
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.88
+REASON: Low rainfall, cool. Very strong knn 0.930, bank 0.820.
+
+ROW 4228835
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Higher moisture, very hot, high humidity. Bank 0.872.
+
+ROW 4229962
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, very hot. High bank_conf 0.871, strong knn 0.810.
+
+ROW 4230065
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.85
+REASON: Dry, cool. Very high humidity. Strong knn 0.810.
+
+ROW 4231166
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Dry, very hot, low humidity. Low previous irrigation.
+
+ROW 4231216
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, very hot, high humidity. amh very high 0.818.
+
+ROW 4233303
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool, flowering. Very low amh 0.018, high knn.
+
+ROW 4233643
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, warm. amh very high 0.669, bank 0.816.
+
+ROW 4235612
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.73
+REASON: Dry, very hot, flowering. Low rainfall, low knn.
+
+ROW 4235814
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, cool. amh 0.332 moderate, knn 0.780.
+
+ROW 4237908
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Moderate moisture, very hot. Low knn 0.650, stable.
+
+ROW 4239428
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.86
+REASON: Dry, very hot. amh very high 0.850, bank 0.850.
+
+ROW 4241065
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.71
+REASON: Intermediate moisture, very hot, low knn 0.460.
+
+ROW 4245426
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh 0.477, knn 0.730.
+
+ROW 4246272
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, cool, flowering. amh 0.637, strong knn 0.820.
+
+ROW 4248192
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.72
+REASON: Dry, very hot. amh 0.398, low rainfall.
+
+ROW 4248321
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, warm. amh 0.668, bank 0.840.
+
+ROW 4250968
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.87
+REASON: Dry, cool, very high humidity. High bank_conf 0.851.
+
+ROW 4251935
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.84
+REASON: Dry, cool. amh very high 0.824, knn 0.750.
+
+ROW 4252386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.83
+REASON: Dry, cool, windy. amh 0.416, bank 0.816.
