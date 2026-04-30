@@ -1,0 +1,195 @@
+ROW 5559623
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: Bank 13M/1H, amh=0.14, Mulching=Yes reduces flip risk.
+
+ROW 5561758
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: All 3 sub_votes=H, 12M/2H split, hot temperature supports flip.
+
+ROW 5564121
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.75
+REASON: Unanimous 14M/0H bank, high humidity=89 counters flip.
+
+ROW 5566322
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.80
+REASON: 8M/6H split, all sub_votes=H, strong H-leaning bank.
+
+ROW 5566385
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H/1L bank, Mulching=Yes, high humidity=92 counters flip.
+
+ROW 5568685
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.65
+REASON: 13M/0H bank; raw=M, split sub_votes, amh=0.527 moderate.
+
+ROW 5570954
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/1H bank, Mulching=Yes, v1=M signal, amh low.
+
+ROW 5579397
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: Unanimous 14M/0H bank, Mulching=Yes, high Previous_Irrigation.
+
+ROW 5580018
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.71
+REASON: 13M/1H bank, Sowing stage Kc=0, amh=0.12 low flip risk.
+
+ROW 5580437
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/1H bank, Mulching=Yes, amh=0.13 low, high humidity.
+
+ROW 5584396
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: Unanimous 14M/0H but all 3 sub_votes=H; Flowering Kc=2 near boundary.
+
+ROW 5586483
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/0H/1L bank, Mulching=Yes, amh=0.10 low, v1=H but t1=M.
+
+ROW 5593413
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H/1L bank, amh=0.03 very low, nomin flip signals.
+
+ROW 5595149
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.68
+REASON: amh=0.596 elevated, sub_votes all H, Flowering stage supports flip.
+
+ROW 5595715
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.67
+REASON: 13M/0H/1L bank, raw=M, Mulching=Yes, amh=0.15 low.
+
+ROW 5596354
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.73
+REASON: 13M/0H/1L bank, amh=0.36 moderate, t1=M signal present.
+
+ROW 5599532
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/1H bank, amh=0.33 moderate, t1=M, low humidity=46.
+
+ROW 5599555
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: Unanimous 14M/0H but all 3 sub_votes=H, amh=0.65 high flip risk.
+
+ROW 5601056
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.68
+REASON: 13M/1H bank, amh=0.68 elevated but t1=M, humidity moderate.
+
+ROW 5602093
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.74
+REASON: 13M/1H bank, amh=0.13 low, high humidity=92 counters flip.
+
+ROW 5606382
+RULE_SCORE: 4
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.67
+REASON: 13M/0H/1L bank, raw=M, Mulching=Yes, high humidity=93.
+
+ROW 5611234
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.66
+REASON: Unanimous 14M/0H but all 3 sub_votes=H, amh=0.71 high flip risk.
+
+ROW 5616640
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.70
+REASON: 13M/0H/1L bank, amh=0.89 elevated but t1=M, Flowering Kc=2.
+
+ROW 5620386
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.71
+REASON: Unanimous 14M/0H, amh=0.96 high but t1=M, bank strongly M.
+
+ROW 5624705
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.65
+REASON: All 3 sub_votes=H, 12M/1H/1L split, Mulching=Yes but amh=0.12.
+
+ROW 5627093
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.70
+REASON: 11M/2H/1L split, all 3 sub_votes=H, amh=0.18 moderate.
+
+ROW 5628447
+RULE_SCORE: 5
+RULE_PRED: Medium
+FINAL: High
+CONF: 0.66
+REASON: Unanimous 14M/0H but all 3 sub_votes=H, low humidity=33, dry conditions.
+
+ROW 5628951
+RULE_SCORE: 6
+RULE_PRED: Medium
+FINAL: Medium
+CONF: 0.72
+REASON: 13M/1H bank, amh=0.19 low, high humidity=87, t1=M signal.
