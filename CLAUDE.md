@@ -19,6 +19,39 @@ If you need a transient .npy (smoke / debug / scratch), name it
 with one of the ignored prefixes (`tmp_xxx.npy`, `scratch_xxx.npy`)
 or it WILL be tracked.
 
+## ⚠️ ALWAYS CHECK KAGGLE LB SUBMISSIONS BEFORE RECOMMENDING ANY CANDIDATE
+
+**Kaggle's `kaggle competitions submissions playground-series-s6e4` is
+the ONLY authoritative source of truth for what has been LB-tested
+and what score it got.** Git commit messages, CLAUDE.md prose, and
+session-log entries can lag behind, omit results, or describe
+candidates that were emitted but never submitted.
+
+**Mandatory pre-recommendation check**: before recommending ANY
+submission CSV as an "unprobed candidate" or "highest-EV next probe",
+run:
+```
+python scripts/lb_status.py | grep <filename>
+```
+or directly:
+```
+kaggle competitions submissions playground-series-s6e4
+```
+and verify the candidate filename does NOT appear in the list.
+
+If it appears, the LB score is the documented outcome — STOP, do not
+re-recommend, and surface the actual score to the user.
+
+Cost asymmetry: re-recommending an already-tested LB-regressor wastes
+user attention, can lead to a duplicate submission burning a slot,
+and erodes trust in the agent's analysis. The check costs <5 seconds.
+
+This rule was added 2026-04-30 after recommending
+`submission_rawashishsin_k4_overridden.csv` (already submitted at
+LB 0.98112, −0.00022 regression vs prior LB-best 0.98134) as a
+"highest-EV unprobed candidate" — the candidate had been probed
+and regressed 8 hours earlier, but I hadn't checked Kaggle's CLI.
+
 ## ⚠️ NEVER SUGGEST LOCKING FINAL SUBMISSIONS
 
 **Do not recommend "lock the 2 finals and stop"** in any form — not as a

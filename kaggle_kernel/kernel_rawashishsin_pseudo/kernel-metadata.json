@@ -1,0 +1,19 @@
+{
+  "id": "chrisleitescha/irrigation-rawashishsin-pseudo",
+  "title": "irrigation-rawashishsin-pseudo",
+  "code_file": "rawashishsin_pseudo.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "miadul/irrigation-water-requirement-prediction-dataset",
+    "chrisleitescha/irrigation-t4-pseudo-labels"
+  ],
+  "competition_sources": [
+    "playground-series-s6e4"
+  ],
+  "kernel_sources": []
+}
