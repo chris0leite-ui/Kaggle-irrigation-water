@@ -1,0 +1,60 @@
+{
+  "n_flips_4b": 108,
+  "P1_per_model": {
+    "recipe_focal_g2h3": {
+      "votes_with_B": 2,
+      "votes_with_Bprime": 106,
+      "votes_other": 0
+    },
+    "recipe_focal_g2_aH1": {
+      "votes_with_B": 9,
+      "votes_with_Bprime": 99,
+      "votes_other": 0
+    },
+    "recipe_focal_g2_invfreq": {
+      "votes_with_B": 1,
+      "votes_with_Bprime": 107,
+      "votes_other": 0
+    },
+    "recipe_focal_effnum": {
+      "votes_with_B": 1,
+      "votes_with_Bprime": 107,
+      "votes_other": 0
+    }
+  },
+  "P2_focal_only_majority_on_flips": {
+    "agree_with_bank_maj_on_flips": 107,
+    "agree_with_B_on_flips": 1,
+    "neither_on_flips": 0
+  },
+  "P3_extended_bank_majority": {
+    "ext_maj_diff_from_bank_maj": 176,
+    "n_flips_under_ext_bank": 107,
+    "revoked_flips": 1,
+    "added_flips": 0
+  },
+  "P4_oof_global_agreement": {
+    "agree_rate": 0.9984428571428572,
+    "disagree_rows": 981,
+    "by_class": {
+      "L": {
+        "n": 369917,
+        "bank_acc": 0.9956936285707334,
+        "focal_acc": 0.9957314748984232,
+        "agree_rate": 0.9993836455204816
+      },
+      "M": {
+        "n": 239074,
+        "bank_acc": 0.9775216041894979,
+        "focal_acc": 0.9765009996904724,
+        "agree_rate": 0.997665994629278
+      },
+      "H": {
+        "n": 21009,
+        "bank_acc": 0.9519253653196249,
+        "focal_acc": 0.9469275072587938,
+        "agree_rate": 0.9907182636013138
+      }
+    }
+  }
+}
