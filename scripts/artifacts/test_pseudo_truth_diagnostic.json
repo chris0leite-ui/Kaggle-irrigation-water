@@ -1,0 +1,133 @@
+{
+  "n_test": 270000,
+  "level_sizes": {
+    "L1_all_4_LB_subs_agree": 269285,
+    "L2_LB4_and_14bank_agree": 268050,
+    "L3_LB4_14bank_agr85": 267158,
+    "L4_LB4_14bank_agr95": 175114
+  },
+  "accuracy_table": [
+    {
+      "level": "L1_all_4_LB_subs_agree",
+      "submission": "4b_LB_0.98150",
+      "n_pseudo": 269285,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L1_all_4_LB_subs_agree",
+      "submission": "B_LB_0.98140",
+      "n_pseudo": 269285,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L1_all_4_LB_subs_agree",
+      "submission": "v1_RF_LB_0.98129",
+      "n_pseudo": 269285,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L1_all_4_LB_subs_agree",
+      "submission": "rawashishsin_LB_0.98109",
+      "n_pseudo": 269285,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L2_LB4_and_14bank_agree",
+      "submission": "4b_LB_0.98150",
+      "n_pseudo": 268050,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L2_LB4_and_14bank_agree",
+      "submission": "B_LB_0.98140",
+      "n_pseudo": 268050,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L2_LB4_and_14bank_agree",
+      "submission": "v1_RF_LB_0.98129",
+      "n_pseudo": 268050,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L2_LB4_and_14bank_agree",
+      "submission": "rawashishsin_LB_0.98109",
+      "n_pseudo": 268050,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L3_LB4_14bank_agr85",
+      "submission": "4b_LB_0.98150",
+      "n_pseudo": 267158,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L3_LB4_14bank_agr85",
+      "submission": "B_LB_0.98140",
+      "n_pseudo": 267158,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L3_LB4_14bank_agr85",
+      "submission": "v1_RF_LB_0.98129",
+      "n_pseudo": 267158,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L3_LB4_14bank_agr85",
+      "submission": "rawashishsin_LB_0.98109",
+      "n_pseudo": 267158,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L4_LB4_14bank_agr95",
+      "submission": "4b_LB_0.98150",
+      "n_pseudo": 175114,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L4_LB4_14bank_agr95",
+      "submission": "B_LB_0.98140",
+      "n_pseudo": 175114,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L4_LB4_14bank_agr95",
+      "submission": "v1_RF_LB_0.98129",
+      "n_pseudo": 175114,
+      "accuracy": 1.0,
+      "errors": 0
+    },
+    {
+      "level": "L4_LB4_14bank_agr95",
+      "submission": "rawashishsin_LB_0.98109",
+      "n_pseudo": 175114,
+      "accuracy": 1.0,
+      "errors": 0
+    }
+  ],
+  "diff_4b_B": {
+    "n_diff": 108,
+    "v1_with_4b": 98,
+    "v1_with_B": 10,
+    "raw_with_4b": 47,
+    "raw_with_B": 61,
+    "v1_AND_bank_with_4b": 98,
+    "v1_AND_bank_with_B": 0,
+    "split": 10
+  }
+}

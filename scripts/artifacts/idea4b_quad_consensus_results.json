@@ -1,0 +1,14 @@
+{
+  "n_flips_4b": 108,
+  "n_flips_quad": 98,
+  "n_dropped": 10,
+  "diffs_vs_4b": 10,
+  "directions_quad": {
+    "L->M": 1,
+    "M->L": 1,
+    "H->M": 96
+  },
+  "net_h": -96,
+  "v1_agrees_pct": 0.9074074074074074,
+  "candidate_csv": "submissions/submission_idea4b_quad_consensus.csv"
+}
