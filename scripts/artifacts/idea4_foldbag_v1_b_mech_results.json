@@ -1,0 +1,20 @@
+{
+  "rf_bag_components": [
+    "sklearn_rf_meta_natural",
+    "rf_natural_v1_n1000_fs42",
+    "rf_natural_v1_n500_fs7",
+    "rf_natural_v1_n500_fs123"
+  ],
+  "diff_bagged_vs_single_seed": 48,
+  "n_override": 121,
+  "diff_b_prime_vs_b": 151,
+  "directions_b_to_b_prime": {
+    "L->M": 44,
+    "M->L": 2,
+    "H->M": 105
+  },
+  "net_h": -105,
+  "h_added": 0,
+  "h_removed": 105,
+  "candidate_csv": "submissions/submission_idea4_foldbag_v1_b_mech.csv"
+}

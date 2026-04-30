@@ -1,0 +1,13 @@
+{
+  "n_flips": 108,
+  "directions": {
+    "L->M": 2,
+    "M->L": 1,
+    "H->M": 105
+  },
+  "net_h": -105,
+  "h_added": 0,
+  "h_removed": 105,
+  "stability_p50_on_flips": 0.9285714030265808,
+  "candidate_csv": "submissions/submission_idea4b_selective_override.csv"
+}

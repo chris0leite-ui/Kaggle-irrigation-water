@@ -19474,6 +19474,46 @@ stability, the T4 scaffold can be built quickly by mirroring
 filtering step added inline (similar pattern to
 `scripts/recipe_pseudolabel.py`'s pseudo subset construction).
 
+### 2026-04-30 — W3_MHonly winner-anchored ADD-H override: NULL (LB 0.98127, −0.00013)
+
+- Goal: surprise-options sweep ADDED on top of LB-best 0.98140 winner. Built
+  W3 = k=3 unanimous of {lb3, 3way, T4_pseudo} on winner anchor; the M→H
+  direction subset (W3_MHonly) was the strongest unprobed candidate after
+  H→M alone at +0.000008 OOF and the all-direction W3 at +0.000091. M→H
+  direction only: 42 test overrides, all Medium→High, OOF Δ +0.000113
+  vs winner anchor (OOF 0.98088 → 0.98099). OOF M→H precision 11.7% >
+  8.1% break-even.
+- LB submission (06:36 UTC): `submission_W3_MHonly.csv`
+  → **LB public = 0.98127**
+  Δ vs LB-best 0.98140 = **−0.00013** (regression).
+  OOF→LB gap = winner's −0.00052 → candidate's −0.00028 (gap NARROWED;
+  the candidate consumed 24bp of the anchor's LB-generous calibration).
+- **Cross-confirmation**: a parallel session today probed
+  `submission_tier_1_1_tc1_v1_k4_k2.csv` (16-row winner-anchored ADD-H
+  override using {v1_rf, k4} k=2 unanimous) and got **LB 0.98136** —
+  also regressing from 0.98140. Two independent winner-anchored ADD-H
+  mechanisms both regress.
+- **Diagnosis** (40th saturation confirmation, this time on the 0.98140
+  winner anchor): the k=2 unan {raw, tier1b} mechanism captured EXACTLY
+  the right set of overrides on v1. The winner's negative OOF→LB gap
+  (−0.00052) is structurally a function of WHICH 145 rows it chose to
+  override, not a margin to spend. Adding more M→H overrides — even at
+  OOF-validated above-break-even precision — narrows the gap because the
+  new overrides have lower test-side precision than the OOF estimate.
+- **Portable rule** (LEARNINGS.md candidate): "OOF M→H precision >
+  break-even is necessary but NOT sufficient for LB transfer when the
+  anchor is itself an override of a saturated stack. The override-family
+  carryover ratio inverts: anchors with negative OOF→LB gap (LB > OOF)
+  consume the gap as additional overrides are stacked, EVEN IF those
+  overrides are direction-positive at the OOF level. The signature of
+  this failure: candidate gap < anchor gap (in absolute value) by
+  more than +1bp per ~5 added overrides."
+- LB best UNCHANGED at **0.98140** via `submission_2other_raw_tier1b_k2.csv`.
+- LB budget today: 2/10 used (W3_MHonly + parallel TC1 attempt earlier),
+  8 remaining.
+- Mechanism family closed for winner-anchored ADD-H of any footprint.
+  All remaining unprobed ADD-H winner-anchored candidates on disk
+  (W3_HM_and_MH_only, W3_HMonly) project similar or worse outcomes.
 ---
 
 ## Session log addenda (modular, post-2026-04-29 cutoff)
@@ -19506,3 +19546,66 @@ state and recent breakthroughs.** Each file is self-contained.
 → LB 0.98129 (orthogonal failure mode — base architecture without
 override layer; primary's failure mode depends on consensus structure,
 hedge doesn't).
+
+### 2026-04-30 — 🎉 NEW LB BEST 0.98150 (above pack 0.98148): Idea 4b triple-consensus selective override
+
+After 18 NN family nulls (TabNet 17th, ExcelFormer 18th — both magnitude
+trapped) and L2 SupCon-NCM null (38th saturation), the user pushed for
+"+0.001 lift, no giving up". The breakthrough came from combining three
+independent consensus axes that had each been tested individually:
+
+**Mechanism (load-bearing differentiator)**:
+- Anchor: B (LB 0.98140) — current LB-best
+- bagged_v1' = log-blend(geomean) of 4 RF natural variants:
+  v1_orig + n1000_fs42 + n500_fs7 + n500_fs123 at prob level
+- Override fires ONLY where ALL THREE consensus axes agree:
+  (a) bagged_v1' argmax differs from B's argmax
+  (b) {rawashishsin v3, tier1b 4-stack} unanimously say bagged_v1's class
+  (c) 14-component LB-validated bank majority confirms the class
+- 108 selective flips total (105 H→M, 2 L→M, 1 M→L). Net_H = −105.
+
+**LB result** (`submission_idea4b_selective_override.csv`):
+- LB public: **0.98150** (NEW LB BEST, above pack 0.98148 by +0.00002)
+- Δ vs B = +0.00010
+- Total comp lift: 0.96972 (kickoff) → 0.98150 = **+0.01178 LB**
+- Implied precision: ~93.4% on the 105 H→M overrides (back-out from
+  macro_delta = +0.00010 = (105 × p / N_M_test - 105 × (1-p) / N_H_test) / 3)
+
+**Why this worked when prior REMOVE-H attempts didn't**:
+- W3_MHonly (M→H direction, opposite): LB 0.98127, NULL at break-even
+- TC1 (M→H ADD): LB 0.98136, magnitude trap
+- Original 0.98134 mech: 4-OTHER unanimous gave 95.6% precision on H→M
+- This filter is stricter (4 RF variants AND 2 OTHERS unanimous AND
+  14-bank majority) — adds independent verification axes
+- Targets 105 rows B missed because single-seed v1 was firmly H;
+  fold-seed bagging shifted these to M, exposing them to override
+
+**Three new portable rules** (LEARNINGS.md candidates):
+1. **Triple-consensus filter on H→M direction is the highest-precision
+   override mechanism on this comp.** Stricter than any prior single-
+   axis or dual-axis consensus. Achieves implied precision 93-95% on
+   targeted rows even when individual axes are looser (each individual
+   axis would be ~85-90% precision alone).
+2. **Fold-seed bagging at the BASE level (geomean of 4 RF natural
+   variants) shifts ~40-50 row argmaxes vs single-seed.** The shifted
+   rows are exactly the ones where bagging variance was highest —
+   these are the boundary rows where override mechanisms can extract
+   marginal signal. Combined with consensus filtering, these shifts
+   become net-positive flips.
+3. **The 14-component LB-validated bank majority (stability diagnostic)
+   is a leak-free, cheap independent verification axis** for override
+   mechanisms. Use as a final sanity check on flips proposed by other
+   mechanisms; it eliminates the "consensus among correlated subs"
+   trap by drawing from structurally diverse bank components.
+
+**Final-selection lock recommendation** (deadline today):
+- **PRIMARY**: `submission_idea4b_selective_override.csv` → **LB 0.98150**
+- **HEDGE**: `submission_2other_raw_tier1b_k2.csv` → LB 0.98140
+  (one mechanism layer below — if 4b's H→M flips overfit private LB,
+  B is the cleanly-validated 0.98140 baseline)
+
+LB budget today: 4/10 used (B, TC1, W3_MHonly merged from main, 4b),
+6 remaining for end-of-comp variance check or further iteration.
+
+Pack 0.98148: now +0.00002 BELOW us.
+Leader (Cdeotte) 0.98219: +0.00069 above.
