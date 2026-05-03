@@ -22,6 +22,26 @@ explicit per-call human confirmation.**
 - Submission-budget management is needed.
 - The user types `/kaggle-comp` or asks "what next on this comp?".
 
+### Kickoff trigger (highest-priority routing)
+
+If the user says any of:
+
+- "let's do the kickoff" / "do the kickoff" / "kickoff"
+- "start a new comp" / "start a new competition"
+- "set up <comp-slug>" / "set up the new kaggle"
+- "/kickoff" or "/kaggle-kickoff"
+
+…then load [kickoff-runbook.md](kickoff-runbook.md) and follow it
+step-by-step. The kickoff is conversational free-form: each numbered
+step is one chat turn or one Bash batch. Wait for PI reply between
+turns. Never invoke `kaggle competitions submit` without the
+explicit Q6 ask-PI gate.
+
+The kickoff scaffolds a fresh comp repo, fills `comp-context.md`
+from the Kaggle API, runs EDA + a baseline LGBM, asks PI before the
+first LB submit, and writes a Day-1 audit. End-of-Day-1 hands off
+to the day-loop in [loops.md](loops.md).
+
 ## What to load (in order)
 
 1. **`comp-context.md`** at the comp repo root. Settled-once facts.
@@ -72,7 +92,10 @@ If CLAUDE.md is > 50k tokens, archive it before doing anything else.
 
 | File | Purpose |
 |---|---|
-| [kickoff.md](kickoff.md) | Day-1 checklist for a new comp |
+| [kickoff-runbook.md](kickoff-runbook.md) | Agent step-by-step kickoff (load on kickoff trigger) |
+| [kickoff-bash.md](kickoff-bash.md) | Bash batches the runbook references |
+| [kickoff.md](kickoff.md) | Day-1 human-facing checklist (background reading) |
+| [templates/](templates/) | Files copied into the new comp repo by the runbook |
 | [guardrails.md](guardrails.md) | The 11 invariants |
 | [personas.md](personas.md) | Persona rotation prompts |
 | [loops.md](loops.md) | The 5 loops (day / experiment / calibration / research / weekly) |

@@ -1,0 +1,56 @@
+# Renamed during kickoff to .gitignore. The kickoff agent does this
+# rename so this file does not get matched by the parent repo's
+# .gitignore patterns.
+
+# Data — keep placeholders, ignore content
+data/*
+!data/.gitkeep
+
+# Submissions — only final submission CSVs tracked
+submissions/*
+!submissions/.gitkeep
+!submissions/submission_*.csv
+
+# Common data formats
+*.csv
+*.zip
+*.parquet
+*.feather
+*.h5
+
+# Override: final Kaggle submission CSVs are committed
+!submissions/submission_*.csv
+
+# Inverted artifact-tracking policy (see CLAUDE.md):
+# Default-track .npy and .json under scripts/artifacts/.
+# Ignore per-fold checkpoints, transient prefixes, logs.
+scripts/artifacts/*.log
+scripts/artifacts/*.db
+scripts/artifacts/*.pkl
+scripts/artifacts/*_fold[0-9]*.npy
+scripts/artifacts/*_fold[0-9]*.json
+scripts/artifacts/_smoke_*.npy
+scripts/artifacts/_smoke_*.json
+scripts/artifacts/tmp_*.npy
+scripts/artifacts/scratch_*.npy
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+
+# Kaggle credentials
+.kaggle/
+
+# Claude Code local settings (may contain secrets)
+.claude/settings.local.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS noise
+.DS_Store
+Thumbs.db

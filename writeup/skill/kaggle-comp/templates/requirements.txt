@@ -1,0 +1,14 @@
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn
+scipy
+matplotlib
+pytest
+
+# Tabular models
+lightgbm
+xgboost
+# catboost   # uncomment if needed
+
+# Kaggle CLI
+kaggle>=1.6.0
