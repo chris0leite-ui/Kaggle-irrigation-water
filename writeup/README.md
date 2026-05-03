@@ -31,6 +31,8 @@ Two surfaces, share content:
 | The 60-second summary | [postmortem/01-overview.md](postmortem/01-overview.md) |
 | What actually moved the LB | [postmortem/03-what-worked.md](postmortem/03-what-worked.md) |
 | Where coordination broke | [postmortem/05-coordination.md](postmortem/05-coordination.md) |
+| Final standing + private-LB shake | [postmortem/06-final-results.md](postmortem/06-final-results.md) |
+| Recommendations for next comp | [postmortem/07-next-comp-recommendations.md](postmortem/07-next-comp-recommendations.md) |
 | The framework spec | [framework/README.md](framework/README.md) |
 | To set up next comp | [framework/14-kickoff-playbook.md](framework/14-kickoff-playbook.md) |
 | Just the rules | [framework/12-guardrails.md](framework/12-guardrails.md) |
